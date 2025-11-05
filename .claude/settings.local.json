@@ -7,7 +7,12 @@
       "Bash(curl:*)",
       "Bash(git init:*)",
       "Bash(del nul 2)",
-      "Bash(NUL)"
+      "Bash(NUL)",
+      "Bash(gh repo create:*)",
+      "Bash(gh run list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
