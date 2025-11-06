@@ -77,11 +77,12 @@ dependencies {
     // Firebase - using autolinking via @react-native-firebase packages
     // No manual implementation needed, handled by React Native autolinking
 
-    debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
-    debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
+    def flipperVersion = project.findProperty('FLIPPER_VERSION') ?: '0.182.0'
+    debugImplementation("com.facebook.flipper:flipper:${flipperVersion}")
+    debugImplementation("com.facebook.flipper:flipper-network-plugin:${flipperVersion}") {
         exclude group:'com.squareup.okhttp3', module:'okhttp'
     }
-    debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}")
+    debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${flipperVersion}")
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
