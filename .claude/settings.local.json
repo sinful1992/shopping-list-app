@@ -12,7 +12,13 @@
       "Bash(gh run list:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(gh secret set:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(npm view:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh run view:*)",
+      "WebFetch(domain:react-native-community.github.io)"
     ],
     "deny": [],
     "ask": []
