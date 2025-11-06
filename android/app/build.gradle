@@ -67,7 +67,8 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:flipper-integration")
 
-    if (hermesEnabled.toBoolean()) {
+    def hermesEnabled = (project.findProperty('hermesEnabled')?.toBoolean()) ?: true
+    if (hermesEnabled) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
