@@ -74,26 +74,8 @@ dependencies {
         implementation jscFlavor
     }
 
-    // Firebase
-    implementation platform('com.google.firebase:firebase-bom:32.3.1')
-    implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-database'
-    implementation 'com.google.firebase:firebase-storage'
-    implementation 'com.google.firebase:firebase-analytics'
-
-    // React Native Firebase
-    implementation project(':@react-native-firebase_app')
-    implementation project(':@react-native-firebase_auth')
-    implementation project(':@react-native-firebase_database')
-    implementation project(':@react-native-firebase_storage')
-
-    // WatermelonDB
-    implementation project(':@nozbe_watermelondb')
-
-    // React Native Community packages
-    implementation project(':react-native-safe-area-context')
-    implementation project(':@react-native-async-storage_async-storage')
-    implementation project(':react-native-document-scanner-plugin')
+    // Firebase - using autolinking via @react-native-firebase packages
+    // No manual implementation needed, handled by React Native autolinking
 
     debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
     debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
