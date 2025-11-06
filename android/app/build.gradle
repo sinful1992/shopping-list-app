@@ -18,6 +18,11 @@ def enableProguardInReleaseBuilds = true
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
+/**
+ * Hermes engine enabled by default for React Native 0.74+
+ */
+project.ext.hermesEnabled = (findProperty('hermesEnabled')?.toBoolean()) ?: true
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -67,8 +72,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation("com.facebook.react:flipper-integration")
 
-    def hermesEnabled = (project.findProperty('hermesEnabled')?.toBoolean()) ?: true
-    if (hermesEnabled) {
+    if (project.ext.hermesEnabled) {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
