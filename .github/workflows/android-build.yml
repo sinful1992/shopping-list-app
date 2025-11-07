@@ -78,6 +78,12 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
 
+      - name: Update heap settings in android/gradle.properties
+        run: |
+          echo "" >> android/gradle.properties
+          echo "# Increased heap for CI build to handle R8 code shrinking" >> android/gradle.properties
+          echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+UseParallelGC -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
+
       - name: Add keystore properties to gradle.properties
         if: github.event_name != 'pull_request'
         run: |
