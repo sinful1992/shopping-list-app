@@ -6,6 +6,8 @@ apply plugin: "com.google.gms.google-services"
  * This is the configuration block to customize your React Native Android app.
  */
 react {
+    // Bundle JS in debug builds so the APK works standalone without Metro
+    bundleInDebug = true
 }
 
 /**
