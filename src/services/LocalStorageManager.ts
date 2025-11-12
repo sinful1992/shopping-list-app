@@ -59,7 +59,7 @@ class LocalStorageManager {
             record.name = list.name;
             record.familyGroupId = list.familyGroupId;
             record.createdBy = list.createdBy;
-            record.createdAt = list.createdAt;
+            // createdAt is @readonly and automatically set by WatermelonDB
             record.status = list.status;
             record.completedAt = list.completedAt;
             record.receiptUrl = list.receiptUrl;
@@ -233,7 +233,7 @@ class LocalStorageManager {
             record.quantity = item.quantity;
             record.checked = item.checked;
             record.createdBy = item.createdBy;
-            record.createdAt = item.createdAt;
+            // createdAt is @readonly and automatically set by WatermelonDB
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
           });
