@@ -39,32 +39,35 @@ class LocalStorageManager {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
 
       let listRecord;
-      try {
-        listRecord = await listsCollection.find(list.id);
-        // Update existing
-        await listRecord.update((record) => {
-          record.name = list.name;
-          record.status = list.status;
-          record.completedAt = list.completedAt;
-          record.receiptUrl = list.receiptUrl;
-          record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-          record.syncStatus = list.syncStatus;
-        });
-      } catch {
-        // Create new
-        listRecord = await listsCollection.create((record) => {
-          record._raw.id = list.id;
-          record.name = list.name;
-          record.familyGroupId = list.familyGroupId;
-          record.createdBy = list.createdBy;
-          record.createdAt = list.createdAt;
-          record.status = list.status;
-          record.completedAt = list.completedAt;
-          record.receiptUrl = list.receiptUrl;
-          record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-          record.syncStatus = list.syncStatus;
-        });
-      }
+
+      await this.database.write(async () => {
+        try {
+          listRecord = await listsCollection.find(list.id);
+          // Update existing
+          await listRecord.update((record) => {
+            record.name = list.name;
+            record.status = list.status;
+            record.completedAt = list.completedAt;
+            record.receiptUrl = list.receiptUrl;
+            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+            record.syncStatus = list.syncStatus;
+          });
+        } catch {
+          // Create new
+          listRecord = await listsCollection.create((record) => {
+            record._raw.id = list.id;
+            record.name = list.name;
+            record.familyGroupId = list.familyGroupId;
+            record.createdBy = list.createdBy;
+            record.createdAt = list.createdAt;
+            record.status = list.status;
+            record.completedAt = list.completedAt;
+            record.receiptUrl = list.receiptUrl;
+            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+            record.syncStatus = list.syncStatus;
+          });
+        }
+      });
 
       return this.listModelToType(listRecord);
     } catch (error: any) {
@@ -164,15 +167,17 @@ class LocalStorageManager {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
       const listRecord = await listsCollection.find(listId);
 
-      await listRecord.update((record) => {
-        if (updates.name !== undefined) record.name = updates.name;
-        if (updates.status !== undefined) record.status = updates.status;
-        if (updates.completedAt !== undefined) record.completedAt = updates.completedAt;
-        if (updates.receiptUrl !== undefined) record.receiptUrl = updates.receiptUrl;
-        if (updates.receiptData !== undefined) {
-          record.receiptData = updates.receiptData ? JSON.stringify(updates.receiptData) : null;
-        }
-        if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+      await this.database.write(async () => {
+        await listRecord.update((record) => {
+          if (updates.name !== undefined) record.name = updates.name;
+          if (updates.status !== undefined) record.status = updates.status;
+          if (updates.completedAt !== undefined) record.completedAt = updates.completedAt;
+          if (updates.receiptUrl !== undefined) record.receiptUrl = updates.receiptUrl;
+          if (updates.receiptData !== undefined) {
+            record.receiptData = updates.receiptData ? JSON.stringify(updates.receiptData) : null;
+          }
+          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+        });
       });
 
       return this.listModelToType(listRecord);
@@ -188,7 +193,9 @@ class LocalStorageManager {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
       const listRecord = await listsCollection.find(listId);
-      await listRecord.markAsDeleted();
+      await this.database.write(async () => {
+        await listRecord.markAsDeleted();
+      });
     } catch (error: any) {
       throw new Error(`Failed to delete list: ${error.message}`);
     }
@@ -205,30 +212,33 @@ class LocalStorageManager {
       const itemsCollection = this.database.get<ItemModel>('items');
 
       let itemRecord;
-      try {
-        itemRecord = await itemsCollection.find(item.id);
-        // Update existing
-        await itemRecord.update((record) => {
-          record.name = item.name;
-          record.quantity = item.quantity;
-          record.checked = item.checked;
-          record.updatedAt = item.updatedAt;
-          record.syncStatus = item.syncStatus;
-        });
-      } catch {
-        // Create new
-        itemRecord = await itemsCollection.create((record) => {
-          record._raw.id = item.id;
-          record.listId = item.listId;
-          record.name = item.name;
-          record.quantity = item.quantity;
-          record.checked = item.checked;
-          record.createdBy = item.createdBy;
-          record.createdAt = item.createdAt;
-          record.updatedAt = item.updatedAt;
-          record.syncStatus = item.syncStatus;
-        });
-      }
+
+      await this.database.write(async () => {
+        try {
+          itemRecord = await itemsCollection.find(item.id);
+          // Update existing
+          await itemRecord.update((record) => {
+            record.name = item.name;
+            record.quantity = item.quantity;
+            record.checked = item.checked;
+            record.updatedAt = item.updatedAt;
+            record.syncStatus = item.syncStatus;
+          });
+        } catch {
+          // Create new
+          itemRecord = await itemsCollection.create((record) => {
+            record._raw.id = item.id;
+            record.listId = item.listId;
+            record.name = item.name;
+            record.quantity = item.quantity;
+            record.checked = item.checked;
+            record.createdBy = item.createdBy;
+            record.createdAt = item.createdAt;
+            record.updatedAt = item.updatedAt;
+            record.syncStatus = item.syncStatus;
+          });
+        }
+      });
 
       return this.itemModelToType(itemRecord);
     } catch (error: any) {
@@ -276,12 +286,14 @@ class LocalStorageManager {
       const itemsCollection = this.database.get<ItemModel>('items');
       const itemRecord = await itemsCollection.find(itemId);
 
-      await itemRecord.update((record) => {
-        if (updates.name !== undefined) record.name = updates.name;
-        if (updates.quantity !== undefined) record.quantity = updates.quantity;
-        if (updates.checked !== undefined) record.checked = updates.checked;
-        if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
-        if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+      await this.database.write(async () => {
+        await itemRecord.update((record) => {
+          if (updates.name !== undefined) record.name = updates.name;
+          if (updates.quantity !== undefined) record.quantity = updates.quantity;
+          if (updates.checked !== undefined) record.checked = updates.checked;
+          if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
+          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+        });
       });
 
       return this.itemModelToType(itemRecord);
@@ -297,7 +309,9 @@ class LocalStorageManager {
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
       const itemRecord = await itemsCollection.find(itemId);
-      await itemRecord.markAsDeleted();
+      await this.database.write(async () => {
+        await itemRecord.markAsDeleted();
+      });
     } catch (error: any) {
       throw new Error(`Failed to delete item: ${error.message}`);
     }
@@ -312,14 +326,16 @@ class LocalStorageManager {
   async addToSyncQueue(operation: QueuedOperation): Promise<void> {
     try {
       const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      await syncQueueCollection.create((record) => {
-        record._raw.id = operation.id;
-        record.entityType = operation.entityType;
-        record.entityId = operation.entityId;
-        record.operation = operation.operation;
-        record.data = JSON.stringify(operation.data);
-        record.timestamp = operation.timestamp;
-        record.retryCount = operation.retryCount;
+      await this.database.write(async () => {
+        await syncQueueCollection.create((record) => {
+          record._raw.id = operation.id;
+          record.entityType = operation.entityType;
+          record.entityId = operation.entityId;
+          record.operation = operation.operation;
+          record.data = JSON.stringify(operation.data);
+          record.timestamp = operation.timestamp;
+          record.retryCount = operation.retryCount;
+        });
       });
     } catch (error: any) {
       throw new Error(`Failed to add to sync queue: ${error.message}`);
@@ -357,7 +373,9 @@ class LocalStorageManager {
     try {
       const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
       const operation = await syncQueueCollection.find(operationId);
-      await operation.markAsDeleted();
+      await this.database.write(async () => {
+        await operation.markAsDeleted();
+      });
     } catch (error: any) {
       throw new Error(`Failed to remove from sync queue: ${error.message}`);
     }
