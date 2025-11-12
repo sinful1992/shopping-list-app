@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { Item } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -21,6 +21,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
  */
 const ListDetailScreen = () => {
   const route = useRoute();
+  const navigation = useNavigation();
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -86,6 +87,10 @@ const ListDetailScreen = () => {
     }
   };
 
+  const handleTakeReceiptPhoto = () => {
+    navigation.navigate('ReceiptCamera' as never, { listId } as never);
+  };
+
   const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemRow}>
       <TouchableOpacity
@@ -131,9 +136,14 @@ const ListDetailScreen = () => {
         }
       />
 
-      <TouchableOpacity style={styles.completeButton} onPress={handleCompleteList}>
-        <Text style={styles.completeButtonText}>Complete Shopping</Text>
-      </TouchableOpacity>
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.receiptButton} onPress={handleTakeReceiptPhoto}>
+          <Text style={styles.receiptButtonText}>📷 Take Receipt Photo</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.completeButton} onPress={handleCompleteList}>
+          <Text style={styles.completeButtonText}>Complete Shopping</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -141,33 +151,41 @@ const ListDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a0a0a',
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '700',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
   },
   addItemContainer: {
     flexDirection: 'row',
     padding: 10,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   input: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 12,
+    borderRadius: 12,
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
   },
   addButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
   },
   addButtonText: {
     color: '#fff',
@@ -176,10 +194,13 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    marginHorizontal: 10,
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   checkbox: {
     width: 24,
@@ -190,14 +211,16 @@ const styles = StyleSheet.create({
     marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
   itemName: {
     flex: 1,
     fontSize: 16,
+    color: '#ffffff',
   },
   itemChecked: {
     textDecorationLine: 'line-through',
-    color: '#999',
+    color: '#6E6E73',
   },
   deleteButton: {
     fontSize: 20,
@@ -209,14 +232,42 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#999',
+    color: '#a0a0a0',
+  },
+  buttonContainer: {
+    padding: 10,
+  },
+  receiptButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    padding: 16,
+    marginBottom: 10,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  receiptButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   completeButton: {
-    backgroundColor: '#34C759',
-    padding: 15,
-    margin: 10,
-    borderRadius: 8,
+    backgroundColor: 'rgba(52, 199, 89, 0.8)',
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.3)',
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   completeButtonText: {
     color: '#fff',
