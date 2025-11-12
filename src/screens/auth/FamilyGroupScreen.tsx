@@ -82,6 +82,7 @@ const FamilyGroupScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Family Group Name"
+            placeholderTextColor="#6E6E73"
             value={groupName}
             onChangeText={setGroupName}
           />
@@ -94,6 +95,7 @@ const FamilyGroupScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Invitation Code (e.g., A3F7K9M2)"
+            placeholderTextColor="#6E6E73"
             value={invitationCode}
             onChangeText={setInvitationCode}
             autoCapitalize="characters"
@@ -112,55 +114,72 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a0a0a',
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
     marginTop: 40,
     marginBottom: 30,
-    color: '#333',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 122, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   toggleContainer: {
     flexDirection: 'row',
     marginBottom: 30,
-    borderRadius: 8,
+    borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   toggleButton: {
     flex: 1,
     padding: 15,
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
   },
   toggleButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.6)',
   },
   toggleText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#a0a0a0',
     fontWeight: '600',
   },
   toggleTextActive: {
     color: '#fff',
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 16,
     fontSize: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   buttonText: {
     color: '#fff',

@@ -51,6 +51,7 @@ const LoginScreen = () => {
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor="#6E6E73"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -61,6 +62,7 @@ const LoginScreen = () => {
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#6E6E73"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -102,39 +104,55 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a0a0a',
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
-    color: '#333',
+    color: '#ffffff',
+    textShadowColor: 'rgba(0, 122, 255, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
-    color: '#666',
+    color: '#a0a0a0',
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 16,
     fontSize: 16,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   buttonText: {
     color: '#fff',
@@ -142,16 +160,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   buttonSecondary: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   buttonSecondaryText: {
-    color: '#007AFF',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },

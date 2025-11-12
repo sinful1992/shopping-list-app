@@ -118,11 +118,14 @@ function App(): JSX.Element {
           <Tab.Navigator
             screenOptions={{
               tabBarActiveTintColor: '#007AFF',
-              tabBarInactiveTintColor: '#8E8E93',
+              tabBarInactiveTintColor: '#6E6E73',
               tabBarStyle: {
                 paddingBottom: 5,
                 paddingTop: 5,
                 height: 60,
+                backgroundColor: 'rgba(18, 18, 18, 0.95)',
+                borderTopWidth: 1,
+                borderTopColor: 'rgba(255, 255, 255, 0.1)',
               },
             }}
           >
