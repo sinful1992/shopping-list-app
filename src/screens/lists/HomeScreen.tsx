@@ -64,16 +64,26 @@ const HomeScreen = () => {
   const handleOpenDatePicker = () => {
     if (Platform.OS === 'android') {
       // Use imperative API for Android (recommended approach)
-      DateTimePickerAndroid.open({
-        value: selectedDate,
-        onChange: (event, date) => {
-          if (event.type === 'set' && date) {
-            setSelectedDate(date);
-          }
-        },
-        mode: 'date',
-        is24Hour: true,
-      });
+      // Set safe date range to avoid Android crashes (1900-2038 limitation)
+      const minDate = new Date(1900, 0, 1);
+      const maxDate = new Date(2037, 11, 31);
+
+      try {
+        DateTimePickerAndroid.open({
+          value: selectedDate,
+          onChange: (event, date) => {
+            if (event.type === 'set' && date) {
+              setSelectedDate(date);
+            }
+          },
+          mode: 'date',
+          is24Hour: true,
+          minimumDate: minDate,
+          maximumDate: maxDate,
+        });
+      } catch (error: any) {
+        Alert.alert('Error', `Failed to open date picker: ${error.message}`);
+      }
     } else {
       // Use component for iOS
       setShowIOSPicker(true);
@@ -201,6 +211,8 @@ const HomeScreen = () => {
                 onChange={(event, date) => {
                   if (date) setSelectedDate(date);
                 }}
+                minimumDate={new Date(1900, 0, 1)}
+                maximumDate={new Date(2037, 11, 31)}
               />
               <TouchableOpacity
                 style={styles.iosPickerDone}
