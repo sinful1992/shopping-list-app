@@ -474,7 +474,6 @@ const styles = StyleSheet.create({
   editActions: {
     flexDirection: 'row',
     marginTop: 20,
-    gap: 10,
   },
   cancelButton: {
     flex: 1,
@@ -482,6 +481,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
     alignItems: 'center',
+    marginRight: 10,
   },
   cancelButtonText: {
     fontSize: 16,
