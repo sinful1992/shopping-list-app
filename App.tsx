@@ -18,6 +18,7 @@ import HistoryScreen from './src/screens/history/HistoryScreen';
 import HistoryDetailScreen from './src/screens/history/HistoryDetailScreen';
 import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
+import SettingsScreen from './src/screens/settings/SettingsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -157,6 +158,16 @@ function App(): JSX.Element {
                 headerShown: false,
                 tabBarIcon: ({ color, size }) => (
                   <Icon name="receipt-outline" size={size} color={color} />
+                ),
+              }}
+            />
+            <Tab.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{
+                title: 'Settings',
+                tabBarIcon: ({ color, size }) => (
+                  <Icon name="settings-outline" size={size} color={color} />
                 ),
               }}
             />
