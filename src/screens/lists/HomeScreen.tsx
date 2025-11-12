@@ -169,16 +169,41 @@ const HomeScreen = () => {
         </View>
       </Modal>
 
-      {showDatePicker && (
+      {showDatePicker && Platform.OS === 'android' && (
         <DateTimePicker
           value={selectedDate}
           mode="date"
           display="default"
           onChange={(event, date) => {
             setShowDatePicker(false);
-            if (date) setSelectedDate(date);
+            if (event.type === 'set' && date) {
+              setSelectedDate(date);
+            }
           }}
         />
+      )}
+
+      {showDatePicker && Platform.OS === 'ios' && (
+        <Modal visible={true} transparent animationType="slide">
+          <View style={styles.iosPickerContainer}>
+            <View style={styles.iosPickerContent}>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display="spinner"
+                onChange={(event, date) => {
+                  if (date) setSelectedDate(date);
+                }}
+              />
+              <TouchableOpacity
+                style={styles.iosPickerDone}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.iosPickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
     </View>
   );
@@ -354,6 +379,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalButtonTextCancel: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  iosPickerContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  iosPickerContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  iosPickerDone: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  iosPickerDoneText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
