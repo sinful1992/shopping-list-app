@@ -194,48 +194,54 @@ const HistoryDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a0a0a',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0a0a0a',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
+    color: '#a0a0a0',
   },
   errorText: {
     fontSize: 16,
-    color: '#666',
+    color: '#a0a0a0',
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 10,
     padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 20,
+    marginHorizontal: 10,
   },
   listName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: '#ffffff',
     marginBottom: 8,
   },
   listDate: {
     fontSize: 14,
-    color: '#666',
+    color: '#a0a0a0',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000',
+    color: '#ffffff',
     marginBottom: 15,
   },
   receiptImageContainer: {
-    borderRadius: 8,
+    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   receiptThumbnail: {
     width: '100%',
@@ -247,7 +253,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
     padding: 10,
     alignItems: 'center',
   },
@@ -258,7 +264,7 @@ const styles = StyleSheet.create({
   },
   receiptDataContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
     paddingTop: 15,
   },
   receiptField: {
@@ -268,17 +274,17 @@ const styles = StyleSheet.create({
   },
   receiptLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#a0a0a0',
   },
   receiptValue: {
     fontSize: 14,
-    color: '#000',
+    color: '#ffffff',
     fontWeight: '600',
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#34C759',
+    color: '#30D158',
   },
   itemsContainer: {
     marginTop: 10,
@@ -288,20 +294,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
   },
   checkboxContainer: {
     marginRight: 12,
   },
   checkboxChecked: {
     fontSize: 20,
-    color: '#34C759',
+    color: '#30D158',
   },
   checkboxUnchecked: {
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#ccc',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 4,
   },
   itemContent: {
@@ -309,27 +315,35 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    color: '#000',
+    color: '#ffffff',
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
-    color: '#999',
+    color: '#6E6E73',
   },
   itemQuantity: {
     fontSize: 13,
-    color: '#666',
+    color: '#a0a0a0',
     marginTop: 2,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: '#a0a0a0',
     fontStyle: 'italic',
   },
   deleteButton: {
     padding: 15,
-    backgroundColor: '#FF3B30',
-    borderRadius: 8,
+    marginHorizontal: 10,
+    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    borderRadius: 16,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   deleteButtonText: {
     color: '#fff',
