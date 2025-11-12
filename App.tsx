@@ -1,11 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { StatusBar, Platform } from 'react-native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import { User } from './src/models/types';
+
+// Dark theme for navigation
+const DarkNavigationTheme = {
+  ...DefaultTheme,
+  dark: true,
+  colors: {
+    ...DefaultTheme.colors,
+    primary: '#007AFF',
+    background: '#0a0a0a',
+    card: '#1c1c1e',
+    text: '#ffffff',
+    border: 'rgba(255, 255, 255, 0.1)',
+    notification: '#007AFF',
+  },
+};
 
 // Import screens
 import LoginScreen from './src/screens/auth/LoginScreen';
@@ -74,6 +90,69 @@ function HistoryStack() {
   );
 }
 
+// Main Tab Navigator with safe area handling
+function MainTabNavigator() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: '#6E6E73',
+        tabBarStyle: {
+          paddingBottom: Math.max(insets.bottom, 5),
+          paddingTop: 5,
+          height: Math.max(insets.bottom + 60, 60),
+          backgroundColor: 'rgba(18, 18, 18, 0.95)',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        },
+      }}
+    >
+      <Tab.Screen
+        name="Lists"
+        component={ListsStack}
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="list-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Budget"
+        component={BudgetScreen}
+        options={{
+          title: 'Budget',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryStack}
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="receipt-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="settings-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
 /**
  * Main App Component
  * Sets up navigation and authentication flow
@@ -98,7 +177,12 @@ function App(): JSX.Element {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#0a0a0a"
+        translucent={false}
+      />
+      <NavigationContainer theme={DarkNavigationTheme}>
         {!user ? (
           // Authentication Stack
           <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -117,61 +201,7 @@ function App(): JSX.Element {
           </Stack.Navigator>
         ) : (
           // Main App Tabs
-          <Tab.Navigator
-            screenOptions={{
-              tabBarActiveTintColor: '#007AFF',
-              tabBarInactiveTintColor: '#6E6E73',
-              tabBarStyle: {
-                paddingBottom: 5,
-                paddingTop: 5,
-                height: 60,
-                backgroundColor: 'rgba(18, 18, 18, 0.95)',
-                borderTopWidth: 1,
-                borderTopColor: 'rgba(255, 255, 255, 0.1)',
-              },
-            }}
-          >
-            <Tab.Screen
-              name="Lists"
-              component={ListsStack}
-              options={{
-                headerShown: false,
-                tabBarIcon: ({ color, size }) => (
-                  <Icon name="list-outline" size={size} color={color} />
-                ),
-              }}
-            />
-            <Tab.Screen
-              name="Budget"
-              component={BudgetScreen}
-              options={{
-                title: 'Budget',
-                tabBarIcon: ({ color, size }) => (
-                  <Icon name="wallet-outline" size={size} color={color} />
-                ),
-              }}
-            />
-            <Tab.Screen
-              name="History"
-              component={HistoryStack}
-              options={{
-                headerShown: false,
-                tabBarIcon: ({ color, size }) => (
-                  <Icon name="receipt-outline" size={size} color={color} />
-                ),
-              }}
-            />
-            <Tab.Screen
-              name="Settings"
-              component={SettingsScreen}
-              options={{
-                title: 'Settings',
-                tabBarIcon: ({ color, size }) => (
-                  <Icon name="settings-outline" size={size} color={color} />
-                ),
-              }}
-            />
-          </Tab.Navigator>
+          <MainTabNavigator />
         )}
       </NavigationContainer>
     </SafeAreaProvider>
