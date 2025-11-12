@@ -277,7 +277,6 @@ const styles = StyleSheet.create({
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 12,
   },
   modalButton: {
     paddingVertical: 12,
@@ -286,10 +285,12 @@ const styles = StyleSheet.create({
     minWidth: 90,
     alignItems: 'center',
     borderWidth: 1,
+    marginLeft: 12,
   },
   modalButtonCancel: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginLeft: 0,
   },
   modalButtonConfirm: {
     backgroundColor: 'rgba(0, 122, 255, 0.8)',
