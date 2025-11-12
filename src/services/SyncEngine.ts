@@ -1,5 +1,5 @@
 import database from '@react-native-firebase/database';
-import NetInfo from '@react-native-netinfo/netinfo';
+import NetInfo from '@react-native-community/netinfo';
 import { v4 as uuidv4 } from 'uuid';
 import {
   EntityType,
