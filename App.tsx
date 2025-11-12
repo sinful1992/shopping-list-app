@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import { User } from './src/models/types';
 
@@ -136,7 +136,7 @@ function App(): JSX.Element {
               options={{
                 headerShown: false,
                 tabBarIcon: ({ color, size }) => (
-                  <Text style={{ fontSize: size, color }}>📝</Text>
+                  <Icon name="list-outline" size={size} color={color} />
                 ),
               }}
             />
@@ -146,7 +146,7 @@ function App(): JSX.Element {
               options={{
                 title: 'Budget',
                 tabBarIcon: ({ color, size }) => (
-                  <Text style={{ fontSize: size, color }}>💰</Text>
+                  <Icon name="wallet-outline" size={size} color={color} />
                 ),
               }}
             />
@@ -156,7 +156,7 @@ function App(): JSX.Element {
               options={{
                 headerShown: false,
                 tabBarIcon: ({ color, size }) => (
-                  <Text style={{ fontSize: size, color }}>📜</Text>
+                  <Icon name="receipt-outline" size={size} color={color} />
                 ),
               }}
             />
