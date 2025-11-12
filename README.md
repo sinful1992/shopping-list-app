@@ -6,12 +6,13 @@ A React Native mobile application for collaborative family shopping list managem
 
 ### ✅ Implemented
 - **User Authentication** - Email/password sign up and login via Firebase
-- **Family Groups** - Create or join family groups with invitation codes
+- **Family Groups** - Create or join family groups with invitation codes *(Navigation fixed Nov 2025)*
 - **Shopping Lists** - Create, view, and manage shopping lists
 - **Real-Time Items** - Add, edit, check off, and delete items
-- **Real-Time Sync** - Multi-user collaboration with Firebase Realtime Database
-- **Offline Support** - Full functionality when offline with automatic sync
+- **Real-Time Sync** - Multi-user collaboration with Firebase Realtime Database *(Import fixed Nov 2025)*
+- **Offline Support** - Full functionality when offline with automatic sync *(WatermelonDB config fixed Nov 2025)*
 - **Cross-Platform** - iOS and Android support
+- **CI/CD Pipeline** - Automated Android builds via GitHub Actions *(Fully functional Nov 2025)*
 
 ### 🚧 To Be Implemented
 - **Receipt Capture** - Photo capture with automatic boundary detection
@@ -180,8 +181,9 @@ shoping/
 - **Google Cloud Vision API**: 1,000 receipts/month free; $1.50 per 1,000 after
 - **App Store Fees**: $99/year (Apple) + $25 one-time (Google)
 
-## 📋 Specification Documents
+## 📋 Documentation
 
+### Specification Documents
 Complete architectural specifications available in project root:
 
 1. **research.md** - Technology research with citations
@@ -190,6 +192,10 @@ Complete architectural specifications available in project root:
 4. **design.md** - Complete technical specifications
 5. **tasks.md** - 95 implementation subtasks
 6. **validation.md** - 100% traceability verification
+
+### Setup & Build Guides
+- **[GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)** - CI/CD pipeline configuration
+- **[CHANGELOG.md](./CHANGELOG.md)** - Recent fixes and changes (Nov 2025)
 
 ## 🧪 Testing
 

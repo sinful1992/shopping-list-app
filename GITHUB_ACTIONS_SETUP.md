@@ -50,35 +50,17 @@ git push -u origin main
 
 ---
 
-## Step 2: Generate Android Signing Key
+## Step 2: Android Signing Key (Automated)
 
-```bash
-cd android/app
+✅ **Good News!** You don't need to manually create or manage a keystore.
 
-# Generate keystore
-keytool -genkeypair -v -storetype PKCS12 \
-  -keystore release.keystore \
-  -alias shopping-list-key \
-  -keyalg RSA -keysize 2048 \
-  -validity 10000
+The GitHub Actions workflow automatically generates a fresh keystore during each build with these credentials:
+- **Keystore File**: `release.keystore` (auto-generated)
+- **Key Alias**: `shoppinglistapp`
+- **Store Password**: `shoppinglist2024`
+- **Key Password**: `shoppinglist2024`
 
-# Enter passwords when prompted - SAVE THESE!
-# Store password: [your-store-password]
-# Key password: [your-key-password]
-```
-
-**Convert keystore to Base64:**
-
-```bash
-# On Windows (PowerShell)
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("release.keystore")) | Set-Clipboard
-
-# On macOS/Linux
-base64 release.keystore | pbcopy  # macOS
-base64 release.keystore | xclip -selection clipboard  # Linux
-```
-
-Save this Base64 string - you'll need it for GitHub secrets.
+**Note**: The keystore is temporary and only used for CI builds. Each build generates a new keystore, so the APK signatures will differ between builds. For production releases to Google Play Store, you should use a persistent keystore stored in GitHub Secrets (see Advanced Setup section below).
 
 ---
 
@@ -123,10 +105,8 @@ Go to your GitHub repository:
 | `FIREBASE_APP_ID` | Firebase app ID | From Firebase Console |
 | `GOOGLE_CLOUD_VISION_API_KEY` | Vision API key | From Google Cloud Console |
 | `GOOGLE_SERVICES_JSON` | google-services.json | Base64 encoded file content |
-| `ANDROID_KEYSTORE_BASE64` | Signing keystore | Base64 encoded keystore file |
-| `ANDROID_KEY_ALIAS` | Key alias | `shopping-list-key` (or your alias) |
-| `ANDROID_STORE_PASSWORD` | Keystore password | Password you set when creating keystore |
-| `ANDROID_KEY_PASSWORD` | Key password | Password you set when creating keystore |
+
+**Note**: ~~`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_PASSWORD`~~ are **no longer required**. The workflow auto-generates the keystore.
 
 ### Additional Secrets for iOS Build
 
