@@ -91,14 +91,17 @@ const HomeScreen = () => {
   };
 
   const handleConfirmCreate = async () => {
-    if (!familyGroupId) {
-      Alert.alert('Error', 'No family group found');
-      return;
-    }
-
     try {
       const user = await AuthenticationModule.getCurrentUser();
-      if (!user) return;
+      if (!user) {
+        Alert.alert('Error', 'User not authenticated');
+        return;
+      }
+
+      if (!user.familyGroupId) {
+        Alert.alert('Error', 'No family group found. Please create or join a family group first.');
+        return;
+      }
 
       // Format date as list name (e.g., "Mon, Jan 15, 2025")
       const listName = selectedDate.toLocaleDateString('en-US', {
@@ -108,7 +111,7 @@ const HomeScreen = () => {
         year: 'numeric',
       });
 
-      await ShoppingListManager.createList(listName, user.uid, familyGroupId);
+      await ShoppingListManager.createList(listName, user.uid, user.familyGroupId);
       setShowCreateModal(false);
       await loadLists();
     } catch (error: any) {
