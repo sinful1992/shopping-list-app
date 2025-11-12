@@ -142,6 +142,13 @@ class AuthenticationModule {
         familyGroupId: groupId,
       });
 
+      // Update cached user data
+      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const updatedUser = userSnapshot.val();
+      if (updatedUser) {
+        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+      }
+
       return familyGroup;
     } catch (error: any) {
       throw new Error(`Failed to create family group: ${error.message}`);
@@ -180,6 +187,13 @@ class AuthenticationModule {
         familyGroupId: groupId,
       });
 
+      // Update cached user data
+      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const updatedUser = userSnapshot.val();
+      if (updatedUser) {
+        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+      }
+
       return familyGroup;
     } catch (error: any) {
       throw new Error(`Failed to join family group: ${error.message}`);
@@ -189,21 +203,25 @@ class AuthenticationModule {
   /**
    * Get current authenticated user
    * Implements Req 1.2
+   * Always fetches fresh data from database to ensure familyGroupId is up-to-date
    */
   async getCurrentUser(): Promise<User | null> {
     try {
-      const userJson = await AsyncStorage.getItem(this.USER_KEY);
-      if (userJson) {
-        return JSON.parse(userJson);
-      }
-
       const currentUser = auth().currentUser;
       if (!currentUser) {
         return null;
       }
 
+      // Always fetch fresh data from database to ensure familyGroupId is current
       const userSnapshot = await database().ref(`/users/${currentUser.uid}`).once('value');
-      return userSnapshot.val();
+      const userData = userSnapshot.val();
+
+      if (userData) {
+        // Update cache with fresh data
+        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+      }
+
+      return userData;
     } catch (error) {
       return null;
     }
