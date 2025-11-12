@@ -7,6 +7,8 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList } from '../../models/types';
@@ -23,6 +25,8 @@ const HomeScreen = () => {
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newListName, setNewListName] = useState('');
 
   useEffect(() => {
     loadLists();
@@ -50,24 +54,28 @@ const HomeScreen = () => {
     setRefreshing(false);
   };
 
-  const handleCreateList = async () => {
-    Alert.prompt(
-      'New Shopping List',
-      'Enter list name:',
-      async (name) => {
-        if (!name || !familyGroupId) return;
+  const handleCreateList = () => {
+    setNewListName('');
+    setShowCreateModal(true);
+  };
 
-        try {
-          const user = await AuthenticationModule.getCurrentUser();
-          if (!user) return;
+  const handleConfirmCreate = async () => {
+    if (!newListName.trim() || !familyGroupId) {
+      Alert.alert('Error', 'Please enter a list name');
+      return;
+    }
 
-          await ShoppingListManager.createList(name, user.uid, familyGroupId);
-          await loadLists();
-        } catch (error: any) {
-          Alert.alert('Error', error.message);
-        }
-      }
-    );
+    try {
+      const user = await AuthenticationModule.getCurrentUser();
+      if (!user) return;
+
+      await ShoppingListManager.createList(newListName.trim(), user.uid, familyGroupId);
+      setShowCreateModal(false);
+      setNewListName('');
+      await loadLists();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
   };
 
   const renderListItem = ({ item }: { item: ShoppingList }) => (
@@ -104,6 +112,41 @@ const HomeScreen = () => {
       <TouchableOpacity style={styles.fab} onPress={handleCreateList}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={showCreateModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>New Shopping List</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter list name"
+              value={newListName}
+              onChangeText={setNewListName}
+              autoFocus
+              onSubmitEditing={handleConfirmCreate}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowCreateModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmCreate}
+              >
+                <Text style={styles.modalButtonText}>Create</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -181,6 +224,61 @@ const styles = StyleSheet.create({
   fabText: {
     fontSize: 32,
     color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 15,
+    color: '#333',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#f0f0f0',
+  },
+  modalButtonConfirm: {
+    backgroundColor: '#007AFF',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonTextCancel: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -115,21 +115,46 @@ function App(): JSX.Element {
           </Stack.Navigator>
         ) : (
           // Main App Tabs
-          <Tab.Navigator>
+          <Tab.Navigator
+            screenOptions={{
+              tabBarActiveTintColor: '#007AFF',
+              tabBarInactiveTintColor: '#8E8E93',
+              tabBarStyle: {
+                paddingBottom: 5,
+                paddingTop: 5,
+                height: 60,
+              },
+            }}
+          >
             <Tab.Screen
               name="Lists"
               component={ListsStack}
-              options={{ headerShown: false }}
+              options={{
+                headerShown: false,
+                tabBarIcon: ({ color, size }) => (
+                  <Text style={{ fontSize: size, color }}>📝</Text>
+                ),
+              }}
             />
             <Tab.Screen
               name="Budget"
               component={BudgetScreen}
-              options={{ title: 'Budget' }}
+              options={{
+                title: 'Budget',
+                tabBarIcon: ({ color, size }) => (
+                  <Text style={{ fontSize: size, color }}>💰</Text>
+                ),
+              }}
             />
             <Tab.Screen
               name="History"
               component={HistoryStack}
-              options={{ headerShown: false }}
+              options={{
+                headerShown: false,
+                tabBarIcon: ({ color, size }) => (
+                  <Text style={{ fontSize: size, color }}>📜</Text>
+                ),
+              }}
             />
           </Tab.Navigator>
         )}
