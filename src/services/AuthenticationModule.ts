@@ -236,14 +236,46 @@ class AuthenticationModule {
    * Implements Req 1.2
    */
   onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe {
-    return auth().onAuthStateChanged(async (firebaseUser) => {
+    let userDataUnsubscribe: (() => void) | null = null;
+
+    const authUnsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+      // Clean up previous user data listener
+      if (userDataUnsubscribe) {
+        userDataUnsubscribe();
+        userDataUnsubscribe = null;
+      }
+
       if (firebaseUser) {
-        const userSnapshot = await database().ref(`/users/${firebaseUser.uid}`).once('value');
-        callback(userSnapshot.val());
+        const userRef = database().ref(`/users/${firebaseUser.uid}`);
+
+        // Listen for user data changes in real-time
+        const onUserDataChanged = (snapshot: any) => {
+          const userData = snapshot.val();
+          if (userData) {
+            // Update local cache
+            AsyncStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+            callback(userData);
+          }
+        };
+
+        userRef.on('value', onUserDataChanged);
+
+        // Store unsubscribe function for user data listener
+        userDataUnsubscribe = () => {
+          userRef.off('value', onUserDataChanged);
+        };
       } else {
         callback(null);
       }
     });
+
+    // Return combined unsubscribe function
+    return () => {
+      authUnsubscribe();
+      if (userDataUnsubscribe) {
+        userDataUnsubscribe();
+      }
+    };
   }
 
   /**
@@ -256,6 +288,32 @@ class AuthenticationModule {
       code += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return code;
+  }
+
+  /**
+   * Refresh user data from Firebase Database
+   * Useful after updating user data (like familyGroupId)
+   */
+  async refreshUserData(): Promise<User | null> {
+    try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        return null;
+      }
+
+      // Fetch latest user data from Firebase Database
+      const userSnapshot = await database().ref(`/users/${currentUser.uid}`).once('value');
+      const user: User = userSnapshot.val();
+
+      if (user) {
+        // Update local cache
+        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(user));
+      }
+
+      return user;
+    } catch (error: any) {
+      throw new Error(`Failed to refresh user data: ${error.message}`);
+    }
   }
 
   /**

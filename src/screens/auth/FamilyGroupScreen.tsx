@@ -23,6 +23,10 @@ const FamilyGroupScreen = () => {
       if (!user) throw new Error('User not authenticated');
 
       const group = await AuthenticationModule.createFamilyGroup(groupName, user.uid);
+
+      // Update local user data with new familyGroupId
+      await AuthenticationModule.refreshUserData();
+
       Alert.alert('Success', `Family group created! Invitation code: ${group.invitationCode}`);
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -40,6 +44,10 @@ const FamilyGroupScreen = () => {
       if (!user) throw new Error('User not authenticated');
 
       await AuthenticationModule.joinFamilyGroup(invitationCode.toUpperCase(), user.uid);
+
+      // Update local user data with new familyGroupId
+      await AuthenticationModule.refreshUserData();
+
       Alert.alert('Success', 'Joined family group!');
     } catch (error: any) {
       Alert.alert('Error', error.message);
