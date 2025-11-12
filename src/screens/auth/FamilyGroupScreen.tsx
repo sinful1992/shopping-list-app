@@ -123,9 +123,6 @@ const styles = StyleSheet.create({
     marginTop: 40,
     marginBottom: 30,
     color: '#ffffff',
-    textShadowColor: 'rgba(0, 122, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
   },
   toggleContainer: {
     flexDirection: 'row',

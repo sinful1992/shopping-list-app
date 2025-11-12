@@ -181,9 +181,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     flex: 1,
-    textShadowColor: 'rgba(255, 255, 255, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   listDate: {
     fontSize: 14,
@@ -260,9 +257,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 20,
     color: '#ffffff',
-    textShadowColor: 'rgba(0, 122, 255, 0.5)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
   modalInput: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
