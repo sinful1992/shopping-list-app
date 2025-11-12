@@ -18,7 +18,13 @@
       "Bash(npm view:*)",
       "Bash(gh run watch:*)",
       "Bash(gh run view:*)",
-      "WebFetch(domain:react-native-community.github.io)"
+      "WebFetch(domain:react-native-community.github.io)",
+      "Bash(git stash:*)",
+      "Bash(keytool:*)",
+      "Bash(where:*)",
+      "Bash(echo:*)",
+      "Bash(npm install:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

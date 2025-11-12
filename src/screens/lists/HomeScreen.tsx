@@ -7,9 +7,10 @@ import {
   StyleSheet,
   RefreshControl,
   Alert,
-  TextInput,
   Modal,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList } from '../../models/types';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -26,7 +27,7 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newListName, setNewListName] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
     loadLists();
@@ -55,13 +56,13 @@ const HomeScreen = () => {
   };
 
   const handleCreateList = () => {
-    setNewListName('');
+    setSelectedDate(new Date());
     setShowCreateModal(true);
   };
 
   const handleConfirmCreate = async () => {
-    if (!newListName.trim() || !familyGroupId) {
-      Alert.alert('Error', 'Please enter a list name');
+    if (!familyGroupId) {
+      Alert.alert('Error', 'No family group found');
       return;
     }
 
@@ -69,9 +70,16 @@ const HomeScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) return;
 
-      await ShoppingListManager.createList(newListName.trim(), user.uid, familyGroupId);
+      // Format date as list name (e.g., "January 15, 2025" or "Mon, Jan 15")
+      const listName = selectedDate.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      await ShoppingListManager.createList(listName, user.uid, familyGroupId);
       setShowCreateModal(false);
-      setNewListName('');
       await loadLists();
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -122,15 +130,27 @@ const HomeScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>New Shopping List</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter list name"
-              placeholderTextColor="#6E6E73"
-              value={newListName}
-              onChangeText={setNewListName}
-              autoFocus
-              onSubmitEditing={handleConfirmCreate}
-            />
+            <Text style={styles.modalSubtitle}>Select shopping date:</Text>
+            <View style={styles.datePickerContainer}>
+              <DateTimePicker
+                value={selectedDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, date) => {
+                  if (date) setSelectedDate(date);
+                }}
+                style={styles.datePicker}
+                textColor="#ffffff"
+              />
+            </View>
+            <Text style={styles.datePreview}>
+              List name: {selectedDate.toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -255,18 +275,32 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: '700',
-    marginBottom: 20,
+    marginBottom: 10,
     color: '#ffffff',
   },
-  modalInput: {
+  modalSubtitle: {
+    fontSize: 16,
+    color: '#a0a0a0',
+    marginBottom: 15,
+  },
+  datePickerContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 16,
-    padding: 15,
-    fontSize: 16,
-    marginBottom: 24,
+    padding: 10,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  datePicker: {
+    width: '100%',
+  },
+  datePreview: {
+    fontSize: 14,
     color: '#ffffff',
+    marginBottom: 20,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   modalButtons: {
     flexDirection: 'row',
