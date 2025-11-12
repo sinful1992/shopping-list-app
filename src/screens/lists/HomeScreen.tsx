@@ -8,9 +8,7 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList } from '../../models/types';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -27,8 +25,7 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDateOffset, setSelectedDateOffset] = useState(0); // 0 = today, 1 = tomorrow, etc.
 
   useEffect(() => {
     loadLists();
@@ -57,8 +54,14 @@ const HomeScreen = () => {
   };
 
   const handleCreateList = () => {
-    setSelectedDate(new Date());
+    setSelectedDateOffset(0); // Default to today
     setShowCreateModal(true);
+  };
+
+  const getDateFromOffset = (offset: number): Date => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+    return date;
   };
 
   const handleConfirmCreate = async () => {
@@ -71,7 +74,8 @@ const HomeScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) return;
 
-      // Format date as list name (e.g., "January 15, 2025" or "Mon, Jan 15")
+      // Format date as list name (e.g., "Mon, Jan 15, 2025")
+      const selectedDate = getDateFromOffset(selectedDateOffset);
       const listName = selectedDate.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
@@ -133,24 +137,42 @@ const HomeScreen = () => {
             <Text style={styles.modalTitle}>New Shopping List</Text>
             <Text style={styles.modalSubtitle}>Select shopping date:</Text>
 
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.dateButtonText}>
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </Text>
-              <Text style={styles.calendarIcon}>📅</Text>
-            </TouchableOpacity>
+            <View style={styles.dateOptionsContainer}>
+              {[
+                { offset: 0, label: '📅 Today' },
+                { offset: 1, label: '🌅 Tomorrow' },
+                { offset: 2, label: '📆 Day After' },
+                { offset: 7, label: '📅 Next Week' },
+              ].map((option) => (
+                <TouchableOpacity
+                  key={option.offset}
+                  style={[
+                    styles.dateOptionButton,
+                    selectedDateOffset === option.offset && styles.dateOptionButtonActive,
+                  ]}
+                  onPress={() => setSelectedDateOffset(option.offset)}
+                >
+                  <Text
+                    style={[
+                      styles.dateOptionText,
+                      selectedDateOffset === option.offset && styles.dateOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <Text style={styles.datePreview}>
-              Tap to change date
+              List name: {getDateFromOffset(selectedDateOffset).toLocaleDateString('en-US', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
             </Text>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonCancel]}
@@ -168,43 +190,6 @@ const HomeScreen = () => {
           </View>
         </View>
       </Modal>
-
-      {showDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={(event, date) => {
-            setShowDatePicker(false);
-            if (event.type === 'set' && date) {
-              setSelectedDate(date);
-            }
-          }}
-        />
-      )}
-
-      {showDatePicker && Platform.OS === 'ios' && (
-        <Modal visible={true} transparent animationType="slide">
-          <View style={styles.iosPickerContainer}>
-            <View style={styles.iosPickerContent}>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display="spinner"
-                onChange={(event, date) => {
-                  if (date) setSelectedDate(date);
-                }}
-              />
-              <TouchableOpacity
-                style={styles.iosPickerDone}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.iosPickerDoneText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-      )}
     </View>
   );
 };
@@ -320,28 +305,33 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     marginBottom: 15,
   },
-  dateButton: {
+  dateOptionsContainer: {
+    marginBottom: 15,
+  },
+  dateOptionButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  dateButtonText: {
-    fontSize: 18,
+  dateOptionButtonActive: {
+    backgroundColor: 'rgba(0, 122, 255, 0.3)',
+    borderColor: 'rgba(0, 122, 255, 0.5)',
+  },
+  dateOptionText: {
+    fontSize: 16,
     color: '#ffffff',
-    fontWeight: '600',
+    fontWeight: '500',
   },
-  calendarIcon: {
-    fontSize: 24,
+  dateOptionTextActive: {
+    fontWeight: '700',
+    color: '#ffffff',
   },
   datePreview: {
-    fontSize: 12,
-    color: '#6E6E73',
+    fontSize: 13,
+    color: '#a0a0a0',
     marginBottom: 20,
     textAlign: 'center',
     fontStyle: 'italic',
@@ -379,29 +369,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalButtonTextCancel: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  iosPickerContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  iosPickerContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  iosPickerDone: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  iosPickerDoneText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
