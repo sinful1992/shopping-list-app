@@ -1,4 +1,4 @@
-import { Database } from '@nozbe/watermelondb';
+import { Database, Q } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary } from '../models/types';
 import { schema } from '../database/schema';
@@ -92,8 +92,9 @@ class LocalStorageManager {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
       const lists = await listsCollection
-        .query()
-        .where('family_group_id', familyGroupId)
+        .query(
+          Q.where('family_group_id', familyGroupId)
+        )
         .fetch();
 
       return lists.map((list) => this.listModelToType(list));
@@ -110,10 +111,11 @@ class LocalStorageManager {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
       const lists = await listsCollection
-        .query()
-        .where('family_group_id', familyGroupId)
-        .where('status', 'active')
-        .sortBy('created_at', 'desc')
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('status', 'active'),
+          Q.sortBy('created_at', Q.desc)
+        )
         .fetch();
 
       return lists.map((list) => this.listModelToType(list));
@@ -133,19 +135,21 @@ class LocalStorageManager {
   ): Promise<ShoppingList[]> {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      let query = listsCollection
-        .query()
-        .where('family_group_id', familyGroupId)
-        .where('status', 'completed');
+      const conditions = [
+        Q.where('family_group_id', familyGroupId),
+        Q.where('status', 'completed')
+      ];
 
       if (startDate) {
-        query = query.where('completed_at', Q.gte(startDate));
+        conditions.push(Q.where('completed_at', Q.gte(startDate)));
       }
       if (endDate) {
-        query = query.where('completed_at', Q.lte(endDate));
+        conditions.push(Q.where('completed_at', Q.lte(endDate)));
       }
 
-      const lists = await query.sortBy('completed_at', 'desc').fetch();
+      conditions.push(Q.sortBy('completed_at', Q.desc));
+
+      const lists = await listsCollection.query(...conditions).fetch();
       return lists.map((list) => this.listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get completed lists: ${error.message}`);
@@ -252,9 +256,10 @@ class LocalStorageManager {
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
       const items = await itemsCollection
-        .query()
-        .where('list_id', listId)
-        .sortBy('created_at', 'asc')
+        .query(
+          Q.where('list_id', listId),
+          Q.sortBy('created_at', Q.asc)
+        )
         .fetch();
 
       return items.map((item) => this.itemModelToType(item));
@@ -327,7 +332,9 @@ class LocalStorageManager {
   async getSyncQueue(): Promise<QueuedOperation[]> {
     try {
       const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operations = await syncQueueCollection.query().sortBy('timestamp', 'asc').fetch();
+      const operations = await syncQueueCollection
+        .query(Q.sortBy('timestamp', Q.asc))
+        .fetch();
 
       return operations.map((op) => ({
         id: op.id,
