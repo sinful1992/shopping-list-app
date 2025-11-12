@@ -27,6 +27,7 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   useEffect(() => {
@@ -131,25 +132,24 @@ const HomeScreen = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>New Shopping List</Text>
             <Text style={styles.modalSubtitle}>Select shopping date:</Text>
-            <View style={styles.datePickerContainer}>
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, date) => {
-                  if (date) setSelectedDate(date);
-                }}
-                style={styles.datePicker}
-                textColor="#ffffff"
-              />
-            </View>
+
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={styles.dateButtonText}>
+                {selectedDate.toLocaleDateString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </Text>
+              <Text style={styles.calendarIcon}>📅</Text>
+            </TouchableOpacity>
+
             <Text style={styles.datePreview}>
-              List name: {selectedDate.toLocaleDateString('en-US', {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
+              Tap to change date
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -168,6 +168,18 @@ const HomeScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            setShowDatePicker(false);
+            if (date) setSelectedDate(date);
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -283,21 +295,28 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     marginBottom: 15,
   },
-  datePickerContainer: {
+  dateButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 16,
-    padding: 10,
-    marginBottom: 15,
+    padding: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  datePicker: {
-    width: '100%',
+  dateButtonText: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  calendarIcon: {
+    fontSize: 24,
   },
   datePreview: {
-    fontSize: 14,
-    color: '#ffffff',
+    fontSize: 12,
+    color: '#6E6E73',
     marginBottom: 20,
     textAlign: 'center',
     fontStyle: 'italic',
