@@ -333,7 +333,6 @@ const styles = StyleSheet.create({
   },
   dateRangeButtons: {
     flexDirection: 'row',
-    gap: 8,
   },
   dateRangeButton: {
     flex: 1,
@@ -342,6 +341,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
     alignItems: 'center',
+    marginHorizontal: 4,
   },
   dateRangeButtonActive: {
     backgroundColor: '#007AFF',

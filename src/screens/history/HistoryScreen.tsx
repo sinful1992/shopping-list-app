@@ -321,7 +321,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    gap: 8,
   },
   filterButton: {
     flex: 1,
@@ -330,6 +329,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
     alignItems: 'center',
+    marginHorizontal: 4,
   },
   filterButtonActive: {
     backgroundColor: '#007AFF',
