@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import RNFS from 'react-native-fs';
 import {
   OCRResult,
   OCRStatus,
@@ -28,17 +29,17 @@ class ReceiptOCRProcessor {
   }
 
   /**
-   * Process receipt image with OCR
+   * Process receipt image with OCR from local file path
    * Implements Req 6.1, 6.2, 6.3, 6.4, 6.5
    */
-  async processReceipt(imageUrl: string, listId: string): Promise<OCRResult> {
+  async processReceipt(localFilePath: string, listId: string): Promise<OCRResult> {
     try {
       if (!this.apiKey) {
         throw new Error('Google Cloud Vision API key not configured');
       }
 
-      // Download image and convert to base64
-      const base64Image = await this.downloadImageAsBase64(imageUrl);
+      // Read local image and convert to base64
+      const base64Image = await this.readLocalImageAsBase64(localFilePath);
 
       // Send to Google Cloud Vision API
       const extractedText = await this.callVisionAPI(base64Image);
@@ -90,10 +91,10 @@ class ReceiptOCRProcessor {
    * Queue OCR request for later processing
    * Implements Req 6.7, 9.8
    */
-  async queueOCRRequest(imageUrl: string, listId: string): Promise<void> {
+  async queueOCRRequest(localFilePath: string, listId: string): Promise<void> {
     const queuedRequest: QueuedOCRRequest = {
       id: uuidv4(),
-      imageUrl,
+      imageUrl: localFilePath, // Note: imageUrl field stores local file path
       listId,
       timestamp: Date.now(),
       retryCount: 0,
@@ -272,24 +273,18 @@ class ReceiptOCRProcessor {
   }
 
   /**
-   * Helper: Download image and convert to base64
+   * Helper: Read local image file and convert to base64
    */
-  private async downloadImageAsBase64(imageUrl: string): Promise<string> {
+  private async readLocalImageAsBase64(filePath: string): Promise<string> {
     try {
-      // If it's a Firebase Storage path, get download URL first
-      if (!imageUrl.startsWith('http')) {
-        const ImageStorageManager = (await import('./ImageStorageManager')).default;
-        imageUrl = await ImageStorageManager.getReceiptDownloadUrl(imageUrl);
-      }
+      // Clean up file path (remove file:// prefix if present)
+      const cleanPath = filePath.replace('file://', '');
 
-      const response = await axios.get(imageUrl, {
-        responseType: 'arraybuffer',
-      });
-
-      const base64 = Buffer.from(response.data, 'binary').toString('base64');
+      // Read file as base64
+      const base64 = await RNFS.readFile(cleanPath, 'base64');
       return base64;
     } catch (error: any) {
-      throw new Error(`Failed to download image: ${error.message}`);
+      throw new Error(`Failed to read local image: ${error.message}`);
     }
   }
 

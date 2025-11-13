@@ -16,7 +16,6 @@ import { ShoppingList } from '../../models/types';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
-import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
 import ItemManager from '../../services/ItemManager';
 
@@ -184,17 +183,10 @@ const HomeScreen = () => {
         user.familyGroupId
       );
 
-      // Step 3: Upload receipt to Firebase Storage
-      const storagePath = await ImageStorageManager.uploadReceipt(
-        captureResult.filePath,
-        newList.id,
-        user.familyGroupId
-      );
+      // Step 3: Process OCR from local file (no Firebase Storage upload needed)
+      const ocrResult = await ReceiptOCRProcessor.processReceipt(captureResult.filePath, newList.id);
 
-      // Step 4: Process OCR
-      const ocrResult = await ReceiptOCRProcessor.processReceipt(storagePath, newList.id);
-
-      // Step 5: Create items from OCR lineItems (if OCR succeeded)
+      // Step 4: Create items from OCR lineItems (if OCR succeeded)
       if (ocrResult.success && ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {
         for (const lineItem of ocrResult.receiptData.lineItems) {
           await ItemManager.addItem(
@@ -212,7 +204,7 @@ const HomeScreen = () => {
           }
         }
 
-        // Step 6: Mark list as completed
+        // Step 5: Mark list as completed
         await ShoppingListManager.markListAsCompleted(newList.id);
 
         Alert.alert(
