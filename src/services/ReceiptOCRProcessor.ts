@@ -312,8 +312,16 @@ class ReceiptOCRProcessor {
     // REJECT: Too short
     if (description.length < 3) return false;
 
-    // REJECT: Only numbers
+    // REJECT: Only numbers or mostly numbers
     if (/^\d+$/.test(description)) return false;
+    if (/^\d+[\s\d]*$/.test(description)) return false; // e.g., "330", "1 2 3"
+
+    // REJECT: Date patterns (e.g., "31 Jul'25 19:00", "01/01/2025")
+    if (/\d{1,2}[\/\-\.\s']+(?:[A-Za-z]{3}|\d{1,2})[\/\-\.\s']+\d{2,4}/i.test(description)) return false;
+    if (/\d{1,2}:\d{2}/i.test(description)) return false; // Time patterns
+
+    // REJECT: "TO PAY" and similar payment terms
+    if (/\b(to\s*pay|amount|payable|paid|due)\b/i.test(description)) return false;
 
     // REJECT: Single letter/number codes (T1, T2, A, B)
     if (/^[A-Z]{1,3}\d*$/.test(description)) return false;
@@ -330,10 +338,11 @@ class ReceiptOCRProcessor {
     // REJECT: Contains category words (Food, Beverage, etc)
     if (/\b(food|beverage|soft\s*bev|alcohol|service)\b/i.test(description)) return false;
 
-    // ACCEPT: Has meaningful words (3+ consecutive letters)
-    if (/[A-Za-z]{3,}/.test(description)) return true;
+    // REJECT: Mostly punctuation or special characters
+    if (!/[A-Za-z]{3,}/.test(description)) return false; // Must have at least one word with 3+ letters
 
-    return false;
+    // ACCEPT: Has meaningful words
+    return true;
   }
 
   /**
@@ -388,7 +397,7 @@ class ReceiptOCRProcessor {
 
     // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];
-    const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|server|table|tbl|chk|check|guest|gst|cover|change|payment|date|time|tel|phone|address|street|road|lane|ave|avenue|www\.|http|store|manager|customer|food|soft\s*bev|beverage|alcohol|service|tender|cash|credit|debit)/i;
+    const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|server|table|tbl|chk|check|guest|gst|cover|change|payment|date|time|tel|phone|address|street|road|lane|ave|avenue|www\.|http|store|manager|customer|food|soft\s*bev|beverage|alcohol|service|tender|cash|credit|debit|to\s*pay|amount|paid|payable)/i;
 
     // Calculate zones to skip header/footer
     const { headerEnd, footerStart } = this.calculateReceiptZones(lineGroups);

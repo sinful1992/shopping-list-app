@@ -156,7 +156,7 @@ const HistoryScreen = () => {
           </Text>
           {item.receiptData?.totalAmount && (
             <Text style={styles.listAmount}>
-              ${item.receiptData.totalAmount.toFixed(2)}
+              {item.receiptData.currency || '£'}{item.receiptData.totalAmount.toFixed(2)}
             </Text>
           )}
           {item.receiptData?.merchantName && (
