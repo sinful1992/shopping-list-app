@@ -15,6 +15,10 @@ import { useNavigation } from '@react-navigation/native';
 import { ShoppingList } from '../../models/types';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
+import ImageStorageManager from '../../services/ImageStorageManager';
+import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
+import ItemManager from '../../services/ItemManager';
 
 /**
  * HomeScreen
@@ -29,6 +33,7 @@ const HomeScreen = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showIOSPicker, setShowIOSPicker] = useState(false);
+  const [scanningReceipt, setScanningReceipt] = useState(false);
 
   useEffect(() => {
     loadLists();
@@ -141,6 +146,96 @@ const HomeScreen = () => {
     );
   };
 
+  const handleScanReceipt = async () => {
+    if (scanningReceipt) return;
+
+    try {
+      setScanningReceipt(true);
+
+      // Get current user
+      const user = await AuthenticationModule.getCurrentUser();
+      if (!user || !user.familyGroupId) {
+        Alert.alert('Error', 'User not authenticated or no family group found');
+        return;
+      }
+
+      // Step 1: Capture receipt
+      const captureResult = await ReceiptCaptureModule.captureReceipt();
+
+      if (captureResult.cancelled) {
+        return;
+      }
+
+      if (!captureResult.success || !captureResult.filePath) {
+        Alert.alert('Error', captureResult.error || 'Failed to capture receipt');
+        return;
+      }
+
+      // Step 2: Create a new shopping list
+      const listName = 'Receipt - ' + new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+
+      const newList = await ShoppingListManager.createList(
+        listName,
+        user.uid,
+        user.familyGroupId
+      );
+
+      // Step 3: Upload receipt to Firebase Storage
+      const storagePath = await ImageStorageManager.uploadReceipt(
+        captureResult.filePath,
+        newList.id,
+        user.familyGroupId
+      );
+
+      // Step 4: Process OCR
+      const ocrResult = await ReceiptOCRProcessor.processReceipt(storagePath, newList.id);
+
+      // Step 5: Create items from OCR lineItems (if OCR succeeded)
+      if (ocrResult.success && ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {
+        for (const lineItem of ocrResult.receiptData.lineItems) {
+          await ItemManager.addItem(
+            newList.id,
+            lineItem.description,
+            user.uid,
+            lineItem.quantity?.toString() || undefined,
+            lineItem.price || undefined
+          );
+          // Mark item as checked since this is a completed receipt
+          const items = await ItemManager.getItemsForList(newList.id);
+          const lastItem = items[items.length - 1];
+          if (lastItem) {
+            await ItemManager.updateItem(lastItem.id, { checked: true });
+          }
+        }
+
+        // Step 6: Mark list as completed
+        await ShoppingListManager.markListAsCompleted(newList.id);
+
+        Alert.alert(
+          'Success',
+          `Created shopping list "${listName}" with ${ocrResult.receiptData.lineItems.length} items from receipt`
+        );
+      } else {
+        // OCR failed or low confidence, but list and receipt are still saved
+        Alert.alert(
+          'Partial Success',
+          'Receipt uploaded but could not extract items. You can view the receipt and add items manually.'
+        );
+      }
+
+      // Reload lists to show the new one
+      await loadLists();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setScanningReceipt(false);
+    }
+  };
+
   const renderListItem = ({ item }: { item: ShoppingList }) => (
     <TouchableOpacity
       style={styles.listCard}
@@ -183,6 +278,19 @@ const HomeScreen = () => {
         }
       />
 
+      {/* Scan Receipt Button */}
+      <TouchableOpacity
+        style={[styles.scanButton, scanningReceipt && styles.scanButtonDisabled]}
+        onPress={handleScanReceipt}
+        disabled={scanningReceipt}
+      >
+        <Text style={styles.scanButtonIcon}>📷</Text>
+        <Text style={styles.scanButtonText}>
+          {scanningReceipt ? 'Processing...' : 'Scan Receipt'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Create List Button (FAB) */}
       <TouchableOpacity style={styles.fab} onPress={handleCreateList}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
@@ -331,6 +439,39 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 16,
     color: '#a0a0a0',
+  },
+  scanButton: {
+    position: 'absolute',
+    right: 20,
+    bottom: 100,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    backgroundColor: 'rgba(52, 199, 89, 0.8)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 199, 89, 0.4)',
+    shadowColor: '#34C759',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  scanButtonDisabled: {
+    backgroundColor: 'rgba(142, 142, 147, 0.5)',
+    borderColor: 'rgba(142, 142, 147, 0.3)',
+    shadowColor: '#8E8E93',
+  },
+  scanButtonIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  scanButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',
