@@ -25,6 +25,7 @@ const ListDetailScreen = () => {
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
   const [listName, setListName] = useState('');
 
   useEffect(() => {
@@ -52,8 +53,10 @@ const ListDetailScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) return;
 
-      await ItemManager.addItem(listId, newItemName.trim(), user.uid);
+      const price = newItemPrice ? parseFloat(newItemPrice) : undefined;
+      await ItemManager.addItem(listId, newItemName.trim(), user.uid, undefined, price);
       setNewItemName('');
+      setNewItemPrice('');
       await loadListAndItems();
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -78,6 +81,28 @@ const ListDetailScreen = () => {
     }
   };
 
+  const handleEditPrice = (item: Item) => {
+    Alert.prompt(
+      'Edit Price',
+      `Enter price for ${item.name}`,
+      async (text: string) => {
+        const price = text ? parseFloat(text) : null;
+        if (price !== null && isNaN(price)) {
+          Alert.alert('Error', 'Please enter a valid number');
+          return;
+        }
+        try {
+          await ItemManager.updateItem(item.id, { price });
+          await loadListAndItems();
+        } catch (error: any) {
+          Alert.alert('Error', error.message);
+        }
+      },
+      'plain-text',
+      item.price?.toString() || ''
+    );
+  };
+
   const handleCompleteList = async () => {
     try {
       await ShoppingListManager.markListAsCompleted(listId);
@@ -99,9 +124,16 @@ const ListDetailScreen = () => {
       >
         <Text>{item.checked ? '✓' : ' '}</Text>
       </TouchableOpacity>
-      <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
-        {item.name}
-      </Text>
+      <View style={styles.itemContent}>
+        <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
+          {item.name}
+        </Text>
+        <TouchableOpacity onPress={() => handleEditPrice(item)}>
+          <Text style={styles.priceText}>
+            {item.price ? `$${item.price.toFixed(2)}` : 'Add price'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
         <Text style={styles.deleteButton}>🗑</Text>
       </TouchableOpacity>
@@ -116,8 +148,18 @@ const ListDetailScreen = () => {
         <TextInput
           style={styles.input}
           placeholder="Add item..."
+          placeholderTextColor="#6E6E73"
           value={newItemName}
           onChangeText={setNewItemName}
+          onSubmitEditing={handleAddItem}
+        />
+        <TextInput
+          style={styles.priceInput}
+          placeholder="Price"
+          placeholderTextColor="#6E6E73"
+          value={newItemPrice}
+          onChangeText={setNewItemPrice}
+          keyboardType="numeric"
           onSubmitEditing={handleAddItem}
         />
         <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
@@ -179,6 +221,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     color: '#ffffff',
   },
+  priceInput: {
+    width: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 12,
+    borderRadius: 12,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+  },
   addButton: {
     backgroundColor: 'rgba(0, 122, 255, 0.8)',
     padding: 10,
@@ -213,14 +265,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
   },
-  itemName: {
+  itemContent: {
     flex: 1,
+  },
+  itemName: {
     fontSize: 16,
     color: '#ffffff',
   },
   itemChecked: {
     textDecorationLine: 'line-through',
     color: '#6E6E73',
+  },
+  priceText: {
+    fontSize: 14,
+    color: '#34C759',
+    marginTop: 4,
   },
   deleteButton: {
     fontSize: 20,

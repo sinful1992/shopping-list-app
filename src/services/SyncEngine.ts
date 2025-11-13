@@ -8,6 +8,7 @@ import {
   RemoteChange,
   SyncResult,
   SyncStatus,
+  SyncEngineStatus,
   Unsubscribe,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
@@ -210,7 +211,7 @@ class SyncEngine {
   /**
    * Get current sync status
    */
-  getSyncStatus(): SyncStatus {
+  getSyncStatus(): SyncEngineStatus {
     return {
       isOnline: this.isOnline,
       pendingOperations: 0, // Would query sync queue

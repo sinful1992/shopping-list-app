@@ -119,6 +119,28 @@ const HomeScreen = () => {
     }
   };
 
+  const handleDeleteList = async (listId: string, listName: string) => {
+    Alert.alert(
+      'Delete Shopping List',
+      `Are you sure you want to delete "${listName}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await ShoppingListManager.deleteList(listId);
+              await loadLists();
+            } catch (error: any) {
+              Alert.alert('Error', error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderListItem = ({ item }: { item: ShoppingList }) => (
     <TouchableOpacity
       style={styles.listCard}
@@ -126,8 +148,19 @@ const HomeScreen = () => {
     >
       <View style={styles.listHeader}>
         <Text style={styles.listName}>{item.name}</Text>
-        {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
-        {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
+        <View style={styles.listBadges}>
+          {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
+          {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteList(item.id, item.name);
+            }}
+            style={styles.deleteIconButton}
+          >
+            <Text style={styles.deleteIcon}>🗑</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.listDate}>
         Created {new Date(item.createdAt).toLocaleDateString()}
@@ -265,6 +298,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#a0a0a0',
   },
+  listBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   syncBadge: {
     fontSize: 12,
     color: '#FFB340',
@@ -272,6 +310,12 @@ const styles = StyleSheet.create({
   syncedBadge: {
     fontSize: 12,
     color: '#30D158',
+  },
+  deleteIconButton: {
+    padding: 4,
+  },
+  deleteIcon: {
+    fontSize: 18,
   },
   emptyState: {
     alignItems: 'center',
