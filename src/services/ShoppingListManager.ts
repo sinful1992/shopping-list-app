@@ -54,12 +54,12 @@ class ShoppingListManager {
   }
 
   /**
-   * Update list name
+   * Update list properties
    * Implements Req 2.5, 2.2
    */
-  async updateListName(listId: string, newName: string): Promise<ShoppingList> {
+  async updateList(listId: string, updates: Partial<ShoppingList>): Promise<ShoppingList> {
     const list = await LocalStorageManager.updateList(listId, {
-      name: newName,
+      ...updates,
       syncStatus: 'pending',
     });
 
@@ -67,6 +67,14 @@ class ShoppingListManager {
     await SyncEngine.pushChange('list', listId, 'update');
 
     return list;
+  }
+
+  /**
+   * Update list name
+   * Implements Req 2.5, 2.2
+   */
+  async updateListName(listId: string, newName: string): Promise<ShoppingList> {
+    return this.updateList(listId, { name: newName });
   }
 
   /**
@@ -74,16 +82,10 @@ class ShoppingListManager {
    * Implements Req 2.7
    */
   async markListAsCompleted(listId: string): Promise<ShoppingList> {
-    const list = await LocalStorageManager.updateList(listId, {
+    return this.updateList(listId, {
       status: 'completed',
       completedAt: Date.now(),
-      syncStatus: 'pending',
     });
-
-    // Trigger sync
-    await SyncEngine.pushChange('list', listId, 'update');
-
-    return list;
   }
 
   /**
@@ -91,12 +93,11 @@ class ShoppingListManager {
    * Implements Req 2.6, 2.2
    */
   async deleteList(listId: string): Promise<void> {
-    await LocalStorageManager.updateList(listId, {
+    await this.updateList(listId, {
       status: 'deleted',
-      syncStatus: 'pending',
     });
 
-    // Trigger sync
+    // Trigger sync for delete operation
     await SyncEngine.pushChange('list', listId, 'delete');
   }
 
