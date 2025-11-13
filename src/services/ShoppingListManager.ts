@@ -38,6 +38,16 @@ class ShoppingListManager {
   }
 
   /**
+   * Get all lists for family group (active and completed, sorted by creation date)
+   * Implements Req 2.3
+   */
+  async getAllLists(familyGroupId: string): Promise<ShoppingList[]> {
+    const lists = await LocalStorageManager.getAllLists(familyGroupId);
+    // Sort by creation date, newest first
+    return lists.sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  /**
    * Get all active lists for family group
    * Implements Req 2.3
    */

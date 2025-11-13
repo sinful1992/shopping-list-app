@@ -47,8 +47,9 @@ const HomeScreen = () => {
       }
 
       setFamilyGroupId(user.familyGroupId);
-      const activeLists = await ShoppingListManager.getAllActiveLists(user.familyGroupId);
-      setLists(activeLists);
+      // Get all lists (active and completed), sorted by creation date (newest first)
+      const allLists = await ShoppingListManager.getAllLists(user.familyGroupId);
+      setLists(allLists);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -233,32 +234,44 @@ const HomeScreen = () => {
     }
   };
 
-  const renderListItem = ({ item }: { item: ShoppingList }) => (
-    <TouchableOpacity
-      style={styles.listCard}
-      onPress={() => navigation.navigate('ListDetail' as never, { listId: item.id } as never)}
-    >
-      <View style={styles.listHeader}>
-        <Text style={styles.listName}>{item.name}</Text>
-        <View style={styles.listBadges}>
-          {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
-          {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
-          <TouchableOpacity
-            onPress={(e) => {
-              e.stopPropagation();
-              handleDeleteList(item.id, item.name);
-            }}
-            style={styles.deleteIconButton}
-          >
-            <Text style={styles.deleteIcon}>🗑</Text>
-          </TouchableOpacity>
+  const renderListItem = ({ item }: { item: ShoppingList }) => {
+    const isCompleted = item.status === 'completed';
+    const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
+
+    return (
+      <TouchableOpacity
+        style={[styles.listCard, isCompleted && styles.completedCard]}
+        onPress={() => navigation.navigate(targetScreen as never, { listId: item.id } as never)}
+      >
+        <View style={styles.listHeader}>
+          <View style={styles.listTitleRow}>
+            <Text style={[styles.listName, isCompleted && styles.completedText]}>
+              {item.name}
+            </Text>
+            {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
+          </View>
+          <View style={styles.listBadges}>
+            {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
+            {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteList(item.id, item.name);
+              }}
+              style={styles.deleteIconButton}
+            >
+              <Text style={styles.deleteIcon}>🗑</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      <Text style={styles.listDate}>
-        Created {new Date(item.createdAt).toLocaleDateString()}
-      </Text>
-    </TouchableOpacity>
-  );
+        <Text style={[styles.listDate, isCompleted && styles.completedText]}>
+          {isCompleted
+            ? `Completed ${new Date(item.completedAt || 0).toLocaleDateString()}`
+            : `Created ${new Date(item.createdAt).toLocaleDateString()}`}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -387,17 +400,38 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  completedCard: {
+    backgroundColor: 'rgba(48, 209, 88, 0.1)',
+    borderColor: 'rgba(48, 209, 88, 0.3)',
+  },
   listHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
+  listTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
   listName: {
     fontSize: 20,
     fontWeight: '700',
     color: '#ffffff',
-    flex: 1,
+  },
+  completedText: {
+    color: '#a0a0a0',
+  },
+  completedBadge: {
+    fontSize: 12,
+    color: '#30D158',
+    backgroundColor: 'rgba(48, 209, 88, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontWeight: '600',
   },
   listDate: {
     fontSize: 14,
