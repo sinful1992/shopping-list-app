@@ -25,7 +25,6 @@ const ListDetailScreen = () => {
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
-  const [newItemPrice, setNewItemPrice] = useState('');
   const [listName, setListName] = useState('');
 
   useEffect(() => {
@@ -53,10 +52,8 @@ const ListDetailScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) return;
 
-      const price = newItemPrice ? parseFloat(newItemPrice) : undefined;
-      await ItemManager.addItem(listId, newItemName.trim(), user.uid, undefined, price);
+      await ItemManager.addItem(listId, newItemName.trim(), user.uid);
       setNewItemName('');
-      setNewItemPrice('');
       await loadListAndItems();
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -153,15 +150,6 @@ const ListDetailScreen = () => {
           onChangeText={setNewItemName}
           onSubmitEditing={handleAddItem}
         />
-        <TextInput
-          style={styles.priceInput}
-          placeholder="Price"
-          placeholderTextColor="#6E6E73"
-          value={newItemPrice}
-          onChangeText={setNewItemPrice}
-          keyboardType="numeric"
-          onSubmitEditing={handleAddItem}
-        />
         <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
@@ -213,16 +201,6 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 12,
-    borderRadius: 12,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#ffffff',
-  },
-  priceInput: {
-    width: 80,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 12,
     borderRadius: 12,
