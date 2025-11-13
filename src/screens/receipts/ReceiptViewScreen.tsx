@@ -48,11 +48,8 @@ const ReceiptViewScreen = () => {
         return;
       }
 
-      // Get receipt image URL
-      if (list.receiptUrl) {
-        const url = await ImageStorageManager.getReceiptDownloadUrl(list.receiptUrl);
-        setReceiptUrl(url);
-      }
+      // Note: Receipt images are stored locally, not in cloud storage
+      // Image display removed - focusing on OCR data only
 
       // Get receipt data
       const data = await LocalStorageManager.getReceiptData(listId);
@@ -114,25 +111,8 @@ const ReceiptViewScreen = () => {
     );
   }
 
-  if (!receiptUrl) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyText}>No receipt available</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView style={styles.container}>
-      {/* Receipt Image */}
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: receiptUrl }}
-          style={styles.receiptImage}
-          resizeMode="contain"
-        />
-      </View>
-
       {/* OCR Data Section */}
       <View style={styles.dataContainer}>
         <View style={styles.headerRow}>
@@ -238,11 +218,12 @@ const ReceiptViewScreen = () => {
                   }
                   placeholder="0.00"
                   keyboardType="decimal-pad"
+                  placeholderTextColor="#6E6E73"
                 />
               ) : (
                 <Text style={styles.totalValue}>
                   {receiptData.totalAmount
-                    ? `$${receiptData.totalAmount.toFixed(2)}`
+                    ? `${receiptData.currency || '£'}${receiptData.totalAmount.toFixed(2)}`
                     : 'N/A'}
                 </Text>
               )}
@@ -251,15 +232,51 @@ const ReceiptViewScreen = () => {
             {/* Line Items */}
             {receiptData.lineItems && receiptData.lineItems.length > 0 && (
               <View style={styles.lineItemsContainer}>
-                <Text style={styles.sectionTitle}>Items</Text>
+                <Text style={styles.sectionTitle}>Items ({receiptData.lineItems.length})</Text>
                 {receiptData.lineItems.map((item, index) => (
                   <View key={index} style={styles.lineItem}>
-                    <Text style={styles.itemDescription}>
-                      {item.description}
-                    </Text>
-                    <Text style={styles.itemPrice}>
-                      ${item.price.toFixed(2)}
-                    </Text>
+                    {editing ? (
+                      <>
+                        <TextInput
+                          style={[styles.input, styles.itemDescInput]}
+                          value={editedData?.lineItems[index]?.description || ''}
+                          onChangeText={(text) => {
+                            setEditedData(prev => {
+                              if (!prev) return null;
+                              const updatedItems = [...prev.lineItems];
+                              updatedItems[index] = { ...updatedItems[index], description: text };
+                              return { ...prev, lineItems: updatedItems };
+                            });
+                          }}
+                          placeholder="Item name"
+                          placeholderTextColor="#6E6E73"
+                        />
+                        <TextInput
+                          style={[styles.input, styles.itemPriceInput]}
+                          value={editedData?.lineItems[index]?.price?.toString() || ''}
+                          onChangeText={(text) => {
+                            setEditedData(prev => {
+                              if (!prev) return null;
+                              const updatedItems = [...prev.lineItems];
+                              updatedItems[index] = { ...updatedItems[index], price: parseFloat(text) || 0 };
+                              return { ...prev, lineItems: updatedItems };
+                            });
+                          }}
+                          placeholder="0.00"
+                          keyboardType="decimal-pad"
+                          placeholderTextColor="#6E6E73"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.itemDescription}>
+                          {item.description}
+                        </Text>
+                        <Text style={styles.itemPrice}>
+                          {receiptData.currency || '£'}{item.price?.toFixed(2) || '0.00'}
+                        </Text>
+                      </>
+                    )}
                   </View>
                 ))}
               </View>
@@ -427,9 +444,11 @@ const styles = StyleSheet.create({
   lineItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 10,
   },
   itemDescription: {
     flex: 1,
@@ -440,6 +459,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#30D158',
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  itemDescInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  itemPriceInput: {
+    width: 80,
+    marginBottom: 0,
+    textAlign: 'right',
   },
   extractedText: {
     fontSize: 12,

@@ -137,7 +137,7 @@ const HistoryDetailScreen = () => {
                 <View style={styles.receiptField}>
                   <Text style={styles.receiptLabel}>Total:</Text>
                   <Text style={styles.totalValue}>
-                    ${receiptData.totalAmount.toFixed(2)}
+                    {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
                   </Text>
                 </View>
               )}
@@ -175,6 +175,11 @@ const HistoryDetailScreen = () => {
                     <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
                   )}
                 </View>
+                {item.price !== null && item.price !== undefined && (
+                  <Text style={styles.itemPrice}>
+                    £{item.price.toFixed(2)}
+                  </Text>
+                )}
               </View>
             ))}
           </View>
@@ -325,6 +330,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#a0a0a0',
     marginTop: 2,
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#30D158',
+    marginLeft: 10,
   },
   emptyText: {
     fontSize: 14,
