@@ -183,6 +183,11 @@ const HomeScreen = () => {
         user.familyGroupId
       );
 
+      // Save receipt image path to list
+      await ShoppingListManager.updateList(newList.id, {
+        receiptUrl: captureResult.filePath,
+      });
+
       // Step 3: Process OCR from local file (no Firebase Storage upload needed)
       const ocrResult = await ReceiptOCRProcessor.processReceipt(captureResult.filePath, newList.id);
 

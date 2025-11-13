@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
-import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
+import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 
 /**
@@ -66,23 +66,20 @@ const ReceiptCameraScreen = () => {
         throw new Error('User not authenticated');
       }
 
-      // Upload to Firebase Storage
-      const storagePath = await ImageStorageManager.uploadReceipt(
-        capturedImage,
-        listId,
-        user.familyGroupId,
-        (progress) => setUploadProgress(progress)
-      );
+      // Save receipt image path to list (local storage only)
+      await ShoppingListManager.updateList(listId, {
+        receiptUrl: capturedImage,
+      });
 
-      // Process with OCR
-      const ocrResult = await ReceiptOCRProcessor.processReceipt(storagePath, listId);
+      // Process with OCR from local file
+      const ocrResult = await ReceiptOCRProcessor.processReceipt(capturedImage, listId);
 
       if (ocrResult.success) {
-        Alert.alert('Success', 'Receipt uploaded and processed successfully!');
+        Alert.alert('Success', 'Receipt processed successfully!');
       } else {
         Alert.alert(
           'Partial Success',
-          'Receipt uploaded but OCR processing had low confidence. You can edit the data manually.'
+          'Receipt saved but OCR processing had low confidence. You can edit the data manually.'
         );
       }
 

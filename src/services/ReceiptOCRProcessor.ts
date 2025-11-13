@@ -381,15 +381,39 @@ class ReceiptOCRProcessor {
     // Group words into lines based on Y-coordinate
     const lineGroups = this.groupWordsIntoLines(words);
 
-    // Find all prices and determine total
-    const allPrices: number[] = [];
-    words.forEach(word => {
-      const priceMatch = word.text.match(/^[£$€]?\s*(\d+\.?\d{0,2})$/);
-      if (priceMatch) {
-        allPrices.push(parseFloat(priceMatch[1]));
+    // Find total amount by looking for "Total", "Subtotal", or rightmost price in footer
+    let totalAmount: number | null = null;
+
+    // Strategy 1: Look for line with "Total" or "Subtotal" keyword
+    for (const line of plainLines) {
+      if (/\b(total|subtotal|sub total|to\s*pay)\b/i.test(line)) {
+        // Extract price from this line
+        const priceMatch = line.match(/[£$€]?\s*(\d{1,4}\.\d{2})\b/);
+        if (priceMatch) {
+          const amount = parseFloat(priceMatch[1]);
+          // Reasonable total range: £0.01 - £999.99
+          if (amount > 0 && amount < 1000) {
+            totalAmount = amount;
+            break;
+          }
+        }
       }
-    });
-    const totalAmount = allPrices.length > 0 ? Math.max(...allPrices) : null;
+    }
+
+    // Strategy 2: If no total found, use largest reasonable price from item lines
+    if (totalAmount === null) {
+      const reasonablePrices: number[] = [];
+      words.forEach(word => {
+        const priceMatch = word.text.match(/^[£$€]?\s*(\d{1,3}\.\d{2})$/);
+        if (priceMatch) {
+          const price = parseFloat(priceMatch[1]);
+          if (price > 0 && price < 1000) {
+            reasonablePrices.push(price);
+          }
+        }
+      });
+      totalAmount = reasonablePrices.length > 0 ? Math.max(...reasonablePrices) : null;
+    }
 
     // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];

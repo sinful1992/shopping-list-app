@@ -177,41 +177,37 @@ const HistoryDetailScreen = () => {
                   )}
                 </View>
                 <View style={styles.itemContent}>
-                  <View style={styles.nameInputRow}>
-                    <TextInput
-                      style={[styles.nameInputField, item.checked && styles.itemNameChecked]}
-                      placeholder="Item name"
-                      placeholderTextColor="#6E6E73"
-                      value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
-                      onChangeText={(text) => handleNameChange(item.id, text)}
-                    />
-                    {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && (
-                      <TouchableOpacity
-                        style={styles.saveButton}
-                        onPress={() => handleSaveName(item.id)}
-                      >
-                        <Text style={styles.saveButtonText}>✔️</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.priceInputRow}>
-                    <TextInput
-                      style={styles.priceInputField}
-                      placeholder="Add price"
-                      placeholderTextColor="#6E6E73"
-                      value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
-                      onChangeText={(text) => handlePriceChange(item.id, text)}
-                      keyboardType="numeric"
-                    />
-                    {itemPrices[item.id] !== undefined && (
-                      <TouchableOpacity
-                        style={styles.saveButton}
-                        onPress={() => handleSavePrice(item.id)}
-                      >
-                        <Text style={styles.saveButtonText}>✔️</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                  <TextInput
+                    style={[styles.nameInput, item.checked && styles.itemNameChecked]}
+                    placeholder="Item name"
+                    placeholderTextColor="#6E6E73"
+                    value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
+                    onChangeText={(text) => handleNameChange(item.id, text)}
+                  />
+                  <TextInput
+                    style={styles.priceInput}
+                    placeholder="£0.00"
+                    placeholderTextColor="#6E6E73"
+                    value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
+                    onChangeText={(text) => handlePriceChange(item.id, text)}
+                    keyboardType="numeric"
+                  />
+                  {(itemNames[item.id] !== undefined && itemNames[item.id] !== item.name) ||
+                   (itemPrices[item.id] !== undefined) ? (
+                    <TouchableOpacity
+                      style={styles.saveButton}
+                      onPress={() => {
+                        if (itemNames[item.id] !== undefined && itemNames[item.id] !== item.name) {
+                          handleSaveName(item.id);
+                        }
+                        if (itemPrices[item.id] !== undefined) {
+                          handleSavePrice(item.id);
+                        }
+                      }}
+                    >
+                      <Text style={styles.saveButtonText}>✔️</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -383,13 +379,11 @@ const styles = StyleSheet.create({
   },
   itemContent: {
     flex: 1,
-  },
-  nameInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 10,
   },
-  nameInputField: {
+  nameInput: {
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 10,
@@ -398,23 +392,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     color: '#ffffff',
     fontSize: 16,
-    marginRight: 8,
   },
-  priceInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  priceInputField: {
-    flex: 1,
+  priceInput: {
+    width: 80,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 8,
+    padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     color: '#ffffff',
-    fontSize: 14,
-    marginRight: 8,
+    fontSize: 16,
+    textAlign: 'right',
   },
   saveButton: {
     backgroundColor: '#00E676',
