@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from './src/services/AuthenticationModule';
+import SyncEngine from './src/services/SyncEngine';
 import { User } from './src/models/types';
 
 // Dark theme for navigation
@@ -170,6 +171,13 @@ function App(): JSX.Element {
 
     return unsubscribe;
   }, []);
+
+  // Initialize SyncEngine with family group ID when user has one
+  useEffect(() => {
+    if (user?.familyGroupId) {
+      SyncEngine.setFamilyGroupId(user.familyGroupId);
+    }
+  }, [user?.familyGroupId]);
 
   if (loading) {
     return null; // Or show loading screen
