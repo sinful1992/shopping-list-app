@@ -312,10 +312,6 @@ class ReceiptOCRProcessor {
     // REJECT: Too short
     if (description.length < 3) return false;
 
-    // REJECT: Only numbers or mostly numbers
-    if (/^\d+$/.test(description)) return false;
-    if (/^\d+[\s\d]*$/.test(description)) return false; // e.g., "330", "1 2 3"
-
     // REJECT: Date patterns (e.g., "31 Jul'25 19:00", "01/01/2025")
     if (/\d{1,2}[\/\-\.\s']+(?:[A-Za-z]{3}|\d{1,2})[\/\-\.\s']+\d{2,4}/i.test(description)) return false;
     if (/\d{1,2}:\d{2}/i.test(description)) return false; // Time patterns
@@ -323,8 +319,8 @@ class ReceiptOCRProcessor {
     // REJECT: "TO PAY" and similar payment terms
     if (/\b(to\s*pay|amount|payable|paid|due)\b/i.test(description)) return false;
 
-    // REJECT: Single letter/number codes (T1, T2, A, B)
-    if (/^[A-Z]{1,3}\d*$/.test(description)) return false;
+    // REJECT: Single letter/number codes (T1, T2, A, B) - but allow longer codes
+    if (/^[A-Z]{1,2}\d{1,2}$/.test(description)) return false;
 
     // REJECT: Contains percentage (VAT lines)
     if (/\d{1,3}%/.test(lineText)) return false;
@@ -338,11 +334,11 @@ class ReceiptOCRProcessor {
     // REJECT: Contains category words (Food, Beverage, etc)
     if (/\b(food|beverage|soft\s*bev|alcohol|service)\b/i.test(description)) return false;
 
-    // REJECT: Mostly punctuation or special characters
-    if (!/[A-Za-z]{3,}/.test(description)) return false; // Must have at least one word with 3+ letters
+    // ACCEPT: Has at least some letters (allow numbers mixed with letters)
+    if (/[A-Za-z]/.test(description)) return true;
 
-    // ACCEPT: Has meaningful words
-    return true;
+    // REJECT: Everything else (pure numbers, punctuation)
+    return false;
   }
 
   /**

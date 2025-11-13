@@ -139,46 +139,27 @@ const HistoryScreen = () => {
     navigation.navigate('HistoryDetail' as never, { listId } as never);
   };
 
-  const renderListItem = ({ item }: { item: ShoppingList }) => (
-    <TouchableOpacity
-      style={styles.listItem}
-      onPress={() => handleListPress(item.id)}
-    >
-      <View style={styles.listItemContent}>
-        <View style={styles.listItemLeft}>
-          <Text style={styles.listName}>{item.name}</Text>
-          <Text style={styles.listDate}>
-            {new Date(item.completedAt || 0).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </Text>
-          {item.receiptData?.totalAmount && (
-            <Text style={styles.listAmount}>
-              {item.receiptData.currency || '£'}{item.receiptData.totalAmount.toFixed(2)}
-            </Text>
-          )}
-          {item.receiptData?.merchantName && (
-            <Text style={styles.merchantName}>
-              {item.receiptData.merchantName}
-            </Text>
-          )}
-        </View>
-        <View style={styles.listItemRight}>
-          {item.receiptUrl ? (
-            <View style={styles.receiptBadge}>
-              <Text style={styles.receiptBadgeText}>📄</Text>
-            </View>
-          ) : (
-            <View style={styles.noReceiptBadge}>
-              <Text style={styles.noReceiptBadgeText}>—</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderListItem = ({ item }: { item: ShoppingList }) => {
+    const date = new Date(item.completedAt || 0).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const total = item.receiptData?.totalAmount
+      ? `${item.receiptData.currency || '£'}${item.receiptData.totalAmount.toFixed(2)}`
+      : 'No total';
+
+    return (
+      <TouchableOpacity
+        style={styles.listItem}
+        onPress={() => handleListPress(item.id)}
+      >
+        <Text style={styles.listDate}>{date}</Text>
+        <Text style={styles.listTotal}>Total: {total}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderFooter = () => {
     if (!loading) return null;
@@ -356,78 +337,26 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: 15,
     marginTop: 10,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     padding: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  listItemContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  listItemLeft: {
-    flex: 1,
-  },
-  listName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 6,
   },
   listDate: {
-    fontSize: 14,
-    color: '#a0a0a0',
-    marginBottom: 4,
-  },
-  listAmount: {
     fontSize: 16,
+    color: '#ffffff',
     fontWeight: '600',
+  },
+  listTotal: {
+    fontSize: 16,
     color: '#30D158',
-    marginBottom: 2,
-  },
-  merchantName: {
-    fontSize: 13,
-    color: '#6E6E73',
-  },
-  listItemRight: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 15,
-  },
-  receiptBadge: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'rgba(48, 209, 88, 0.2)',
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(48, 209, 88, 0.3)',
-  },
-  receiptBadgeText: {
-    fontSize: 24,
-  },
-  noReceiptBadge: {
-    width: 50,
-    height: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  noReceiptBadgeText: {
-    fontSize: 24,
-    color: '#6E6E73',
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,

@@ -28,8 +28,6 @@ const HistoryDetailScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
-  const [itemsExpanded, setItemsExpanded] = useState(false);
-  const [receiptExpanded, setReceiptExpanded] = useState(false);
   const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
   const [itemNames, setItemNames] = useState<{ [key: string]: string }>({});
 
@@ -145,152 +143,114 @@ const HistoryDetailScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* Summary Header - Always Visible */}
-      <View style={styles.summaryHeader}>
-        <View style={styles.summaryLeft}>
-          <Text style={styles.listName}>{list.name}</Text>
-          <Text style={styles.listDate}>
-            {new Date(list.completedAt || 0).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.listName}>{list.name}</Text>
+        <Text style={styles.listDate}>
+          {new Date(list.completedAt || 0).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+          })}
+        </Text>
+        {receiptData?.totalAmount !== null && receiptData?.totalAmount !== undefined && (
+          <Text style={styles.totalAmount}>
+            Total: {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
           </Text>
-        </View>
-        <View style={styles.summaryRight}>
-          {receiptData?.totalAmount !== null && receiptData?.totalAmount !== undefined && (
-            <Text style={styles.summaryTotal}>
-              {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
-            </Text>
-          )}
-        </View>
+        )}
       </View>
 
-      {/* Items Section - Collapsible */}
-      <TouchableOpacity
-        style={styles.collapsibleHeader}
-        onPress={() => setItemsExpanded(!itemsExpanded)}
-      >
-        <Text style={styles.collapsibleTitle}>Items ({items.length})</Text>
-        <Text style={styles.expandIcon}>{itemsExpanded ? '▼' : '▶'}</Text>
-      </TouchableOpacity>
-
-      {itemsExpanded && (
-        <View style={styles.collapsibleContent}>
-          {items.length === 0 ? (
-            <Text style={styles.emptyText}>No items in this list</Text>
-          ) : (
-            <View style={styles.itemsContainer}>
-              {items.map((item) => (
-                <View key={item.id} style={styles.itemRow}>
-                  <View style={styles.checkboxContainer}>
-                    {item.checked ? (
-                      <Text style={styles.checkboxChecked}>✓</Text>
-                    ) : (
-                      <View style={styles.checkboxUnchecked} />
+      {/* Items Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+        {items.length === 0 ? (
+          <Text style={styles.emptyText}>No items in this list</Text>
+        ) : (
+          <View style={styles.itemsContainer}>
+            {items.map((item) => (
+              <View key={item.id} style={styles.itemRow}>
+                <View style={styles.checkboxContainer}>
+                  {item.checked ? (
+                    <Text style={styles.checkboxChecked}>✓</Text>
+                  ) : (
+                    <View style={styles.checkboxUnchecked} />
+                  )}
+                </View>
+                <View style={styles.itemContent}>
+                  <View style={styles.nameInputRow}>
+                    <TextInput
+                      style={[styles.nameInputField, item.checked && styles.itemNameChecked]}
+                      placeholder="Item name"
+                      placeholderTextColor="#6E6E73"
+                      value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
+                      onChangeText={(text) => handleNameChange(item.id, text)}
+                    />
+                    {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && (
+                      <TouchableOpacity
+                        style={styles.saveButton}
+                        onPress={() => handleSaveName(item.id)}
+                      >
+                        <Text style={styles.saveButtonText}>✔️</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
-                  <View style={styles.itemContent}>
-                    <View style={styles.nameInputRow}>
-                      <TextInput
-                        style={[styles.nameInputField, item.checked && styles.itemNameChecked]}
-                        placeholder="Item name"
-                        placeholderTextColor="#6E6E73"
-                        value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
-                        onChangeText={(text) => handleNameChange(item.id, text)}
-                      />
-                      {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && (
-                        <TouchableOpacity
-                          style={styles.saveButton}
-                          onPress={() => handleSaveName(item.id)}
-                        >
-                          <Text style={styles.saveButtonText}>✔️</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <View style={styles.priceInputRow}>
-                      <TextInput
-                        style={styles.priceInputField}
-                        placeholder="Add price"
-                        placeholderTextColor="#6E6E73"
-                        value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
-                        onChangeText={(text) => handlePriceChange(item.id, text)}
-                        keyboardType="numeric"
-                      />
-                      {itemPrices[item.id] !== undefined && (
-                        <TouchableOpacity
-                          style={styles.saveButton}
-                          onPress={() => handleSavePrice(item.id)}
-                        >
-                          <Text style={styles.saveButtonText}>✔️</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                  <View style={styles.priceInputRow}>
+                    <TextInput
+                      style={styles.priceInputField}
+                      placeholder="Add price"
+                      placeholderTextColor="#6E6E73"
+                      value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
+                      onChangeText={(text) => handlePriceChange(item.id, text)}
+                      keyboardType="numeric"
+                    />
+                    {itemPrices[item.id] !== undefined && (
+                      <TouchableOpacity
+                        style={styles.saveButton}
+                        onPress={() => handleSavePrice(item.id)}
+                      >
+                        <Text style={styles.saveButtonText}>✔️</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Receipt Section - Collapsible */}
-      {receiptData && (
-        <>
-          <TouchableOpacity
-            style={styles.collapsibleHeader}
-            onPress={() => setReceiptExpanded(!receiptExpanded)}
-          >
-            <Text style={styles.collapsibleTitle}>Receipt Details</Text>
-            <Text style={styles.expandIcon}>{receiptExpanded ? '▼' : '▶'}</Text>
-          </TouchableOpacity>
-
-          {receiptExpanded && (
-            <View style={styles.collapsibleContent}>
-              <View style={styles.receiptDataContainer}>
-                {receiptData.merchantName && (
-                  <View style={styles.receiptField}>
-                    <Text style={styles.receiptLabel}>Merchant:</Text>
-                    <Text style={styles.receiptValue}>{receiptData.merchantName}</Text>
-                  </View>
-                )}
-                {receiptData.purchaseDate && (
-                  <View style={styles.receiptField}>
-                    <Text style={styles.receiptLabel}>Date:</Text>
-                    <Text style={styles.receiptValue}>{receiptData.purchaseDate}</Text>
-                  </View>
-                )}
-                {receiptData.totalAmount !== null && (
-                  <View style={styles.receiptField}>
-                    <Text style={styles.receiptLabel}>Total:</Text>
-                    <Text style={styles.totalValue}>
-                      {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
-                    </Text>
-                  </View>
-                )}
               </View>
-              {receiptData.lineItems && receiptData.lineItems.length > 0 && (
-                <View style={styles.lineItemsSection}>
-                  <Text style={styles.subSectionTitle}>Receipt Items</Text>
-                  {receiptData.lineItems.map((lineItem, index) => (
-                    <View key={index} style={styles.lineItemRow}>
-                      <Text style={styles.lineItemDesc}>{lineItem.description}</Text>
-                      <Text style={styles.lineItemPrice}>
-                        {receiptData.currency || '£'}{lineItem.price?.toFixed(2) || '0.00'}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.viewReceiptButton}
-                onPress={handleViewReceipt}
-              >
-                <Text style={styles.viewReceiptButtonText}>✏️ Edit Receipt Data</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Receipt Data Section */}
+      {receiptData && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Receipt Data</Text>
+            <TouchableOpacity onPress={handleViewReceipt}>
+              <Text style={styles.editLink}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.receiptDataContainer}>
+            {receiptData.merchantName && (
+              <View style={styles.receiptField}>
+                <Text style={styles.receiptLabel}>Merchant:</Text>
+                <Text style={styles.receiptValue}>{receiptData.merchantName}</Text>
+              </View>
+            )}
+            {receiptData.purchaseDate && (
+              <View style={styles.receiptField}>
+                <Text style={styles.receiptLabel}>Date:</Text>
+                <Text style={styles.receiptValue}>{receiptData.purchaseDate}</Text>
+              </View>
+            )}
+            {receiptData.totalAmount !== null && (
+              <View style={styles.receiptField}>
+                <Text style={styles.receiptLabel}>Total:</Text>
+                <Text style={styles.receiptValue}>
+                  {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
       )}
 
       {/* Delete Button */}
@@ -323,19 +283,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#a0a0a0',
   },
-  section: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 10,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 20,
-    marginHorizontal: 10,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  header: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     padding: 20,
     borderWidth: 1,
@@ -344,12 +292,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     marginTop: 10,
     marginBottom: 10,
-  },
-  summaryLeft: {
-    flex: 1,
-  },
-  summaryRight: {
-    marginLeft: 15,
   },
   listName: {
     fontSize: 24,
@@ -360,41 +302,27 @@ const styles = StyleSheet.create({
   listDate: {
     fontSize: 14,
     color: '#a0a0a0',
+    marginBottom: 8,
   },
-  summaryTotal: {
-    fontSize: 28,
+  totalAmount: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#30D158',
   },
-  collapsibleHeader: {
+  section: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: 10,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 20,
+    marginHorizontal: 10,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 12,
-    marginHorizontal: 10,
-    marginBottom: 5,
-  },
-  collapsibleTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  expandIcon: {
-    fontSize: 16,
-    color: '#007AFF',
-  },
-  collapsibleContent: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginBottom: 10,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 12,
-    marginHorizontal: 10,
+    marginBottom: 15,
   },
   sectionTitle: {
     fontSize: 18,
@@ -402,36 +330,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 15,
   },
-  receiptImageContainer: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  receiptThumbnail: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#000',
-  },
-  receiptOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    padding: 10,
-    alignItems: 'center',
-  },
-  receiptOverlayText: {
-    color: '#fff',
-    fontSize: 14,
+  editLink: {
+    fontSize: 16,
+    color: '#007AFF',
     fontWeight: '600',
   },
   receiptDataContainer: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
-    paddingTop: 15,
+    marginTop: 10,
   },
   receiptField: {
     flexDirection: 'row',
@@ -547,50 +452,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#a0a0a0',
     fontStyle: 'italic',
-  },
-  lineItemsSection: {
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  subSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 10,
-  },
-  lineItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  lineItemDesc: {
-    flex: 1,
-    fontSize: 14,
-    color: '#ffffff',
-  },
-  lineItemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#30D158',
-    marginLeft: 10,
-  },
-  viewReceiptButton: {
-    marginTop: 15,
-    padding: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-  },
-  viewReceiptButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
   deleteButton: {
     padding: 15,
