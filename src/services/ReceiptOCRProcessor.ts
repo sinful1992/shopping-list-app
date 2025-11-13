@@ -289,6 +289,54 @@ class ReceiptOCRProcessor {
   }
 
   /**
+   * Helper: Calculate receipt zones to filter header/footer
+   */
+  private calculateReceiptZones(lineGroups: Array<Array<any>>): { headerEnd: number; footerStart: number } {
+    if (lineGroups.length === 0) return { headerEnd: 0, footerStart: Infinity };
+
+    const totalLines = lineGroups.length;
+
+    // Header zone: top 30% (store name, address, date)
+    const headerEnd = Math.floor(totalLines * 0.3);
+
+    // Footer zone: bottom 25% (totals, payment, VAT summary)
+    const footerStart = Math.floor(totalLines * 0.75);
+
+    return { headerEnd, footerStart };
+  }
+
+  /**
+   * Helper: Validate if a line is a valid product item
+   */
+  private isValidProductLine(description: string, price: number, lineText: string): boolean {
+    // REJECT: Too short
+    if (description.length < 3) return false;
+
+    // REJECT: Only numbers
+    if (/^\d+$/.test(description)) return false;
+
+    // REJECT: Single letter/number codes (T1, T2, A, B)
+    if (/^[A-Z]{1,3}\d*$/.test(description)) return false;
+
+    // REJECT: Contains percentage (VAT lines)
+    if (/\d{1,3}%/.test(lineText)) return false;
+
+    // REJECT: Transaction metadata keywords
+    if (/\b(tbl|table|check|chk|guest|gst|cover|server)\b/i.test(description)) return false;
+
+    // REJECT: VAT category pattern (e.g., "T1 2.33 Food 20%")
+    if (/^[A-Z]\d+\s+[\d.]+\s+\w+\s+\d+%?$/.test(lineText)) return false;
+
+    // REJECT: Contains category words (Food, Beverage, etc)
+    if (/\b(food|beverage|soft\s*bev|alcohol|service)\b/i.test(description)) return false;
+
+    // ACCEPT: Has meaningful words (3+ consecutive letters)
+    if (/[A-Za-z]{3,}/.test(description)) return true;
+
+    return false;
+  }
+
+  /**
    * Helper: Parse receipt using spatial information from Vision API
    * Implements Req 6.3
    */
@@ -340,7 +388,11 @@ class ReceiptOCRProcessor {
 
     // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];
-    const skipKeywords = /^(VAT|total|subtotal|tax|balance|card|visa|mastercard|amex|receipt|thank|cashier|server|table|change|payment|date|time|tel|phone|address|street|road|www\.|http|store|manager|customer)/i;
+    const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|server|table|tbl|chk|check|guest|gst|cover|change|payment|date|time|tel|phone|address|street|road|lane|ave|avenue|www\.|http|store|manager|customer|food|soft\s*bev|beverage|alcohol|service|tender|cash|credit|debit)/i;
+
+    // Calculate zones to skip header/footer
+    const { headerEnd, footerStart } = this.calculateReceiptZones(lineGroups);
+    const receiptWidth = Math.max(...words.map(w => w.x + w.width), 1);
 
     // Track multi-line items (common in UK supermarkets)
     let pendingDescription = '';
@@ -349,18 +401,45 @@ class ReceiptOCRProcessor {
       const lineWords = lineGroups[i];
       if (lineWords.length === 0) continue;
 
-      const lineText = lineWords.map(w => w.text).join(' ');
-
-      // Skip header/footer lines
-      if (lineText.length < 2 || skipKeywords.test(lineText.trim())) {
-        pendingDescription = ''; // Reset pending if we hit a skip line
+      // ZONE FILTER: Skip header (first 30%)
+      if (i < headerEnd) {
+        pendingDescription = '';
         continue;
       }
 
-      // Find price on this line (rightmost price-like word)
-      // More flexible pattern to handle £, decimals, and whole numbers
+      // ZONE FILTER: Skip footer (last 25%)
+      if (i >= footerStart) {
+        pendingDescription = '';
+        continue;
+      }
+
+      const lineText = lineWords.map(w => w.text).join(' ');
+
+      // Skip header/footer lines by keyword
+      if (lineText.length < 2 || skipKeywords.test(lineText.trim())) {
+        pendingDescription = '';
+        continue;
+      }
+
+      // Skip VAT category lines (e.g., "T1 2.33 Food 20%")
+      if (/^[A-Z]{1,2}\d+\s+[\d.]+\s+[A-Za-z\s]+\d{1,3}%?$/.test(lineText)) {
+        pendingDescription = '';
+        continue;
+      }
+
+      // Skip transaction metadata (e.g., "Tbl 7/1 Chk 6139")
+      if (/\b(tbl|table|check|chk|guest|gst|cover)\s*\d+/i.test(lineText)) {
+        pendingDescription = '';
+        continue;
+      }
+
+      // Find price on this line (rightmost, right-aligned)
       const priceWord = lineWords
-        .filter(w => /^[£$€]?\s*\d+\.?\d{0,2}$/.test(w.text))
+        .filter(w => {
+          const isPricePattern = /^[£$€]?\s*\d+\.?\d{0,2}$/.test(w.text);
+          const isRightAligned = (w.x / receiptWidth) > 0.5; // Must be in right half
+          return isPricePattern && isRightAligned;
+        })
         .sort((a, b) => b.x - a.x)[0]; // Rightmost
 
       if (priceWord) {
@@ -391,12 +470,8 @@ class ReceiptOCRProcessor {
           // Remove standalone numbers at start
           description = description.replace(/^\d+\s+/, '');
 
-          // Skip if description is too short or looks like metadata
-          if (description.length < 2) continue;
-          if (/^\d+$/.test(description)) continue; // Skip if only numbers
-          if (/^[A-Z]{1,3}\d*$/.test(description)) continue; // Skip codes like "T1", "T2"
-          // Skip common non-item words
-          if (/^(item|line|offer|deal|promo|discount|saving)$/i.test(description)) continue;
+          // VALIDATION: Check if valid product line
+          if (!this.isValidProductLine(description, price, lineText)) continue;
 
           lineItems.push({
             description: description.trim(),
