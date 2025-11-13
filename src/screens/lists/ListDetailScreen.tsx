@@ -26,8 +26,7 @@ const ListDetailScreen = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [listName, setListName] = useState('');
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editingPrice, setEditingPrice] = useState('');
+  const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadListAndItems();
@@ -80,21 +79,24 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleEditPrice = (item: Item) => {
-    setEditingItemId(item.id);
-    setEditingPrice(item.price?.toString() || '');
+  const handlePriceChange = (itemId: string, text: string) => {
+    setItemPrices(prev => ({ ...prev, [itemId]: text }));
   };
 
   const handleSavePrice = async (itemId: string) => {
-    const price = editingPrice ? parseFloat(editingPrice) : null;
-    if (editingPrice && (price === null || isNaN(price))) {
+    const priceText = itemPrices[itemId];
+    const price = priceText ? parseFloat(priceText) : null;
+    if (priceText && (price === null || isNaN(price))) {
       Alert.alert('Error', 'Please enter a valid number');
       return;
     }
     try {
       await ItemManager.updateItem(itemId, { price });
-      setEditingItemId(null);
-      setEditingPrice('');
+      setItemPrices(prev => {
+        const newPrices = { ...prev };
+        delete newPrices[itemId];
+        return newPrices;
+      });
       await loadListAndItems();
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -126,31 +128,24 @@ const ListDetailScreen = () => {
         <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
           {item.name}
         </Text>
-        {editingItemId === item.id ? (
-          <View style={styles.priceInputRow}>
-            <TextInput
-              style={styles.priceInputField}
-              placeholder="Enter price"
-              placeholderTextColor="#6E6E73"
-              value={editingPrice}
-              onChangeText={setEditingPrice}
-              keyboardType="numeric"
-              autoFocus
-            />
+        <View style={styles.priceInputRow}>
+          <TextInput
+            style={styles.priceInputField}
+            placeholder="Price"
+            placeholderTextColor="#6E6E73"
+            value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
+            onChangeText={(text) => handlePriceChange(item.id, text)}
+            keyboardType="numeric"
+          />
+          {itemPrices[item.id] !== undefined && (
             <TouchableOpacity
               style={styles.saveButton}
               onPress={() => handleSavePrice(item.id)}
             >
               <Text style={styles.saveButtonText}>✔️</Text>
             </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity onPress={() => handleEditPrice(item)}>
-            <Text style={styles.priceText}>
-              {item.price ? `$${item.price.toFixed(2)}` : 'Add price'}
-            </Text>
-          </TouchableOpacity>
-        )}
+          )}
+        </View>
       </View>
       <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
         <Text style={styles.deleteButton}>🗑</Text>
