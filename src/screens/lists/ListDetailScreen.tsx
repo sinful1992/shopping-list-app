@@ -13,6 +13,7 @@ import { Item } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import LocalStorageManager from '../../services/LocalStorageManager';
 
 /**
  * ListDetailScreen
@@ -27,6 +28,7 @@ const ListDetailScreen = () => {
   const [newItemName, setNewItemName] = useState('');
   const [listName, setListName] = useState('');
   const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
+  const [itemNames, setItemNames] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadListAndItems();
@@ -103,10 +105,97 @@ const ListDetailScreen = () => {
     }
   };
 
+  const handleNameChange = (itemId: string, text: string) => {
+    setItemNames(prev => ({ ...prev, [itemId]: text }));
+  };
+
+  const handleSaveName = async (itemId: string) => {
+    const nameText = itemNames[itemId];
+    if (!nameText || !nameText.trim()) {
+      Alert.alert('Error', 'Item name cannot be empty');
+      return;
+    }
+    try {
+      await ItemManager.updateItem(itemId, { name: nameText.trim() });
+      setItemNames(prev => {
+        const newNames = { ...prev };
+        delete newNames[itemId];
+        return newNames;
+      });
+      await loadListAndItems();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
   const handleCompleteList = async () => {
     try {
       await ShoppingListManager.markListAsCompleted(listId);
       Alert.alert('Success', 'Shopping list completed!');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleImportReceiptItems = async () => {
+    try {
+      const receiptData = await LocalStorageManager.getReceiptData(listId);
+      if (!receiptData || !receiptData.lineItems || receiptData.lineItems.length === 0) {
+        Alert.alert('No Items', 'No receipt items found to import');
+        return;
+      }
+
+      // Get existing items to check for duplicates
+      const existingItems = await ItemManager.getItemsForList(listId);
+      const existingNames = new Set(existingItems.map(i => i.name.toLowerCase().trim()));
+
+      // Filter out duplicates
+      const newItems = receiptData.lineItems.filter(
+        lineItem => !existingNames.has(lineItem.description.toLowerCase().trim())
+      );
+
+      if (newItems.length === 0) {
+        Alert.alert('No New Items', 'All receipt items already exist in the list');
+        return;
+      }
+
+      const duplicateCount = receiptData.lineItems.length - newItems.length;
+      const message = duplicateCount > 0
+        ? `Import ${newItems.length} new items?\n(${duplicateCount} duplicates skipped)`
+        : `Import ${newItems.length} items from receipt?`;
+
+      Alert.alert(
+        'Import Items',
+        message,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import',
+            onPress: async () => {
+              const user = await AuthenticationModule.getCurrentUser();
+              if (!user) return;
+
+              try {
+                // Import each new line item
+                for (const lineItem of newItems) {
+                  await ItemManager.addItem(
+                    listId,
+                    lineItem.description,
+                    user.uid,
+                    lineItem.quantity?.toString() || undefined,
+                    lineItem.price || undefined
+                  );
+                }
+
+                await loadListAndItems();
+                Alert.alert('Success', `Imported ${newItems.length} items successfully!`);
+              } catch (error: any) {
+                Alert.alert('Error', error.message);
+              }
+            },
+          },
+        ]
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -125,12 +214,24 @@ const ListDetailScreen = () => {
         <Text>{item.checked ? '✓' : ' '}</Text>
       </TouchableOpacity>
       <View style={styles.itemContent}>
-        <View style={styles.itemTopRow}>
-          <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
-            {item.name}
-          </Text>
-          {item.price !== null && item.price !== undefined && (
-            <Text style={[styles.itemPrice, item.checked && styles.itemChecked]}>
+        <View style={styles.nameInputRow}>
+          <TextInput
+            style={[styles.nameInputField, item.checked && styles.itemChecked]}
+            placeholder="Item name"
+            placeholderTextColor="#6E6E73"
+            value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
+            onChangeText={(text) => handleNameChange(item.id, text)}
+          />
+          {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && (
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={() => handleSaveName(item.id)}
+            >
+              <Text style={styles.saveButtonText}>✔️</Text>
+            </TouchableOpacity>
+          )}
+          {item.price !== null && item.price !== undefined && !itemNames[item.id] && (
+            <Text style={[styles.itemPriceCompact, item.checked && styles.itemChecked]}>
               £{item.price.toFixed(2)}
             </Text>
           )}
@@ -177,6 +278,10 @@ const ListDetailScreen = () => {
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity style={styles.importButton} onPress={handleImportReceiptItems}>
+        <Text style={styles.importButtonText}>📋 Import Receipt Items</Text>
+      </TouchableOpacity>
 
       <FlatList
         data={items}
@@ -269,6 +374,28 @@ const styles = StyleSheet.create({
   itemContent: {
     flex: 1,
   },
+  nameInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  nameInputField: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+    fontSize: 16,
+    marginRight: 8,
+  },
+  itemPriceCompact: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34C759',
+    marginLeft: 8,
+  },
   itemTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -355,6 +482,21 @@ const styles = StyleSheet.create({
   receiptButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  importButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  importButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
   completeButton: {
