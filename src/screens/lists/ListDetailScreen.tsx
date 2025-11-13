@@ -27,6 +27,8 @@ const ListDetailScreen = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [listName, setListName] = useState('');
+  const [editedListName, setEditedListName] = useState('');
+  const [isEditingListName, setIsEditingListName] = useState(false);
   const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
   const [itemNames, setItemNames] = useState<{ [key: string]: string }>({});
 
@@ -126,6 +128,30 @@ const ListDetailScreen = () => {
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const handleEditListName = () => {
+    setEditedListName(listName);
+    setIsEditingListName(true);
+  };
+
+  const handleSaveListName = async () => {
+    if (!editedListName.trim()) {
+      Alert.alert('Error', 'List name cannot be empty');
+      return;
+    }
+    try {
+      await ShoppingListManager.updateListName(listId, editedListName.trim());
+      setListName(editedListName.trim());
+      setIsEditingListName(false);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleCancelEditListName = () => {
+    setIsEditingListName(false);
+    setEditedListName('');
   };
 
   const handleCompleteList = async () => {
@@ -263,7 +289,32 @@ const ListDetailScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{listName}</Text>
+      <View style={styles.titleContainer}>
+        {isEditingListName ? (
+          <>
+            <TextInput
+              style={styles.titleInput}
+              value={editedListName}
+              onChangeText={setEditedListName}
+              autoFocus
+              placeholderTextColor="#6E6E73"
+            />
+            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName}>
+              <Text style={styles.titleSaveButtonText}>✔️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName}>
+              <Text style={styles.titleCancelButtonText}>✖️</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <Text style={styles.title}>{listName}</Text>
+            <TouchableOpacity onPress={handleEditListName}>
+              <Text style={styles.editIcon}>✏️</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
 
       <View style={styles.addItemContainer}>
         <TextInput
@@ -311,14 +362,55 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    gap: 10,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
     color: '#ffffff',
+    flex: 1,
+  },
+  editIcon: {
+    fontSize: 20,
+    padding: 5,
+  },
+  titleInput: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  titleSaveButton: {
+    backgroundColor: '#00E676',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#00C853',
+  },
+  titleSaveButtonText: {
+    fontSize: 20,
+  },
+  titleCancelButton: {
+    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 59, 48, 0.3)',
+  },
+  titleCancelButtonText: {
+    fontSize: 20,
   },
   addItemContainer: {
     flexDirection: 'row',
