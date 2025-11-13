@@ -220,6 +220,7 @@ class LocalStorageManager {
           await itemRecord.update((record) => {
             record.name = item.name;
             record.quantity = item.quantity;
+            record.price = item.price;
             record.checked = item.checked;
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
@@ -231,6 +232,7 @@ class LocalStorageManager {
             record.listId = item.listId;
             record.name = item.name;
             record.quantity = item.quantity;
+            record.price = item.price;
             record.checked = item.checked;
             record.createdBy = item.createdBy;
             // createdAt is @readonly and automatically set by WatermelonDB
@@ -290,6 +292,7 @@ class LocalStorageManager {
         await itemRecord.update((record) => {
           if (updates.name !== undefined) record.name = updates.name;
           if (updates.quantity !== undefined) record.quantity = updates.quantity;
+          if (updates.price !== undefined) record.price = updates.price;
           if (updates.checked !== undefined) record.checked = updates.checked;
           if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
           if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
@@ -484,6 +487,7 @@ class LocalStorageManager {
       listId: model.listId,
       name: model.name,
       quantity: model.quantity,
+      price: model.price,
       checked: model.checked,
       createdBy: model.createdBy,
       createdAt: model.createdAt,

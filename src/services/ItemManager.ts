@@ -13,12 +13,13 @@ class ItemManager {
    * Add new item to shopping list
    * Implements Req 3.1, 3.2
    */
-  async addItem(listId: string, name: string, userId: string, quantity?: string): Promise<Item> {
+  async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number): Promise<Item> {
     const item: Item = {
       id: uuidv4(),
       listId,
       name,
       quantity: quantity || null,
+      price: price || null,
       checked: false,
       createdBy: userId,
       createdAt: Date.now(),

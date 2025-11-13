@@ -45,6 +45,7 @@ export interface Item {
   listId: string;
   name: string;
   quantity: string | null;
+  price: number | null;
   checked: boolean;
   createdBy: string;
   createdAt: number;
@@ -140,7 +141,7 @@ export interface RemoteChange {
   timestamp: number;
 }
 
-export interface SyncStatus {
+export interface SyncEngineStatus {
   isOnline: boolean;
   pendingOperations: number;
   lastSyncTimestamp: number | null;
