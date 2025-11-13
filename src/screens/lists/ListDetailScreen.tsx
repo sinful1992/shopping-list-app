@@ -292,11 +292,11 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   saveButton: {
-    backgroundColor: 'rgba(52, 199, 89, 0.8)',
+    backgroundColor: '#00E676',
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(52, 199, 89, 0.3)',
+    borderColor: '#00C853',
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 36,
