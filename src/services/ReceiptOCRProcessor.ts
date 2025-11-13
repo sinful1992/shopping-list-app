@@ -228,13 +228,21 @@ class ReceiptOCRProcessor {
     // Extract merchant name (typically first bold/large text)
     const merchantName = lines[0] || null;
 
-    // Extract date (common formats: MM/DD/YYYY, DD-MM-YYYY, etc.)
-    const dateRegex = /\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\b/;
+    // Extract date (common formats: MM/DD/YYYY, DD-MM-YYYY, DD'MMM'YY, etc.)
+    const dateRegex = /\b(\d{1,2}[\/\-\.'\s](?:\d{1,2}|[A-Za-z]{3})[\/\-\.'\s]\d{2,4})\b/;
     const dateMatch = text.match(dateRegex);
     const purchaseDate = dateMatch ? dateMatch[0] : null;
 
-    // Extract total (look for largest amount near bottom)
-    const amountRegex = /\$?\s*(\d+\.\d{2})/g;
+    // Detect currency (£, $, €, etc.)
+    let currency = 'USD';
+    if (text.includes('£') || /GBP|UK|Premier Inn|Tesco|Sainsbury/i.test(text)) {
+      currency = 'GBP';
+    } else if (text.includes('€') || /EUR/i.test(text)) {
+      currency = 'EUR';
+    }
+
+    // Enhanced amount regex - handles £, $, €, and prices without currency symbol
+    const amountRegex = /[£$€]?\s*(\d+\.\d{2})/g;
     const amounts: number[] = [];
     let match;
     while ((match = amountRegex.exec(text)) !== null) {
@@ -242,16 +250,43 @@ class ReceiptOCRProcessor {
     }
     const totalAmount = amounts.length > 0 ? Math.max(...amounts) : null;
 
-    // Extract line items (simplified)
+    // Extract line items - improved pattern matching
     const lineItems: ReceiptLineItem[] = [];
+
+    // Skip header/footer keywords
+    const skipKeywords = /VAT|total|subtotal|tax|card|visa|mastercard|amex|check|closed|receipt|thank you|cashier|server|table/i;
+
     for (const line of lines) {
-      const itemMatch = line.match(/(.+?)\s+\$?(\d+\.\d{2})/);
-      if (itemMatch) {
-        lineItems.push({
-          description: itemMatch[1].trim(),
-          quantity: null,
-          price: parseFloat(itemMatch[2]),
-        });
+      // Skip lines with keywords
+      if (skipKeywords.test(line)) continue;
+
+      // Match patterns like: "Item Name 12.99" or "Item Name £12.99" or "Item Name 330 12.99"
+      // Improved regex to capture item name and price more accurately
+      const patterns = [
+        // Pattern 1: Item name followed by price (with or without currency)
+        /^(.+?)\s+[£$€]?\s*(\d+\.\d{2})$/,
+        // Pattern 2: Item name with quantity/size then price (e.g., "Coca Cola 330 3.45")
+        /^(.+?)\s+\d+\s+[£$€]?\s*(\d+\.\d{2})$/,
+        // Pattern 3: Item with quantity prefix (e.g., "2x Item Name 10.00")
+        /^(\d+x?\s+.+?)\s+[£$€]?\s*(\d+\.\d{2})$/,
+      ];
+
+      for (const pattern of patterns) {
+        const itemMatch = line.match(pattern);
+        if (itemMatch) {
+          const description = itemMatch[1].trim();
+          const price = parseFloat(itemMatch[2]);
+
+          // Filter out very short descriptions (likely not real items)
+          if (description.length > 2 && price > 0 && price < 1000) {
+            lineItems.push({
+              description,
+              quantity: null,
+              price,
+            });
+            break; // Found a match, move to next line
+          }
+        }
       }
     }
 
@@ -259,13 +294,14 @@ class ReceiptOCRProcessor {
     let confidence = 50; // Base confidence
     if (merchantName) confidence += 15;
     if (purchaseDate) confidence += 15;
-    if (totalAmount) confidence += 20;
+    if (totalAmount) confidence += 10;
+    if (lineItems.length > 0) confidence += 10;
 
     return {
       merchantName,
       purchaseDate,
       totalAmount,
-      currency: 'USD',
+      currency,
       lineItems,
       extractedAt: Date.now(),
       confidence: Math.min(confidence, 100),

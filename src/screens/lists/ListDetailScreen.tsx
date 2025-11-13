@@ -125,13 +125,20 @@ const ListDetailScreen = () => {
         <Text>{item.checked ? '✓' : ' '}</Text>
       </TouchableOpacity>
       <View style={styles.itemContent}>
-        <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
-          {item.name}
-        </Text>
+        <View style={styles.itemTopRow}>
+          <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
+            {item.name}
+          </Text>
+          {item.price !== null && item.price !== undefined && (
+            <Text style={[styles.itemPrice, item.checked && styles.itemChecked]}>
+              £{item.price.toFixed(2)}
+            </Text>
+          )}
+        </View>
         <View style={styles.priceInputRow}>
           <TextInput
             style={styles.priceInputField}
-            placeholder="Price"
+            placeholder="Add price"
             placeholderTextColor="#6E6E73"
             value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
             onChangeText={(text) => handlePriceChange(item.id, text)}
@@ -262,9 +269,21 @@ const styles = StyleSheet.create({
   itemContent: {
     flex: 1,
   },
+  itemTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   itemName: {
     fontSize: 16,
     color: '#ffffff',
+    flex: 1,
+  },
+  itemPrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#34C759',
+    marginLeft: 8,
   },
   itemChecked: {
     textDecorationLine: 'line-through',
