@@ -71,6 +71,36 @@ export interface ReceiptLineItem {
   price: number | null;
 }
 
+// Google Cloud Vision API Response Types
+export interface VisionVertex {
+  x?: number;
+  y?: number;
+}
+
+export interface VisionBoundingPoly {
+  vertices: VisionVertex[];
+}
+
+export interface VisionEntityAnnotation {
+  locale?: string;
+  description: string;
+  boundingPoly: VisionBoundingPoly;
+  confidence?: number;
+}
+
+export interface VisionApiResponse {
+  responses: VisionAnnotateImageResponse[];
+}
+
+export interface VisionAnnotateImageResponse {
+  textAnnotations?: VisionEntityAnnotation[];
+  error?: {
+    code: number;
+    message: string;
+    status: string;
+  };
+}
+
 export interface CaptureResult {
   success: boolean;
   filePath: string | null;

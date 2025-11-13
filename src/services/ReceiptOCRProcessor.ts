@@ -9,6 +9,9 @@ import {
   OCRError,
   ReceiptData,
   ReceiptLineItem,
+  VisionApiResponse,
+  VisionAnnotateImageResponse,
+  VisionEntityAnnotation,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
@@ -42,10 +45,10 @@ class ReceiptOCRProcessor {
       const base64Image = await this.readLocalImageAsBase64(localFilePath);
 
       // Send to Google Cloud Vision API
-      const extractedText = await this.callVisionAPI(base64Image);
+      const visionResponse = await this.callVisionAPI(base64Image);
 
-      // Parse receipt data
-      const receiptData = this.parseReceiptText(extractedText);
+      // Parse receipt data with spatial information
+      const receiptData = this.parseReceiptWithSpatialData(visionResponse);
 
       // Increment API usage count
       await this.incrementAPIUsage();
@@ -185,7 +188,7 @@ class ReceiptOCRProcessor {
    * Helper: Call Google Cloud Vision API
    * Implements Req 6.2
    */
-  private async callVisionAPI(base64Image: string): Promise<string> {
+  private async callVisionAPI(base64Image: string): Promise<VisionAnnotateImageResponse> {
     const url = `https://vision.googleapis.com/v1/images:annotate?key=${this.apiKey}`;
 
     const requestBody = {
@@ -197,36 +200,114 @@ class ReceiptOCRProcessor {
           features: [
             {
               type: 'DOCUMENT_TEXT_DETECTION',
-              maxResults: 1,
             },
           ],
         },
       ],
     };
 
-    const response = await axios.post(url, requestBody);
+    const response = await axios.post<VisionApiResponse>(url, requestBody);
 
     if (response.data.responses[0].error) {
       throw new Error(response.data.responses[0].error.message);
     }
 
-    const textAnnotations = response.data.responses[0].textAnnotations;
+    return response.data.responses[0];
+  }
+
+  /**
+   * Helper: Extract words with spatial coordinates
+   */
+  private extractWordsWithCoordinates(textAnnotations: VisionEntityAnnotation[]): Array<{
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }> {
+    // Skip first element (full text), process individual words
+    return textAnnotations.slice(1).map(annotation => {
+      const vertices = annotation.boundingPoly.vertices;
+
+      // Calculate bounding box dimensions
+      const x = Math.min(...vertices.map(v => v.x || 0));
+      const y = Math.min(...vertices.map(v => v.y || 0));
+      const maxX = Math.max(...vertices.map(v => v.x || 0));
+      const maxY = Math.max(...vertices.map(v => v.y || 0));
+
+      return {
+        text: annotation.description,
+        x,
+        y,
+        width: maxX - x,
+        height: maxY - y,
+      };
+    });
+  }
+
+  /**
+   * Helper: Group words into lines based on Y-coordinate
+   */
+  private groupWordsIntoLines(words: Array<{
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }>): Array<Array<typeof words[0]>> {
+    if (words.length === 0) return [];
+
+    const VERTICAL_THRESHOLD = 15; // pixels tolerance for same line
+    const lines: Array<Array<typeof words[0]>> = [];
+    let currentLine: Array<typeof words[0]> = [];
+    let lastY = -1;
+
+    // Sort by Y first to process top to bottom
+    const sortedWords = [...words].sort((a, b) => a.y - b.y);
+
+    for (const word of sortedWords) {
+      if (lastY === -1 || Math.abs(word.y - lastY) < VERTICAL_THRESHOLD) {
+        currentLine.push(word);
+        lastY = word.y;
+      } else {
+        if (currentLine.length > 0) {
+          // Sort line words by X (left to right)
+          currentLine.sort((a, b) => a.x - b.x);
+          lines.push([...currentLine]);
+        }
+        currentLine = [word];
+        lastY = word.y;
+      }
+    }
+
+    if (currentLine.length > 0) {
+      currentLine.sort((a, b) => a.x - b.x);
+      lines.push(currentLine);
+    }
+
+    return lines;
+  }
+
+  /**
+   * Helper: Parse receipt using spatial information from Vision API
+   * Implements Req 6.3
+   */
+  private parseReceiptWithSpatialData(visionResponse: VisionAnnotateImageResponse): ReceiptData {
+    const { textAnnotations } = visionResponse;
+
     if (!textAnnotations || textAnnotations.length === 0) {
       throw new Error('No text found in image');
     }
 
-    return textAnnotations[0].description;
-  }
+    // Get full text from first annotation
+    const text = textAnnotations[0].description;
+    const plainLines = text.split('\n').filter((line) => line.trim());
 
-  /**
-   * Helper: Parse receipt text
-   * Implements Req 6.3
-   */
-  private parseReceiptText(text: string): ReceiptData {
-    const lines = text.split('\n').filter((line) => line.trim());
+    // Extract merchant name (typically first line)
+    const merchantName = plainLines[0] || null;
 
-    // Extract merchant name (typically first bold/large text)
-    const merchantName = lines[0] || null;
+    // Extract language
+    const detectedLanguage = textAnnotations[0].locale;
 
     // Extract date (common formats: MM/DD/YYYY, DD-MM-YYYY, DD'MMM'YY, etc.)
     const dateRegex = /\b(\d{1,2}[\/\-\.'\s](?:\d{1,2}|[A-Za-z]{3})[\/\-\.'\s]\d{2,4})\b/;
@@ -241,51 +322,66 @@ class ReceiptOCRProcessor {
       currency = 'EUR';
     }
 
-    // Enhanced amount regex - handles £, $, €, and prices without currency symbol
-    const amountRegex = /[£$€]?\s*(\d+\.\d{2})/g;
-    const amounts: number[] = [];
-    let match;
-    while ((match = amountRegex.exec(text)) !== null) {
-      amounts.push(parseFloat(match[1]));
-    }
-    const totalAmount = amounts.length > 0 ? Math.max(...amounts) : null;
+    // Extract words with spatial coordinates
+    const words = this.extractWordsWithCoordinates(textAnnotations);
 
-    // Extract line items - improved pattern matching
+    // Group words into lines based on Y-coordinate
+    const lineGroups = this.groupWordsIntoLines(words);
+
+    // Find all prices and determine total
+    const allPrices: number[] = [];
+    words.forEach(word => {
+      const priceMatch = word.text.match(/^[£$€]?\s*(\d+\.?\d{0,2})$/);
+      if (priceMatch) {
+        allPrices.push(parseFloat(priceMatch[1]));
+      }
+    });
+    const totalAmount = allPrices.length > 0 ? Math.max(...allPrices) : null;
+
+    // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];
+    const skipKeywords = /^(VAT|total|subtotal|tax|card|visa|mastercard|amex|receipt|thank|cashier|server|table|change|payment|date|time|tel|phone|address|street|road|www\.|http)/i;
 
-    // Skip header/footer keywords
-    const skipKeywords = /VAT|total|subtotal|tax|card|visa|mastercard|amex|check|closed|receipt|thank you|cashier|server|table/i;
+    for (const lineWords of lineGroups) {
+      if (lineWords.length === 0) continue;
 
-    for (const line of lines) {
-      // Skip lines with keywords
-      if (skipKeywords.test(line)) continue;
+      const lineText = lineWords.map(w => w.text).join(' ');
 
-      // Match patterns like: "Item Name 12.99" or "Item Name £12.99" or "Item Name 330 12.99"
-      // Improved regex to capture item name and price more accurately
-      const patterns = [
-        // Pattern 1: Item name followed by price (with or without currency)
-        /^(.+?)\s+[£$€]?\s*(\d+\.\d{2})$/,
-        // Pattern 2: Item name with quantity/size then price (e.g., "Coca Cola 330 3.45")
-        /^(.+?)\s+\d+\s+[£$€]?\s*(\d+\.\d{2})$/,
-        // Pattern 3: Item with quantity prefix (e.g., "2x Item Name 10.00")
-        /^(\d+x?\s+.+?)\s+[£$€]?\s*(\d+\.\d{2})$/,
-      ];
+      // Skip header/footer lines
+      if (lineText.length < 3 || skipKeywords.test(lineText.trim())) {
+        continue;
+      }
 
-      for (const pattern of patterns) {
-        const itemMatch = line.match(pattern);
-        if (itemMatch) {
-          const description = itemMatch[1].trim();
-          const price = parseFloat(itemMatch[2]);
+      // Find price on this line (rightmost price-like word)
+      const priceWord = lineWords
+        .filter(w => /^[£$€]?\s*\d+\.?\d{0,2}$/.test(w.text))
+        .sort((a, b) => b.x - a.x)[0]; // Rightmost
 
-          // Filter out very short descriptions (likely not real items)
-          if (description.length > 2 && price > 0 && price < 1000) {
-            lineItems.push({
-              description,
-              quantity: null,
-              price,
-            });
-            break; // Found a match, move to next line
-          }
+      if (priceWord) {
+        const priceMatch = priceWord.text.match(/(\d+\.?\d{0,2})/);
+        if (priceMatch) {
+          const price = parseFloat(priceMatch[1]);
+
+          // Skip unreasonable prices
+          if (price <= 0 || price > 1000) continue;
+
+          // Description is everything left of the price
+          const descriptionWords = lineWords.filter(w => w.x < priceWord.x);
+          let description = descriptionWords.map(w => w.text).join(' ').trim();
+
+          // Clean up description - remove leading numbers
+          description = description.replace(/^\d+\s+/, '');
+
+          // Skip if description is too short or looks like metadata
+          if (description.length < 2) continue;
+          if (/^\d+$/.test(description)) continue; // Skip if only numbers
+          if (/^[A-Z]{1,3}\d*$/.test(description)) continue; // Skip codes like "T1", "T2"
+
+          lineItems.push({
+            description,
+            quantity: null,
+            price,
+          });
         }
       }
     }
