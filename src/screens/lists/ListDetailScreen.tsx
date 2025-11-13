@@ -25,8 +25,8 @@ const ListDetailScreen = () => {
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
-  const [newItemPrice, setNewItemPrice] = useState('');
   const [listName, setListName] = useState('');
+  const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadListAndItems();
@@ -53,10 +53,8 @@ const ListDetailScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) return;
 
-      const price = newItemPrice ? parseFloat(newItemPrice) : undefined;
-      await ItemManager.addItem(listId, newItemName.trim(), user.uid, undefined, price);
+      await ItemManager.addItem(listId, newItemName.trim(), user.uid);
       setNewItemName('');
-      setNewItemPrice('');
       await loadListAndItems();
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -81,26 +79,28 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleEditPrice = (item: Item) => {
-    Alert.prompt(
-      'Edit Price',
-      `Enter price for ${item.name}`,
-      async (text: string) => {
-        const price = text ? parseFloat(text) : null;
-        if (price !== null && isNaN(price)) {
-          Alert.alert('Error', 'Please enter a valid number');
-          return;
-        }
-        try {
-          await ItemManager.updateItem(item.id, { price });
-          await loadListAndItems();
-        } catch (error: any) {
-          Alert.alert('Error', error.message);
-        }
-      },
-      'plain-text',
-      item.price?.toString() || ''
-    );
+  const handlePriceChange = (itemId: string, text: string) => {
+    setItemPrices(prev => ({ ...prev, [itemId]: text }));
+  };
+
+  const handleSavePrice = async (itemId: string) => {
+    const priceText = itemPrices[itemId];
+    const price = priceText ? parseFloat(priceText) : null;
+    if (priceText && (price === null || isNaN(price))) {
+      Alert.alert('Error', 'Please enter a valid number');
+      return;
+    }
+    try {
+      await ItemManager.updateItem(itemId, { price });
+      setItemPrices(prev => {
+        const newPrices = { ...prev };
+        delete newPrices[itemId];
+        return newPrices;
+      });
+      await loadListAndItems();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
   };
 
   const handleCompleteList = async () => {
@@ -128,11 +128,24 @@ const ListDetailScreen = () => {
         <Text style={[styles.itemName, item.checked && styles.itemChecked]}>
           {item.name}
         </Text>
-        <TouchableOpacity onPress={() => handleEditPrice(item)}>
-          <Text style={styles.priceText}>
-            {item.price ? `$${item.price.toFixed(2)}` : 'Add price'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.priceInputRow}>
+          <TextInput
+            style={styles.priceInputField}
+            placeholder="Price"
+            placeholderTextColor="#6E6E73"
+            value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
+            onChangeText={(text) => handlePriceChange(item.id, text)}
+            keyboardType="numeric"
+          />
+          {itemPrices[item.id] !== undefined && (
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={() => handleSavePrice(item.id)}
+            >
+              <Text style={styles.saveButtonText}>✔️</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
         <Text style={styles.deleteButton}>🗑</Text>
@@ -151,15 +164,6 @@ const ListDetailScreen = () => {
           placeholderTextColor="#6E6E73"
           value={newItemName}
           onChangeText={setNewItemName}
-          onSubmitEditing={handleAddItem}
-        />
-        <TextInput
-          style={styles.priceInput}
-          placeholder="Price"
-          placeholderTextColor="#6E6E73"
-          value={newItemPrice}
-          onChangeText={setNewItemPrice}
-          keyboardType="numeric"
           onSubmitEditing={handleAddItem}
         />
         <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
@@ -221,16 +225,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     color: '#ffffff',
   },
-  priceInput: {
-    width: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 12,
-    borderRadius: 12,
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#ffffff',
-  },
   addButton: {
     backgroundColor: 'rgba(0, 122, 255, 0.8)',
     padding: 10,
@@ -280,6 +274,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#34C759',
     marginTop: 4,
+  },
+  priceInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  priceInputField: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+    fontSize: 14,
+    marginRight: 8,
+  },
+  saveButton: {
+    backgroundColor: '#00E676',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#00C853',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 36,
+  },
+  saveButtonText: {
+    fontSize: 16,
   },
   deleteButton: {
     fontSize: 20,
