@@ -340,19 +340,25 @@ class ReceiptOCRProcessor {
 
     // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];
-    const skipKeywords = /^(VAT|total|subtotal|tax|card|visa|mastercard|amex|receipt|thank|cashier|server|table|change|payment|date|time|tel|phone|address|street|road|www\.|http)/i;
+    const skipKeywords = /^(VAT|total|subtotal|tax|balance|card|visa|mastercard|amex|receipt|thank|cashier|server|table|change|payment|date|time|tel|phone|address|street|road|www\.|http|store|manager|customer)/i;
 
-    for (const lineWords of lineGroups) {
+    // Track multi-line items (common in UK supermarkets)
+    let pendingDescription = '';
+
+    for (let i = 0; i < lineGroups.length; i++) {
+      const lineWords = lineGroups[i];
       if (lineWords.length === 0) continue;
 
       const lineText = lineWords.map(w => w.text).join(' ');
 
       // Skip header/footer lines
-      if (lineText.length < 3 || skipKeywords.test(lineText.trim())) {
+      if (lineText.length < 2 || skipKeywords.test(lineText.trim())) {
+        pendingDescription = ''; // Reset pending if we hit a skip line
         continue;
       }
 
       // Find price on this line (rightmost price-like word)
+      // More flexible pattern to handle £, decimals, and whole numbers
       const priceWord = lineWords
         .filter(w => /^[£$€]?\s*\d+\.?\d{0,2}$/.test(w.text))
         .sort((a, b) => b.x - a.x)[0]; // Rightmost
@@ -362,26 +368,54 @@ class ReceiptOCRProcessor {
         if (priceMatch) {
           const price = parseFloat(priceMatch[1]);
 
-          // Skip unreasonable prices
+          // Skip unreasonable prices (but allow small prices like 0.50)
           if (price <= 0 || price > 1000) continue;
 
           // Description is everything left of the price
           const descriptionWords = lineWords.filter(w => w.x < priceWord.x);
           let description = descriptionWords.map(w => w.text).join(' ').trim();
 
-          // Clean up description - remove leading numbers
+          // If we have a pending description from previous line, prepend it
+          if (pendingDescription) {
+            description = pendingDescription + ' ' + description;
+            pendingDescription = '';
+          }
+
+          // Clean up description
+          // Remove leading item codes (e.g., "12345678 MILK" → "MILK")
+          description = description.replace(/^\d{6,}\s+/, '');
+          // Remove leading SKU patterns (e.g., "SKU123 ITEM" → "ITEM")
+          description = description.replace(/^SKU\d+\s+/i, '');
+          // Remove quantity indicators (e.g., "2 @ £1.50" or "2x Item")
+          description = description.replace(/^\d+\s*[@x]\s*[£$€]?\s*[\d.]+\s*/i, '');
+          // Remove standalone numbers at start
           description = description.replace(/^\d+\s+/, '');
 
           // Skip if description is too short or looks like metadata
           if (description.length < 2) continue;
           if (/^\d+$/.test(description)) continue; // Skip if only numbers
           if (/^[A-Z]{1,3}\d*$/.test(description)) continue; // Skip codes like "T1", "T2"
+          // Skip common non-item words
+          if (/^(item|line|offer|deal|promo|discount|saving)$/i.test(description)) continue;
 
           lineItems.push({
-            description,
+            description: description.trim(),
             quantity: null,
             price,
           });
+        }
+      } else {
+        // No price on this line - might be continuation of previous item (multi-line)
+        // Store it as pending description for next line
+        // But only if it looks like text (not numbers/codes)
+        if (lineText.length > 2 && !/^\d+$/.test(lineText) && !skipKeywords.test(lineText)) {
+          // Remove item codes from pending text too
+          let cleanText = lineText.replace(/^\d{6,}\s+/, '');
+          cleanText = cleanText.replace(/^SKU\d+\s+/i, '');
+
+          if (cleanText.length > 2) {
+            pendingDescription = pendingDescription ? pendingDescription + ' ' + cleanText : cleanText;
+          }
         }
       }
     }
