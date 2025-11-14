@@ -137,7 +137,7 @@ export interface QueuedOCRRequest {
 
 // Sync Types
 
-export type EntityType = 'list' | 'item';
+export type EntityType = 'list' | 'item' | 'urgentItem';
 export type Operation = 'create' | 'update' | 'delete';
 
 export interface QueuedOperation {
@@ -210,6 +210,25 @@ export interface OCRQueueResult {
 export interface OCRError {
   listId: string;
   error: string;
+}
+
+// Urgent Item Types
+
+export type UrgentItemStatus = 'active' | 'resolved';
+
+export interface UrgentItem {
+  id: string;
+  name: string;
+  familyGroupId: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  resolvedBy: string | null;
+  resolvedByName: string | null;
+  resolvedAt: number | null;
+  price: number | null;
+  status: UrgentItemStatus;
+  syncStatus: SyncStatus;
 }
 
 // Budget and Expenditure Types

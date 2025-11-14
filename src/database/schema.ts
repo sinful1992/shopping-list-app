@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 2,
+  version: 3,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -50,6 +50,24 @@ export const schema = appSchema({
         { name: 'data', type: 'string' }, // JSON stringified
         { name: 'timestamp', type: 'number', isIndexed: true },
         { name: 'retry_count', type: 'number' },
+      ],
+    }),
+
+    // Urgent Items Table
+    tableSchema({
+      name: 'urgent_items',
+      columns: [
+        { name: 'name', type: 'string' },
+        { name: 'family_group_id', type: 'string', isIndexed: true },
+        { name: 'created_by', type: 'string', isIndexed: true },
+        { name: 'created_by_name', type: 'string' },
+        { name: 'created_at', type: 'number', isIndexed: true },
+        { name: 'resolved_by', type: 'string', isOptional: true },
+        { name: 'resolved_by_name', type: 'string', isOptional: true },
+        { name: 'resolved_at', type: 'number', isOptional: true, isIndexed: true },
+        { name: 'price', type: 'number', isOptional: true },
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'sync_status', type: 'string' },
       ],
     }),
   ],

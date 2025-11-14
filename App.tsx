@@ -7,6 +7,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
+import NotificationManager from './src/services/NotificationManager';
 import { User } from './src/models/types';
 
 // Dark theme for navigation
@@ -35,6 +36,7 @@ import HistoryDetailScreen from './src/screens/history/HistoryDetailScreen';
 import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
+import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -102,6 +104,16 @@ function MainTabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Urgent"
+        component={UrgentItemsScreen}
+        options={{
+          title: 'Urgent',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="flame" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Budget"
         component={BudgetScreen}
         options={{
@@ -149,6 +161,20 @@ function App(): JSX.Element {
       SyncEngine.setFamilyGroupId(user.familyGroupId);
     }
   }, [user?.familyGroupId]);
+
+  // Initialize FCM notifications when user logs in
+  useEffect(() => {
+    if (user && user.familyGroupId) {
+      // Register FCM token
+      NotificationManager.registerToken(user.uid, user.familyGroupId);
+
+      // Initialize notification listeners
+      NotificationManager.initializeListeners();
+
+      // Create notification channel (Android)
+      NotificationManager.createNotificationChannel();
+    }
+  }, [user]);
 
   if (loading) {
     return null; // Or show loading screen

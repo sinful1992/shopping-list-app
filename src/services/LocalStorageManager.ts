@@ -1,10 +1,11 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem } from '../models/types';
 import { schema } from '../database/schema';
 import { ShoppingListModel } from '../database/models/ShoppingList';
 import { ItemModel } from '../database/models/Item';
 import { SyncQueueModel } from '../database/models/SyncQueue';
+import { UrgentItemModel } from '../database/models/UrgentItem';
 
 /**
  * LocalStorageManager
@@ -25,7 +26,7 @@ class LocalStorageManager {
 
     this.database = new Database({
       adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel],
+      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel],
     });
   }
 
@@ -452,6 +453,178 @@ class LocalStorageManager {
     return lists.filter((list) => list.receiptUrl !== null);
   }
 
+  // ===== URGENT ITEM METHODS =====
+
+  /**
+   * Save urgent item (create or update)
+   */
+  async saveUrgentItem(urgentItem: UrgentItem): Promise<UrgentItem> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+
+      let itemRecord;
+
+      await this.database.write(async () => {
+        try {
+          itemRecord = await urgentItemsCollection.find(urgentItem.id);
+          // Update existing
+          await itemRecord.update((record) => {
+            record.name = urgentItem.name;
+            record.resolvedBy = urgentItem.resolvedBy;
+            record.resolvedByName = urgentItem.resolvedByName;
+            record.resolvedAt = urgentItem.resolvedAt;
+            record.price = urgentItem.price;
+            record.status = urgentItem.status;
+            record.syncStatus = urgentItem.syncStatus;
+          });
+        } catch {
+          // Create new
+          itemRecord = await urgentItemsCollection.create((record) => {
+            record._raw.id = urgentItem.id;
+            record.name = urgentItem.name;
+            record.familyGroupId = urgentItem.familyGroupId;
+            record.createdBy = urgentItem.createdBy;
+            record.createdByName = urgentItem.createdByName;
+            record.resolvedBy = urgentItem.resolvedBy;
+            record.resolvedByName = urgentItem.resolvedByName;
+            record.resolvedAt = urgentItem.resolvedAt;
+            record.price = urgentItem.price;
+            record.status = urgentItem.status;
+            record.syncStatus = urgentItem.syncStatus;
+          });
+        }
+      });
+
+      return this.urgentItemModelToType(itemRecord);
+    } catch (error: any) {
+      throw new Error(`Failed to save urgent item: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get urgent item by ID
+   */
+  async getUrgentItem(itemId: string): Promise<UrgentItem | null> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+      const itemRecord = await urgentItemsCollection.find(itemId);
+      return this.urgentItemModelToType(itemRecord);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get active urgent items for family group
+   */
+  async getActiveUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+      const items = await urgentItemsCollection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('status', 'active'),
+          Q.sortBy('created_at', Q.desc)
+        )
+        .fetch();
+
+      return items.map((item) => this.urgentItemModelToType(item));
+    } catch (error: any) {
+      throw new Error(`Failed to get active urgent items: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get resolved urgent items for family group
+   */
+  async getResolvedUrgentItems(
+    familyGroupId: string,
+    startDate?: number,
+    endDate?: number
+  ): Promise<UrgentItem[]> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+      const conditions = [
+        Q.where('family_group_id', familyGroupId),
+        Q.where('status', 'resolved')
+      ];
+
+      if (startDate) {
+        conditions.push(Q.where('resolved_at', Q.gte(startDate)));
+      }
+      if (endDate) {
+        conditions.push(Q.where('resolved_at', Q.lte(endDate)));
+      }
+
+      conditions.push(Q.sortBy('resolved_at', Q.desc));
+
+      const items = await urgentItemsCollection.query(...conditions).fetch();
+      return items.map((item) => this.urgentItemModelToType(item));
+    } catch (error: any) {
+      throw new Error(`Failed to get resolved urgent items: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all urgent items for family group (active and resolved)
+   */
+  async getAllUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+      const items = await urgentItemsCollection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.sortBy('created_at', Q.desc)
+        )
+        .fetch();
+
+      return items.map((item) => this.urgentItemModelToType(item));
+    } catch (error: any) {
+      throw new Error(`Failed to get all urgent items: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update urgent item
+   */
+  async updateUrgentItem(itemId: string, updates: Partial<UrgentItem>): Promise<UrgentItem> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+      const itemRecord = await urgentItemsCollection.find(itemId);
+
+      await this.database.write(async () => {
+        await itemRecord.update((record) => {
+          if (updates.name !== undefined) record.name = updates.name;
+          if (updates.resolvedBy !== undefined) record.resolvedBy = updates.resolvedBy;
+          if (updates.resolvedByName !== undefined) record.resolvedByName = updates.resolvedByName;
+          if (updates.resolvedAt !== undefined) record.resolvedAt = updates.resolvedAt;
+          if (updates.price !== undefined) record.price = updates.price;
+          if (updates.status !== undefined) record.status = updates.status;
+          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+        });
+      });
+
+      return this.urgentItemModelToType(itemRecord);
+    } catch (error: any) {
+      throw new Error(`Failed to update urgent item: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete urgent item
+   */
+  async deleteUrgentItem(itemId: string): Promise<void> {
+    try {
+      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+      const itemRecord = await urgentItemsCollection.find(itemId);
+      await this.database.write(async () => {
+        await itemRecord.markAsDeleted();
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to delete urgent item: ${error.message}`);
+    }
+  }
+
   // ===== TRANSACTION SUPPORT =====
 
   /**
@@ -492,6 +665,23 @@ class LocalStorageManager {
       createdBy: model.createdBy,
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
+      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+    };
+  }
+
+  private urgentItemModelToType(model: UrgentItemModel): UrgentItem {
+    return {
+      id: model.id,
+      name: model.name,
+      familyGroupId: model.familyGroupId,
+      createdBy: model.createdBy,
+      createdByName: model.createdByName,
+      createdAt: model.createdAt,
+      resolvedBy: model.resolvedBy,
+      resolvedByName: model.resolvedByName,
+      resolvedAt: model.resolvedAt,
+      price: model.price,
+      status: model.status as 'active' | 'resolved',
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
     };
   }
