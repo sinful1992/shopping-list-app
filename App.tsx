@@ -171,9 +171,23 @@ function App(): JSX.Element {
             const LocalStorageManager = (await import('./src/services/LocalStorageManager')).default;
 
             if (change.entityType === 'list') {
-              await LocalStorageManager.saveList(change.data);
+              // Get current local list to preserve syncStatus
+              const existingList = await LocalStorageManager.getList(change.entityId);
+              const dataToSave = {
+                ...change.data,
+                // Preserve local syncStatus (don't overwrite with remote data that doesn't have it)
+                syncStatus: existingList?.syncStatus || 'synced',
+              };
+              await LocalStorageManager.saveList(dataToSave);
             } else if (change.entityType === 'item') {
-              await LocalStorageManager.saveItem(change.data);
+              // Get current local item to preserve syncStatus
+              const existingItem = await LocalStorageManager.getItem(change.entityId);
+              const dataToSave = {
+                ...change.data,
+                // Preserve local syncStatus (don't overwrite with remote data that doesn't have it)
+                syncStatus: existingItem?.syncStatus || 'synced',
+              };
+              await LocalStorageManager.saveItem(dataToSave);
             }
 
             console.log('Remote change synced to local DB:', change.entityType, change.entityId);

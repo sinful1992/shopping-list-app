@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Item } from '../../models/types';
+import { Item, ShoppingList } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -26,6 +26,7 @@ const ListDetailScreen = () => {
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
+  const [list, setList] = useState<ShoppingList | null>(null);
   const [listName, setListName] = useState('');
   const [editedListName, setEditedListName] = useState('');
   const [isEditingListName, setIsEditingListName] = useState(false);
@@ -38,9 +39,10 @@ const ListDetailScreen = () => {
 
   const loadListAndItems = async () => {
     try {
-      const list = await ShoppingListManager.getListById(listId);
-      if (list) {
-        setListName(list.name);
+      const fetchedList = await ShoppingListManager.getListById(listId);
+      if (fetchedList) {
+        setList(fetchedList);
+        setListName(fetchedList.name);
       }
 
       const listItems = await ItemManager.getItemsForList(listId);

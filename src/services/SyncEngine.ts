@@ -289,7 +289,9 @@ class SyncEngine {
     if (operation === 'delete') {
       await database().ref(path).remove();
     } else {
-      await database().ref(path).set(data);
+      // Strip syncStatus before syncing to Firebase (keep it local-only)
+      const { syncStatus, ...dataWithoutSyncStatus } = data;
+      await database().ref(path).set(dataWithoutSyncStatus);
     }
   }
 
