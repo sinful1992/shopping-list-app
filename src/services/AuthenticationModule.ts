@@ -16,15 +16,20 @@ class AuthenticationModule {
    * Sign up new user with email and password
    * Implements Req 1.1, 1.2
    */
-  async signUp(email: string, password: string): Promise<UserCredential> {
+  async signUp(email: string, password: string, displayName?: string): Promise<UserCredential> {
     try {
       const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const token = await userCredential.user.getIdToken();
 
+      // Update Firebase Auth profile with display name
+      if (displayName) {
+        await userCredential.user.updateProfile({ displayName });
+      }
+
       const user: User = {
         uid: userCredential.user.uid,
         email: userCredential.user.email || email,
-        displayName: userCredential.user.displayName,
+        displayName: displayName || userCredential.user.displayName,
         familyGroupId: null,
         createdAt: Date.now(),
       };
@@ -74,6 +79,13 @@ class AuthenticationModule {
     // Note: Requires Google Sign-In configuration
     // Implementation would use @react-native-google-signin/google-signin
     throw new Error('Google Sign-In not yet implemented. Configure Google Sign-In first.');
+  }
+
+  /**
+   * Get current Firebase user
+   */
+  async getCurrentFirebaseUser(): Promise<FirebaseAuthTypes.User | null> {
+    return auth().currentUser;
   }
 
   /**

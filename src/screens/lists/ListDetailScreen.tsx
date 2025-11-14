@@ -256,16 +256,9 @@ const ListDetailScreen = () => {
               <Text style={styles.saveButtonText}>✔️</Text>
             </TouchableOpacity>
           )}
-          {item.price !== null && item.price !== undefined && !itemNames[item.id] && (
-            <Text style={[styles.itemPriceCompact, item.checked && styles.itemChecked]}>
-              £{item.price.toFixed(2)}
-            </Text>
-          )}
-        </View>
-        <View style={styles.priceInputRow}>
           <TextInput
-            style={styles.priceInputField}
-            placeholder="Add price"
+            style={styles.priceInputFieldInline}
+            placeholder="£0.00"
             placeholderTextColor="#6E6E73"
             value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
             onChangeText={(text) => handlePriceChange(item.id, text)}
@@ -330,9 +323,11 @@ const ListDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.importButton} onPress={handleImportReceiptItems}>
-        <Text style={styles.importButtonText}>📋 Import Receipt Items</Text>
-      </TouchableOpacity>
+      {list?.receiptData?.lineItems && list.receiptData.lineItems.length > 0 && (
+        <TouchableOpacity style={styles.importButton} onPress={handleImportReceiptItems}>
+          <Text style={styles.importButtonText}>📋 Import Receipt Items</Text>
+        </TouchableOpacity>
+      )}
 
       <FlatList
         data={items}
@@ -469,7 +464,7 @@ const styles = StyleSheet.create({
   nameInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 8,
   },
   nameInputField: {
     flex: 1,
@@ -480,7 +475,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     color: '#ffffff',
     fontSize: 16,
-    marginRight: 8,
+  },
+  priceInputFieldInline: {
+    width: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    color: '#34C759',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'right',
   },
   itemPriceCompact: {
     fontSize: 14,

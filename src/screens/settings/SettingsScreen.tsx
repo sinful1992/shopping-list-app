@@ -8,11 +8,28 @@ import {
   Alert,
   ActivityIndicator,
   Clipboard,
+  TextInput,
+  Modal,
 } from 'react-native';
 import database from '@react-native-firebase/database';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from '../../services/AuthenticationModule';
-import { User, FamilyGroup } from '../../models/types';
+import { User, FamilyGroup, FamilyRole } from '../../models/types';
+
+// Role to avatar mapping
+const getRoleAvatar = (role: FamilyRole): string => {
+  const avatars: Record<FamilyRole, string> = {
+    'Dad': '👨',
+    'Mom': '👩',
+    'Son': '👦',
+    'Daughter': '👧',
+    'Older Son': '🧑',
+    'Older Daughter': '👩‍🦰',
+    'Younger Son': '👶',
+    'Younger Daughter': '👧🏻',
+  };
+  return avatars[role] || '👤';
+};
 
 /**
  * SettingsScreen
@@ -24,6 +41,21 @@ const SettingsScreen = () => {
   const [user, setUser] = useState<User | null>(null);
   const [familyGroup, setFamilyGroup] = useState<FamilyGroup | null>(null);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<FamilyRole | null>(null);
+
+  const availableRoles: FamilyRole[] = [
+    'Dad',
+    'Mom',
+    'Son',
+    'Daughter',
+    'Older Son',
+    'Older Daughter',
+    'Younger Son',
+    'Younger Daughter',
+  ];
 
   useEffect(() => {
     loadSettingsData();
@@ -84,6 +116,73 @@ const SettingsScreen = () => {
     }
   };
 
+  const handleEditName = () => {
+    setNewName(user?.displayName || '');
+    setShowEditNameModal(true);
+  };
+
+  const handleSaveName = async () => {
+    if (!newName.trim()) {
+      Alert.alert('Error', 'Please enter a name');
+      return;
+    }
+
+    if (!user) return;
+
+    try {
+      // Update in Firebase Auth
+      const firebaseUser = await AuthenticationModule.getCurrentFirebaseUser();
+      if (firebaseUser) {
+        await firebaseUser.updateProfile({ displayName: newName.trim() });
+      }
+
+      // Update in Realtime Database
+      await database().ref(`/users/${user.uid}`).update({ displayName: newName.trim() });
+
+      // Update local state
+      setUser({ ...user, displayName: newName.trim() });
+      setShowEditNameModal(false);
+
+      Alert.alert('Success', 'Name updated successfully');
+      await loadSettingsData();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleEditRole = () => {
+    setSelectedRole(user?.role || null);
+    setShowRoleModal(true);
+  };
+
+  const handleSaveRole = async () => {
+    if (!selectedRole) {
+      Alert.alert('Error', 'Please select a role');
+      return;
+    }
+
+    if (!user) return;
+
+    try {
+      const avatar = getRoleAvatar(selectedRole);
+
+      // Update in Realtime Database
+      await database().ref(`/users/${user.uid}`).update({
+        role: selectedRole,
+        avatar: avatar,
+      });
+
+      // Update local state
+      setUser({ ...user, role: selectedRole, avatar });
+      setShowRoleModal(false);
+
+      Alert.alert('Success', 'Role updated successfully');
+      await loadSettingsData();
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert(
       'Logout',
@@ -126,12 +225,33 @@ const SettingsScreen = () => {
           <Text style={styles.label}>Email:</Text>
           <Text style={styles.value}>{user?.email || 'N/A'}</Text>
         </View>
-        {user?.displayName && (
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Name:</Text>
-            <Text style={styles.value}>{user.displayName}</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.label}>Name:</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.value}>{user?.displayName || 'Not set'}</Text>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleEditName}
+            >
+              <Icon name="pencil-outline" size={18} color="#007AFF" />
+            </TouchableOpacity>
           </View>
-        )}
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.label}>Family Role:</Text>
+          <View style={styles.nameRow}>
+            <View style={styles.roleDisplay}>
+              {user?.avatar && <Text style={styles.avatar}>{user.avatar}</Text>}
+              <Text style={styles.value}>{user?.role || 'Not set'}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={handleEditRole}
+            >
+              <Icon name="pencil-outline" size={18} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Family Group Section */}
@@ -182,12 +302,21 @@ const SettingsScreen = () => {
                     ]}
                   >
                     <View style={styles.memberIconContainer}>
-                      <Icon name="person" size={20} color="#007AFF" />
+                      {member.avatar ? (
+                        <Text style={styles.memberAvatar}>{member.avatar}</Text>
+                      ) : (
+                        <Icon name="person" size={20} color="#007AFF" />
+                      )}
                     </View>
                     <View style={styles.memberInfo}>
-                      <Text style={styles.memberEmail}>{member.email}</Text>
+                      <View style={styles.memberNameRow}>
+                        <Text style={styles.memberEmail}>{member.displayName || member.email}</Text>
+                        {member.role && (
+                          <Text style={styles.memberRole}>{member.role}</Text>
+                        )}
+                      </View>
                       {member.displayName && (
-                        <Text style={styles.memberName}>{member.displayName}</Text>
+                        <Text style={styles.memberEmailSmall}>{member.email}</Text>
                       )}
                       {member.uid === familyGroup.createdBy && (
                         <Text style={styles.creatorBadge}>Group Creator</Text>
@@ -217,6 +346,94 @@ const SettingsScreen = () => {
         <Text style={styles.footerText}>Shopping List App v1.0</Text>
         <Text style={styles.footerText}>Family Collaboration Made Easy</Text>
       </View>
+
+      {/* Edit Name Modal */}
+      <Modal
+        visible={showEditNameModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditNameModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Name</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter your name"
+              placeholderTextColor="#6E6E73"
+              value={newName}
+              onChangeText={setNewName}
+              autoCapitalize="words"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowEditNameModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleSaveName}
+              >
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Select Role Modal */}
+      <Modal
+        visible={showRoleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRoleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Family Role</Text>
+            <ScrollView style={styles.roleList}>
+              {availableRoles.map((role) => (
+                <TouchableOpacity
+                  key={role}
+                  style={[
+                    styles.roleItem,
+                    selectedRole === role && styles.roleItemSelected,
+                  ]}
+                  onPress={() => setSelectedRole(role)}
+                >
+                  <Text style={styles.roleAvatar}>{getRoleAvatar(role)}</Text>
+                  <Text style={[
+                    styles.roleText,
+                    selectedRole === role && styles.roleTextSelected,
+                  ]}>
+                    {role}
+                  </Text>
+                  {selectedRole === role && (
+                    <Icon name="checkmark-circle" size={24} color="#007AFF" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowRoleModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleSaveRole}
+              >
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -330,11 +547,33 @@ const styles = StyleSheet.create({
   memberInfo: {
     flex: 1,
   },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  memberAvatar: {
+    fontSize: 24,
+  },
   memberEmail: {
     fontSize: 16,
     color: '#ffffff',
     fontWeight: '600',
-    marginBottom: 2,
+  },
+  memberEmailSmall: {
+    fontSize: 12,
+    color: '#a0a0a0',
+    marginBottom: 4,
+  },
+  memberRole: {
+    fontSize: 12,
+    color: '#007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    fontWeight: '600',
   },
   memberName: {
     fontSize: 14,
@@ -381,6 +620,131 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6E6E73',
     marginBottom: 4,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editButton: {
+    padding: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'rgba(20, 20, 20, 0.95)',
+    borderRadius: 24,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 20,
+    color: '#ffffff',
+  },
+  modalInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  modalButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    minWidth: 90,
+    alignItems: 'center',
+    borderWidth: 1,
+    marginLeft: 12,
+  },
+  modalButtonCancel: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginLeft: 0,
+  },
+  modalButtonConfirm: {
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonTextCancel: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  roleDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  avatar: {
+    fontSize: 24,
+  },
+  roleList: {
+    maxHeight: 350,
+    marginBottom: 20,
+  },
+  roleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  roleItemSelected: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderColor: 'rgba(0, 122, 255, 0.4)',
+  },
+  roleAvatar: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  roleText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '500',
+    flex: 1,
+  },
+  roleTextSelected: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
 });
 

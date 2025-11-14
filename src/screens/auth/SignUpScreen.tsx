@@ -18,13 +18,14 @@ import AuthenticationModule from '../../services/AuthenticationModule';
  */
 const SignUpScreen = () => {
   const navigation = useNavigation();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!name || !email || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -41,7 +42,7 @@ const SignUpScreen = () => {
 
     setLoading(true);
     try {
-      await AuthenticationModule.signUp(email, password);
+      await AuthenticationModule.signUp(email, password, name);
       // Navigation handled by App.tsx
     } catch (error: any) {
       Alert.alert('Sign Up Failed', error.message);
@@ -54,6 +55,16 @@ const SignUpScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
       <Text style={styles.subtitle}>Join your family shopping list</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Your Name"
+        placeholderTextColor="#6E6E73"
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        editable={!loading}
+      />
 
       <TextInput
         style={styles.input}

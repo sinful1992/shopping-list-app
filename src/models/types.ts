@@ -1,10 +1,14 @@
 // Core User and Authentication Types
 
+export type FamilyRole = 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter';
+
 export interface User {
   uid: string;
   email: string;
   displayName: string | null;
   familyGroupId: string | null;
+  role?: FamilyRole | null;
+  avatar?: string | null;
   createdAt: number;
 }
 

@@ -285,9 +285,9 @@ const HomeScreen = () => {
             <Text style={[styles.listName, isCompleted && styles.completedText]}>
               {item.name}
             </Text>
-            {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
           </View>
           <View style={styles.listBadges}>
+            {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
             {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
             {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
             <TouchableOpacity
