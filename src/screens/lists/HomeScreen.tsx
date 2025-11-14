@@ -101,29 +101,31 @@ const HomeScreen = () => {
   const handleConfirmCreate = async () => {
     if (creating) return; // Prevent double-tap
 
+    const user = await AuthenticationModule.getCurrentUser();
+    if (!user) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    if (!user.familyGroupId) {
+      Alert.alert('Error', 'No family group found. Please create or join a family group first.');
+      return;
+    }
+
+    // Format date as list name (e.g., "Mon, Jan 15, 2025")
+    const listName = selectedDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+    // Close modal immediately so user doesn't wait
+    setShowCreateModal(false);
+    setCreating(true);
+
     try {
-      setCreating(true);
-      const user = await AuthenticationModule.getCurrentUser();
-      if (!user) {
-        Alert.alert('Error', 'User not authenticated');
-        return;
-      }
-
-      if (!user.familyGroupId) {
-        Alert.alert('Error', 'No family group found. Please create or join a family group first.');
-        return;
-      }
-
-      // Format date as list name (e.g., "Mon, Jan 15, 2025")
-      const listName = selectedDate.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
       await ShoppingListManager.createList(listName, user.uid, user.familyGroupId);
-      setShowCreateModal(false);
       await loadLists();
     } catch (error: any) {
       Alert.alert('Error', error.message);
