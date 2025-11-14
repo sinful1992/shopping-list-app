@@ -17,7 +17,18 @@ class UrgentItemManager {
    */
   private async syncToSupabase(urgentItem: UrgentItem): Promise<void> {
     try {
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/urgent_items`, {
+      // Check if environment variables are loaded
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        console.error('Supabase environment variables not loaded!');
+        console.error('SUPABASE_URL:', SUPABASE_URL);
+        console.error('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'exists' : 'missing');
+        throw new Error('Supabase configuration missing');
+      }
+
+      const url = `${SUPABASE_URL}/rest/v1/urgent_items`;
+      console.log('Syncing urgent item to Supabase:', url);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,6 +51,8 @@ class UrgentItemManager {
           sync_status: 'synced'
         })
       });
+
+      console.log('Supabase response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();

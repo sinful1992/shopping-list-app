@@ -89,8 +89,19 @@ class NotificationManager {
 
       console.log('Registering FCM Token with Supabase...');
 
+      // Check if environment variables are loaded
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        console.error('Supabase environment variables not loaded!');
+        console.error('SUPABASE_URL:', SUPABASE_URL);
+        console.error('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'exists' : 'missing');
+        return;
+      }
+
+      const url = `${SUPABASE_URL}/rest/v1/device_tokens`;
+      console.log('Sending token to:', url);
+
       // Send token to Supabase
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/device_tokens`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
