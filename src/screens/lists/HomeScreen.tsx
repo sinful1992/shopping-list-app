@@ -125,10 +125,17 @@ const HomeScreen = () => {
     setCreating(true);
 
     try {
-      await ShoppingListManager.createList(listName, user.uid, user.familyGroupId);
-      await loadLists();
+      const newList = await ShoppingListManager.createList(listName, user.uid, user.familyGroupId);
+
+      // Add to UI immediately (optimistic update)
+      setLists(prevLists => [newList, ...prevLists]);
+
+      // Reload in background to ensure sync
+      loadLists();
     } catch (error: any) {
       Alert.alert('Error', error.message);
+      // Reload on error to show accurate state
+      await loadLists();
     } finally {
       setCreating(false);
     }
