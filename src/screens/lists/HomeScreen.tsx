@@ -33,6 +33,7 @@ const HomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showIOSPicker, setShowIOSPicker] = useState(false);
   const [scanningReceipt, setScanningReceipt] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     loadLists();
@@ -49,7 +50,9 @@ const HomeScreen = () => {
       setFamilyGroupId(user.familyGroupId);
       // Get all lists (active and completed), sorted by creation date (newest first)
       const allLists = await ShoppingListManager.getAllLists(user.familyGroupId);
-      setLists(allLists);
+      // Filter out deleted lists
+      const visibleLists = allLists.filter(list => list.status !== 'deleted');
+      setLists(visibleLists);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -96,7 +99,10 @@ const HomeScreen = () => {
   };
 
   const handleConfirmCreate = async () => {
+    if (creating) return; // Prevent double-tap
+
     try {
+      setCreating(true);
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) {
         Alert.alert('Error', 'User not authenticated');
@@ -121,6 +127,8 @@ const HomeScreen = () => {
       await loadLists();
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    } finally {
+      setCreating(false);
     }
   };
 
