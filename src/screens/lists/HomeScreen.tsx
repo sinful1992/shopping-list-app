@@ -39,6 +39,26 @@ const HomeScreen = () => {
     loadLists();
   }, []);
 
+  // Subscribe to real-time list changes (triggered when remote changes are synced to local DB)
+  useEffect(() => {
+    if (!familyGroupId) return;
+
+    // Poll for changes every second to detect when remote data is synced to local DB
+    const intervalId = setInterval(async () => {
+      try {
+        const allLists = await ShoppingListManager.getAllLists(familyGroupId);
+        const visibleLists = allLists.filter(list => list.status !== 'deleted');
+        setLists(visibleLists);
+      } catch (error) {
+        console.error('Error refreshing lists:', error);
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [familyGroupId]);
+
   const loadLists = async () => {
     try {
       const user = await AuthenticationModule.getCurrentUser();

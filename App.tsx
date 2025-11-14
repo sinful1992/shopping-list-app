@@ -163,9 +163,23 @@ function App(): JSX.Element {
       // Subscribe to remote changes from Firebase
       const unsubscribe = SyncEngine.subscribeToRemoteChanges(
         user.familyGroupId,
-        (change) => {
+        async (change) => {
           console.log('Remote change detected:', change);
-          // Changes will be automatically synced to local storage by SyncEngine
+
+          // Persist remote changes to local database
+          try {
+            const LocalStorageManager = (await import('./src/services/LocalStorageManager')).default;
+
+            if (change.entityType === 'list') {
+              await LocalStorageManager.saveList(change.data);
+            } else if (change.entityType === 'item') {
+              await LocalStorageManager.saveItem(change.data);
+            }
+
+            console.log('Remote change synced to local DB:', change.entityType, change.entityId);
+          } catch (error) {
+            console.error('Failed to sync remote change to local DB:', error);
+          }
         }
       );
 
