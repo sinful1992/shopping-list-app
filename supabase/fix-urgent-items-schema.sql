@@ -1,13 +1,14 @@
--- Supabase Setup for Urgent Items Feature
--- Run this SQL in your Supabase SQL Editor to verify/create all necessary components
-
 -- ============================================
--- 1. CREATE TABLES
+-- FIX: Change urgent_items UUID columns to TEXT
+-- This fixes the issue where Firebase Auth IDs (non-UUID format)
+-- were being rejected by UUID columns
 -- ============================================
 
--- Create urgent_items table
--- NOTE: Using TEXT for ID columns because Firebase Auth IDs are not in UUID format
-CREATE TABLE IF NOT EXISTS public.urgent_items (
+-- Drop the existing table (if you have test data you want to keep, backup first!)
+DROP TABLE IF EXISTS public.urgent_items CASCADE;
+
+-- Recreate table with TEXT for ID columns
+CREATE TABLE public.urgent_items (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     family_group_id TEXT NOT NULL,
@@ -23,9 +24,14 @@ CREATE TABLE IF NOT EXISTS public.urgent_items (
     created_at_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create device_tokens table (if not exists)
--- NOTE: Using TEXT for ID columns because Firebase Auth IDs are not in UUID format
-CREATE TABLE IF NOT EXISTS public.device_tokens (
+-- ============================================
+-- UPDATE device_tokens table too (for consistency)
+-- ============================================
+
+-- Drop and recreate device_tokens table
+DROP TABLE IF EXISTS public.device_tokens CASCADE;
+
+CREATE TABLE public.device_tokens (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
     user_id TEXT NOT NULL,
     family_group_id TEXT NOT NULL,
@@ -37,105 +43,90 @@ CREATE TABLE IF NOT EXISTS public.device_tokens (
 );
 
 -- ============================================
--- 2. CREATE INDEXES
+-- CREATE INDEXES
 -- ============================================
 
-CREATE INDEX IF NOT EXISTS idx_urgent_items_family_group ON public.urgent_items(family_group_id);
-CREATE INDEX IF NOT EXISTS idx_urgent_items_created_by ON public.urgent_items(created_by);
-CREATE INDEX IF NOT EXISTS idx_urgent_items_status ON public.urgent_items(status);
-CREATE INDEX IF NOT EXISTS idx_urgent_items_created_at ON public.urgent_items(created_at);
+CREATE INDEX idx_urgent_items_family_group ON public.urgent_items(family_group_id);
+CREATE INDEX idx_urgent_items_created_by ON public.urgent_items(created_by);
+CREATE INDEX idx_urgent_items_status ON public.urgent_items(status);
+CREATE INDEX idx_urgent_items_created_at ON public.urgent_items(created_at);
 
-CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON public.device_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_device_tokens_family_group ON public.device_tokens(family_group_id);
+CREATE INDEX idx_device_tokens_user ON public.device_tokens(user_id);
+CREATE INDEX idx_device_tokens_family_group ON public.device_tokens(family_group_id);
 
 -- ============================================
--- 3. ENABLE ROW LEVEL SECURITY
+-- ENABLE ROW LEVEL SECURITY
 -- ============================================
 
 ALTER TABLE public.urgent_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- 4. CREATE RLS POLICIES
+-- CREATE RLS POLICIES
 -- ============================================
 
--- Drop existing policies if they exist
-DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.urgent_items;
-DROP POLICY IF EXISTS "Allow insert for authenticated users" ON public.urgent_items;
-DROP POLICY IF EXISTS "Allow select for authenticated users" ON public.urgent_items;
-DROP POLICY IF EXISTS "Allow update for authenticated users" ON public.urgent_items;
-DROP POLICY IF EXISTS "Allow delete for authenticated users" ON public.urgent_items;
-
--- Allow authenticated users to insert urgent items
-CREATE POLICY "Allow insert for authenticated users"
+-- urgent_items policies
+CREATE POLICY "Allow insert for all users"
     ON public.urgent_items
     FOR INSERT
     TO authenticated, anon
     WITH CHECK (true);
 
--- Allow authenticated users to view urgent items in their family group
-CREATE POLICY "Allow select for authenticated users"
+CREATE POLICY "Allow select for all users"
     ON public.urgent_items
     FOR SELECT
     TO authenticated, anon
     USING (true);
 
--- Allow authenticated users to update urgent items
-CREATE POLICY "Allow update for authenticated users"
+CREATE POLICY "Allow update for all users"
     ON public.urgent_items
     FOR UPDATE
     TO authenticated, anon
     USING (true)
     WITH CHECK (true);
 
--- Allow authenticated users to delete urgent items
-CREATE POLICY "Allow delete for authenticated users"
+CREATE POLICY "Allow delete for all users"
     ON public.urgent_items
     FOR DELETE
     TO authenticated, anon
     USING (true);
 
--- Device tokens policies
-DROP POLICY IF EXISTS "Allow insert for authenticated users" ON public.device_tokens;
-DROP POLICY IF EXISTS "Allow select for authenticated users" ON public.device_tokens;
-DROP POLICY IF EXISTS "Allow update for authenticated users" ON public.device_tokens;
-DROP POLICY IF EXISTS "Allow delete for authenticated users" ON public.device_tokens;
-
-CREATE POLICY "Allow insert for authenticated users"
+-- device_tokens policies
+CREATE POLICY "Allow insert for all users"
     ON public.device_tokens
     FOR INSERT
     TO authenticated, anon
     WITH CHECK (true);
 
-CREATE POLICY "Allow select for authenticated users"
+CREATE POLICY "Allow select for all users"
     ON public.device_tokens
     FOR SELECT
     TO authenticated, anon
     USING (true);
 
-CREATE POLICY "Allow update for authenticated users"
+CREATE POLICY "Allow update for all users"
     ON public.device_tokens
     FOR UPDATE
     TO authenticated, anon
     USING (true)
     WITH CHECK (true);
 
-CREATE POLICY "Allow delete for authenticated users"
+CREATE POLICY "Allow delete for all users"
     ON public.device_tokens
     FOR DELETE
     TO authenticated, anon
     USING (true);
 
 -- ============================================
--- 5. CREATE DATABASE TRIGGER
+-- CREATE DATABASE TRIGGER FOR EDGE FUNCTION
 -- ============================================
+
+-- Enable pg_net extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Drop existing trigger and function if they exist
 DROP TRIGGER IF EXISTS on_urgent_item_created ON public.urgent_items;
 DROP FUNCTION IF EXISTS handle_new_urgent_item();
-
--- Enable pg_net extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Create trigger function to call Edge Function
 CREATE OR REPLACE FUNCTION handle_new_urgent_item()
@@ -145,7 +136,7 @@ DECLARE
     service_key TEXT;
 BEGIN
     -- Get Supabase URL from environment
-    -- Configure these using: ALTER DATABASE postgres SET app.settings.supabase_url = 'your-url';
+    -- You'll need to set these using: ALTER DATABASE postgres SET app.settings.supabase_url = 'your-url';
     BEGIN
         supabase_url := current_setting('app.settings.supabase_url', true);
         service_key := current_setting('app.settings.service_role_key', true);
@@ -180,30 +171,19 @@ CREATE TRIGGER on_urgent_item_created
     EXECUTE FUNCTION handle_new_urgent_item();
 
 -- ============================================
--- 6. VERIFICATION QUERIES
+-- VERIFICATION
 -- ============================================
 
--- Check if tables exist
-SELECT 'urgent_items table exists' AS status
+SELECT 'urgent_items table created' AS status
 WHERE EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'urgent_items');
 
-SELECT 'device_tokens table exists' AS status
+SELECT 'device_tokens table created' AS status
 WHERE EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'device_tokens');
 
--- Check if RLS is enabled
-SELECT tablename, rowsecurity
-FROM pg_tables
-WHERE schemaname = 'public'
-AND tablename IN ('urgent_items', 'device_tokens');
-
--- Check policies
-SELECT tablename, policyname, permissive, roles, cmd
-FROM pg_policies
-WHERE schemaname = 'public'
-AND tablename IN ('urgent_items', 'device_tokens');
-
--- Check trigger exists
-SELECT trigger_name, event_manipulation, event_object_table
-FROM information_schema.triggers
-WHERE trigger_schema = 'public'
-AND event_object_table = 'urgent_items';
+SELECT 'Trigger created' AS status
+WHERE EXISTS (
+    SELECT FROM information_schema.triggers
+    WHERE trigger_schema = 'public'
+    AND event_object_table = 'urgent_items'
+    AND trigger_name = 'on_urgent_item_created'
+);
