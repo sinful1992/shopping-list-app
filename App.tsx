@@ -159,6 +159,19 @@ function App(): JSX.Element {
   useEffect(() => {
     if (user?.familyGroupId) {
       SyncEngine.setFamilyGroupId(user.familyGroupId);
+
+      // Subscribe to remote changes from Firebase
+      const unsubscribe = SyncEngine.subscribeToRemoteChanges(
+        user.familyGroupId,
+        (change) => {
+          console.log('Remote change detected:', change);
+          // Changes will be automatically synced to local storage by SyncEngine
+        }
+      );
+
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
     }
   }, [user?.familyGroupId]);
 
