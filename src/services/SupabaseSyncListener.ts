@@ -1,8 +1,19 @@
 // @ts-ignore
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
-import { createClient, RealtimeChannel } from '@supabase/supabase-js';
 import { UrgentItem, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+
+// Lazy load Supabase to prevent crashes if package has issues
+let createClient: any = null;
+let RealtimeChannel: any = null;
+
+try {
+  const supabaseModule = require('@supabase/supabase-js');
+  createClient = supabaseModule.createClient;
+  RealtimeChannel = supabaseModule.RealtimeChannel;
+} catch (error) {
+  console.warn('Supabase package not available, real-time sync disabled for urgent items');
+}
 
 /**
  * SupabaseSyncListener
@@ -12,20 +23,25 @@ import LocalStorageManager from './LocalStorageManager';
  */
 class SupabaseSyncListener {
   private supabase: any;
-  private activeChannels: Map<string, RealtimeChannel> = new Map();
+  private activeChannels: Map<string, any> = new Map();
 
   constructor() {
     // Initialize Supabase client with Realtime enabled
-    if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-      this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        realtime: {
-          params: {
-            eventsPerSecond: 10, // Throttle to prevent overwhelming the client
+    if (createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+      try {
+        this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          realtime: {
+            params: {
+              eventsPerSecond: 10, // Throttle to prevent overwhelming the client
+            },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.warn('Failed to initialize Supabase client:', error);
+        this.supabase = null;
+      }
     } else {
-      console.warn('Supabase credentials not configured, real-time sync disabled for urgent items');
+      console.warn('Supabase not available or credentials not configured, real-time sync disabled for urgent items');
     }
   }
 
