@@ -13,7 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UrgentItemManager from '../../services/UrgentItemManager';
-import SupabaseSyncListener from '../../services/SupabaseSyncListener';
+import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import { UrgentItem, User } from '../../models/types';
 
 /**
@@ -43,27 +43,17 @@ const UrgentItemsScreen = () => {
     return unsubscribeAuth;
   }, []);
 
-  // Subscribe to real-time urgent items updates
+  // Subscribe to real-time urgent items updates using Firebase
   useEffect(() => {
     if (!user?.familyGroupId) return;
 
-    // Test if Supabase real-time is working
-    const isWorking = SupabaseSyncListener.isInitialized();
-    if (!isWorking) {
-      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.error('⚠️  SUPABASE REAL-TIME FAILED TO INITIALIZE');
-      console.error('Urgent items will only work via push notifications');
-      console.error('Real-time updates are DISABLED');
-      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    }
-
-    // Step 1: Start listening to Supabase for remote changes
-    // When Supabase data changes, it will update local WatermelonDB
-    const unsubscribeSupabase = SupabaseSyncListener.startListeningToUrgentItems(
+    // Step 1: Start listening to Firebase for remote changes
+    // When Firebase data changes, it will update local WatermelonDB
+    const unsubscribeFirebase = FirebaseSyncListener.startListeningToUrgentItems(
       user.familyGroupId
     );
 
-    // Step 2: Subscribe to local WatermelonDB changes (triggered by Supabase or local edits)
+    // Step 2: Subscribe to local WatermelonDB changes (triggered by Firebase or local edits)
     // This gives us instant UI updates without polling
     const unsubscribeLocal = UrgentItemManager.subscribeToUrgentItems(
       user.familyGroupId,
@@ -73,7 +63,7 @@ const UrgentItemsScreen = () => {
     );
 
     return () => {
-      unsubscribeSupabase();
+      unsubscribeFirebase();
       unsubscribeLocal();
     };
   }, [user?.familyGroupId]);

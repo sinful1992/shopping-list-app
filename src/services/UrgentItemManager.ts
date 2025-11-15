@@ -1,5 +1,6 @@
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import database from '@react-native-firebase/database';
 import { UrgentItem, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
@@ -13,7 +14,48 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
  */
 class UrgentItemManager {
   /**
-   * Sync urgent item to Supabase
+   * Sync urgent item to Firebase Realtime Database (for real-time sync)
+   */
+  private async syncToFirebase(urgentItem: UrgentItem): Promise<void> {
+    try {
+      const urgentItemRef = database().ref(`urgentItems/${urgentItem.familyGroupId}/${urgentItem.id}`);
+
+      await urgentItemRef.set({
+        id: urgentItem.id,
+        name: urgentItem.name,
+        familyGroupId: urgentItem.familyGroupId,
+        createdBy: urgentItem.createdBy,
+        createdByName: urgentItem.createdByName,
+        createdAt: urgentItem.createdAt,
+        resolvedBy: urgentItem.resolvedBy,
+        resolvedByName: urgentItem.resolvedByName,
+        resolvedAt: urgentItem.resolvedAt,
+        price: urgentItem.price,
+        status: urgentItem.status,
+      });
+
+      console.log('Urgent item synced to Firebase successfully');
+    } catch (error) {
+      console.error('Error syncing urgent item to Firebase:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete urgent item from Firebase Realtime Database
+   */
+  private async deleteFromFirebase(urgentItemId: string, familyGroupId: string): Promise<void> {
+    try {
+      const urgentItemRef = database().ref(`urgentItems/${familyGroupId}/${urgentItemId}`);
+      await urgentItemRef.remove();
+      console.log('Urgent item removed from Firebase successfully');
+    } catch (error) {
+      console.error('Error removing urgent item from Firebase:', error);
+    }
+  }
+
+  /**
+   * Sync urgent item to Supabase (for push notifications)
    */
   private async syncToSupabase(urgentItem: UrgentItem): Promise<void> {
     try {
@@ -103,11 +145,19 @@ class UrgentItemManager {
     // Save locally first (offline-first)
     await LocalStorageManager.saveUrgentItem(urgentItem);
 
-    // Sync to Supabase (will trigger Edge Function for FCM notifications)
+    // Dual-write to both backends:
+    // 1. Sync to Firebase (for real-time sync)
+    try {
+      await this.syncToFirebase(urgentItem);
+    } catch (error) {
+      console.error('Failed to sync urgent item to Firebase:', error);
+    }
+
+    // 2. Sync to Supabase (for push notifications via Edge Function)
     try {
       await this.syncToSupabase(urgentItem);
     } catch (error) {
-      console.error('Failed to sync urgent item, will retry later:', error);
+      console.error('Failed to sync urgent item to Supabase, will retry later:', error);
       // Item is still saved locally, can retry later
     }
 
@@ -169,11 +219,19 @@ class UrgentItemManager {
 
     const urgentItem = await LocalStorageManager.updateUrgentItem(itemId, updates);
 
-    // Sync to Supabase
+    // Dual-write to both backends:
+    // 1. Sync to Firebase (for real-time sync)
+    try {
+      await this.syncToFirebase(urgentItem);
+    } catch (error) {
+      console.error('Failed to sync resolved urgent item to Firebase:', error);
+    }
+
+    // 2. Sync to Supabase (for push notifications)
     try {
       await this.syncToSupabase(urgentItem);
     } catch (error) {
-      console.error('Failed to sync resolved urgent item, will retry later:', error);
+      console.error('Failed to sync resolved urgent item to Supabase, will retry later:', error);
     }
 
     return urgentItem;
@@ -197,10 +255,17 @@ class UrgentItemManager {
   /**
    * Delete urgent item
    */
-  async deleteUrgentItem(itemId: string): Promise<void> {
+  async deleteUrgentItem(itemId: string, familyGroupId: string): Promise<void> {
     await LocalStorageManager.deleteUrgentItem(itemId);
 
-    // Trigger sync for delete operation
+    // Delete from Firebase
+    try {
+      await this.deleteFromFirebase(itemId, familyGroupId);
+    } catch (error) {
+      console.error('Failed to delete urgent item from Firebase:', error);
+    }
+
+    // Trigger sync for delete operation (for Supabase)
     await SyncEngine.pushChange('urgentItem', itemId, 'delete');
   }
 

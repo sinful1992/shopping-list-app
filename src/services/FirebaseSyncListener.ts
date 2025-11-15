@@ -1,5 +1,5 @@
 import database from '@react-native-firebase/database';
-import { ShoppingList, Item, Unsubscribe } from '../models/types';
+import { ShoppingList, Item, UrgentItem, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 
 /**
@@ -213,6 +213,102 @@ class FirebaseSyncListener {
    */
   stopListeningToItems(listId: string): void {
     const key = `items_${listId}`;
+    const unsubscribe = this.activeListeners.get(key);
+    if (unsubscribe) {
+      unsubscribe();
+    }
+  }
+
+  /**
+   * Start listening to urgent items for a family group
+   */
+  startListeningToUrgentItems(familyGroupId: string): Unsubscribe {
+    const key = `urgent_items_${familyGroupId}`;
+
+    // Don't create duplicate listeners
+    if (this.activeListeners.has(key)) {
+      return this.activeListeners.get(key)!;
+    }
+
+    const urgentItemsRef = database().ref(`urgentItems/${familyGroupId}`);
+
+    // Listen for new urgent items
+    const onChildAdded = urgentItemsRef.on('child_added', async (snapshot) => {
+      const itemId = snapshot.key;
+      const itemData = snapshot.val();
+
+      if (itemId && itemData) {
+        await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
+      }
+    });
+
+    // Listen for updated urgent items
+    const onChildChanged = urgentItemsRef.on('child_changed', async (snapshot) => {
+      const itemId = snapshot.key;
+      const itemData = snapshot.val();
+
+      if (itemId && itemData) {
+        await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
+      }
+    });
+
+    // Listen for deleted urgent items
+    const onChildRemoved = urgentItemsRef.on('child_removed', async (snapshot) => {
+      const itemId = snapshot.key;
+
+      if (itemId) {
+        try {
+          await LocalStorageManager.deleteUrgentItem(itemId);
+        } catch (error) {
+          console.error('Error syncing urgent item deletion:', error);
+        }
+      }
+    });
+
+    // Create unsubscribe function
+    const unsubscribe = () => {
+      urgentItemsRef.off('child_added', onChildAdded);
+      urgentItemsRef.off('child_changed', onChildChanged);
+      urgentItemsRef.off('child_removed', onChildRemoved);
+      this.activeListeners.delete(key);
+    };
+
+    this.activeListeners.set(key, unsubscribe);
+    return unsubscribe;
+  }
+
+  /**
+   * Sync an urgent item from Firebase to local WatermelonDB
+   */
+  private async syncUrgentItemToLocal(familyGroupId: string, itemId: string, firebaseData: any): Promise<void> {
+    try {
+      const urgentItem: UrgentItem = {
+        id: itemId,
+        name: firebaseData.name || '',
+        familyGroupId: firebaseData.familyGroupId || familyGroupId,
+        createdBy: firebaseData.createdBy || '',
+        createdByName: firebaseData.createdByName || '',
+        createdAt: firebaseData.createdAt || Date.now(),
+        resolvedBy: firebaseData.resolvedBy || null,
+        resolvedByName: firebaseData.resolvedByName || null,
+        resolvedAt: firebaseData.resolvedAt || null,
+        price: firebaseData.price || null,
+        status: firebaseData.status || 'active',
+        syncStatus: 'synced', // Mark as synced since it came from Firebase
+      };
+
+      // Save to local DB (will create or update)
+      await LocalStorageManager.saveUrgentItem(urgentItem);
+    } catch (error) {
+      console.error('Error syncing urgent item to local:', error);
+    }
+  }
+
+  /**
+   * Stop listening to urgent items for a family group
+   */
+  stopListeningToUrgentItems(familyGroupId: string): void {
+    const key = `urgent_items_${familyGroupId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();
