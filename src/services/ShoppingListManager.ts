@@ -179,37 +179,32 @@ class ShoppingListManager {
   }
 
   /**
-   * Subscribe to list changes for real-time updates
+   * Subscribe to list changes for real-time updates using WatermelonDB observers
    * Implements Req 4.4
    */
   subscribeToListChanges(
     familyGroupId: string,
     callback: (lists: ShoppingList[]) => void
   ): Unsubscribe {
-    // Set up interval to check for updates
-    // In production, this would use WatermelonDB observers
-    const intervalId = setInterval(async () => {
-      const lists = await this.getAllActiveLists(familyGroupId);
-      callback(lists);
-    }, 1000);
-
-    return () => clearInterval(intervalId);
+    // Use WatermelonDB observers for true real-time updates (no polling!)
+    return LocalStorageManager.observeAllLists(familyGroupId, (lists) => {
+      // Filter out deleted lists and sort by creation date (newest first)
+      const visibleLists = lists
+        .filter(list => list.status !== 'deleted')
+        .sort((a, b) => b.createdAt - a.createdAt);
+      callback(visibleLists);
+    });
   }
 
   /**
-   * Subscribe to a specific list for real-time updates
+   * Subscribe to a specific list for real-time updates using WatermelonDB observers
    */
   subscribeToSingleList(
     listId: string,
     callback: (list: ShoppingList | null) => void
   ): Unsubscribe {
-    // Set up interval to check for updates
-    const intervalId = setInterval(async () => {
-      const list = await this.getListById(listId);
-      callback(list);
-    }, 500); // Check every 500ms for faster updates
-
-    return () => clearInterval(intervalId);
+    // Use WatermelonDB observers for true real-time updates (no polling!)
+    return LocalStorageManager.observeList(listId, callback);
   }
 }
 

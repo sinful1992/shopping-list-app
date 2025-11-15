@@ -675,6 +675,79 @@ class LocalStorageManager {
     });
   }
 
+  // ===== REAL-TIME OBSERVERS =====
+
+  /**
+   * Observe all lists for a family group (returns WatermelonDB observable)
+   * Use this instead of polling for real-time updates
+   */
+  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+    const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
+    const query = listsCollection.query(Q.where('family_group_id', familyGroupId));
+
+    const subscription = query.observe().subscribe((listModels) => {
+      const lists = listModels.map((model) => this.listModelToType(model));
+      callback(lists);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Observe a single list by ID (returns WatermelonDB observable)
+   */
+  observeList(listId: string, callback: (list: ShoppingList | null) => void): () => void {
+    const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
+
+    const subscription = listsCollection.findAndObserve(listId).subscribe({
+      next: (model) => {
+        callback(this.listModelToType(model));
+      },
+      error: () => {
+        callback(null);
+      },
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Observe items for a specific list (returns WatermelonDB observable)
+   */
+  observeItemsForList(listId: string, callback: (items: Item[]) => void): () => void {
+    const itemsCollection = this.database.get<ItemModel>('items');
+    const query = itemsCollection.query(
+      Q.where('list_id', listId),
+      Q.sortBy('created_at', Q.asc)
+    );
+
+    const subscription = query.observe().subscribe((itemModels) => {
+      const items = itemModels.map((model) => this.itemModelToType(model));
+      callback(items);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Observe active urgent items for family group
+   */
+  observeActiveUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
+    const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+    const query = urgentItemsCollection.query(
+      Q.where('family_group_id', familyGroupId),
+      Q.where('status', 'active'),
+      Q.sortBy('created_at', Q.desc)
+    );
+
+    const subscription = query.observe().subscribe((itemModels) => {
+      const items = itemModels.map((model) => this.urgentItemModelToType(model));
+      callback(items);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
   // ===== HELPER METHODS =====
 
   private listModelToType(model: ShoppingListModel): ShoppingList {

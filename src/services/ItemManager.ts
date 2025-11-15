@@ -87,18 +87,12 @@ class ItemManager {
   }
 
   /**
-   * Subscribe to item changes for real-time updates
+   * Subscribe to item changes for real-time updates using WatermelonDB observers
    * Implements Req 4.2
    */
   subscribeToItemChanges(listId: string, callback: (items: Item[]) => void): Unsubscribe {
-    // Set up interval to check for updates
-    // In production, this would use WatermelonDB observers
-    const intervalId = setInterval(async () => {
-      const items = await this.getItemsForList(listId);
-      callback(items);
-    }, 1000);
-
-    return () => clearInterval(intervalId);
+    // Use WatermelonDB observers for true real-time updates (no polling!)
+    return LocalStorageManager.observeItemsForList(listId, callback);
   }
 }
 

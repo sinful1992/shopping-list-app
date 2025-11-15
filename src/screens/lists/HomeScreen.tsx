@@ -18,6 +18,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
 import ItemManager from '../../services/ItemManager';
+import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 
 /**
  * HomeScreen
@@ -39,23 +40,26 @@ const HomeScreen = () => {
     loadLists();
   }, []);
 
-  // Subscribe to real-time list changes (triggered when remote changes are synced to local DB)
+  // Subscribe to real-time list changes using WatermelonDB observers (no polling!)
   useEffect(() => {
     if (!familyGroupId) return;
 
-    // Poll for changes every second to detect when remote data is synced to local DB
-    const intervalId = setInterval(async () => {
-      try {
-        const allLists = await ShoppingListManager.getAllLists(familyGroupId);
-        const visibleLists = allLists.filter(list => list.status !== 'deleted');
-        setLists(visibleLists);
-      } catch (error) {
-        console.error('Error refreshing lists:', error);
+    // Step 1: Start listening to Firebase for remote changes
+    // When Firebase data changes, it will update local WatermelonDB
+    const unsubscribeFirebase = FirebaseSyncListener.startListeningToLists(familyGroupId);
+
+    // Step 2: Subscribe to local WatermelonDB changes (triggered by Firebase or local edits)
+    // This gives us instant UI updates without polling
+    const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
+      familyGroupId,
+      (updatedLists) => {
+        setLists(updatedLists);
       }
-    }, 1000);
+    );
 
     return () => {
-      clearInterval(intervalId);
+      unsubscribeFirebase();
+      unsubscribeLocal();
     };
   }, [familyGroupId]);
 

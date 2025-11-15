@@ -15,6 +15,7 @@ import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
+import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 
 /**
  * ListDetailScreen
@@ -44,8 +45,16 @@ const ListDetailScreen = () => {
     loadListAndItems();
     loadCurrentUser();
 
-    // Subscribe to real-time changes for this specific list
-    const unsubscribe = ShoppingListManager.subscribeToSingleList(
+    // Step 1: Start listening to Firebase for remote changes to this list
+    const unsubscribeFirebaseList = FirebaseSyncListener.startListeningToLists(
+      list?.familyGroupId || ''
+    );
+
+    // Step 2: Start listening to Firebase for remote changes to items in this list
+    const unsubscribeFirebaseItems = FirebaseSyncListener.startListeningToItems(listId);
+
+    // Step 3: Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
+    const unsubscribeList = ShoppingListManager.subscribeToSingleList(
       listId,
       async (updatedList) => {
         if (updatedList && currentUserId) {
@@ -74,8 +83,16 @@ const ListDetailScreen = () => {
       }
     );
 
+    // Step 4: Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
+    const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
+      setItems(updatedItems);
+    });
+
     return () => {
-      if (unsubscribe) unsubscribe();
+      unsubscribeFirebaseList();
+      unsubscribeFirebaseItems();
+      unsubscribeList();
+      unsubscribeItems();
     };
   }, [listId, currentUserId]);
 
