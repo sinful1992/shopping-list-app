@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 3,
+  version: 5,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -18,9 +18,15 @@ export const schema = appSchema({
         { name: 'created_at', type: 'number', isIndexed: true },
         { name: 'status', type: 'string', isIndexed: true },
         { name: 'completed_at', type: 'number', isOptional: true, isIndexed: true },
+        { name: 'completed_by', type: 'string', isOptional: true },
         { name: 'receipt_url', type: 'string', isOptional: true },
         { name: 'receipt_data', type: 'string', isOptional: true }, // JSON stringified
         { name: 'sync_status', type: 'string' },
+        { name: 'is_locked', type: 'boolean' },
+        { name: 'locked_by', type: 'string', isOptional: true },
+        { name: 'locked_by_name', type: 'string', isOptional: true },
+        { name: 'locked_by_role', type: 'string', isOptional: true },
+        { name: 'locked_at', type: 'number', isOptional: true },
       ],
     }),
 
@@ -50,6 +56,7 @@ export const schema = appSchema({
         { name: 'data', type: 'string' }, // JSON stringified
         { name: 'timestamp', type: 'number', isIndexed: true },
         { name: 'retry_count', type: 'number' },
+        { name: 'next_retry_at', type: 'number', isOptional: true, isIndexed: true },
       ],
     }),
 

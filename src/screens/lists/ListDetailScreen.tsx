@@ -32,10 +32,23 @@ const ListDetailScreen = () => {
   const [isEditingListName, setIsEditingListName] = useState(false);
   const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
   const [itemNames, setItemNames] = useState<{ [key: string]: string }>({});
+  const [isShoppingMode, setIsShoppingMode] = useState(false);
+  const [isListLocked, setIsListLocked] = useState(false);
+  const [isListCompleted, setIsListCompleted] = useState(false);
+  const [canAddItems, setCanAddItems] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadListAndItems();
+    loadCurrentUser();
   }, [listId]);
+
+  const loadCurrentUser = async () => {
+    const user = await AuthenticationModule.getCurrentUser();
+    if (user) {
+      setCurrentUserId(user.uid);
+    }
+  };
 
   const loadListAndItems = async () => {
     try {
@@ -43,6 +56,27 @@ const ListDetailScreen = () => {
       if (fetchedList) {
         setList(fetchedList);
         setListName(fetchedList.name);
+        setIsListCompleted(fetchedList.status === 'completed');
+
+        // Check if list is locked
+        if (currentUserId) {
+          const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
+          setIsListLocked(locked);
+
+          // If locked by current user, enable shopping mode
+          if (fetchedList.isLocked && fetchedList.lockedBy === currentUserId) {
+            setIsShoppingMode(true);
+          } else {
+            setIsShoppingMode(false);
+          }
+
+          // If list is completed, only the person who completed it can add items
+          if (fetchedList.status === 'completed') {
+            setCanAddItems(fetchedList.completedBy === currentUserId);
+          } else {
+            setCanAddItems(!locked);
+          }
+        }
       }
 
       const listItems = await ItemManager.getItemsForList(listId);
@@ -233,6 +267,41 @@ const ListDetailScreen = () => {
     navigation.navigate('ReceiptCamera' as never, { listId } as never);
   };
 
+  const handleStartShopping = async () => {
+    if (!currentUserId) return;
+
+    try {
+      const user = await AuthenticationModule.getCurrentUser();
+      if (!user) return;
+
+      await ShoppingListManager.lockListForShopping(
+        listId,
+        currentUserId,
+        user.displayName,
+        user.role || null
+      );
+      setIsShoppingMode(true);
+      setIsListLocked(false); // Not locked for current user
+      await loadListAndItems(); // Reload to get updated list
+      Alert.alert('Shopping Mode', 'You are now shopping. Other family members can only view this list.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleDoneShopping = async () => {
+    if (!currentUserId) return;
+
+    try {
+      await ShoppingListManager.completeShoppingAndUnlock(listId, currentUserId);
+      setIsShoppingMode(false);
+      await loadListAndItems(); // Reload to get updated list
+      Alert.alert('Shopping Complete!', 'Your shopping list has been completed and saved to history.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
   const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemRow}>
       <TouchableOpacity
@@ -293,8 +362,9 @@ const ListDetailScreen = () => {
               onChangeText={setEditedListName}
               autoFocus
               placeholderTextColor="#6E6E73"
+              editable={!isListLocked}
             />
-            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName}>
+            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked}>
               <Text style={styles.titleSaveButtonText}>✔️</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName}>
@@ -304,23 +374,59 @@ const ListDetailScreen = () => {
         ) : (
           <>
             <Text style={styles.title}>{listName}</Text>
-            <TouchableOpacity onPress={handleEditListName}>
-              <Text style={styles.editIcon}>✏️</Text>
-            </TouchableOpacity>
+            {!isListLocked && (
+              <TouchableOpacity onPress={handleEditListName}>
+                <Text style={styles.editIcon}>✏️</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </View>
 
+      {isListLocked && list && (
+        <View style={styles.lockedBanner}>
+          <Text style={styles.lockedBannerText}>
+            🔒 {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now!
+          </Text>
+        </View>
+      )}
+
+      {isShoppingMode && (
+        <View style={styles.shoppingModeBanner}>
+          <Text style={styles.shoppingModeText}>
+            🛒 You are shopping
+          </Text>
+          <TouchableOpacity style={styles.doneShoppingButton} onPress={handleDoneShopping}>
+            <Text style={styles.doneShoppingButtonText}>Done Shopping</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {isListCompleted && !canAddItems && (
+        <View style={styles.completedBanner}>
+          <Text style={styles.completedBannerText}>
+            ✅ List completed - Only the shopper can add missing items
+          </Text>
+        </View>
+      )}
+
       <View style={styles.addItemContainer}>
         <TextInput
           style={styles.input}
-          placeholder="Add item..."
+          placeholder={
+            isListLocked
+              ? "List is locked..."
+              : !canAddItems
+              ? "List is completed..."
+              : "Add item..."
+          }
           placeholderTextColor="#6E6E73"
           value={newItemName}
           onChangeText={setNewItemName}
           onSubmitEditing={handleAddItem}
+          editable={canAddItems}
         />
-        <TouchableOpacity style={styles.addButton} onPress={handleAddItem}>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
@@ -343,12 +449,16 @@ const ListDetailScreen = () => {
       />
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.receiptButton} onPress={handleTakeReceiptPhoto}>
-          <Text style={styles.receiptButtonText}>📷 Take Receipt Photo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.completeButton} onPress={handleCompleteList}>
-          <Text style={styles.completeButtonText}>Complete Shopping</Text>
-        </TouchableOpacity>
+        {!isShoppingMode && !isListLocked && !isListCompleted && (
+          <TouchableOpacity style={styles.startShoppingButton} onPress={handleStartShopping}>
+            <Text style={styles.startShoppingButtonText}>🛒 Start Shopping</Text>
+          </TouchableOpacity>
+        )}
+        {!isListCompleted && (
+          <TouchableOpacity style={styles.receiptButton} onPress={handleTakeReceiptPhoto} disabled={isListLocked}>
+            <Text style={styles.receiptButtonText}>📷 Take Receipt Photo</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -615,6 +725,76 @@ const styles = StyleSheet.create({
   completeButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  lockedBanner: {
+    backgroundColor: 'rgba(255, 149, 0, 0.9)',
+    padding: 12,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 149, 0, 0.3)',
+  },
+  lockedBannerText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  shoppingModeBanner: {
+    backgroundColor: 'rgba(52, 199, 89, 0.9)',
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(52, 199, 89, 0.3)',
+  },
+  shoppingModeText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  doneShoppingButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  doneShoppingButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  startShoppingButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    padding: 16,
+    marginBottom: 10,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  startShoppingButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  completedBanner: {
+    backgroundColor: 'rgba(52, 199, 89, 0.8)',
+    padding: 12,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(52, 199, 89, 0.3)',
+  },
+  completedBannerText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });

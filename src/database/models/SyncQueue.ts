@@ -10,4 +10,5 @@ export class SyncQueueModel extends Model {
   @field('data') data!: string;
   @field('timestamp') timestamp!: number;
   @field('retry_count') retryCount!: number;
+  @field('next_retry_at') nextRetryAt!: number | null;
 }

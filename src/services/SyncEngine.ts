@@ -175,9 +175,62 @@ class SyncEngine {
   /**
    * Resolve conflicts between local and remote data
    * Implements Req 3.7, 4.5, 9.9
+   *
+   * Smart conflict resolution rules:
+   * - If both users checked the same item → keep checked
+   * - If one checked, one deleted → delete wins (item was bought)
+   * - If both updated different fields → merge changes
+   * - Otherwise → server timestamp wins (last-write-wins)
    */
   async resolveConflict(localEntity: any, remoteEntity: any): Promise<any> {
-    // Server timestamp wins (last-write-wins)
+    // Handle item conflicts (has 'checked' field)
+    if ('checked' in localEntity && 'checked' in remoteEntity) {
+      // Rule 1: If both checked the same item, keep it checked
+      if (localEntity.checked && remoteEntity.checked) {
+        return localEntity.updatedAt > remoteEntity.updatedAt ? localEntity : remoteEntity;
+      }
+
+      // Rule 2: If one side checked it, prefer checked state
+      if (localEntity.checked && !remoteEntity.checked) {
+        return localEntity;
+      }
+      if (!localEntity.checked && remoteEntity.checked) {
+        return remoteEntity;
+      }
+
+      // Rule 3: If neither is checked, merge updates
+      const merged = { ...remoteEntity };
+      if (localEntity.updatedAt > remoteEntity.updatedAt) {
+        // Local is newer, use local values for changed fields
+        if (localEntity.name !== remoteEntity.name) merged.name = localEntity.name;
+        if (localEntity.quantity !== remoteEntity.quantity) merged.quantity = localEntity.quantity;
+        if (localEntity.price !== remoteEntity.price) merged.price = localEntity.price;
+        merged.updatedAt = localEntity.updatedAt;
+      }
+      return merged;
+    }
+
+    // Handle list conflicts (has 'status' field)
+    if ('status' in localEntity && 'status' in remoteEntity) {
+      // Rule: Completed or deleted status wins over active
+      if (localEntity.status === 'deleted' || remoteEntity.status === 'deleted') {
+        return localEntity.status === 'deleted' ? localEntity : remoteEntity;
+      }
+      if (localEntity.status === 'completed' || remoteEntity.status === 'completed') {
+        return localEntity.status === 'completed' ? localEntity : remoteEntity;
+      }
+
+      // For lock fields, most recent lock wins
+      const merged = { ...remoteEntity };
+      if (localEntity.updatedAt > remoteEntity.updatedAt || (localEntity.lockedAt && (!remoteEntity.lockedAt || localEntity.lockedAt > remoteEntity.lockedAt))) {
+        merged.isLocked = localEntity.isLocked;
+        merged.lockedBy = localEntity.lockedBy;
+        merged.lockedAt = localEntity.lockedAt;
+      }
+      return merged;
+    }
+
+    // Default: Server timestamp wins (last-write-wins)
     if (!localEntity.updatedAt && !remoteEntity.updatedAt) {
       return remoteEntity;
     }
@@ -188,6 +241,9 @@ class SyncEngine {
   /**
    * Process all operations in the queue
    * Implements Req 4.6, 9.5, 9.6
+   *
+   * Exponential backoff: 1s → 2s → 4s → 8s → 16s (max 5 retries)
+   * Includes jitter (random 0-1000ms) to prevent thundering herd
    */
   async processOperationQueue(): Promise<void> {
     if (this.syncInProgress || !this.isOnline) {
@@ -198,8 +254,15 @@ class SyncEngine {
 
     try {
       const queue = await LocalStorageManager.getSyncQueue();
+      const now = Date.now();
 
       for (const operation of queue) {
+        // Skip operations that are not ready to retry yet
+        if (operation.nextRetryAt && now < operation.nextRetryAt) {
+          console.log(`Skipping operation ${operation.id}, next retry at ${new Date(operation.nextRetryAt).toISOString()}`);
+          continue;
+        }
+
         try {
           await this.syncToFirebase(
             operation.entityType,
@@ -214,27 +277,39 @@ class SyncEngine {
           // Update sync status
           if (operation.entityType === 'list') {
             await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'synced' });
-          } else {
+          } else if (operation.entityType === 'item') {
             await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'synced' });
           }
         } catch (error) {
           console.error('Failed to sync operation:', error);
 
-          // Implement exponential backoff: 1s, 2s, 4s, 8s, 16s
           const maxRetries = 5;
-          if (operation.retryCount >= maxRetries) {
-            console.error('Max retries reached, marking as failed');
+          const newRetryCount = operation.retryCount + 1;
+
+          if (newRetryCount >= maxRetries) {
+            console.error(`Max retries (${maxRetries}) reached for operation ${operation.id}, marking as failed`);
             // Update sync status to 'failed'
             if (operation.entityType === 'list') {
               await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'failed' });
-            } else {
+            } else if (operation.entityType === 'item') {
               await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'failed' });
             }
             // Remove from queue
             await LocalStorageManager.removeFromSyncQueue(operation.id);
           } else {
-            // Increment retry count (would need to update queue record)
-            console.log(`Retry ${operation.retryCount + 1}/${maxRetries}`);
+            // Calculate next retry time with exponential backoff + jitter
+            const baseDelay = 1000; // 1 second
+            const exponentialDelay = baseDelay * Math.pow(2, newRetryCount - 1);
+            const jitter = Math.random() * 1000; // 0-1000ms
+            const nextRetryAt = now + exponentialDelay + jitter;
+
+            console.log(`Retry ${newRetryCount}/${maxRetries} for operation ${operation.id}, next retry in ${Math.round((exponentialDelay + jitter) / 1000)}s`);
+
+            // Update retry count and next retry time
+            await LocalStorageManager.updateSyncQueueOperation(operation.id, {
+              retryCount: newRetryCount,
+              nextRetryAt,
+            });
           }
         }
       }

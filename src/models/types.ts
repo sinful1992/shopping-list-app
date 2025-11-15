@@ -39,9 +39,15 @@ export interface ShoppingList {
   createdAt: number;
   status: ListStatus;
   completedAt: number | null;
+  completedBy: string | null;
   receiptUrl: string | null;
   receiptData: ReceiptData | null;
   syncStatus: SyncStatus;
+  isLocked: boolean;
+  lockedBy: string | null;
+  lockedByName: string | null;
+  lockedByRole: FamilyRole | null;
+  lockedAt: number | null;
 }
 
 export interface Item {
@@ -152,6 +158,7 @@ export interface QueuedOperation {
   data: any;
   timestamp: number;
   retryCount: number;
+  nextRetryAt?: number | null;
 }
 
 export interface SyncResult {

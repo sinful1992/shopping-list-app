@@ -49,9 +49,15 @@ class LocalStorageManager {
             record.name = list.name;
             record.status = list.status;
             record.completedAt = list.completedAt;
+            record.completedBy = list.completedBy;
             record.receiptUrl = list.receiptUrl;
             record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
             record.syncStatus = list.syncStatus;
+            record.isLocked = list.isLocked;
+            record.lockedBy = list.lockedBy;
+            record.lockedByName = list.lockedByName;
+            record.lockedByRole = list.lockedByRole;
+            record.lockedAt = list.lockedAt;
           });
         } catch {
           // Create new
@@ -63,9 +69,15 @@ class LocalStorageManager {
             // createdAt is @readonly and automatically set by WatermelonDB
             record.status = list.status;
             record.completedAt = list.completedAt;
+            record.completedBy = list.completedBy;
             record.receiptUrl = list.receiptUrl;
             record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
             record.syncStatus = list.syncStatus;
+            record.isLocked = list.isLocked;
+            record.lockedBy = list.lockedBy;
+            record.lockedByName = list.lockedByName;
+            record.lockedByRole = list.lockedByRole;
+            record.lockedAt = list.lockedAt;
           });
         }
       });
@@ -173,11 +185,17 @@ class LocalStorageManager {
           if (updates.name !== undefined) record.name = updates.name;
           if (updates.status !== undefined) record.status = updates.status;
           if (updates.completedAt !== undefined) record.completedAt = updates.completedAt;
+          if (updates.completedBy !== undefined) record.completedBy = updates.completedBy;
           if (updates.receiptUrl !== undefined) record.receiptUrl = updates.receiptUrl;
           if (updates.receiptData !== undefined) {
             record.receiptData = updates.receiptData ? JSON.stringify(updates.receiptData) : null;
           }
           if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+          if (updates.isLocked !== undefined) record.isLocked = updates.isLocked;
+          if (updates.lockedBy !== undefined) record.lockedBy = updates.lockedBy;
+          if (updates.lockedByName !== undefined) record.lockedByName = updates.lockedByName;
+          if (updates.lockedByRole !== undefined) record.lockedByRole = updates.lockedByRole;
+          if (updates.lockedAt !== undefined) record.lockedAt = updates.lockedAt;
         });
       });
 
@@ -339,6 +357,7 @@ class LocalStorageManager {
           record.data = JSON.stringify(operation.data);
           record.timestamp = operation.timestamp;
           record.retryCount = operation.retryCount;
+          record.nextRetryAt = operation.nextRetryAt || null;
         });
       });
     } catch (error: any) {
@@ -358,12 +377,13 @@ class LocalStorageManager {
 
       return operations.map((op) => ({
         id: op.id,
-        entityType: op.entityType as 'list' | 'item',
+        entityType: op.entityType as 'list' | 'item' | 'urgentItem',
         entityId: op.entityId,
         operation: op.operation as 'create' | 'update' | 'delete',
         data: JSON.parse(op.data),
         timestamp: op.timestamp,
         retryCount: op.retryCount,
+        nextRetryAt: op.nextRetryAt || null,
       }));
     } catch (error: any) {
       throw new Error(`Failed to get sync queue: ${error.message}`);
@@ -382,6 +402,24 @@ class LocalStorageManager {
       });
     } catch (error: any) {
       throw new Error(`Failed to remove from sync queue: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update sync queue operation (for retry tracking)
+   */
+  async updateSyncQueueOperation(operationId: string, updates: Partial<QueuedOperation>): Promise<void> {
+    try {
+      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
+      const operation = await syncQueueCollection.find(operationId);
+      await this.database.write(async () => {
+        await operation.update((record) => {
+          if (updates.retryCount !== undefined) record.retryCount = updates.retryCount;
+          if (updates.nextRetryAt !== undefined) record.nextRetryAt = updates.nextRetryAt;
+        });
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to update sync queue operation: ${error.message}`);
     }
   }
 
@@ -648,9 +686,15 @@ class LocalStorageManager {
       createdAt: model.createdAt,
       status: model.status as 'active' | 'completed' | 'deleted',
       completedAt: model.completedAt,
+      completedBy: model.completedBy,
       receiptUrl: model.receiptUrl,
       receiptData: model.receiptData ? JSON.parse(model.receiptData) : null,
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+      isLocked: model.isLocked,
+      lockedBy: model.lockedBy,
+      lockedByName: model.lockedByName,
+      lockedByRole: model.lockedByRole as 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter' | null,
+      lockedAt: model.lockedAt,
     };
   }
 

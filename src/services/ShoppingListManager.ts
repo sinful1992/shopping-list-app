@@ -23,9 +23,15 @@ class ShoppingListManager {
       createdAt: Date.now(),
       status: 'active',
       completedAt: null,
+      completedBy: null,
       receiptUrl: null,
       receiptData: null,
       syncStatus: 'pending',
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
     };
 
     // Save locally first (offline-first)
@@ -109,6 +115,67 @@ class ShoppingListManager {
 
     // Trigger sync for delete operation
     await SyncEngine.pushChange('list', listId, 'delete');
+  }
+
+  /**
+   * Lock list for shopping (prevents others from editing)
+   */
+  async lockListForShopping(
+    listId: string,
+    userId: string,
+    userName: string | null,
+    userRole: string | null
+  ): Promise<ShoppingList> {
+    return this.updateList(listId, {
+      isLocked: true,
+      lockedBy: userId,
+      lockedByName: userName,
+      lockedByRole: userRole as any,
+      lockedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Unlock list and mark as completed
+   */
+  async completeShoppingAndUnlock(listId: string, userId: string): Promise<ShoppingList> {
+    return this.updateList(listId, {
+      status: 'completed',
+      completedAt: Date.now(),
+      completedBy: userId,
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
+    });
+  }
+
+  /**
+   * Check if list is locked and if lock is still valid (< 2 hours)
+   */
+  async isListLockedForUser(listId: string, userId: string): Promise<boolean> {
+    const list = await this.getListById(listId);
+    if (!list || !list.isLocked) return false;
+
+    // If locked by current user, not locked for them
+    if (list.lockedBy === userId) return false;
+
+    // Check if lock is expired (2 hours = 7200000 ms)
+    const TWO_HOURS = 2 * 60 * 60 * 1000;
+    if (list.lockedAt && Date.now() - list.lockedAt > TWO_HOURS) {
+      // Auto-unlock expired lock
+      await this.updateList(listId, {
+        isLocked: false,
+        lockedBy: null,
+        lockedByName: null,
+        lockedByRole: null,
+        lockedAt: null,
+      });
+      return false;
+    }
+
+    return true;
   }
 
   /**
