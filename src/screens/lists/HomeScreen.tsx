@@ -287,6 +287,11 @@ const HomeScreen = () => {
             </Text>
           </View>
           <View style={styles.listBadges}>
+            {item.isLocked && (
+              <Text style={styles.shoppingBadge}>
+                🛒 {item.lockedByRole || item.lockedByName || 'Shopping'}
+              </Text>
+            )}
             {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
             {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
             {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
@@ -486,6 +491,15 @@ const styles = StyleSheet.create({
   syncedBadge: {
     fontSize: 12,
     color: '#30D158',
+  },
+  shoppingBadge: {
+    fontSize: 12,
+    color: '#FFB340',
+    backgroundColor: 'rgba(255, 179, 64, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontWeight: '600',
   },
   deleteIconButton: {
     padding: 4,

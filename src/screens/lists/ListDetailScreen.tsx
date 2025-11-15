@@ -347,10 +347,11 @@ const ListDetailScreen = () => {
   const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemRow}>
       <TouchableOpacity
-        style={styles.checkbox}
-        onPress={() => handleToggleItem(item.id)}
+        style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
+        onPress={() => !isListLocked && handleToggleItem(item.id)}
+        disabled={isListLocked}
       >
-        <Text>{item.checked ? '✓' : ' '}</Text>
+        <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked ? '✓' : ' '}</Text>
       </TouchableOpacity>
       <View style={styles.itemContent}>
         <View style={styles.nameInputRow}>
@@ -621,6 +622,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  checkboxDisabled: {
+    borderColor: '#6E6E73',
+    backgroundColor: 'rgba(110, 110, 115, 0.1)',
+    opacity: 0.5,
+  },
+  checkboxTextDisabled: {
+    color: '#6E6E73',
   },
   itemContent: {
     flex: 1,

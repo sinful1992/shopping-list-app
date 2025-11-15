@@ -24,7 +24,8 @@
       "Bash(where:*)",
       "Bash(echo:*)",
       "Bash(npm install:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []
