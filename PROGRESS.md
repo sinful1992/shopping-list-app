@@ -39,6 +39,12 @@
   - Listens to Firebase changes and updates local WatermelonDB automatically
   - True real-time sync across devices
   - Integrated into HomeScreen and ListDetailScreen
+- [x] **Supabase Realtime listeners for urgent items**
+  - SupabaseSyncListener service for urgent items
+  - Listens to Supabase postgres_changes events (INSERT, UPDATE, DELETE)
+  - UrgentItemManager uses WatermelonDB observers (no polling)
+  - Integrated into UrgentItemsScreen
+  - Instant notifications across family group
 
 #### Database & Schema
 - [x] Schema version 5 with lock fields
@@ -190,10 +196,11 @@
 ---
 
 ## 📊 Recent Commits
-1. **Implement true real-time sync with WatermelonDB observers and Firebase listeners** - Replaced all polling with efficient observers
-2. **Add shopping indicator on list cards and fix locked list checkbox** - Fixed shopping badge visibility and checkbox crash
-3. **Implement shopping lock, real-time sync, and pull-to-refresh** - Core shopping lock feature with conflict resolution
-4. Previous work on receipt OCR, database schema, authentication, etc.
+1. **Add Supabase real-time sync for urgent items** - Complete real-time implementation for all data types
+2. **Implement true real-time sync with WatermelonDB observers and Firebase listeners** - Replaced all polling with efficient observers
+3. **Add shopping indicator on list cards and fix locked list checkbox** - Fixed shopping badge visibility and checkbox crash
+4. **Implement shopping lock, real-time sync, and pull-to-refresh** - Core shopping lock feature with conflict resolution
+5. Previous work on receipt OCR, database schema, authentication, etc.
 
 ---
 

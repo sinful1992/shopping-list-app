@@ -13,6 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UrgentItemManager from '../../services/UrgentItemManager';
+import SupabaseSyncListener from '../../services/SupabaseSyncListener';
 import { UrgentItem, User } from '../../models/types';
 
 /**
@@ -32,15 +33,40 @@ const UrgentItemsScreen = () => {
   const [resolvePrice, setResolvePrice] = useState('');
 
   useEffect(() => {
-    const unsubscribe = AuthenticationModule.onAuthStateChanged((currentUser) => {
+    const unsubscribeAuth = AuthenticationModule.onAuthStateChanged((currentUser) => {
       setUser(currentUser);
       if (currentUser?.familyGroupId) {
         loadUrgentItems(currentUser.familyGroupId);
       }
     });
 
-    return unsubscribe;
+    return unsubscribeAuth;
   }, []);
+
+  // Subscribe to real-time urgent items updates
+  useEffect(() => {
+    if (!user?.familyGroupId) return;
+
+    // Step 1: Start listening to Supabase for remote changes
+    // When Supabase data changes, it will update local WatermelonDB
+    const unsubscribeSupabase = SupabaseSyncListener.startListeningToUrgentItems(
+      user.familyGroupId
+    );
+
+    // Step 2: Subscribe to local WatermelonDB changes (triggered by Supabase or local edits)
+    // This gives us instant UI updates without polling
+    const unsubscribeLocal = UrgentItemManager.subscribeToUrgentItems(
+      user.familyGroupId,
+      (updatedItems) => {
+        setActiveItems(updatedItems);
+      }
+    );
+
+    return () => {
+      unsubscribeSupabase();
+      unsubscribeLocal();
+    };
+  }, [user?.familyGroupId]);
 
   const loadUrgentItems = async (familyGroupId: string) => {
     try {

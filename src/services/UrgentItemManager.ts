@@ -205,20 +205,14 @@ class UrgentItemManager {
   }
 
   /**
-   * Subscribe to urgent item changes for real-time updates
+   * Subscribe to urgent item changes for real-time updates using WatermelonDB observers
    */
   subscribeToUrgentItems(
     familyGroupId: string,
     callback: (items: UrgentItem[]) => void
   ): Unsubscribe {
-    // Set up interval to check for updates
-    // In production, this would use WatermelonDB observers
-    const intervalId = setInterval(async () => {
-      const items = await this.getActiveUrgentItems(familyGroupId);
-      callback(items);
-    }, 1000);
-
-    return () => clearInterval(intervalId);
+    // Use WatermelonDB observers for true real-time updates (no polling!)
+    return LocalStorageManager.observeActiveUrgentItems(familyGroupId, callback);
   }
 }
 
