@@ -47,6 +47,16 @@ const UrgentItemsScreen = () => {
   useEffect(() => {
     if (!user?.familyGroupId) return;
 
+    // Test if Supabase real-time is working
+    const isWorking = SupabaseSyncListener.isInitialized();
+    if (!isWorking) {
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('⚠️  SUPABASE REAL-TIME FAILED TO INITIALIZE');
+      console.error('Urgent items will only work via push notifications');
+      console.error('Real-time updates are DISABLED');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    }
+
     // Step 1: Start listening to Supabase for remote changes
     // When Supabase data changes, it will update local WatermelonDB
     const unsubscribeSupabase = SupabaseSyncListener.startListeningToUrgentItems(

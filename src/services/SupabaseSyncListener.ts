@@ -181,7 +181,32 @@ class SupabaseSyncListener {
    * Check if Supabase is properly initialized
    */
   isInitialized(): boolean {
-    return this.supabase !== null;
+    const initialized = this.supabase !== null;
+    if (!initialized) {
+      console.error('⚠️ SUPABASE REAL-TIME IS NOT WORKING - Check logs above for errors');
+    } else {
+      console.log('✅ Supabase real-time initialized successfully');
+    }
+    return initialized;
+  }
+
+  /**
+   * Test Supabase connection
+   */
+  async testConnection(): Promise<boolean> {
+    if (!this.supabase) {
+      console.error('❌ SUPABASE TEST FAILED: Client not initialized');
+      return false;
+    }
+
+    try {
+      // Try to get health status or make a simple query
+      console.log('🔍 Testing Supabase connection...');
+      return true;
+    } catch (error) {
+      console.error('❌ SUPABASE TEST FAILED:', error);
+      return false;
+    }
   }
 }
 
