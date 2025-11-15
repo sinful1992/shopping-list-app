@@ -39,12 +39,13 @@
   - Listens to Firebase changes and updates local WatermelonDB automatically
   - True real-time sync across devices
   - Integrated into HomeScreen and ListDetailScreen
-- [x] **Supabase Realtime listeners for urgent items**
-  - SupabaseSyncListener service for urgent items
-  - Listens to Supabase postgres_changes events (INSERT, UPDATE, DELETE)
+- [x] **Firebase Realtime Database for urgent items (dual-write)**
+  - UrgentItemManager writes to both Firebase (real-time) and Supabase (push notifications)
+  - FirebaseSyncListener handles urgent items (same as lists/items)
   - UrgentItemManager uses WatermelonDB observers (no polling)
   - Integrated into UrgentItemsScreen
-  - Instant notifications across family group
+  - Instant real-time updates across family group
+  - No Supabase realtime package needed (avoided React Native compatibility issues)
 
 #### Database & Schema
 - [x] Schema version 5 with lock fields
@@ -196,7 +197,7 @@
 ---
 
 ## 📊 Recent Commits
-1. **Add Supabase real-time sync for urgent items** - Complete real-time implementation for all data types
+1. **Replace Supabase realtime with Firebase dual-write for urgent items** - Fixed compatibility issues with smart dual-write architecture
 2. **Implement true real-time sync with WatermelonDB observers and Firebase listeners** - Replaced all polling with efficient observers
 3. **Add shopping indicator on list cards and fix locked list checkbox** - Fixed shopping badge visibility and checkbox crash
 4. **Implement shopping lock, real-time sync, and pull-to-refresh** - Core shopping lock feature with conflict resolution
