@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Item, ShoppingList } from '../../models/types';
@@ -37,11 +38,46 @@ const ListDetailScreen = () => {
   const [isListCompleted, setIsListCompleted] = useState(false);
   const [canAddItems, setCanAddItems] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadListAndItems();
     loadCurrentUser();
-  }, [listId]);
+
+    // Subscribe to real-time changes for this specific list
+    const unsubscribe = ShoppingListManager.subscribeToSingleList(
+      listId,
+      async (updatedList) => {
+        if (updatedList && currentUserId) {
+          setList(updatedList);
+          setListName(updatedList.name);
+          setIsListCompleted(updatedList.status === 'completed');
+
+          // Check if list is locked
+          const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
+          setIsListLocked(locked);
+
+          // If locked by current user, enable shopping mode
+          if (updatedList.isLocked && updatedList.lockedBy === currentUserId) {
+            setIsShoppingMode(true);
+          } else {
+            setIsShoppingMode(false);
+          }
+
+          // If list is completed, only the person who completed it can add items
+          if (updatedList.status === 'completed') {
+            setCanAddItems(updatedList.completedBy === currentUserId);
+          } else {
+            setCanAddItems(!locked);
+          }
+        }
+      }
+    );
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [listId, currentUserId]);
 
   const loadCurrentUser = async () => {
     const user = await AuthenticationModule.getCurrentUser();
@@ -84,6 +120,12 @@ const ListDetailScreen = () => {
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadListAndItems();
+    setRefreshing(false);
   };
 
   const handleAddItem = async () => {
@@ -318,8 +360,9 @@ const ListDetailScreen = () => {
             placeholderTextColor="#6E6E73"
             value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
             onChangeText={(text) => handleNameChange(item.id, text)}
+            editable={canAddItems}
           />
-          {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && (
+          {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && canAddItems && (
             <TouchableOpacity
               style={styles.saveButton}
               onPress={() => handleSaveName(item.id)}
@@ -334,8 +377,9 @@ const ListDetailScreen = () => {
             value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
             onChangeText={(text) => handlePriceChange(item.id, text)}
             keyboardType="numeric"
+            editable={canAddItems}
           />
-          {itemPrices[item.id] !== undefined && (
+          {itemPrices[item.id] !== undefined && canAddItems && (
             <TouchableOpacity
               style={styles.saveButton}
               onPress={() => handleSavePrice(item.id)}
@@ -345,7 +389,7 @@ const ListDetailScreen = () => {
           )}
         </View>
       </View>
-      <TouchableOpacity onPress={() => handleDeleteItem(item.id)}>
+      <TouchableOpacity onPress={() => handleDeleteItem(item.id)} disabled={isListLocked}>
         <Text style={styles.deleteButton}>🗑</Text>
       </TouchableOpacity>
     </View>
@@ -441,6 +485,14 @@ const ListDetailScreen = () => {
         data={items}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#007AFF"
+            colors={['#007AFF']}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No items yet</Text>

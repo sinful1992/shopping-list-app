@@ -195,6 +195,22 @@ class ShoppingListManager {
 
     return () => clearInterval(intervalId);
   }
+
+  /**
+   * Subscribe to a specific list for real-time updates
+   */
+  subscribeToSingleList(
+    listId: string,
+    callback: (list: ShoppingList | null) => void
+  ): Unsubscribe {
+    // Set up interval to check for updates
+    const intervalId = setInterval(async () => {
+      const list = await this.getListById(listId);
+      callback(list);
+    }, 500); // Check every 500ms for faster updates
+
+    return () => clearInterval(intervalId);
+  }
 }
 
 export default new ShoppingListManager();
