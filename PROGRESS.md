@@ -84,9 +84,10 @@
 
 ## 📋 Planned Features
 
-### Sprint 1 (Remaining)
+### Sprint 1 ✅ COMPLETE
 - [x] Replace polling with WatermelonDB observers for true real-time updates
 - [x] Implement Firebase Realtime Database listeners (instead of polling)
+- [x] Firebase dual-write for urgent items (real-time + push notifications)
 - [ ] Test lock restrictions across multiple devices
 - [ ] Verify 2-hour auto-unlock works correctly
 - [ ] Test conflict resolution in real scenarios
