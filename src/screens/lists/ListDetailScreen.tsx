@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,28 @@ const ListDetailScreen = () => {
   const [uncheckedCount, setUncheckedCount] = useState(0);
   const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
   const [isOnline, setIsOnline] = useState(true);
+
+  // Define calculateShoppingStats before useEffect
+  const calculateShoppingStats = useCallback((itemsList: Item[]) => {
+    if (!itemsList || itemsList.length === 0) {
+      setCheckedCount(0);
+      setUncheckedCount(0);
+      setRunningTotal(0);
+      return;
+    }
+
+    const checked = itemsList.filter(item => item.checked).length;
+    const unchecked = itemsList.filter(item => !item.checked).length;
+    const total = itemsList.reduce((sum, item) => {
+      // Use actual price if available, otherwise use predicted price, otherwise 0
+      const price = item.price || predictedPrices[item.name?.toLowerCase()] || 0;
+      return sum + price;
+    }, 0);
+
+    setCheckedCount(checked);
+    setUncheckedCount(unchecked);
+    setRunningTotal(total);
+  }, [predictedPrices]);
 
   useEffect(() => {
     loadListAndItems();
@@ -112,7 +134,7 @@ const ListDetailScreen = () => {
       unsubscribeItems();
       unsubscribeNetInfo();
     };
-  }, [listId, currentUserId]);
+  }, [listId, currentUserId, calculateShoppingStats]);
 
   const loadCurrentUser = async () => {
     const user = await AuthenticationModule.getCurrentUser();
@@ -162,22 +184,8 @@ const ListDetailScreen = () => {
     }
   };
 
-  const calculateShoppingStats = (itemsList: Item[]) => {
-    const checked = itemsList.filter(item => item.checked).length;
-    const unchecked = itemsList.filter(item => !item.checked).length;
-    const total = itemsList.reduce((sum, item) => {
-      // Use actual price if available, otherwise use predicted price, otherwise 0
-      const price = item.price || predictedPrices[item.name.toLowerCase()] || 0;
-      return sum + price;
-    }, 0);
-
-    setCheckedCount(checked);
-    setUncheckedCount(unchecked);
-    setRunningTotal(total);
-  };
-
-  const predictPricesFromHistory = async (itemsList: Item[]) => {
-    if (!list?.familyGroupId) return;
+  const predictPricesFromHistory = useCallback(async (itemsList: Item[]) => {
+    if (!list?.familyGroupId || !itemsList) return;
 
     try {
       // Get all completed lists for this family group
@@ -188,13 +196,15 @@ const ListDetailScreen = () => {
       const historicalItems: Item[] = [];
       for (const completedList of completedLists) {
         const items = await ItemManager.getItemsForList(completedList.id);
-        historicalItems.push(...items);
+        if (items && Array.isArray(items)) {
+          historicalItems.push(...items);
+        }
       }
 
       // Calculate average prices for each item name
       const priceMap: { [key: string]: number[] } = {};
       for (const item of historicalItems) {
-        if (item.price && item.price > 0) {
+        if (item && item.name && item.price && item.price > 0) {
           const itemName = item.name.toLowerCase();
           if (!priceMap[itemName]) {
             priceMap[itemName] = [];
@@ -207,8 +217,10 @@ const ListDetailScreen = () => {
       const predictions: { [key: string]: number } = {};
       for (const itemName in priceMap) {
         const prices = priceMap[itemName];
-        const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
-        predictions[itemName] = Math.round(average * 100) / 100; // Round to 2 decimal places
+        if (prices && prices.length > 0) {
+          const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+          predictions[itemName] = Math.round(average * 100) / 100; // Round to 2 decimal places
+        }
       }
 
       setPredictedPrices(predictions);
@@ -217,8 +229,10 @@ const ListDetailScreen = () => {
       calculateShoppingStats(itemsList);
     } catch (error) {
       console.error('Failed to predict prices:', error);
+      // Don't crash - just continue without predictions
+      setPredictedPrices({});
     }
-  };
+  }, [list?.familyGroupId, listId, calculateShoppingStats]);
 
   const onRefresh = async () => {
     setRefreshing(true);
