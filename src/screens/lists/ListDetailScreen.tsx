@@ -581,7 +581,14 @@ const ListDetailScreen = () => {
         <View style={styles.itemContent}>
           <View style={styles.nameInputRow}>
             <TextInput
-              style={[styles.nameInputField, item.checked === true && styles.itemChecked]}
+              style={[
+                styles.nameInputField,
+                {
+                  // CRITICAL FIX: Always provide valid textDecorationLine to prevent Android crash
+                  textDecorationLine: item.checked === true ? 'line-through' : 'none',
+                  color: item.checked === true ? '#6E6E73' : '#ffffff'
+                }
+              ]}
               placeholder="Item name"
               placeholderTextColor="#6E6E73"
               value={itemNames[item.id] !== undefined ? itemNames[item.id] : (item.name || '')}
