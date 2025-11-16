@@ -53,24 +53,37 @@ const ListDetailScreen = () => {
 
   // Define calculateShoppingStats before useEffect
   const calculateShoppingStats = useCallback((itemsList: Item[]) => {
-    if (!itemsList || itemsList.length === 0) {
+    try {
+      if (!itemsList || itemsList.length === 0) {
+        setCheckedCount(0);
+        setUncheckedCount(0);
+        setRunningTotal(0);
+        return;
+      }
+
+      // Filter out invalid items
+      const validItems = itemsList.filter(item => item && item.id);
+
+      const checked = validItems.filter(item => item.checked).length;
+      const unchecked = validItems.filter(item => !item.checked).length;
+      const total = validItems.reduce((sum, item) => {
+        // Use actual price if available, otherwise use predicted price, otherwise 0
+        const itemNameLower = item.name?.toLowerCase();
+        const predictedPrice = itemNameLower && predictedPrices ? predictedPrices[itemNameLower] : 0;
+        const price = item.price || predictedPrice || 0;
+        return sum + price;
+      }, 0);
+
+      setCheckedCount(checked);
+      setUncheckedCount(unchecked);
+      setRunningTotal(total);
+    } catch (error) {
+      console.error('Error in calculateShoppingStats:', error);
+      // Set safe defaults on error
       setCheckedCount(0);
       setUncheckedCount(0);
       setRunningTotal(0);
-      return;
     }
-
-    const checked = itemsList.filter(item => item.checked).length;
-    const unchecked = itemsList.filter(item => !item.checked).length;
-    const total = itemsList.reduce((sum, item) => {
-      // Use actual price if available, otherwise use predicted price, otherwise 0
-      const price = item.price || predictedPrices[item.name?.toLowerCase()] || 0;
-      return sum + price;
-    }, 0);
-
-    setCheckedCount(checked);
-    setUncheckedCount(unchecked);
-    setRunningTotal(total);
   }, [predictedPrices]);
 
   useEffect(() => {
@@ -117,9 +130,16 @@ const ListDetailScreen = () => {
 
     // Step 4: Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
     const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
+      if (!updatedItems) return;
+
       setItems(updatedItems);
-      // Calculate shopping mode stats
-      calculateShoppingStats(updatedItems);
+
+      // Calculate shopping mode stats - wrap in try-catch to prevent observer crashes
+      try {
+        calculateShoppingStats(updatedItems);
+      } catch (error) {
+        console.error('Error calculating shopping stats:', error);
+      }
     });
 
     // Step 5: Subscribe to network status changes
@@ -535,7 +555,12 @@ const ListDetailScreen = () => {
 
   // Memoize sorted items to prevent unnecessary re-sorts and maintain stable keys
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
+    if (!items || items.length === 0) return [];
+
+    // Filter out any null/undefined items before sorting
+    const validItems = items.filter(item => item && item.id);
+
+    return [...validItems].sort((a, b) => {
       // Sort: unchecked items first, checked items at bottom
       if (a.checked === b.checked) return 0;
       return a.checked ? 1 : -1;
@@ -657,6 +682,8 @@ const ListDetailScreen = () => {
         data={sortedItems}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        extraData={items}
+        removeClippedSubviews={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
