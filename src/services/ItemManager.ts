@@ -58,45 +58,15 @@ class ItemManager {
    * Implements Req 3.3, 3.4, 3.2
    */
   async toggleItemChecked(itemId: string): Promise<Item> {
-    console.log('[ItemManager.toggleItemChecked] START', {
-      itemId,
-      timestamp: new Date().toISOString()
-    });
-
     const existingItem = await LocalStorageManager.getItem(itemId);
 
-    console.log('[ItemManager.toggleItemChecked] Existing item fetched', {
-      itemId,
-      found: !!existingItem,
-      currentChecked: existingItem?.checked,
-      itemName: existingItem?.name,
-      timestamp: new Date().toISOString()
-    });
-
     if (!existingItem) {
-      console.error('[ItemManager.toggleItemChecked] ERROR: Item not found', { itemId });
       throw new Error('Item not found');
     }
 
-    const newCheckedState = !existingItem.checked;
-    console.log('[ItemManager.toggleItemChecked] Toggling checked state', {
-      itemId,
-      from: existingItem.checked,
-      to: newCheckedState,
-      timestamp: new Date().toISOString()
+    return await this.updateItem(itemId, {
+      checked: !existingItem.checked,
     });
-
-    const result = await this.updateItem(itemId, {
-      checked: newCheckedState,
-    });
-
-    console.log('[ItemManager.toggleItemChecked] COMPLETE', {
-      itemId,
-      finalChecked: result.checked,
-      timestamp: new Date().toISOString()
-    });
-
-    return result;
   }
 
   /**

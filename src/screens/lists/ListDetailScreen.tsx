@@ -112,7 +112,6 @@ const ListDetailScreen = () => {
       listId,
       async (updatedList) => {
         if (!isMountedRef.current) {
-          console.log('[OBSERVER] Component unmounted, skipping list update');
           return;
         }
 
@@ -145,21 +144,12 @@ const ListDetailScreen = () => {
     // Step 4: Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
     const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
       if (!isMountedRef.current) {
-        console.log('[OBSERVER] Component unmounted, skipping items update');
         return;
       }
 
       if (!updatedItems) {
-        console.log('[OBSERVER] updatedItems is null/undefined');
         return;
       }
-
-      console.log('[OBSERVER] Items updated', {
-        count: updatedItems.length,
-        itemIds: updatedItems.map(i => i?.id).filter(Boolean),
-        checkedStates: updatedItems.map(i => ({ id: i?.id, checked: i?.checked })),
-        timestamp: new Date().toISOString()
-      });
 
       setItems(updatedItems);
 
@@ -167,7 +157,7 @@ const ListDetailScreen = () => {
       try {
         calculateShoppingStats(updatedItems);
       } catch (error) {
-        console.error('[OBSERVER ERROR] Error calculating shopping stats:', error);
+        console.error('Error calculating shopping stats:', error);
       }
     });
 
@@ -179,7 +169,6 @@ const ListDetailScreen = () => {
     });
 
     return () => {
-      console.log('[CLEANUP] Component unmounting, setting isMountedRef to false');
       isMountedRef.current = false;
       unsubscribeFirebaseList();
       unsubscribeFirebaseItems();
@@ -311,25 +300,12 @@ const ListDetailScreen = () => {
   const handleToggleItem = async (itemId: string) => {
     // CRITICAL: Prevent multiple simultaneous toggles on same item
     if (toggleInProgressRef.current.has(itemId)) {
-      console.warn('[TOGGLE] Toggle already in progress for item, ignoring', { itemId });
       return;
     }
 
     try {
       // Mark as in progress
       toggleInProgressRef.current.add(itemId);
-
-      // DEBUG: Find current item state before toggle
-      const currentItem = items.find(i => i?.id === itemId);
-      console.log('[TOGGLE START]', {
-        itemId,
-        itemName: currentItem?.name,
-        currentChecked: currentItem?.checked,
-        timestamp: new Date().toISOString(),
-        totalItems: items.length,
-        sortedItemsCount: sortedItems.length,
-        inProgressCount: toggleInProgressRef.current.size
-      });
 
       // Trigger haptic feedback if enabled (before toggle for instant feedback)
       const hapticEnabled = await AsyncStorage.getItem('hapticFeedbackEnabled');
@@ -341,24 +317,16 @@ const ListDetailScreen = () => {
         }
       }
 
-      console.log('[TOGGLE] Calling ItemManager.toggleItemChecked');
       await ItemManager.toggleItemChecked(itemId);
-      console.log('[TOGGLE] ItemManager.toggleItemChecked completed successfully');
 
       // Don't reload - let WatermelonDB observer handle the update
       // await loadListAndItems();
     } catch (error: any) {
-      console.error('[TOGGLE ERROR]', {
-        itemId,
-        error: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString()
-      });
+      console.error('Toggle error:', error.message);
       Alert.alert('Error', error.message);
     } finally {
       // Always clear the in-progress flag
       toggleInProgressRef.current.delete(itemId);
-      console.log('[TOGGLE] Cleared in-progress flag for', { itemId });
     }
   };
 
@@ -557,13 +525,7 @@ const ListDetailScreen = () => {
   const renderItem = ({ item }: { item: Item }) => {
     // Safety check - don't render if item is invalid
     if (!item || !item.id) {
-      console.error('[RENDER] Invalid item received in renderItem:', item);
       return null;
-    }
-
-    // Additional defensive checks
-    if (typeof item.checked !== 'boolean' && item.checked !== undefined) {
-      console.warn('[RENDER] Item has non-boolean checked value:', { id: item.id, checked: item.checked });
     }
 
     return (
@@ -635,27 +597,17 @@ const ListDetailScreen = () => {
 
   // Memoize sorted items to prevent unnecessary re-sorts and maintain stable keys
   const sortedItems = useMemo(() => {
-    console.log('[SORT] Starting sort operation', {
-      itemsCount: items?.length || 0,
-      timestamp: new Date().toISOString()
-    });
-
     if (!items || items.length === 0) {
-      console.log('[SORT] No items to sort, returning empty array');
       return [];
     }
 
     // Filter out any null/undefined items before sorting
     const validItems = items.filter(item => item && item.id);
-    console.log('[SORT] Valid items after filtering', {
-      validCount: validItems.length,
-      filteredOut: items.length - validItems.length
-    });
 
     // Create explicit copy before sorting to prevent any mutation
     const itemsCopy = validItems.map(item => item);
 
-    const sorted = itemsCopy.sort((a, b) => {
+    return itemsCopy.sort((a, b) => {
       // Primary sort: unchecked items first, checked items at bottom
       if (a.checked !== b.checked) {
         return a.checked ? 1 : -1;
@@ -664,15 +616,6 @@ const ListDetailScreen = () => {
       // This ensures items maintain consistent positions when moving between groups
       return a.createdAt - b.createdAt;
     });
-
-    console.log('[SORT] Sort completed', {
-      sortedCount: sorted.length,
-      sortedIds: sorted.map(i => i.id),
-      checkedStates: sorted.map(i => ({ id: i.id, checked: i.checked })),
-      timestamp: new Date().toISOString()
-    });
-
-    return sorted;
   }, [items]);
 
   return (
@@ -791,7 +734,6 @@ const ListDetailScreen = () => {
         keyExtractor={(item) => {
           // CRITICAL: Add null safety to prevent native crashes
           if (!item || !item.id) {
-            console.error('[FLATLIST] keyExtractor received invalid item:', item);
             return `fallback-${Math.random()}`; // Fallback to prevent crash
           }
           return item.id;
