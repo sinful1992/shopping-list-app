@@ -15,6 +15,8 @@ import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_PRICES, TIER_FEATURES } from '../../m
 import { UsageIndicator } from '../../components/UsageIndicator';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
+import PaymentService from '../../services/PaymentService';
+import { PurchasesOffering } from 'react-native-purchases';
 
 type SubscriptionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -38,9 +40,12 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     ocr: { used: number; limit: number | null };
     urgentItems: { used: number; limit: number | null };
   } | null>(null);
+  const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
+  const [purchasing, setPurchasing] = useState(false);
 
   useEffect(() => {
     loadUserAndUsage();
+    loadOfferings();
   }, []);
 
   const loadUserAndUsage = async () => {
@@ -60,34 +65,92 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const loadOfferings = async () => {
+    try {
+      const currentOfferings = await PaymentService.getOfferings();
+      setOfferings(currentOfferings);
+    } catch (error) {
+      console.error('Error loading offerings:', error);
+    }
+  };
+
   const handleUpgrade = async (newTier: 'premium' | 'family') => {
+    if (!user || !user.familyGroupId || purchasing) return;
+
+    if (!offerings) {
+      Alert.alert('Error', 'Subscription packages not available. Please try again later.');
+      return;
+    }
+
+    // Find the appropriate package
+    const packageIdentifier = newTier === 'premium' ? 'premium_monthly' : 'family_monthly';
+    const packageToPurchase = offerings.availablePackages.find(
+      (pkg) => pkg.identifier === packageIdentifier
+    );
+
+    if (!packageToPurchase) {
+      Alert.alert('Error', `${newTier} subscription package not found.`);
+      return;
+    }
+
+    setPurchasing(true);
+
+    try {
+      // Purchase via RevenueCat
+      const result = await PaymentService.purchasePackage(packageToPurchase);
+
+      if (result.success && result.customerInfo) {
+        // Sync subscription status to Firebase
+        await PaymentService.syncSubscriptionToFirebase(user.familyGroupId, result.customerInfo);
+
+        Alert.alert(
+          'Success!',
+          `Your family group has been upgraded to ${newTier}! Everyone in your family group now has full access.`,
+          [{ text: 'OK', onPress: loadUserAndUsage }]
+        );
+      } else {
+        if (result.error !== 'Purchase cancelled by user') {
+          Alert.alert('Purchase Failed', result.error || 'An error occurred during purchase');
+        }
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to process purchase');
+    } finally {
+      setPurchasing(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
     if (!user || !user.familyGroupId) return;
 
-    Alert.alert(
-      'Upgrade Subscription',
-      `Upgrade your family group to ${newTier} for $${newTier === 'premium' ? SUBSCRIPTION_PRICES.premium.monthly : SUBSCRIPTION_PRICES.family.monthly}/month? Everyone in your family group will get the benefits!`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Upgrade',
-          onPress: async () => {
-            try {
-              // TODO: Integrate with RevenueCat for actual payment processing (Sprint 3)
-              // For now, just update the tier directly
-              await AuthenticationModule.upgradeSubscription(user.familyGroupId!, newTier);
+    setPurchasing(true);
 
-              Alert.alert(
-                'Success',
-                `Your family group has been upgraded to ${newTier}!`,
-                [{ text: 'OK', onPress: loadUserAndUsage }]
-              );
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
-            }
-          },
-        },
-      ]
-    );
+    try {
+      const result = await PaymentService.restorePurchases();
+
+      if (result.success && result.customerInfo) {
+        // Sync restored subscription to Firebase
+        await PaymentService.syncSubscriptionToFirebase(user.familyGroupId, result.customerInfo);
+
+        const tier = PaymentService.getSubscriptionTierFromCustomerInfo(result.customerInfo);
+
+        if (tier !== 'free') {
+          Alert.alert(
+            'Restored!',
+            `Your ${tier} subscription has been restored!`,
+            [{ text: 'OK', onPress: loadUserAndUsage }]
+          );
+        } else {
+          Alert.alert('No Active Subscription', 'No active subscriptions were found to restore.');
+        }
+      } else {
+        Alert.alert('Restore Failed', result.error || 'Failed to restore purchases');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to restore purchases');
+    } finally {
+      setPurchasing(false);
+    }
   };
 
   const getTierBadgeColor = (tier: SubscriptionTier): string => {
@@ -238,6 +301,21 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
           ))}
         </View>
       </View>
+
+      {/* Restore Purchases */}
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.restoreButton}
+          onPress={handleRestorePurchases}
+          disabled={purchasing}
+        >
+          {purchasing ? (
+            <ActivityIndicator color="#007AFF" />
+          ) : (
+            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 };
@@ -378,5 +456,14 @@ const styles = StyleSheet.create({
   currentFeatureText: {
     color: '#FFFFFF',
     fontSize: 16,
+  },
+  restoreButton: {
+    padding: 14,
+    alignItems: 'center',
+  },
+  restoreButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

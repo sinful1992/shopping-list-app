@@ -4,6 +4,7 @@ import storage from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import PaymentService from './PaymentService';
 
 /**
  * AuthenticationModule
@@ -48,6 +49,9 @@ class AuthenticationModule {
       // Cache locally
       await this.storeAuthData(user, token);
 
+      // Set user ID in RevenueCat
+      await PaymentService.setUserID(user.uid);
+
       return { user, token };
     } catch (error: any) {
       throw new Error(`Sign up failed: ${error.message}`);
@@ -72,6 +76,9 @@ class AuthenticationModule {
       }
 
       await this.storeAuthData(user, token);
+
+      // Set user ID in RevenueCat
+      await PaymentService.setUserID(user.uid);
 
       return { user, token };
     } catch (error: any) {
@@ -104,6 +111,9 @@ class AuthenticationModule {
     try {
       await auth().signOut();
       await AsyncStorage.multiRemove([this.AUTH_TOKEN_KEY, this.USER_KEY]);
+
+      // Logout from RevenueCat
+      await PaymentService.logout();
     } catch (error: any) {
       throw new Error(`Sign out failed: ${error.message}`);
     }
