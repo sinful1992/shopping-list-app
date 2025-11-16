@@ -1,7 +1,9 @@
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
+import storage from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
+import LocalStorageManager from './LocalStorageManager';
 
 /**
  * AuthenticationModule
@@ -306,6 +308,128 @@ class AuthenticationModule {
         userDataUnsubscribe();
       }
     };
+  }
+
+  /**
+   * Delete user account and ALL associated data
+   * WARNING: This is irreversible!
+   * Deletes from: Firebase Auth, Realtime Database, Cloud Storage, Local WatermelonDB
+   */
+  async deleteUserAccount(): Promise<void> {
+    try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        throw new Error('No user is currently signed in');
+      }
+
+      const userId = currentUser.uid;
+
+      // Step 1: Get user data to find family group
+      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const userData: User | null = userSnapshot.val();
+
+      if (!userData) {
+        throw new Error('User data not found');
+      }
+
+      const familyGroupId = userData.familyGroupId;
+
+      // Step 2: Delete all shopping lists and items created by this user
+      if (familyGroupId) {
+        // Get all lists created by this user
+        const listsSnapshot = await database()
+          .ref(`/familyGroups/${familyGroupId}/lists`)
+          .orderByChild('createdBy')
+          .equalTo(userId)
+          .once('value');
+
+        const lists = listsSnapshot.val();
+
+        if (lists) {
+          const deletePromises: Promise<void>[] = [];
+
+          for (const listId in lists) {
+            // Delete all items in this list
+            deletePromises.push(
+              database().ref(`/familyGroups/${familyGroupId}/items`).orderByChild('listId').equalTo(listId).once('value')
+                .then((itemsSnapshot) => {
+                  const items = itemsSnapshot.val();
+                  if (items) {
+                    const itemDeletePromises = Object.keys(items).map(itemId =>
+                      database().ref(`/familyGroups/${familyGroupId}/items/${itemId}`).remove()
+                    );
+                    return Promise.all(itemDeletePromises);
+                  }
+                })
+            );
+
+            // Delete the list itself
+            deletePromises.push(
+              database().ref(`/familyGroups/${familyGroupId}/lists/${listId}`).remove()
+            );
+
+            // Delete receipt image from Cloud Storage if exists
+            const list = lists[listId];
+            if (list.receiptUrl) {
+              deletePromises.push(
+                storage().ref(list.receiptUrl).delete().catch(() => {
+                  // Ignore errors if receipt doesn't exist
+                })
+              );
+            }
+          }
+
+          await Promise.all(deletePromises);
+        }
+
+        // Step 3: Delete all urgent items created by this user
+        const urgentItemsSnapshot = await database()
+          .ref(`/familyGroups/${familyGroupId}/urgentItems`)
+          .orderByChild('createdBy')
+          .equalTo(userId)
+          .once('value');
+
+        const urgentItems = urgentItemsSnapshot.val();
+        if (urgentItems) {
+          const urgentDeletePromises = Object.keys(urgentItems).map(itemId =>
+            database().ref(`/familyGroups/${familyGroupId}/urgentItems/${itemId}`).remove()
+          );
+          await Promise.all(urgentDeletePromises);
+        }
+
+        // Step 4: Remove user from family group members list
+        const familyGroupSnapshot = await database()
+          .ref(`/familyGroups/${familyGroupId}`)
+          .once('value');
+        const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
+
+        if (familyGroup && familyGroup.memberIds) {
+          const updatedMemberIds = familyGroup.memberIds.filter(id => id !== userId);
+
+          // If this was the last member, delete the entire family group
+          if (updatedMemberIds.length === 0) {
+            await database().ref(`/familyGroups/${familyGroupId}`).remove();
+          } else {
+            await database().ref(`/familyGroups/${familyGroupId}/memberIds`).set(updatedMemberIds);
+          }
+        }
+      }
+
+      // Step 5: Delete user profile from Realtime Database
+      await database().ref(`/users/${userId}`).remove();
+
+      // Step 6: Clear all local WatermelonDB data
+      await LocalStorageManager.clearAllData();
+
+      // Step 7: Clear AsyncStorage
+      await AsyncStorage.multiRemove([this.AUTH_TOKEN_KEY, this.USER_KEY]);
+
+      // Step 8: Delete user from Firebase Authentication (must be last)
+      await currentUser.delete();
+
+    } catch (error: any) {
+      throw new Error(`Failed to delete account: ${error.message}`);
+    }
   }
 
   /**

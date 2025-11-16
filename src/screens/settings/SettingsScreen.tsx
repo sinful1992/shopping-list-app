@@ -229,6 +229,45 @@ const SettingsScreen = () => {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      '⚠️ WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All urgent items\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Everything',
+          style: 'destructive',
+          onPress: () => {
+            // Second confirmation
+            Alert.alert(
+              'Final Confirmation',
+              'Are you absolutely sure? Type DELETE to confirm:',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'I Understand, Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      setLoading(true);
+                      await AuthenticationModule.deleteUserAccount();
+                      // User is automatically signed out after deletion
+                      Alert.alert('Success', 'Account deleted successfully');
+                    } catch (error: any) {
+                      setLoading(false);
+                      Alert.alert('Error', `Failed to delete account: ${error.message}`);
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -386,6 +425,21 @@ const SettingsScreen = () => {
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Icon name="log-out-outline" size={24} color="#ffffff" />
           <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Danger Zone */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Icon name="warning-outline" size={24} color="#FF3B30" />
+          <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger Zone</Text>
+        </View>
+        <Text style={styles.dangerWarning}>
+          ⚠️ Permanently delete your account and all associated data. This action cannot be undone.
+        </Text>
+        <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
+          <Icon name="trash-outline" size={24} color="#ffffff" />
+          <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
         </TouchableOpacity>
       </View>
 
@@ -814,6 +868,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#a0a0a0',
     lineHeight: 18,
+  },
+  dangerTitle: {
+    color: '#FF3B30',
+  },
+  dangerWarning: {
+    fontSize: 14,
+    color: '#FF6B6B',
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+  deleteAccountButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    backgroundColor: 'rgba(139, 0, 0, 0.9)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 0, 0, 0.5)',
+    shadowColor: '#8B0000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  deleteAccountButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 10,
   },
 });
 

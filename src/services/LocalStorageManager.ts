@@ -806,6 +806,35 @@ class LocalStorageManager {
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
     };
   }
+
+  /**
+   * Clear ALL local WatermelonDB data
+   * WARNING: This is irreversible! Used for account deletion.
+   */
+  async clearAllData(): Promise<void> {
+    try {
+      const database = await this.getDatabase();
+
+      await database.write(async () => {
+        // Delete all shopping lists
+        const lists = await database.collections.get('shopping_lists').query().fetch();
+        await Promise.all(lists.map(list => list.markAsDeleted()));
+
+        // Delete all items
+        const items = await database.collections.get('items').query().fetch();
+        await Promise.all(items.map(item => item.markAsDeleted()));
+
+        // Delete all sync queue entries
+        const syncQueue = await database.collections.get('sync_queue').query().fetch();
+        await Promise.all(syncQueue.map(entry => entry.markAsDeleted()));
+      });
+
+      console.log('All local WatermelonDB data cleared successfully');
+    } catch (error: any) {
+      console.error('Failed to clear local data:', error);
+      throw new Error(`Failed to clear local data: ${error.message}`);
+    }
+  }
 }
 
 export default new LocalStorageManager();
