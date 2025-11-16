@@ -496,19 +496,19 @@ const ListDetailScreen = () => {
     return (
       <View style={[
         styles.itemRow,
-        item.checked && styles.itemRowChecked
+        item.checked === true && styles.itemRowChecked
       ]}>
         <TouchableOpacity
           style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
           onPress={() => !isListLocked && handleToggleItem(item.id)}
           disabled={isListLocked}
         >
-          <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked ? '✓' : ' '}</Text>
+          <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
         </TouchableOpacity>
         <View style={styles.itemContent}>
           <View style={styles.nameInputRow}>
             <TextInput
-              style={[styles.nameInputField, item.checked && styles.itemChecked]}
+              style={[styles.nameInputField, item.checked === true && styles.itemChecked]}
               placeholder="Item name"
               placeholderTextColor="#6E6E73"
               value={itemNames[item.id] !== undefined ? itemNames[item.id] : (item.name || '')}
