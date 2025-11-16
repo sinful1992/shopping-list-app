@@ -1,6 +1,6 @@
 import database from '@react-native-firebase/database';
 import { User, UsageCounters, FamilyGroup, SubscriptionTier } from '../models/types';
-import { SUBSCRIPTION_LIMITS } from '../models/SubscriptionConfig';
+import { SUBSCRIPTION_LIMITS, OWNER_EMAILS } from '../models/SubscriptionConfig';
 
 /**
  * UsageTracker
@@ -61,8 +61,14 @@ class UsageTracker {
   /**
    * Check if user can create a shopping list
    * Uses FAMILY subscription tier, not individual user tier
+   * Owner emails bypass all limits
    */
   async canCreateList(user: User): Promise<{ allowed: boolean; reason?: string }> {
+    // Whitelist check - owner emails get unlimited access
+    if (OWNER_EMAILS.includes(user.email)) {
+      return { allowed: true };
+    }
+
     const counters = await this.checkAndResetIfNeeded(user);
     const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
     const limits = SUBSCRIPTION_LIMITS[familyTier];
@@ -84,8 +90,14 @@ class UsageTracker {
   /**
    * Check if user can process OCR
    * Uses FAMILY subscription tier, not individual user tier
+   * Owner emails bypass all limits
    */
   async canProcessOCR(user: User): Promise<{ allowed: boolean; reason?: string }> {
+    // Whitelist check - owner emails get unlimited access
+    if (OWNER_EMAILS.includes(user.email)) {
+      return { allowed: true };
+    }
+
     const counters = await this.checkAndResetIfNeeded(user);
     const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
     const limits = SUBSCRIPTION_LIMITS[familyTier];
@@ -107,8 +119,14 @@ class UsageTracker {
   /**
    * Check if user can create urgent item
    * Uses FAMILY subscription tier, not individual user tier
+   * Owner emails bypass all limits
    */
   async canCreateUrgentItem(user: User): Promise<{ allowed: boolean; reason?: string }> {
+    // Whitelist check - owner emails get unlimited access
+    if (OWNER_EMAILS.includes(user.email)) {
+      return { allowed: true };
+    }
+
     const counters = await this.checkAndResetIfNeeded(user);
     const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
     const limits = SUBSCRIPTION_LIMITS[familyTier];

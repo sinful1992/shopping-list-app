@@ -1,6 +1,15 @@
 import { SubscriptionTier, SubscriptionLimits } from './types';
 
 /**
+ * Owner email whitelist
+ * Users with these emails bypass all subscription limits (free unlimited access)
+ */
+export const OWNER_EMAILS = [
+  'barkus.giedrius@gmail.com',
+  // Add more owner emails here if needed
+];
+
+/**
  * Subscription tier limits configuration
  * Defines what each tier can access
  */
