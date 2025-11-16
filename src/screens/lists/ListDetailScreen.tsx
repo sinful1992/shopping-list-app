@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -268,7 +268,8 @@ const ListDetailScreen = () => {
       }
 
       await ItemManager.toggleItemChecked(itemId);
-      await loadListAndItems();
+      // Don't reload - let WatermelonDB observer handle the update
+      // await loadListAndItems();
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -532,6 +533,15 @@ const ListDetailScreen = () => {
     );
   };
 
+  // Memoize sorted items to prevent unnecessary re-sorts and maintain stable keys
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) => {
+      // Sort: unchecked items first, checked items at bottom
+      if (a.checked === b.checked) return 0;
+      return a.checked ? 1 : -1;
+    });
+  }, [items]);
+
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
@@ -644,11 +654,7 @@ const ListDetailScreen = () => {
       )}
 
       <FlatList
-        data={[...items].sort((a, b) => {
-          // Sort: unchecked items first, checked items at bottom
-          if (a.checked === b.checked) return 0;
-          return a.checked ? 1 : -1;
-        })}
+        data={sortedItems}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         refreshControl={
