@@ -8,7 +8,10 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  Vibration,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Item, ShoppingList } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
@@ -40,6 +43,13 @@ const ListDetailScreen = () => {
   const [canAddItems, setCanAddItems] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Shopping mode UI state
+  const [runningTotal, setRunningTotal] = useState(0);
+  const [checkedCount, setCheckedCount] = useState(0);
+  const [uncheckedCount, setUncheckedCount] = useState(0);
+  const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     loadListAndItems();
@@ -86,6 +96,13 @@ const ListDetailScreen = () => {
     // Step 4: Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
     const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
       setItems(updatedItems);
+      // Calculate shopping mode stats
+      calculateShoppingStats(updatedItems);
+    });
+
+    // Step 5: Subscribe to network status changes
+    const unsubscribeNetInfo = NetInfo.addEventListener(state => {
+      setIsOnline(state.isConnected ?? false);
     });
 
     return () => {
@@ -93,6 +110,7 @@ const ListDetailScreen = () => {
       unsubscribeFirebaseItems();
       unsubscribeList();
       unsubscribeItems();
+      unsubscribeNetInfo();
     };
   }, [listId, currentUserId]);
 
@@ -134,8 +152,71 @@ const ListDetailScreen = () => {
 
       const listItems = await ItemManager.getItemsForList(listId);
       setItems(listItems);
+
+      // Predict prices from history when loading items
+      await predictPricesFromHistory(listItems);
+
+      calculateShoppingStats(listItems);
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    }
+  };
+
+  const calculateShoppingStats = (itemsList: Item[]) => {
+    const checked = itemsList.filter(item => item.checked).length;
+    const unchecked = itemsList.filter(item => !item.checked).length;
+    const total = itemsList.reduce((sum, item) => {
+      // Use actual price if available, otherwise use predicted price, otherwise 0
+      const price = item.price || predictedPrices[item.name.toLowerCase()] || 0;
+      return sum + price;
+    }, 0);
+
+    setCheckedCount(checked);
+    setUncheckedCount(unchecked);
+    setRunningTotal(total);
+  };
+
+  const predictPricesFromHistory = async (itemsList: Item[]) => {
+    if (!list?.familyGroupId) return;
+
+    try {
+      // Get all completed lists for this family group
+      const allLists = await ShoppingListManager.getAllLists(list.familyGroupId);
+      const completedLists = allLists.filter(l => l.status === 'completed' && l.id !== listId);
+
+      // Collect all items from completed lists
+      const historicalItems: Item[] = [];
+      for (const completedList of completedLists) {
+        const items = await ItemManager.getItemsForList(completedList.id);
+        historicalItems.push(...items);
+      }
+
+      // Calculate average prices for each item name
+      const priceMap: { [key: string]: number[] } = {};
+      for (const item of historicalItems) {
+        if (item.price && item.price > 0) {
+          const itemName = item.name.toLowerCase();
+          if (!priceMap[itemName]) {
+            priceMap[itemName] = [];
+          }
+          priceMap[itemName].push(item.price);
+        }
+      }
+
+      // Calculate averages
+      const predictions: { [key: string]: number } = {};
+      for (const itemName in priceMap) {
+        const prices = priceMap[itemName];
+        const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
+        predictions[itemName] = Math.round(average * 100) / 100; // Round to 2 decimal places
+      }
+
+      setPredictedPrices(predictions);
+
+      // Recalculate stats after predictions are loaded
+      calculateShoppingStats(itemsList);
+    } catch (error) {
+      console.error('Failed to predict prices:', error);
     }
   };
 
@@ -162,6 +243,12 @@ const ListDetailScreen = () => {
 
   const handleToggleItem = async (itemId: string) => {
     try {
+      // Trigger haptic feedback if enabled
+      const hapticEnabled = await AsyncStorage.getItem('hapticFeedbackEnabled');
+      if (hapticEnabled === 'true') {
+        Vibration.vibrate(50); // Short vibration (50ms)
+      }
+
       await ItemManager.toggleItemChecked(itemId);
       await loadListAndItems();
     } catch (error: any) {
@@ -362,7 +449,10 @@ const ListDetailScreen = () => {
   };
 
   const renderItem = ({ item }: { item: Item }) => (
-    <View style={styles.itemRow}>
+    <View style={[
+      styles.itemRow,
+      item.checked && styles.itemRowChecked
+    ]}>
       <TouchableOpacity
         style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
         onPress={() => !isListLocked && handleToggleItem(item.id)}
@@ -390,7 +480,11 @@ const ListDetailScreen = () => {
           )}
           <TextInput
             style={styles.priceInputFieldInline}
-            placeholder="£0.00"
+            placeholder={
+              predictedPrices[item.name.toLowerCase()]
+                ? `~£${predictedPrices[item.name.toLowerCase()].toFixed(2)}`
+                : "£0.00"
+            }
             placeholderTextColor="#6E6E73"
             value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
             onChangeText={(text) => handlePriceChange(item.id, text)}
@@ -454,12 +548,37 @@ const ListDetailScreen = () => {
       )}
 
       {isShoppingMode && (
-        <View style={styles.shoppingModeBanner}>
-          <Text style={styles.shoppingModeText}>
-            🛒 You are shopping
-          </Text>
+        <View style={styles.shoppingModeHeader}>
+          <View style={styles.shoppingModeLeft}>
+            <Text style={styles.shoppingModeIcon}>🛒</Text>
+            <View style={styles.shoppingModeStats}>
+              <Text style={styles.shoppingModeTotal}>
+                £{runningTotal.toFixed(2)}
+              </Text>
+              <Text style={styles.shoppingModeCounter}>
+                {checkedCount}/{checkedCount + uncheckedCount}
+              </Text>
+            </View>
+            {list?.budget && (
+              <View style={[
+                styles.budgetIndicator,
+                runningTotal > list.budget ? styles.budgetOverLimit :
+                runningTotal > list.budget * 0.8 ? styles.budgetNearLimit :
+                styles.budgetUnderLimit
+              ]}>
+                <Text style={styles.budgetText}>
+                  {list.budget ? `£${list.budget}` : ''}
+                </Text>
+              </View>
+            )}
+            {!isOnline && (
+              <View style={styles.offlineIndicator}>
+                <Text style={styles.offlineIcon}>📡</Text>
+              </View>
+            )}
+          </View>
           <TouchableOpacity style={styles.doneShoppingButton} onPress={handleDoneShopping}>
-            <Text style={styles.doneShoppingButtonText}>Done Shopping</Text>
+            <Text style={styles.doneShoppingButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -500,7 +619,11 @@ const ListDetailScreen = () => {
       )}
 
       <FlatList
-        data={items}
+        data={items.sort((a, b) => {
+          // Sort: unchecked items first, checked items at bottom
+          if (a.checked === b.checked) return 0;
+          return a.checked ? 1 : -1;
+        })}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         refreshControl={
@@ -628,6 +751,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  itemRowChecked: {
+    opacity: 0.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   checkbox: {
     width: 24,
@@ -817,32 +945,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  shoppingModeBanner: {
-    backgroundColor: 'rgba(52, 199, 89, 0.9)',
-    padding: 12,
+  // Compact sticky header for shopping mode (40-60px)
+  shoppingModeHeader: {
+    backgroundColor: 'rgba(52, 199, 89, 0.95)',
+    height: 50,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(52, 199, 89, 0.3)',
   },
-  shoppingModeText: {
+  shoppingModeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  shoppingModeIcon: {
+    fontSize: 20,
+  },
+  shoppingModeStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shoppingModeTotal: {
     color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  shoppingModeCounter: {
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 14,
     fontWeight: '600',
   },
-  doneShoppingButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+  budgetIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 4,
   },
-  doneShoppingButtonText: {
+  budgetUnderLimit: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  budgetNearLimit: {
+    backgroundColor: 'rgba(255, 204, 0, 0.3)',
+  },
+  budgetOverLimit: {
+    backgroundColor: 'rgba(255, 59, 48, 0.3)',
+  },
+  budgetText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  offlineIndicator: {
+    backgroundColor: 'rgba(255, 149, 0, 0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 4,
+  },
+  offlineIcon: {
+    fontSize: 14,
+  },
+  doneShoppingButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  doneShoppingButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   startShoppingButton: {
     backgroundColor: 'rgba(0, 122, 255, 0.8)',

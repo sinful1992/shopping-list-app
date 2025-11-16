@@ -10,7 +10,9 @@ import {
   Clipboard,
   TextInput,
   Modal,
+  Switch,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import database from '@react-native-firebase/database';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -45,6 +47,7 @@ const SettingsScreen = () => {
   const [newName, setNewName] = useState('');
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<FamilyRole | null>(null);
+  const [hapticFeedbackEnabled, setHapticFeedbackEnabled] = useState(false);
 
   const availableRoles: FamilyRole[] = [
     'Dad',
@@ -59,7 +62,29 @@ const SettingsScreen = () => {
 
   useEffect(() => {
     loadSettingsData();
+    loadHapticFeedbackSetting();
   }, []);
+
+  const loadHapticFeedbackSetting = async () => {
+    try {
+      const value = await AsyncStorage.getItem('hapticFeedbackEnabled');
+      if (value !== null) {
+        setHapticFeedbackEnabled(value === 'true');
+      }
+    } catch (error) {
+      console.error('Failed to load haptic feedback setting:', error);
+    }
+  };
+
+  const toggleHapticFeedback = async (value: boolean) => {
+    try {
+      await AsyncStorage.setItem('hapticFeedbackEnabled', value.toString());
+      setHapticFeedbackEnabled(value);
+    } catch (error) {
+      console.error('Failed to save haptic feedback setting:', error);
+      Alert.alert('Error', 'Failed to save setting');
+    }
+  };
 
   const loadSettingsData = async () => {
     try {
@@ -251,6 +276,29 @@ const SettingsScreen = () => {
               <Icon name="pencil-outline" size={18} color="#007AFF" />
             </TouchableOpacity>
           </View>
+        </View>
+      </View>
+
+      {/* App Settings Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Icon name="settings-outline" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>App Settings</Text>
+        </View>
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Haptic Feedback</Text>
+            <Text style={styles.settingDescription}>
+              Enable vibration feedback when checking items while shopping
+            </Text>
+          </View>
+          <Switch
+            value={hapticFeedbackEnabled}
+            onValueChange={toggleHapticFeedback}
+            trackColor={{ false: '#3A3A3C', true: '#34C759' }}
+            thumbColor={hapticFeedbackEnabled ? '#ffffff' : '#f4f3f4'}
+            ios_backgroundColor="#3A3A3C"
+          />
         </View>
       </View>
 
@@ -745,6 +793,27 @@ const styles = StyleSheet.create({
   roleTextSelected: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingLabel: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  settingDescription: {
+    fontSize: 13,
+    color: '#a0a0a0',
+    lineHeight: 18,
   },
 });
 

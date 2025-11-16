@@ -58,6 +58,7 @@ class LocalStorageManager {
             record.lockedByName = list.lockedByName;
             record.lockedByRole = list.lockedByRole;
             record.lockedAt = list.lockedAt;
+            record.budget = list.budget;
           });
         } catch {
           // Create new
@@ -78,6 +79,7 @@ class LocalStorageManager {
             record.lockedByName = list.lockedByName;
             record.lockedByRole = list.lockedByRole;
             record.lockedAt = list.lockedAt;
+            record.budget = list.budget;
           });
         }
       });
@@ -196,6 +198,7 @@ class LocalStorageManager {
           if (updates.lockedByName !== undefined) record.lockedByName = updates.lockedByName;
           if (updates.lockedByRole !== undefined) record.lockedByRole = updates.lockedByRole;
           if (updates.lockedAt !== undefined) record.lockedAt = updates.lockedAt;
+          if (updates.budget !== undefined) record.budget = updates.budget;
         });
       });
 
@@ -768,6 +771,7 @@ class LocalStorageManager {
       lockedByName: model.lockedByName,
       lockedByRole: model.lockedByRole as 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter' | null,
       lockedAt: model.lockedAt,
+      budget: model.budget,
     };
   }
 

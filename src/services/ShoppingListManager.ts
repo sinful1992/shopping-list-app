@@ -32,6 +32,7 @@ class ShoppingListManager {
       lockedByName: null,
       lockedByRole: null,
       lockedAt: null,
+      budget: null, // No budget by default
     };
 
     // Save locally first (offline-first)

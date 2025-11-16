@@ -48,6 +48,7 @@ export interface ShoppingList {
   lockedByName: string | null;
   lockedByRole: FamilyRole | null;
   lockedAt: number | null;
+  budget: number | null; // Optional budget limit for shopping mode
 }
 
 export interface Item {

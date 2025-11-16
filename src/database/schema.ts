@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 5,
+  version: 6,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -27,6 +27,7 @@ export const schema = appSchema({
         { name: 'locked_by_name', type: 'string', isOptional: true },
         { name: 'locked_by_role', type: 'string', isOptional: true },
         { name: 'locked_at', type: 'number', isOptional: true },
+        { name: 'budget', type: 'number', isOptional: true },
       ],
     }),
 
