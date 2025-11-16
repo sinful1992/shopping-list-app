@@ -466,28 +466,34 @@ const ListDetailScreen = () => {
     }
   };
 
-  const renderItem = ({ item }: { item: Item }) => (
-    <View style={[
-      styles.itemRow,
-      item.checked && styles.itemRowChecked
-    ]}>
-      <TouchableOpacity
-        style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
-        onPress={() => !isListLocked && handleToggleItem(item.id)}
-        disabled={isListLocked}
-      >
-        <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked ? '✓' : ' '}</Text>
-      </TouchableOpacity>
-      <View style={styles.itemContent}>
-        <View style={styles.nameInputRow}>
-          <TextInput
-            style={[styles.nameInputField, item.checked && styles.itemChecked]}
-            placeholder="Item name"
-            placeholderTextColor="#6E6E73"
-            value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
-            onChangeText={(text) => handleNameChange(item.id, text)}
-            editable={canAddItems}
-          />
+  const renderItem = ({ item }: { item: Item }) => {
+    // Safety check - don't render if item is invalid
+    if (!item || !item.id) {
+      return null;
+    }
+
+    return (
+      <View style={[
+        styles.itemRow,
+        item.checked && styles.itemRowChecked
+      ]}>
+        <TouchableOpacity
+          style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
+          onPress={() => !isListLocked && handleToggleItem(item.id)}
+          disabled={isListLocked}
+        >
+          <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked ? '✓' : ' '}</Text>
+        </TouchableOpacity>
+        <View style={styles.itemContent}>
+          <View style={styles.nameInputRow}>
+            <TextInput
+              style={[styles.nameInputField, item.checked && styles.itemChecked]}
+              placeholder="Item name"
+              placeholderTextColor="#6E6E73"
+              value={itemNames[item.id] !== undefined ? itemNames[item.id] : (item.name || '')}
+              onChangeText={(text) => handleNameChange(item.id, text)}
+              editable={canAddItems}
+            />
           {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && canAddItems && (
             <TouchableOpacity
               style={styles.saveButton}
@@ -499,7 +505,7 @@ const ListDetailScreen = () => {
           <TextInput
             style={styles.priceInputFieldInline}
             placeholder={
-              predictedPrices[item.name.toLowerCase()]
+              item.name && predictedPrices[item.name.toLowerCase()]
                 ? `~£${predictedPrices[item.name.toLowerCase()].toFixed(2)}`
                 : "£0.00"
             }
@@ -523,7 +529,8 @@ const ListDetailScreen = () => {
         <Text style={styles.deleteButton}>🗑</Text>
       </TouchableOpacity>
     </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
