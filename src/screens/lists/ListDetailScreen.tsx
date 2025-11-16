@@ -561,9 +561,13 @@ const ListDetailScreen = () => {
     const validItems = items.filter(item => item && item.id);
 
     return [...validItems].sort((a, b) => {
-      // Sort: unchecked items first, checked items at bottom
-      if (a.checked === b.checked) return 0;
-      return a.checked ? 1 : -1;
+      // Primary sort: unchecked items first, checked items at bottom
+      if (a.checked !== b.checked) {
+        return a.checked ? 1 : -1;
+      }
+      // Secondary sort: by creation time (stable sort within each group)
+      // This ensures items maintain consistent positions when moving between groups
+      return a.createdAt - b.createdAt;
     });
   }, [items]);
 
