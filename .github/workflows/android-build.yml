@@ -104,10 +104,14 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      - name: Clean build directory
+        run: |
+          cd android
+          ./gradlew clean --no-daemon
+
       - name: Build Release APK
         run: |
           cd android
-          chmod +x gradlew
           ./gradlew assembleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
 
       - name: Upload Release APK
