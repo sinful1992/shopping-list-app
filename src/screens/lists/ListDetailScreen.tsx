@@ -686,7 +686,6 @@ const ListDetailScreen = () => {
         data={sortedItems}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        extraData={items}
         removeClippedSubviews={false}
         refreshControl={
           <RefreshControl
