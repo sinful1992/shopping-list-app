@@ -623,7 +623,7 @@ const ListDetailScreen = () => {
       )}
 
       <FlatList
-        data={items.sort((a, b) => {
+        data={[...items].sort((a, b) => {
           // Sort: unchecked items first, checked items at bottom
           if (a.checked === b.checked) return 0;
           return a.checked ? 1 : -1;
