@@ -243,10 +243,14 @@ const ListDetailScreen = () => {
 
   const handleToggleItem = async (itemId: string) => {
     try {
-      // Trigger haptic feedback if enabled
+      // Trigger haptic feedback if enabled (before toggle for instant feedback)
       const hapticEnabled = await AsyncStorage.getItem('hapticFeedbackEnabled');
-      if (hapticEnabled === 'true') {
-        Vibration.vibrate(50); // Short vibration (50ms)
+      if (hapticEnabled === 'true' && Vibration && typeof Vibration.vibrate === 'function') {
+        try {
+          Vibration.vibrate(50); // Short vibration (50ms)
+        } catch (vibrationError) {
+          console.log('Vibration not supported:', vibrationError);
+        }
       }
 
       await ItemManager.toggleItemChecked(itemId);
