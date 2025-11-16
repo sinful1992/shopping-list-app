@@ -1,6 +1,21 @@
 // Core User and Authentication Types
 
 export type FamilyRole = 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter';
+export type SubscriptionTier = 'free' | 'premium' | 'family';
+
+export interface UsageCounters {
+  listsCreated: number;
+  ocrProcessed: number;
+  urgentItemsCreated: number;
+  lastResetDate: number; // Timestamp for monthly reset
+}
+
+export interface SubscriptionLimits {
+  maxLists: number | null; // null = unlimited
+  maxOCRPerMonth: number | null;
+  maxUrgentItemsPerMonth: number | null;
+  maxFamilyMembers: number | null;
+}
 
 export interface User {
   uid: string;
@@ -10,6 +25,8 @@ export interface User {
   role?: FamilyRole | null;
   avatar?: string | null;
   createdAt: number;
+  subscriptionTier: SubscriptionTier;
+  usageCounters: UsageCounters;
 }
 
 export interface FamilyGroup {

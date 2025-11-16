@@ -72,7 +72,7 @@ const ReceiptCameraScreen = () => {
       });
 
       // Process with OCR from local file
-      const ocrResult = await ReceiptOCRProcessor.processReceipt(capturedImage, listId);
+      const ocrResult = await ReceiptOCRProcessor.processReceipt(capturedImage, listId, user);
 
       if (ocrResult.success) {
         Alert.alert('Success', 'Receipt processed successfully!');

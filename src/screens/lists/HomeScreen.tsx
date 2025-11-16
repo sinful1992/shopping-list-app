@@ -149,7 +149,7 @@ const HomeScreen = () => {
     setCreating(true);
 
     try {
-      const newList = await ShoppingListManager.createList(listName, user.uid, user.familyGroupId);
+      const newList = await ShoppingListManager.createList(listName, user.uid, user.familyGroupId, user);
 
       // Add to UI immediately (optimistic update)
       setLists(prevLists => [newList, ...prevLists]);
@@ -222,7 +222,8 @@ const HomeScreen = () => {
       const newList = await ShoppingListManager.createList(
         listName,
         user.uid,
-        user.familyGroupId
+        user.familyGroupId,
+        user
       );
 
       // Save receipt image path to list
@@ -231,7 +232,7 @@ const HomeScreen = () => {
       });
 
       // Step 3: Process OCR from local file (no Firebase Storage upload needed)
-      const ocrResult = await ReceiptOCRProcessor.processReceipt(captureResult.filePath, newList.id);
+      const ocrResult = await ReceiptOCRProcessor.processReceipt(captureResult.filePath, newList.id, user);
 
       // Step 4: Create items from OCR lineItems (if OCR succeeded)
       if (ocrResult.success && ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {

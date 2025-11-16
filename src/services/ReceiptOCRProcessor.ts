@@ -12,10 +12,12 @@ import {
   VisionApiResponse,
   VisionAnnotateImageResponse,
   VisionEntityAnnotation,
+  User,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import UsageTracker from './UsageTracker';
 
 /**
  * ReceiptOCRProcessor
@@ -34,9 +36,22 @@ class ReceiptOCRProcessor {
   /**
    * Process receipt image with OCR from local file path
    * Implements Req 6.1, 6.2, 6.3, 6.4, 6.5
+   * Sprint 2: Enforces OCR usage limits based on subscription tier
    */
-  async processReceipt(localFilePath: string, listId: string): Promise<OCRResult> {
+  async processReceipt(localFilePath: string, listId: string, user: User): Promise<OCRResult> {
     try {
+      // Check if user can process OCR based on their subscription tier
+      const permission = await UsageTracker.canProcessOCR(user);
+      if (!permission.allowed) {
+        return {
+          success: false,
+          receiptData: null,
+          confidence: 0,
+          error: permission.reason || 'OCR limit reached',
+          apiUsageCount: await this.getAPIUsageCount(),
+        };
+      }
+
       if (!this.apiKey) {
         throw new Error('Google Cloud Vision API key not configured');
       }
@@ -49,6 +64,9 @@ class ReceiptOCRProcessor {
 
       // Parse receipt data with spatial information
       const receiptData = this.parseReceiptWithSpatialData(visionResponse);
+
+      // Increment usage counter
+      await UsageTracker.incrementOCRCounter(user.uid);
 
       // Increment API usage count
       await this.incrementAPIUsage();

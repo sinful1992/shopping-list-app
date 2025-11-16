@@ -1,9 +1,10 @@
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 import database from '@react-native-firebase/database';
-import { UrgentItem, Unsubscribe } from '../models/types';
+import { UrgentItem, Unsubscribe, User } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
+import UsageTracker from './UsageTracker';
 // @ts-ignore
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
 
@@ -120,13 +121,21 @@ class UrgentItemManager {
 
   /**
    * Create new urgent item
+   * Sprint 2: Enforces urgent item creation limits based on subscription tier
    */
   async createUrgentItem(
     name: string,
     userId: string,
     userName: string,
-    familyGroupId: string
+    familyGroupId: string,
+    user: User
   ): Promise<UrgentItem> {
+    // Check if user can create an urgent item based on their subscription tier
+    const permission = await UsageTracker.canCreateUrgentItem(user);
+    if (!permission.allowed) {
+      throw new Error(permission.reason || 'Cannot create urgent item');
+    }
+
     const urgentItem: UrgentItem = {
       id: uuidv4(),
       name,
@@ -144,6 +153,9 @@ class UrgentItemManager {
 
     // Save locally first (offline-first)
     await LocalStorageManager.saveUrgentItem(urgentItem);
+
+    // Increment usage counter
+    await UsageTracker.incrementUrgentItemCounter(userId);
 
     // Dual-write to both backends:
     // 1. Sync to Firebase (for real-time sync)

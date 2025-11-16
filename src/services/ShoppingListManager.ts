@@ -1,8 +1,9 @@
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { ShoppingList, Unsubscribe } from '../models/types';
+import { ShoppingList, Unsubscribe, User } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
+import UsageTracker from './UsageTracker';
 
 /**
  * ShoppingListManager
@@ -13,8 +14,15 @@ class ShoppingListManager {
   /**
    * Create new shopping list
    * Implements Req 2.1, 2.2
+   * Sprint 2: Enforces list creation limits based on subscription tier
    */
-  async createList(name: string, userId: string, familyGroupId: string): Promise<ShoppingList> {
+  async createList(name: string, userId: string, familyGroupId: string, user: User): Promise<ShoppingList> {
+    // Check if user can create a list based on their subscription tier
+    const permission = await UsageTracker.canCreateList(user);
+    if (!permission.allowed) {
+      throw new Error(permission.reason || 'Cannot create list');
+    }
+
     const list: ShoppingList = {
       id: uuidv4(),
       name,
@@ -37,6 +45,9 @@ class ShoppingListManager {
 
     // Save locally first (offline-first)
     await LocalStorageManager.saveList(list);
+
+    // Increment usage counter
+    await UsageTracker.incrementListCounter(userId);
 
     // Trigger sync
     await SyncEngine.pushChange('list', list.id, 'create');

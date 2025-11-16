@@ -34,6 +34,13 @@ class AuthenticationModule {
         displayName: displayName || userCredential.user.displayName,
         familyGroupId: null,
         createdAt: Date.now(),
+        subscriptionTier: 'free',
+        usageCounters: {
+          listsCreated: 0,
+          ocrProcessed: 0,
+          urgentItemsCreated: 0,
+          lastResetDate: Date.now(),
+        },
       };
 
       // Store user data in Realtime Database
@@ -308,6 +315,27 @@ class AuthenticationModule {
         userDataUnsubscribe();
       }
     };
+  }
+
+  /**
+   * Upgrade user subscription tier
+   * Implements Sprint 2: Freemium Model
+   */
+  async upgradeSubscription(userId: string, newTier: 'premium' | 'family'): Promise<void> {
+    try {
+      await database().ref(`/users/${userId}`).update({
+        subscriptionTier: newTier,
+      });
+
+      // Update cached user data
+      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const updatedUser = userSnapshot.val();
+      if (updatedUser) {
+        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to upgrade subscription: ${error.message}`);
+    }
   }
 
   /**

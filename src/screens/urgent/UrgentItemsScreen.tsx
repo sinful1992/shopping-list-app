@@ -100,7 +100,8 @@ const UrgentItemsScreen = () => {
         newItemName.trim(),
         user.uid,
         user.displayName || 'Unknown',
-        user.familyGroupId
+        user.familyGroupId,
+        user
       );
 
       setNewItemName('');
