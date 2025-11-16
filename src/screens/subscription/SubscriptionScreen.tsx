@@ -32,6 +32,7 @@ interface Props {
 export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [familyTier, setFamilyTier] = useState<SubscriptionTier>('free');
   const [usageSummary, setUsageSummary] = useState<{
     lists: { used: number; limit: number | null };
     ocr: { used: number; limit: number | null };
@@ -49,6 +50,8 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
         setUser(currentUser);
         const summary = await UsageTracker.getUsageSummary(currentUser);
         setUsageSummary(summary);
+        const tier = await UsageTracker.getFamilySubscriptionTier(currentUser.familyGroupId);
+        setFamilyTier(tier);
       }
     } catch (error) {
       console.error('Error loading user and usage:', error);
@@ -58,11 +61,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleUpgrade = async (newTier: 'premium' | 'family') => {
-    if (!user) return;
+    if (!user || !user.familyGroupId) return;
 
     Alert.alert(
       'Upgrade Subscription',
-      `Upgrade to ${newTier} for $${newTier === 'premium' ? SUBSCRIPTION_PRICES.premium.monthly : SUBSCRIPTION_PRICES.family.monthly}/month?`,
+      `Upgrade your family group to ${newTier} for $${newTier === 'premium' ? SUBSCRIPTION_PRICES.premium.monthly : SUBSCRIPTION_PRICES.family.monthly}/month? Everyone in your family group will get the benefits!`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -71,11 +74,11 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
             try {
               // TODO: Integrate with RevenueCat for actual payment processing (Sprint 3)
               // For now, just update the tier directly
-              await AuthenticationModule.upgradeSubscription(user.uid, newTier);
+              await AuthenticationModule.upgradeSubscription(user.familyGroupId!, newTier);
 
               Alert.alert(
                 'Success',
-                `You've been upgraded to ${newTier}!`,
+                `Your family group has been upgraded to ${newTier}!`,
                 [{ text: 'OK', onPress: loadUserAndUsage }]
               );
             } catch (error: any) {
@@ -116,7 +119,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  const currentTier = user.subscriptionTier;
+  const currentTier = familyTier;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>

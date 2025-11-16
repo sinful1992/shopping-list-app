@@ -9,19 +9,19 @@ export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> =
     maxLists: 4,
     maxOCRPerMonth: 1, // Only 1 OCR scan per month for free users
     maxUrgentItemsPerMonth: 1,
-    maxFamilyMembers: null, // No family group for free tier
+    maxFamilyMembers: null,
   },
   premium: {
     maxLists: null, // Unlimited
     maxOCRPerMonth: 20,
     maxUrgentItemsPerMonth: 3,
-    maxFamilyMembers: null, // Solo use, no family sharing
+    maxFamilyMembers: null,
   },
   family: {
     maxLists: null, // Unlimited
     maxOCRPerMonth: null, // Unlimited
     maxUrgentItemsPerMonth: null, // Unlimited
-    maxFamilyMembers: 10,
+    maxFamilyMembers: null,
   },
 };
 

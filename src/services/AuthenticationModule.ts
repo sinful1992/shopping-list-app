@@ -34,7 +34,6 @@ class AuthenticationModule {
         displayName: displayName || userCredential.user.displayName,
         familyGroupId: null,
         createdAt: Date.now(),
-        subscriptionTier: 'free',
         usageCounters: {
           listsCreated: 0,
           ocrProcessed: 0,
@@ -153,6 +152,7 @@ class AuthenticationModule {
         createdBy: userId,
         memberIds: [userId],
         createdAt: Date.now(),
+        subscriptionTier: 'free', // New family groups start with free tier
       };
 
       // Save family group
@@ -318,21 +318,15 @@ class AuthenticationModule {
   }
 
   /**
-   * Upgrade user subscription tier
+   * Upgrade family group subscription tier
    * Implements Sprint 2: Freemium Model
+   * One person pays, entire family group gets upgraded
    */
-  async upgradeSubscription(userId: string, newTier: 'premium' | 'family'): Promise<void> {
+  async upgradeSubscription(familyGroupId: string, newTier: 'premium' | 'family'): Promise<void> {
     try {
-      await database().ref(`/users/${userId}`).update({
+      await database().ref(`/familyGroups/${familyGroupId}`).update({
         subscriptionTier: newTier,
       });
-
-      // Update cached user data
-      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
-      const updatedUser = userSnapshot.val();
-      if (updatedUser) {
-        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
-      }
     } catch (error: any) {
       throw new Error(`Failed to upgrade subscription: ${error.message}`);
     }

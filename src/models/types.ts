@@ -25,7 +25,6 @@ export interface User {
   role?: FamilyRole | null;
   avatar?: string | null;
   createdAt: number;
-  subscriptionTier: SubscriptionTier;
   usageCounters: UsageCounters;
 }
 
@@ -36,6 +35,7 @@ export interface FamilyGroup {
   createdBy: string;
   memberIds: string[];
   createdAt: number;
+  subscriptionTier: SubscriptionTier; // Subscription is at family level, not user level
 }
 
 export interface UserCredential {
