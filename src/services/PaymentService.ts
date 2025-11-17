@@ -26,7 +26,12 @@ class PaymentService {
   private getApiKey(): string {
     const apiKey = REVENUECAT_ANDROID_API_KEY;
     console.log(`🔑 RevenueCat API Key from env: ${apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET'}`);
-    return apiKey || 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw';
+
+    if (!apiKey) {
+      throw new Error('REVENUECAT_ANDROID_API_KEY is not set in environment variables. Please configure it in .env file or GitHub Secrets.');
+    }
+
+    return apiKey;
   }
 
   /**
