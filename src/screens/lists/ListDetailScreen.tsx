@@ -9,8 +9,6 @@ import {
   Alert,
   RefreshControl,
   Vibration,
-  ActionSheetIOS,
-  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -364,20 +362,23 @@ const ListDetailScreen = () => {
   const handleItemLongPress = (item: Item) => {
     if (isListLocked) return;
 
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
+    // Android - show alert dialog with options
+    Alert.alert(
+      item.name,
+      'Choose an action',
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          options: ['Cancel', 'Edit', 'Delete'],
-          destructiveButtonIndex: 2,
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            // Edit
+          text: 'Edit',
+          onPress: () => {
             setSelectedItem(item);
             setEditModalVisible(true);
-          } else if (buttonIndex === 2) {
-            // Delete
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
             Alert.alert(
               'Delete Item',
               `Are you sure you want to delete "${item.name}"?`,
@@ -390,44 +391,10 @@ const ListDetailScreen = () => {
                 },
               ]
             );
-          }
-        }
-      );
-    } else {
-      // Android - show alert dialog with options
-      Alert.alert(
-        item.name,
-        'Choose an action',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Edit',
-            onPress: () => {
-              setSelectedItem(item);
-              setEditModalVisible(true);
-            },
           },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              Alert.alert(
-                'Delete Item',
-                `Are you sure you want to delete "${item.name}"?`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => handleDeleteItem(item.id),
-                  },
-                ]
-              );
-            },
-          },
-        ]
-      );
-    }
+        },
+      ]
+    );
   };
 
   const handleEditListName = () => {
