@@ -28,10 +28,10 @@ android {
 
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "com.shoppinglistapp"
+    namespace "com.familyshoppinglist.app"
 
     defaultConfig {
-        applicationId "com.shoppinglistapp"
+        applicationId "com.familyshoppinglist.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

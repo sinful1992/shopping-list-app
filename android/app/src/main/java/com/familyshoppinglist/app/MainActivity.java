@@ -1,4 +1,4 @@
-package com.shoppinglistapp;
+package com.familyshoppinglist.app;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
