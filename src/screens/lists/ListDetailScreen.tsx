@@ -50,6 +50,7 @@ const ListDetailScreen = () => {
   const [uncheckedCount, setUncheckedCount] = useState(0);
   const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
   const [isOnline, setIsOnline] = useState(true);
+  const [isShoppingHeaderExpanded, setIsShoppingHeaderExpanded] = useState(false);
 
   // Cleanup flag to prevent setState after unmount
   const isMountedRef = React.useRef(true);
@@ -650,55 +651,113 @@ const ListDetailScreen = () => {
         )}
       </View>
 
-      {isListLocked && list && (
-        <View style={styles.lockedBanner}>
-          <Text style={styles.lockedBannerText}>
-            🔒 {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now!
-          </Text>
-        </View>
-      )}
-
-      {isShoppingMode && (
-        <View style={styles.shoppingModeHeader}>
-          <View style={styles.shoppingModeLeft}>
-            <Text style={styles.shoppingModeIcon}>🛒</Text>
-            <View style={styles.shoppingModeStats}>
-              <Text style={styles.shoppingModeTotal}>
-                £{runningTotal.toFixed(2)}
-              </Text>
-              <Text style={styles.shoppingModeCounter}>
-                {checkedCount}/{checkedCount + uncheckedCount}
-              </Text>
+      {/* Smart Status Bar - Consolidated single banner with priority system */}
+      {(isShoppingMode || isListLocked || (isListCompleted && !canAddItems)) && (
+        <View style={[
+          styles.smartStatusBar,
+          isShoppingMode ? styles.statusShopping :
+          isListLocked ? styles.statusLocked :
+          styles.statusCompleted
+        ]}>
+          {/* Shopping Mode - Priority 1 */}
+          {isShoppingMode && !isShoppingHeaderExpanded && (
+            <View style={styles.statusContentCompact}>
+              <View style={styles.statusLeft}>
+                <Text style={styles.statusIcon}>🛒</Text>
+                <Text style={styles.statusTextCompact}>
+                  £{runningTotal.toFixed(2)} • {checkedCount}/{checkedCount + uncheckedCount}
+                </Text>
+                {/* Show budget indicator only if over 80% or budget exceeded */}
+                {list?.budget && runningTotal > list.budget * 0.8 && (
+                  <View style={[
+                    styles.budgetBadge,
+                    runningTotal > list.budget ? styles.budgetBadgeOver : styles.budgetBadgeWarning
+                  ]}>
+                    <Text style={styles.budgetBadgeText}>
+                      {runningTotal > list.budget ? `+£${(runningTotal - list.budget).toFixed(2)}` : `£${list.budget}`}
+                    </Text>
+                  </View>
+                )}
+                {!isOnline && <Text style={styles.statusIcon}>📡</Text>}
+              </View>
+              <View style={styles.statusRight}>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton}>
+                  <Text style={styles.expandIcon}>▼</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            {list?.budget && (
-              <View style={[
-                styles.budgetIndicator,
-                runningTotal > list.budget ? styles.budgetOverLimit :
-                runningTotal > list.budget * 0.8 ? styles.budgetNearLimit :
-                styles.budgetUnderLimit
-              ]}>
-                <Text style={styles.budgetText}>
-                  {list.budget ? `£${list.budget}` : ''}
+          )}
+
+          {/* Shopping Mode Expanded */}
+          {isShoppingMode && isShoppingHeaderExpanded && (
+            <View style={styles.statusContentExpanded}>
+              <View style={styles.expandedHeader}>
+                <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton}>
+                  <Text style={styles.expandIcon}>▲</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.expandedStats}>
+                <View style={styles.expandedRow}>
+                  <Text style={styles.expandedLabel}>Total:</Text>
+                  <Text style={styles.expandedValue}>£{runningTotal.toFixed(2)}</Text>
+                </View>
+                {list?.budget && (
+                  <View style={styles.expandedRow}>
+                    <Text style={styles.expandedLabel}>Budget:</Text>
+                    <Text style={[
+                      styles.expandedValue,
+                      runningTotal > list.budget ? styles.textOver :
+                      runningTotal > list.budget * 0.8 ? styles.textWarning :
+                      styles.textOk
+                    ]}>
+                      £{list.budget} {runningTotal > list.budget && `(+£${(runningTotal - list.budget).toFixed(2)})`}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.expandedRow}>
+                  <Text style={styles.expandedLabel}>Items:</Text>
+                  <Text style={styles.expandedValue}>{checkedCount} checked, {uncheckedCount} remaining</Text>
+                </View>
+                {!isOnline && (
+                  <View style={styles.expandedRow}>
+                    <Text style={styles.expandedLabel}>Status:</Text>
+                    <Text style={styles.textWarning}>📡 Offline - Changes will sync later</Text>
+                  </View>
+                )}
+              </View>
+              <TouchableOpacity style={styles.doneButtonExpanded} onPress={handleDoneShopping}>
+                <Text style={styles.doneButtonText}>Done Shopping</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Locked State - Priority 2 */}
+          {!isShoppingMode && isListLocked && list && (
+            <View style={styles.statusContentCompact}>
+              <View style={styles.statusLeft}>
+                <Text style={styles.statusIcon}>🔒</Text>
+                <Text style={styles.statusTextCompact}>
+                  {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now
                 </Text>
               </View>
-            )}
-            {!isOnline && (
-              <View style={styles.offlineIndicator}>
-                <Text style={styles.offlineIcon}>📡</Text>
-              </View>
-            )}
-          </View>
-          <TouchableOpacity style={styles.doneShoppingButton} onPress={handleDoneShopping}>
-            <Text style={styles.doneShoppingButtonText}>Done</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            </View>
+          )}
 
-      {isListCompleted && !canAddItems && (
-        <View style={styles.completedBanner}>
-          <Text style={styles.completedBannerText}>
-            ✅ List completed - Only the shopper can add missing items
-          </Text>
+          {/* Completed State - Priority 3 */}
+          {!isShoppingMode && !isListLocked && isListCompleted && !canAddItems && (
+            <View style={styles.statusContentCompact}>
+              <View style={styles.statusLeft}>
+                <Text style={styles.statusIcon}>✅</Text>
+                <Text style={styles.statusTextCompact}>
+                  Completed - Only shopper can add items
+                </Text>
+              </View>
+            </View>
+          )}
         </View>
       )}
 
@@ -1047,6 +1106,139 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // Smart Status Bar - Consolidated single banner
+  smartStatusBar: {
+    borderBottomWidth: 1,
+    minHeight: 40,
+  },
+  statusShopping: {
+    backgroundColor: 'rgba(52, 199, 89, 0.95)',
+    borderBottomColor: 'rgba(52, 199, 89, 0.3)',
+  },
+  statusLocked: {
+    backgroundColor: 'rgba(255, 149, 0, 0.9)',
+    borderBottomColor: 'rgba(255, 149, 0, 0.3)',
+  },
+  statusCompleted: {
+    backgroundColor: 'rgba(142, 142, 147, 0.9)',
+    borderBottomColor: 'rgba(142, 142, 147, 0.3)',
+  },
+  // Compact view (default)
+  statusContentCompact: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  statusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  statusRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusIcon: {
+    fontSize: 16,
+  },
+  statusTextCompact: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  budgetBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 4,
+  },
+  budgetBadgeWarning: {
+    backgroundColor: 'rgba(255, 204, 0, 0.9)',
+  },
+  budgetBadgeOver: {
+    backgroundColor: 'rgba(255, 59, 48, 0.9)',
+  },
+  budgetBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  expandButton: {
+    padding: 4,
+  },
+  expandIcon: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  doneButtonCompact: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Expanded view
+  statusContentExpanded: {
+    padding: 16,
+  },
+  expandedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  expandedTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  collapseButton: {
+    padding: 4,
+  },
+  expandedStats: {
+    gap: 8,
+    marginBottom: 12,
+  },
+  expandedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  expandedLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  expandedValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  textOk: {
+    color: '#fff',
+  },
+  textWarning: {
+    color: '#FFCC00',
+  },
+  textOver: {
+    color: '#FF3B30',
+  },
+  doneButtonExpanded: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  // Old styles (kept for backwards compatibility, can be removed later)
   lockedBanner: {
     backgroundColor: 'rgba(255, 149, 0, 0.9)',
     padding: 12,
