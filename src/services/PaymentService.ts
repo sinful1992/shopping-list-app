@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { SubscriptionTier } from '../models/types';
 import AuthenticationModule from './AuthenticationModule';
+import { REVENUECAT_ANDROID_API_KEY } from '@env';
 
 /**
  * PaymentService
@@ -17,7 +18,7 @@ import AuthenticationModule from './AuthenticationModule';
  */
 class PaymentService {
   private initialized = false;
-  private readonly API_KEY = 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw'; // Your Google Play API key
+  private readonly API_KEY = REVENUECAT_ANDROID_API_KEY || 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw'; // Fallback to test key for development
   private readonly ENTITLEMENT_ID = 'Family shopping list pro';
 
   /**
