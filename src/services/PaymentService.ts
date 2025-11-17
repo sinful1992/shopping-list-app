@@ -29,6 +29,9 @@ class PaymentService {
     if (this.initialized) return;
 
     try {
+      // Log which API key is being used (first 10 chars only for security)
+      console.log(`🔑 RevenueCat API Key: ${this.API_KEY.substring(0, 10)}...`);
+
       // Enable debug logs in development
       if (__DEV__) {
         Purchases.setLogLevel(LOG_LEVEL.DEBUG);
