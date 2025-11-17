@@ -74,49 +74,44 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  const handleUpgrade = async (newTier: 'premium' | 'family') => {
+  const handleUpgrade = async () => {
     if (!user || !user.familyGroupId || purchasing) return;
-
-    if (!offerings) {
-      Alert.alert('Error', 'Subscription packages not available. Please try again later.');
-      return;
-    }
-
-    // Find the appropriate package
-    const packageIdentifier = newTier === 'premium' ? 'premium_monthly' : 'family_monthly';
-    const packageToPurchase = offerings.availablePackages.find(
-      (pkg) => pkg.identifier === packageIdentifier
-    );
-
-    if (!packageToPurchase) {
-      Alert.alert('Error', `${newTier} subscription package not found.`);
-      return;
-    }
 
     setPurchasing(true);
 
     try {
-      // Purchase via RevenueCat
-      const result = await PaymentService.purchasePackage(packageToPurchase);
+      // Present RevenueCat Paywall (modern UI)
+      const result = await PaymentService.presentPaywall();
 
       if (result.success && result.customerInfo) {
         // Sync subscription status to Firebase
         await PaymentService.syncSubscriptionToFirebase(user.familyGroupId, result.customerInfo);
 
+        const tier = PaymentService.getSubscriptionTierFromCustomerInfo(result.customerInfo);
+
         Alert.alert(
-          'Success!',
-          `Your family group has been upgraded to ${newTier}! Everyone in your family group now has full access.`,
+          'Welcome to Pro!',
+          `Your family group has been upgraded! Everyone in your family group now has full access.`,
           [{ text: 'OK', onPress: loadUserAndUsage }]
         );
-      } else {
-        if (result.error !== 'Purchase cancelled by user') {
-          Alert.alert('Purchase Failed', result.error || 'An error occurred during purchase');
-        }
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to process purchase');
     } finally {
       setPurchasing(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      const canPresent = await PaymentService.canPresentCustomerCenter();
+      if (canPresent) {
+        await PaymentService.presentCustomerCenter();
+      } else {
+        Alert.alert('No Active Subscription', 'You need an active subscription to access Customer Center.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to open Customer Center');
     }
   };
 
@@ -253,39 +248,33 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
               </View>
               <TouchableOpacity
                 style={styles.upgradeButton}
-                onPress={() => handleUpgrade('premium')}
+                onPress={handleUpgrade}
+                disabled={purchasing}
               >
-                <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+                {purchasing ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.upgradeButtonText}>View Subscription Options</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}
+        </View>
+      )}
 
-          {/* Family Tier */}
-          <View style={styles.tierCard}>
-            <View style={styles.tierCardHeader}>
-              <Text style={styles.tierCardName}>Family</Text>
-              <View style={styles.priceContainer}>
-                <Text style={styles.price}>
-                  ${SUBSCRIPTION_PRICES.family.monthly}
-                </Text>
-                <Text style={styles.priceLabel}>/month</Text>
-              </View>
-            </View>
-            <View style={styles.featuresContainer}>
-              {TIER_FEATURES.family.map((feature, index) => (
-                <View key={index} style={styles.featureRow}>
-                  <Text style={styles.checkmark}>✓</Text>
-                  <Text style={styles.featureText}>{feature}</Text>
-                </View>
-              ))}
-            </View>
-            <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={() => handleUpgrade('family')}
-            >
-              <Text style={styles.upgradeButtonText}>Upgrade to Family</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Manage Subscription (Customer Center) */}
+      {currentTier !== 'free' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Subscription Management</Text>
+          <TouchableOpacity
+            style={styles.manageButton}
+            onPress={handleManageSubscription}
+          >
+            <Text style={styles.manageButtonText}>Manage Subscription</Text>
+          </TouchableOpacity>
+          <Text style={styles.manageHintText}>
+            View billing, change plan, cancel subscription, or contact support
+          </Text>
         </View>
       )}
 
@@ -465,5 +454,22 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  manageButton: {
+    backgroundColor: '#2C2C2E',
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  manageButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  manageHintText: {
+    color: '#8E8E93',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });

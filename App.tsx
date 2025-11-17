@@ -8,6 +8,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import NotificationManager from './src/services/NotificationManager';
+import PaymentService from './src/services/PaymentService';
 import { User } from './src/models/types';
 
 // Dark theme for navigation
@@ -202,6 +203,19 @@ function App(): JSX.Element {
       };
     }
   }, [user?.familyGroupId]);
+
+  // Initialize RevenueCat on app launch
+  useEffect(() => {
+    const initializePayments = async () => {
+      try {
+        await PaymentService.initialize();
+      } catch (error) {
+        console.error('Failed to initialize payments:', error);
+      }
+    };
+
+    initializePayments();
+  }, []);
 
   // Initialize FCM notifications when user logs in
   useEffect(() => {

@@ -2,41 +2,41 @@ import Purchases, {
   PurchasesOffering,
   PurchasesPackage,
   CustomerInfo,
-  PurchasesStoreProduct,
+  LOG_LEVEL,
 } from 'react-native-purchases';
 import { Platform } from 'react-native';
+import RevenueCatUI from 'react-native-purchases-ui';
 import { SubscriptionTier } from '../models/types';
 import AuthenticationModule from './AuthenticationModule';
 
 /**
  * PaymentService
  * Handles in-app purchases and subscriptions via RevenueCat
- * Sprint 3: Payment Integration
+ * Includes Paywalls and Customer Center support
+ * Sprint 3: Complete Payment Integration
  */
 class PaymentService {
   private initialized = false;
+  private readonly API_KEY = 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw'; // Your Google Play API key
+  private readonly ENTITLEMENT_ID = 'shopping list Pro';
 
   /**
-   * Initialize RevenueCat SDK
+   * Initialize RevenueCat SDK with Paywalls support
    * Call this on app launch
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
 
     try {
-      // TODO: Replace with your actual RevenueCat API keys
-      const apiKey = Platform.select({
-        ios: process.env.REVENUECAT_IOS_API_KEY || 'YOUR_IOS_API_KEY',
-        android: process.env.REVENUECAT_ANDROID_API_KEY || 'YOUR_ANDROID_API_KEY',
-      });
-
-      if (!apiKey || apiKey.startsWith('YOUR_')) {
-        console.warn('RevenueCat API key not configured. Payment features will not work.');
-        return;
+      // Enable debug logs in development
+      if (__DEV__) {
+        Purchases.setLogLevel(LOG_LEVEL.DEBUG);
       }
 
-      // Configure RevenueCat
-      await Purchases.configure({ apiKey });
+      // Configure RevenueCat with your API key
+      await Purchases.configure({
+        apiKey: this.API_KEY,
+      });
 
       // Set user ID for RevenueCat
       const user = await AuthenticationModule.getCurrentUser();
@@ -45,9 +45,9 @@ class PaymentService {
       }
 
       this.initialized = true;
-      console.log('RevenueCat initialized successfully');
+      console.log('✅ RevenueCat initialized successfully');
     } catch (error) {
-      console.error('Failed to initialize RevenueCat:', error);
+      console.error('❌ Failed to initialize RevenueCat:', error);
       throw error;
     }
   }
@@ -115,21 +115,41 @@ class PaymentService {
   }
 
   /**
+   * Check if user has Pro entitlement
+   */
+  hasProEntitlement(customerInfo: CustomerInfo): boolean {
+    return customerInfo.entitlements.active[this.ENTITLEMENT_ID] !== undefined;
+  }
+
+  /**
    * Determine subscription tier from RevenueCat entitlements
+   * Uses product identifiers to determine tier level
    */
   getSubscriptionTierFromCustomerInfo(customerInfo: CustomerInfo): SubscriptionTier {
-    // Check active entitlements
-    const entitlements = customerInfo.entitlements.active;
-
-    if (entitlements['family']) {
-      return 'family';
+    // Check if user has Pro entitlement
+    if (!this.hasProEntitlement(customerInfo)) {
+      return 'free';
     }
 
-    if (entitlements['premium']) {
-      return 'premium';
+    // Check product identifier to determine tier
+    const proEntitlement = customerInfo.entitlements.active[this.ENTITLEMENT_ID];
+    const productId = proEntitlement.productIdentifier;
+
+    // Map product IDs to tiers
+    if (productId === 'lifetime') {
+      return 'family'; // Lifetime gets family tier benefits
     }
 
-    return 'free';
+    if (productId === 'yearly') {
+      return 'family'; // Yearly gets family tier benefits
+    }
+
+    if (productId === 'monthly') {
+      return 'premium'; // Monthly gets premium tier benefits
+    }
+
+    // Default to premium if has entitlement but unknown product
+    return 'premium';
   }
 
   /**
@@ -196,6 +216,64 @@ class PaymentService {
       console.log('RevenueCat user logged out');
     } catch (error) {
       console.error('Failed to logout from RevenueCat:', error);
+    }
+  }
+
+  /**
+   * Present RevenueCat Paywall
+   * Modern UI for subscription offerings
+   * @param offeringId - Optional offering identifier (default uses current offering)
+   */
+  async presentPaywall(offeringId?: string): Promise<{
+    success: boolean;
+    customerInfo?: CustomerInfo;
+  }> {
+    try {
+      const result = await RevenueCatUI.presentPaywall({
+        offering: offeringId,
+      });
+
+      if (result === RevenueCatUI.PAYWALL_RESULT.PURCHASED) {
+        const customerInfo = await this.getCustomerInfo();
+        return { success: true, customerInfo: customerInfo || undefined };
+      }
+
+      if (result === RevenueCatUI.PAYWALL_RESULT.RESTORED) {
+        const customerInfo = await this.getCustomerInfo();
+        return { success: true, customerInfo: customerInfo || undefined };
+      }
+
+      // User cancelled or closed paywall
+      return { success: false };
+    } catch (error) {
+      console.error('Failed to present paywall:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Present Customer Center
+   * Allows users to manage subscription, view billing, contact support
+   */
+  async presentCustomerCenter(): Promise<void> {
+    try {
+      await RevenueCatUI.presentCustomerCenter();
+    } catch (error) {
+      console.error('Failed to present customer center:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if Customer Center is supported
+   */
+  async canPresentCustomerCenter(): Promise<boolean> {
+    try {
+      // Customer Center requires active subscription
+      const customerInfo = await this.getCustomerInfo();
+      return customerInfo ? this.hasProEntitlement(customerInfo) : false;
+    } catch (error) {
+      return false;
     }
   }
 }
