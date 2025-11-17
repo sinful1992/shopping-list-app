@@ -206,10 +206,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    gap: 20,
   },
   inputGroup: {
-    gap: 8,
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
@@ -217,6 +216,7 @@ const styles = StyleSheet.create({
     color: '#8E8E93',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    marginBottom: 8,
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -251,7 +251,6 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
   },
   cancelButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -260,6 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginRight: 12,
   },
   cancelButtonText: {
     color: '#ffffff',
