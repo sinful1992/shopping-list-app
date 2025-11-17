@@ -35,16 +35,21 @@ export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> =
 };
 
 /**
- * Subscription pricing
+ * Subscription pricing (GBP)
+ * Note: Actual pricing comes from RevenueCat/Google Play
+ * These are display values only
  */
 export const SUBSCRIPTION_PRICES = {
   premium: {
-    monthly: 4.99,
-    currency: 'USD',
+    monthly: 9.99, // Monthly subscription
+    currency: 'GBP',
+    symbol: '£',
   },
   family: {
-    monthly: 9.99,
-    currency: 'USD',
+    yearly: 99.99, // Yearly subscription
+    lifetime: 199.99, // Lifetime purchase
+    currency: 'GBP',
+    symbol: '£',
   },
 };
 

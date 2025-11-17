@@ -42,6 +42,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
   } | null>(null);
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
   const [purchasing, setPurchasing] = useState(false);
+  const [monthlyPrice, setMonthlyPrice] = useState<string>('£9.99');
 
   useEffect(() => {
     loadUserAndUsage();
@@ -69,6 +70,19 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const currentOfferings = await PaymentService.getOfferings();
       setOfferings(currentOfferings);
+
+      // Extract monthly price from offerings
+      if (currentOfferings) {
+        const monthlyPackage = currentOfferings.availablePackages.find(
+          pkg => pkg.identifier === 'monthly' || pkg.packageType === 'MONTHLY'
+        );
+
+        if (monthlyPackage) {
+          // Get localized price string (e.g., "£9.99", "$9.99", "€9.99")
+          const priceString = monthlyPackage.product.priceString;
+          setMonthlyPrice(priceString);
+        }
+      }
     } catch (error) {
       console.error('Error loading offerings:', error);
     }
@@ -233,7 +247,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
                 <Text style={styles.tierCardName}>Premium</Text>
                 <View style={styles.priceContainer}>
                   <Text style={styles.price}>
-                    ${SUBSCRIPTION_PRICES.premium.monthly}
+                    {monthlyPrice}
                   </Text>
                   <Text style={styles.priceLabel}>/month</Text>
                 </View>

@@ -18,7 +18,7 @@ import AuthenticationModule from './AuthenticationModule';
 class PaymentService {
   private initialized = false;
   private readonly API_KEY = 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw'; // Your Google Play API key
-  private readonly ENTITLEMENT_ID = 'shopping list Pro';
+  private readonly ENTITLEMENT_ID = 'Family shopping list pro';
 
   /**
    * Initialize RevenueCat SDK with Paywalls support

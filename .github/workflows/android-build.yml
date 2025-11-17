@@ -114,11 +114,22 @@ jobs:
           cd android
           ./gradlew assembleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
 
+      - name: Build Release AAB (App Bundle)
+        run: |
+          cd android
+          ./gradlew bundleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
+
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: app-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
 
       - name: Get APK info
         if: success()
