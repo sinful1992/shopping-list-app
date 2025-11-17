@@ -9,6 +9,8 @@ import {
   Alert,
   RefreshControl,
   Vibration,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -19,6 +21,7 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
+import ItemEditModal from '../../components/ItemEditModal';
 
 /**
  * ListDetailScreen
@@ -35,14 +38,16 @@ const ListDetailScreen = () => {
   const [listName, setListName] = useState('');
   const [editedListName, setEditedListName] = useState('');
   const [isEditingListName, setIsEditingListName] = useState(false);
-  const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
-  const [itemNames, setItemNames] = useState<{ [key: string]: string }>({});
   const [isShoppingMode, setIsShoppingMode] = useState(false);
   const [isListLocked, setIsListLocked] = useState(false);
   const [isListCompleted, setIsListCompleted] = useState(false);
   const [canAddItems, setCanAddItems] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
   // Shopping mode UI state
   const [runningTotal, setRunningTotal] = useState(0);
@@ -340,50 +345,88 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handlePriceChange = (itemId: string, text: string) => {
-    setItemPrices(prev => ({ ...prev, [itemId]: text }));
-  };
-
-  const handleSavePrice = async (itemId: string) => {
-    const priceText = itemPrices[itemId];
-    const price = priceText ? parseFloat(priceText) : null;
-    if (priceText && (price === null || isNaN(price))) {
-      Alert.alert('Error', 'Please enter a valid number');
-      return;
-    }
+  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null }) => {
     try {
-      await ItemManager.updateItem(itemId, { price });
-      setItemPrices(prev => {
-        const newPrices = { ...prev };
-        delete newPrices[itemId];
-        return newPrices;
-      });
+      await ItemManager.updateItem(itemId, updates);
       await loadListAndItems();
     } catch (error: any) {
       Alert.alert('Error', error.message);
+      throw error;
     }
   };
 
-  const handleNameChange = (itemId: string, text: string) => {
-    setItemNames(prev => ({ ...prev, [itemId]: text }));
+  const handleItemTap = (item: Item) => {
+    if (isListLocked) return;
+    setSelectedItem(item);
+    setEditModalVisible(true);
   };
 
-  const handleSaveName = async (itemId: string) => {
-    const nameText = itemNames[itemId];
-    if (!nameText || !nameText.trim()) {
-      Alert.alert('Error', 'Item name cannot be empty');
-      return;
-    }
-    try {
-      await ItemManager.updateItem(itemId, { name: nameText.trim() });
-      setItemNames(prev => {
-        const newNames = { ...prev };
-        delete newNames[itemId];
-        return newNames;
-      });
-      await loadListAndItems();
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+  const handleItemLongPress = (item: Item) => {
+    if (isListLocked) return;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Edit', 'Delete'],
+          destructiveButtonIndex: 2,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // Edit
+            setSelectedItem(item);
+            setEditModalVisible(true);
+          } else if (buttonIndex === 2) {
+            // Delete
+            Alert.alert(
+              'Delete Item',
+              `Are you sure you want to delete "${item.name}"?`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => handleDeleteItem(item.id),
+                },
+              ]
+            );
+          }
+        }
+      );
+    } else {
+      // Android - show alert dialog with options
+      Alert.alert(
+        item.name,
+        'Choose an action',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Edit',
+            onPress: () => {
+              setSelectedItem(item);
+              setEditModalVisible(true);
+            },
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert(
+                'Delete Item',
+                `Are you sure you want to delete "${item.name}"?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => handleDeleteItem(item.id),
+                  },
+                ]
+              );
+            },
+          },
+        ]
+      );
     }
   };
 
@@ -529,6 +572,9 @@ const ListDetailScreen = () => {
       return null;
     }
 
+    const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
+    const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
+
     return (
       <View style={[
         styles.itemRow,
@@ -541,58 +587,37 @@ const ListDetailScreen = () => {
         >
           <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
         </TouchableOpacity>
-        <View style={styles.itemContent}>
-          <View style={styles.nameInputRow}>
-            <TextInput
+
+        <TouchableOpacity
+          style={styles.itemContentTouchable}
+          onPress={() => handleItemTap(item)}
+          onLongPress={() => handleItemLongPress(item)}
+          delayLongPress={500}
+          disabled={isListLocked}
+          activeOpacity={0.7}
+        >
+          <View style={styles.itemContentRow}>
+            <Text
               style={[
-                styles.nameInputField,
-                {
-                  // CRITICAL FIX: Always provide valid textDecorationLine to prevent Android crash
-                  textDecorationLine: item.checked === true ? 'line-through' : 'none',
-                  color: item.checked === true ? '#6E6E73' : '#ffffff'
-                }
+                styles.itemNameText,
+                item.checked === true && styles.itemNameChecked
               ]}
-              placeholder="Item name"
-              placeholderTextColor="#6E6E73"
-              value={itemNames[item.id] !== undefined ? itemNames[item.id] : (item.name || '')}
-              onChangeText={(text) => handleNameChange(item.id, text)}
-              editable={canAddItems}
-            />
-          {itemNames[item.id] !== undefined && itemNames[item.id] !== item.name && canAddItems && (
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={() => handleSaveName(item.id)}
+              numberOfLines={1}
             >
-              <Text style={styles.saveButtonText}>✔️</Text>
-            </TouchableOpacity>
-          )}
-          <TextInput
-            style={styles.priceInputFieldInline}
-            placeholder={
-              item.name && predictedPrices[item.name.toLowerCase()]
-                ? `~£${predictedPrices[item.name.toLowerCase()].toFixed(2)}`
-                : "£0.00"
-            }
-            placeholderTextColor="#6E6E73"
-            value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
-            onChangeText={(text) => handlePriceChange(item.id, text)}
-            keyboardType="numeric"
-            editable={canAddItems}
-          />
-          {itemPrices[item.id] !== undefined && canAddItems && (
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={() => handleSavePrice(item.id)}
+              {item.name}
+            </Text>
+            <Text
+              style={[
+                styles.itemPriceText,
+                isPredicted && styles.itemPricePredicted,
+                item.checked === true && styles.itemPriceChecked
+              ]}
             >
-              <Text style={styles.saveButtonText}>✔️</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              {isPredicted && '~'}£{itemPrice.toFixed(2)}
+            </Text>
+          </View>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={() => handleDeleteItem(item.id)} disabled={isListLocked}>
-        <Text style={styles.deleteButton}>🗑</Text>
-      </TouchableOpacity>
-    </View>
     );
   };
 
@@ -826,6 +851,17 @@ const ListDetailScreen = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      <ItemEditModal
+        visible={editModalVisible}
+        item={selectedItem}
+        onClose={() => {
+          setEditModalVisible(false);
+          setSelectedItem(null);
+        }}
+        onSave={handleUpdateItem}
+        onDelete={handleDeleteItem}
+      />
     </View>
   );
 };
@@ -952,32 +988,38 @@ const styles = StyleSheet.create({
   itemContent: {
     flex: 1,
   },
-  nameInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  nameInputField: {
+  itemContentTouchable: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#ffffff',
-    fontSize: 16,
   },
-  priceInputFieldInline: {
-    width: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#34C759',
+  itemContentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  itemNameText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: '400',
+  },
+  itemNameChecked: {
+    textDecorationLine: 'line-through',
+    color: '#6E6E73',
+  },
+  itemPriceText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#34C759',
+    minWidth: 60,
     textAlign: 'right',
+  },
+  itemPricePredicted: {
+    color: '#8E8E93',
+    fontWeight: '400',
+  },
+  itemPriceChecked: {
+    color: '#6E6E73',
   },
   itemPriceCompact: {
     fontSize: 14,
