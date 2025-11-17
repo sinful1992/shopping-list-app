@@ -18,8 +18,16 @@ import { REVENUECAT_ANDROID_API_KEY } from '@env';
  */
 class PaymentService {
   private initialized = false;
-  private readonly API_KEY = REVENUECAT_ANDROID_API_KEY || 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw'; // Fallback to test key for development
   private readonly ENTITLEMENT_ID = 'Family shopping list pro';
+
+  /**
+   * Get the API key from environment variable
+   */
+  private getApiKey(): string {
+    const apiKey = REVENUECAT_ANDROID_API_KEY;
+    console.log(`🔑 RevenueCat API Key from env: ${apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET'}`);
+    return apiKey || 'test_lHnyYxixgAVAQJvtsrSJvEdVzaw';
+  }
 
   /**
    * Initialize RevenueCat SDK with Paywalls support
@@ -29,8 +37,9 @@ class PaymentService {
     if (this.initialized) return;
 
     try {
+      const apiKey = this.getApiKey();
       // Log which API key is being used (first 10 chars only for security)
-      console.log(`🔑 RevenueCat API Key: ${this.API_KEY.substring(0, 10)}...`);
+      console.log(`🔑 Using RevenueCat API Key: ${apiKey.substring(0, 10)}...`);
 
       // Enable debug logs in development
       if (__DEV__) {
@@ -39,7 +48,7 @@ class PaymentService {
 
       // Configure RevenueCat with your API key
       await Purchases.configure({
-        apiKey: this.API_KEY,
+        apiKey: apiKey,
       });
 
       // Set user ID for RevenueCat
