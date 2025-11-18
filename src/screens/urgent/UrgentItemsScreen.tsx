@@ -106,7 +106,7 @@ const UrgentItemsScreen = () => {
 
       setNewItemName('');
       setShowCreateModal(false);
-      await loadUrgentItems(user.familyGroupId);
+      // WatermelonDB observer will automatically update the UI
       Alert.alert('Success', 'Urgent item created and family notified!');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -142,10 +142,8 @@ const UrgentItemsScreen = () => {
       setShowResolveModal(false);
       setSelectedItem(null);
       setResolvePrice('');
-
-      if (user.familyGroupId) {
-        await loadUrgentItems(user.familyGroupId);
-      }
+      // WatermelonDB observer will automatically update the UI
+      Alert.alert('Success', 'Urgent item marked as resolved!');
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }

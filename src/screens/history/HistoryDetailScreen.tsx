@@ -86,15 +86,26 @@ const HistoryDetailScreen = () => {
       Alert.alert('Error', 'Please enter a valid number');
       return;
     }
+
+    // Optimistic update - update UI immediately
+    setListDetails(prev => prev ? {
+      ...prev,
+      items: prev.items?.map(item =>
+        item.id === itemId ? { ...item, price } : item
+      )
+    } : prev);
+
+    setItemPrices(prev => {
+      const newPrices = { ...prev };
+      delete newPrices[itemId];
+      return newPrices;
+    });
+
     try {
       await ItemManager.updateItem(itemId, { price });
-      setItemPrices(prev => {
-        const newPrices = { ...prev };
-        delete newPrices[itemId];
-        return newPrices;
-      });
-      await loadListDetails();
     } catch (error: any) {
+      // Rollback on error
+      await loadListDetails();
       Alert.alert('Error', error.message);
     }
   };
@@ -109,15 +120,26 @@ const HistoryDetailScreen = () => {
       Alert.alert('Error', 'Item name cannot be empty');
       return;
     }
+
+    // Optimistic update - update UI immediately
+    setListDetails(prev => prev ? {
+      ...prev,
+      items: prev.items?.map(item =>
+        item.id === itemId ? { ...item, name: nameText.trim() } : item
+      )
+    } : prev);
+
+    setItemNames(prev => {
+      const newNames = { ...prev };
+      delete newNames[itemId];
+      return newNames;
+    });
+
     try {
       await ItemManager.updateItem(itemId, { name: nameText.trim() });
-      setItemNames(prev => {
-        const newNames = { ...prev };
-        delete newNames[itemId];
-        return newNames;
-      });
-      await loadListDetails();
     } catch (error: any) {
+      // Rollback on error
+      await loadListDetails();
       Alert.alert('Error', error.message);
     }
   };

@@ -118,17 +118,16 @@ const SettingsScreen = () => {
 
   const loadFamilyMembers = async (memberIds: string[]): Promise<User[]> => {
     try {
-      const members: User[] = [];
+      if (memberIds.length === 0) return [];
 
-      for (const memberId of memberIds) {
-        const userSnapshot = await database().ref(`/users/${memberId}`).once('value');
-        const userData = userSnapshot.val();
-        if (userData) {
-          members.push(userData);
-        }
-      }
+      // Parallel fetch all users instead of sequential N+1 queries
+      const snapshots = await Promise.all(
+        memberIds.map(id => database().ref(`/users/${id}`).once('value'))
+      );
 
-      return members;
+      return snapshots
+        .map(snap => snap.val())
+        .filter(Boolean);
     } catch (error: any) {
       throw new Error(`Failed to load family members: ${error.message}`);
     }
@@ -169,7 +168,7 @@ const SettingsScreen = () => {
       setShowEditNameModal(false);
 
       Alert.alert('Success', 'Name updated successfully');
-      await loadSettingsData();
+      // No reload needed - local state already updated
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -202,7 +201,7 @@ const SettingsScreen = () => {
       setShowRoleModal(false);
 
       Alert.alert('Success', 'Role updated successfully');
-      await loadSettingsData();
+      // No reload needed - local state already updated
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }

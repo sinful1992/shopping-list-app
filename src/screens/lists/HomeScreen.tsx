@@ -149,17 +149,10 @@ const HomeScreen = () => {
     setCreating(true);
 
     try {
-      const newList = await ShoppingListManager.createList(listName, user.uid, user.familyGroupId, user);
-
-      // Add to UI immediately (optimistic update)
-      setLists(prevLists => [newList, ...prevLists]);
-
-      // Reload in background to ensure sync
-      loadLists();
+      await ShoppingListManager.createList(listName, user.uid, user.familyGroupId, user);
+      // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
       Alert.alert('Error', error.message);
-      // Reload on error to show accurate state
-      await loadLists();
     } finally {
       setCreating(false);
     }
@@ -177,7 +170,7 @@ const HomeScreen = () => {
           onPress: async () => {
             try {
               await ShoppingListManager.deleteList(listId);
-              await loadLists();
+              // WatermelonDB observer will automatically update the UI
             } catch (error: any) {
               Alert.alert('Error', error.message);
             }
@@ -236,21 +229,24 @@ const HomeScreen = () => {
 
       // Step 4: Create items from OCR lineItems (if OCR succeeded)
       if (ocrResult.success && ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {
-        for (const lineItem of ocrResult.receiptData.lineItems) {
-          await ItemManager.addItem(
-            newList.id,
-            lineItem.description,
-            user.uid,
-            lineItem.quantity?.toString() || undefined,
-            lineItem.price || undefined
-          );
-          // Mark item as checked since this is a completed receipt
-          const items = await ItemManager.getItemsForList(newList.id);
-          const lastItem = items[items.length - 1];
-          if (lastItem) {
-            await ItemManager.updateItem(lastItem.id, { checked: true });
-          }
-        }
+        // Use batch operation for better performance (90 ops → 2 ops for 30 items!)
+        const itemsData = ocrResult.receiptData.lineItems.map(lineItem => ({
+          name: lineItem.description,
+          quantity: lineItem.quantity?.toString() || undefined,
+          price: lineItem.price || undefined,
+          // Items are already checked since this is a completed receipt
+        }));
+
+        await ItemManager.addItemsBatch(newList.id, itemsData, user.uid);
+
+        // Mark all items as checked in a single batch update
+        const items = await ItemManager.getItemsForList(newList.id);
+        await ItemManager.updateItemsBatch(
+          items.map(item => ({
+            id: item.id,
+            updates: { checked: true }
+          }))
+        );
 
         // Step 5: Mark list as completed
         await ShoppingListManager.markListAsCompleted(newList.id);
