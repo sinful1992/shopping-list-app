@@ -14,6 +14,7 @@ import {
 import { Item } from '../models/types';
 import CategoryPicker from './CategoryPicker';
 import { CategoryType } from '../services/CategoryService';
+import PriceHistoryModal from './PriceHistoryModal';
 
 interface ItemEditModalProps {
   visible: boolean;
@@ -33,6 +34,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
+  const [priceHistoryVisible, setPriceHistoryVisible] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -147,6 +149,15 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
               selectedCategory={category}
               onSelectCategory={setCategory}
             />
+
+            {/* Price History Button */}
+            <TouchableOpacity
+              style={styles.priceHistoryButton}
+              onPress={() => setPriceHistoryVisible(true)}
+            >
+              <Text style={styles.priceHistoryIcon}>📊</Text>
+              <Text style={styles.priceHistoryText}>View Price History</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           <View style={styles.footer}>
@@ -174,6 +185,13 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
             </View>
           </View>
         </View>
+
+        {/* Price History Modal */}
+        <PriceHistoryModal
+          visible={priceHistoryVisible}
+          itemName={item?.name || ''}
+          onClose={() => setPriceHistoryVisible(false)}
+        />
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -287,6 +305,27 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  priceHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    marginTop: 8,
+    gap: 8,
+  },
+  priceHistoryIcon: {
+    fontSize: 18,
+  },
+  priceHistoryText: {
+    color: '#007AFF',
     fontSize: 16,
     fontWeight: '600',
   },
