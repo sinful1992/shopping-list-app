@@ -14,6 +14,12 @@ class ItemManager {
    * Implements Req 3.1, 3.2
    */
   async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number): Promise<Item> {
+    // Get current items to determine next sort order
+    const existingItems = await LocalStorageManager.getItemsForList(listId);
+    const maxSortOrder = existingItems.reduce((max, item) => {
+      return Math.max(max, item.sortOrder || 0);
+    }, 0);
+
     const item: Item = {
       id: uuidv4(),
       listId,
@@ -25,6 +31,7 @@ class ItemManager {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       syncStatus: 'pending',
+      sortOrder: maxSortOrder + 1,
     };
 
     // Save locally first (offline-first)
@@ -167,6 +174,22 @@ class ItemManager {
   subscribeToItemChanges(listId: string, callback: (items: Item[]) => void): Unsubscribe {
     // Use WatermelonDB observers for true real-time updates (no polling!)
     return LocalStorageManager.observeItemsForList(listId, callback);
+  }
+
+  /**
+   * Reorder items in a list
+   * Updates sortOrder for all items based on new positions
+   * Implements Sprint 7: Drag-and-drop reordering
+   */
+  async reorderItems(items: Item[]): Promise<void> {
+    // Update sort order for all items based on array position
+    const updates = items.map((item, index) => ({
+      id: item.id,
+      updates: { sortOrder: index },
+    }));
+
+    // Batch update all items
+    await this.updateItemsBatch(updates);
   }
 }
 
