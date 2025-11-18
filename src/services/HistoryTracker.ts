@@ -6,6 +6,7 @@ import {
 import LocalStorageManager from './LocalStorageManager';
 import ItemManager from './ItemManager';
 import ImageStorageManager from './ImageStorageManager';
+import SearchService from './SearchService';
 
 /**
  * HistoryTracker
@@ -65,6 +66,7 @@ class HistoryTracker {
   /**
    * Search lists by name
    * Implements Req 8.7
+   * @deprecated Use searchLists() for enhanced search
    */
   async searchListsByName(
     familyGroupId: string,
@@ -81,6 +83,21 @@ class HistoryTracker {
       return allLists.filter((list) =>
         list.name.toLowerCase().includes(query)
       );
+    } catch (error: any) {
+      throw new Error(`Failed to search lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Enhanced search across list names, item names, and store names
+   * Implements Sprint 7: Enhanced search functionality
+   */
+  async searchLists(
+    familyGroupId: string,
+    searchQuery: string
+  ): Promise<ShoppingList[]> {
+    try {
+      return await SearchService.searchCompletedLists(familyGroupId, searchQuery);
     } catch (error: any) {
       throw new Error(`Failed to search lists: ${error.message}`);
     }

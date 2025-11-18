@@ -29,6 +29,7 @@ const HistoryScreen = () => {
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [receiptFilter, setReceiptFilter] = useState<'all' | 'with' | 'without'>('all');
 
   // Pagination
@@ -40,11 +41,20 @@ const HistoryScreen = () => {
     loadUser();
   }, []);
 
+  // Debounce search query (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     if (user) {
       loadHistory(true);
     }
-  }, [user, searchQuery, receiptFilter]);
+  }, [user, debouncedSearchQuery, receiptFilter]);
 
   const loadUser = async () => {
     try {
@@ -69,11 +79,11 @@ const HistoryScreen = () => {
       // Apply filters and search
       let filteredLists: ShoppingList[];
 
-      if (searchQuery.trim()) {
-        // Search by name
-        filteredLists = await HistoryTracker.searchListsByName(
+      if (debouncedSearchQuery.trim()) {
+        // Enhanced search: list names, item names, store names
+        filteredLists = await HistoryTracker.searchLists(
           user.familyGroupId,
-          searchQuery
+          debouncedSearchQuery
         );
       } else if (receiptFilter === 'with') {
         // Filter by receipt status
