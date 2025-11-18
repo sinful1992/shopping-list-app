@@ -31,6 +31,7 @@ const HistoryScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [receiptFilter, setReceiptFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [activeTab, setActiveTab] = useState<'recent' | 'archived'>('recent');
 
   // Pagination
   const [offset, setOffset] = useState(0);
@@ -40,6 +41,13 @@ const HistoryScreen = () => {
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Auto-archive old lists on mount
+  useEffect(() => {
+    if (user?.familyGroupId) {
+      autoArchiveOldLists();
+    }
+  }, [user?.familyGroupId]);
 
   // Debounce search query (300ms)
   useEffect(() => {
@@ -54,7 +62,20 @@ const HistoryScreen = () => {
     if (user) {
       loadHistory(true);
     }
-  }, [user, debouncedSearchQuery, receiptFilter]);
+  }, [user, debouncedSearchQuery, receiptFilter, activeTab]);
+
+  const autoArchiveOldLists = async () => {
+    if (!user?.familyGroupId) return;
+
+    try {
+      const archivedCount = await HistoryTracker.autoArchiveOldLists(user.familyGroupId);
+      if (archivedCount > 0) {
+        console.log(`Auto-archived ${archivedCount} old lists`);
+      }
+    } catch (error) {
+      console.error('Auto-archive failed:', error);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -85,20 +106,23 @@ const HistoryScreen = () => {
           user.familyGroupId,
           debouncedSearchQuery
         );
-      } else if (receiptFilter === 'with') {
-        // Filter by receipt status
-        filteredLists = await HistoryTracker.getListsByReceiptStatus(
-          user.familyGroupId,
-          true
+        // Filter by archive status
+        filteredLists = filteredLists.filter(list =>
+          activeTab === 'archived' ? list.archived : !list.archived
         );
-      } else if (receiptFilter === 'without') {
-        filteredLists = await HistoryTracker.getListsByReceiptStatus(
-          user.familyGroupId,
-          false
-        );
+      } else if (activeTab === 'archived') {
+        // Get archived lists
+        filteredLists = await HistoryTracker.getArchivedLists(user.familyGroupId);
       } else {
-        // Get all completed lists
-        filteredLists = await HistoryTracker.getCompletedLists(user.familyGroupId);
+        // Get non-archived lists
+        filteredLists = await HistoryTracker.getNonArchivedLists(user.familyGroupId);
+
+        // Apply receipt filter if needed
+        if (receiptFilter === 'with') {
+          filteredLists = filteredLists.filter(list => list.receiptUrl !== null);
+        } else if (receiptFilter === 'without') {
+          filteredLists = filteredLists.filter(list => list.receiptUrl === null);
+        }
       }
 
       // Paginate
@@ -193,19 +217,41 @@ const HistoryScreen = () => {
 
   return (
     <View style={styles.container}>
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'recent' && styles.tabActive]}
+          onPress={() => setActiveTab('recent')}
+        >
+          <Text style={[styles.tabText, activeTab === 'recent' && styles.tabTextActive]}>
+            Recent
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'archived' && styles.tabActive]}
+          onPress={() => setActiveTab('archived')}
+        >
+          <Text style={[styles.tabText, activeTab === 'archived' && styles.tabTextActive]}>
+            Archived
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by list name..."
+          placeholder={activeTab === 'archived' ? "Search archived lists..." : "Search by list name, store, or item..."}
+          placeholderTextColor="#6E6E73"
           value={searchQuery}
           onChangeText={handleSearchChange}
           autoCapitalize="none"
         />
       </View>
 
-      {/* Receipt Filter */}
-      <View style={styles.filterContainer}>
+      {/* Receipt Filter - Only show on Recent tab */}
+      {activeTab === 'recent' && (
+        <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[
             styles.filterButton,
@@ -254,7 +300,8 @@ const HistoryScreen = () => {
             No Receipt
           </Text>
         </TouchableOpacity>
-      </View>
+        </View>
+      )}
 
       {/* List */}
       {lists.length === 0 ? (
@@ -294,6 +341,30 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: '#a0a0a0',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6E6E73',
+  },
+  tabTextActive: {
+    color: '#007AFF',
   },
   searchContainer: {
     padding: 15,

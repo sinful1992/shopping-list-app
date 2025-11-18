@@ -7,6 +7,7 @@ import LocalStorageManager from './LocalStorageManager';
 import ItemManager from './ItemManager';
 import ImageStorageManager from './ImageStorageManager';
 import SearchService from './SearchService';
+import ArchiveService from './ArchiveService';
 
 /**
  * HistoryTracker
@@ -100,6 +101,42 @@ class HistoryTracker {
       return await SearchService.searchCompletedLists(familyGroupId, searchQuery);
     } catch (error: any) {
       throw new Error(`Failed to search lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get non-archived completed lists
+   * Implements Sprint 7: Archive functionality
+   */
+  async getNonArchivedLists(familyGroupId: string): Promise<ShoppingList[]> {
+    try {
+      return await ArchiveService.getNonArchivedLists(familyGroupId);
+    } catch (error: any) {
+      throw new Error(`Failed to get non-archived lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get archived lists
+   * Implements Sprint 7: Archive functionality
+   */
+  async getArchivedLists(familyGroupId: string): Promise<ShoppingList[]> {
+    try {
+      return await ArchiveService.getArchivedLists(familyGroupId);
+    } catch (error: any) {
+      throw new Error(`Failed to get archived lists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Auto-archive old lists (90+ days)
+   * Implements Sprint 7: Archive functionality
+   */
+  async autoArchiveOldLists(familyGroupId: string): Promise<number> {
+    try {
+      return await ArchiveService.autoArchiveOldLists(familyGroupId);
+    } catch (error: any) {
+      throw new Error(`Failed to auto-archive lists: ${error.message}`);
     }
   }
 
