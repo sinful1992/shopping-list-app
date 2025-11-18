@@ -20,6 +20,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ItemEditModal from '../../components/ItemEditModal';
+import { FloatingActionButton } from '../../components/FloatingActionButton';
 
 /**
  * ListDetailScreen
@@ -359,43 +360,6 @@ const ListDetailScreen = () => {
     setEditModalVisible(true);
   };
 
-  const handleItemLongPress = (item: Item) => {
-    if (isListLocked) return;
-
-    // Android - show alert dialog with options
-    Alert.alert(
-      item.name,
-      'Choose an action',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Edit',
-          onPress: () => {
-            setSelectedItem(item);
-            setEditModalVisible(true);
-          },
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Delete Item',
-              `Are you sure you want to delete "${item.name}"?`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: () => handleDeleteItem(item.id),
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
-  };
 
   const handleEditListName = () => {
     setEditedListName(listName);
@@ -558,8 +522,6 @@ const ListDetailScreen = () => {
         <TouchableOpacity
           style={styles.itemContentTouchable}
           onPress={() => handleItemTap(item)}
-          onLongPress={() => handleItemLongPress(item)}
-          delayLongPress={500}
           disabled={isListLocked}
           activeOpacity={0.7}
         >
@@ -806,18 +768,28 @@ const ListDetailScreen = () => {
         }
       />
 
-      <View style={styles.buttonContainer}>
-        {!isShoppingMode && !isListLocked && !isListCompleted && (
-          <TouchableOpacity style={styles.startShoppingButton} onPress={handleStartShopping}>
-            <Text style={styles.startShoppingButtonText}>🛒 Start Shopping</Text>
+      {/* Secondary action - Take Receipt Photo (simple button) */}
+      {!isListCompleted && (
+        <View style={styles.secondaryActionContainer}>
+          <TouchableOpacity
+            style={[styles.secondaryButton, isListLocked && styles.secondaryButtonDisabled]}
+            onPress={handleTakeReceiptPhoto}
+            disabled={isListLocked}
+          >
+            <Text style={styles.secondaryButtonText}>📷 Attach Photo</Text>
           </TouchableOpacity>
-        )}
-        {!isListCompleted && (
-          <TouchableOpacity style={styles.receiptButton} onPress={handleTakeReceiptPhoto} disabled={isListLocked}>
-            <Text style={styles.receiptButtonText}>📷 Take Receipt Photo</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
+
+      {/* Primary action - Start Shopping (FAB) */}
+      {!isShoppingMode && !isListLocked && !isListCompleted && (
+        <FloatingActionButton
+          icon="cart"
+          onPress={handleStartShopping}
+          backgroundColor="#34C759"
+          size={64}
+        />
+      )}
 
       <ItemEditModal
         visible={editModalVisible}
@@ -1060,27 +1032,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#a0a0a0',
   },
-  buttonContainer: {
-    padding: 10,
+  // Secondary action button (small, minimal)
+  secondaryActionContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingBottom: 90, // Extra padding to avoid FAB overlap
   },
-  receiptButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    padding: 16,
-    marginBottom: 10,
-    borderRadius: 16,
+  secondaryButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 12,
+    borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
-  receiptButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  secondaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
   importButton: {
     backgroundColor: 'rgba(0, 122, 255, 0.8)',
@@ -1338,25 +1310,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '700',
-  },
-  startShoppingButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    padding: 16,
-    marginBottom: 10,
-    borderRadius: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  startShoppingButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
   completedBanner: {
     backgroundColor: 'rgba(52, 199, 89, 0.8)',
