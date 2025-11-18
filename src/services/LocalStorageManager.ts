@@ -61,6 +61,8 @@ class LocalStorageManager {
             record.lockedByRole = list.lockedByRole;
             record.lockedAt = list.lockedAt;
             record.budget = list.budget;
+            record.storeName = list.storeName || null;
+            record.archived = list.archived || null;
           });
         } catch {
           // Create new
@@ -82,6 +84,8 @@ class LocalStorageManager {
             record.lockedByRole = list.lockedByRole;
             record.lockedAt = list.lockedAt;
             record.budget = list.budget;
+            record.storeName = list.storeName || null;
+            record.archived = list.archived || null;
           });
         }
       });
@@ -201,6 +205,8 @@ class LocalStorageManager {
           if (updates.lockedByRole !== undefined) record.lockedByRole = updates.lockedByRole;
           if (updates.lockedAt !== undefined) record.lockedAt = updates.lockedAt;
           if (updates.budget !== undefined) record.budget = updates.budget;
+          if (updates.storeName !== undefined) record.storeName = updates.storeName;
+          if (updates.archived !== undefined) record.archived = updates.archived;
         });
       });
 
@@ -249,6 +255,7 @@ class LocalStorageManager {
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
             record.category = item.category || null;
+            record.sortOrder = item.sortOrder || null;
           });
         } catch {
           // Create new
@@ -264,6 +271,7 @@ class LocalStorageManager {
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
             record.category = item.category || null;
+            record.sortOrder = item.sortOrder || null;
           });
         }
       });
@@ -323,6 +331,7 @@ class LocalStorageManager {
           if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
           if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
           if (updates.category !== undefined) record.category = updates.category;
+          if (updates.sortOrder !== undefined) record.sortOrder = updates.sortOrder;
         });
       });
 
@@ -368,6 +377,7 @@ class LocalStorageManager {
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
             record.category = item.category || null;
+            record.sortOrder = item.sortOrder || null;
           });
         }
       });
@@ -829,6 +839,8 @@ class LocalStorageManager {
       lockedByRole: model.lockedByRole as 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter' | null,
       lockedAt: model.lockedAt,
       budget: model.budget,
+      storeName: model.storeName,
+      archived: model.archived,
     };
   }
 
@@ -845,6 +857,7 @@ class LocalStorageManager {
       updatedAt: model.updatedAt,
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
       category: model.category,
+      sortOrder: model.sortOrder,
     };
   }
 

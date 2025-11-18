@@ -107,6 +107,14 @@ class ShoppingListManager {
   }
 
   /**
+   * Update list store name
+   * Implements Sprint 6: Store tracking
+   */
+  async updateListStoreName(listId: string, storeName: string): Promise<ShoppingList> {
+    return this.updateList(listId, { storeName });
+  }
+
+  /**
    * Mark list as completed
    * Implements Req 2.7
    */

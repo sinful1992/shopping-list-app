@@ -174,6 +174,7 @@ const HistoryDetailScreen = () => {
             month: '2-digit',
             year: 'numeric',
           })}
+          {list.storeName && ` / ${list.storeName}`}
         </Text>
         {receiptData?.totalAmount !== null && receiptData?.totalAmount !== undefined && (
           <Text style={styles.totalAmount}>

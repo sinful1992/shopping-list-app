@@ -146,6 +146,8 @@ const HistoryScreen = () => {
       year: 'numeric',
     });
 
+    const dateWithStore = item.storeName ? `${date} / ${item.storeName}` : date;
+
     const total = item.receiptData?.totalAmount
       ? `${item.receiptData.currency || '£'}${item.receiptData.totalAmount.toFixed(2)}`
       : 'No total';
@@ -155,7 +157,7 @@ const HistoryScreen = () => {
         style={styles.listItem}
         onPress={() => handleListPress(item.id)}
       >
-        <Text style={styles.listDate}>{date}</Text>
+        <Text style={styles.listDate}>{dateWithStore}</Text>
         <Text style={styles.listTotal}>Total: {total}</Text>
       </TouchableOpacity>
     );

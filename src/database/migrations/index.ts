@@ -18,5 +18,24 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 7 to 8: Add store name, archive, and sort order
+    {
+      toVersion: 8,
+      steps: [
+        addColumns({
+          table: 'shopping_lists',
+          columns: [
+            { name: 'store_name', type: 'string', isOptional: true, isIndexed: true },
+            { name: 'archived', type: 'boolean', isOptional: true, isIndexed: true },
+          ],
+        }),
+        addColumns({
+          table: 'items',
+          columns: [
+            { name: 'sort_order', type: 'number', isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

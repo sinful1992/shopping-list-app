@@ -20,4 +20,6 @@ export class ShoppingListModel extends Model {
   @field('locked_by_role') lockedByRole!: string | null;
   @field('locked_at') lockedAt!: number | null;
   @field('budget') budget!: number | null;
+  @field('store_name') storeName!: string | null;
+  @field('archived') archived!: boolean | null;
 }

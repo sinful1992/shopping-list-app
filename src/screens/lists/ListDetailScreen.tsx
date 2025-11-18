@@ -21,7 +21,9 @@ import LocalStorageManager from '../../services/LocalStorageManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
 import CategoryService from '../../services/CategoryService';
+import StoreHistoryService from '../../services/StoreHistoryService';
 import ItemEditModal from '../../components/ItemEditModal';
+import StoreNamePicker from '../../components/StoreNamePicker';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 
 /**
@@ -49,6 +51,9 @@ const ListDetailScreen = () => {
   // Edit modal state
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+
+  // Store picker modal state
+  const [storePickerVisible, setStorePickerVisible] = useState(false);
 
   // Shopping mode UI state
   const [runningTotal, setRunningTotal] = useState(0);
@@ -363,85 +368,40 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleImportReceiptItems = async () => {
-    try {
-      const receiptData = await LocalStorageManager.getReceiptData(listId);
-      if (!receiptData || !receiptData.lineItems || receiptData.lineItems.length === 0) {
-        Alert.alert('No Items', 'No receipt items found to import');
-        return;
-      }
-
-      // Get existing items to check for duplicates
-      const existingItems = await ItemManager.getItemsForList(listId);
-      const existingNames = new Set(existingItems.map(i => i.name.toLowerCase().trim()));
-
-      // Filter out duplicates
-      const newItems = receiptData.lineItems.filter(
-        lineItem => !existingNames.has(lineItem.description.toLowerCase().trim())
-      );
-
-      if (newItems.length === 0) {
-        Alert.alert('No New Items', 'All receipt items already exist in the list');
-        return;
-      }
-
-      const duplicateCount = receiptData.lineItems.length - newItems.length;
-      const message = duplicateCount > 0
-        ? `Import ${newItems.length} new items?\n(${duplicateCount} duplicates skipped)`
-        : `Import ${newItems.length} items from receipt?`;
-
-      Alert.alert(
-        'Import Items',
-        message,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Import',
-            onPress: async () => {
-              const user = await AuthenticationModule.getCurrentUser();
-              if (!user) return;
-
-              try {
-                // Use batch import for better performance
-                const itemsData = newItems.map(lineItem => ({
-                  name: lineItem.description,
-                  quantity: lineItem.quantity?.toString() || undefined,
-                  price: lineItem.price || undefined,
-                }));
-
-                await ItemManager.addItemsBatch(listId, itemsData, user.uid);
-
-                // WatermelonDB observer will automatically update the UI
-                Alert.alert('Success', `Imported ${newItems.length} items successfully!`);
-              } catch (error: any) {
-                Alert.alert('Error', error.message);
-              }
-            },
-          },
-        ]
-      );
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
-  };
-
   const handleTakeReceiptPhoto = () => {
     navigation.navigate('ReceiptCamera' as never, { listId } as never);
   };
 
-  const handleStartShopping = async () => {
+  const handleStartShopping = () => {
+    // Show store picker modal
+    setStorePickerVisible(true);
+  };
+
+  const handleStoreSelected = async (storeName: string) => {
     if (!currentUserId) return;
 
     try {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) return;
 
+      // Add store to history if provided
+      if (storeName) {
+        await StoreHistoryService.addStore(storeName);
+      }
+
+      // Update list with store name
+      if (storeName) {
+        await ShoppingListManager.updateListStoreName(listId, storeName);
+      }
+
+      // Lock list for shopping
       await ShoppingListManager.lockListForShopping(
         listId,
         currentUserId,
         user.displayName,
         user.role || null
       );
+
       setIsShoppingMode(true);
       setIsListLocked(false); // Not locked for current user
       // WatermelonDB observer will automatically update the list state
@@ -764,12 +724,6 @@ const ListDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {list?.receiptData?.lineItems && list.receiptData.lineItems.length > 0 && (
-        <TouchableOpacity style={styles.importButton} onPress={handleImportReceiptItems}>
-          <Text style={styles.importButtonText}>📋 Import Receipt Items</Text>
-        </TouchableOpacity>
-      )}
-
       <FlatList
         data={groupedItems}
         keyExtractor={(row, index) => {
@@ -841,6 +795,13 @@ const ListDetailScreen = () => {
         }}
         onSave={handleUpdateItem}
         onDelete={handleDeleteItem}
+      />
+
+      <StoreNamePicker
+        visible={storePickerVisible}
+        onClose={() => setStorePickerVisible(false)}
+        onSelect={handleStoreSelected}
+        initialValue={list?.storeName || ''}
       />
     </View>
   );

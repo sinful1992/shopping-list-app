@@ -66,6 +66,8 @@ export interface ShoppingList {
   lockedByRole: FamilyRole | null;
   lockedAt: number | null;
   budget: number | null; // Optional budget limit for shopping mode
+  storeName?: string | null; // Sprint 6: Store tracking
+  archived?: boolean | null; // Sprint 7: Archive functionality
 }
 
 export interface Item {
@@ -80,6 +82,7 @@ export interface Item {
   updatedAt: number;
   syncStatus: SyncStatus;
   category?: string | null; // Sprint 6: Category organization
+  sortOrder?: number | null; // Sprint 6: Drag-and-drop reordering
 }
 
 // Receipt Types
