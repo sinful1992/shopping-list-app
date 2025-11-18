@@ -309,7 +309,7 @@ const HomeScreen = () => {
         </View>
         <Text style={[styles.listDate, isCompleted && styles.completedText]}>
           {isCompleted
-            ? `Completed ${new Date(item.completedAt || 0).toLocaleDateString()}`
+            ? `Completed ${new Date(item.completedAt || 0).toLocaleDateString()}${item.storeName ? ` / ${item.storeName}` : ''}`
             : `Created ${new Date(item.createdAt).toLocaleDateString()}`}
         </Text>
       </TouchableOpacity>

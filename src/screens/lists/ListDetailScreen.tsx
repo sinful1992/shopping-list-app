@@ -748,6 +748,7 @@ const ListDetailScreen = () => {
         maxToRenderPerBatch={15}
         initialNumToRender={25}
         windowSize={21}
+        contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -761,20 +762,21 @@ const ListDetailScreen = () => {
             <Text style={styles.emptyText}>No items yet</Text>
           </View>
         }
+        ListFooterComponent={
+          !isListCompleted ? (
+            <View style={styles.listFooter}>
+              <TouchableOpacity
+                style={[styles.attachPhotoButton, isListLocked && styles.attachPhotoButtonDisabled]}
+                onPress={handleTakeReceiptPhoto}
+                disabled={isListLocked}
+              >
+                <Text style={styles.attachPhotoIcon}>📷</Text>
+                <Text style={styles.attachPhotoText}>Attach Receipt Photo</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
-
-      {/* Secondary action - Take Receipt Photo (simple button) */}
-      {!isListCompleted && (
-        <View style={styles.secondaryActionContainer}>
-          <TouchableOpacity
-            style={[styles.secondaryButton, isListLocked && styles.secondaryButtonDisabled]}
-            onPress={handleTakeReceiptPhoto}
-            disabled={isListLocked}
-          >
-            <Text style={styles.secondaryButtonText}>📷 Attach Photo</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Primary action - Start Shopping (FAB) */}
       {!isShoppingMode && !isListLocked && !isListCompleted && (
@@ -1056,27 +1058,37 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  // Secondary action button (small, minimal)
-  secondaryActionContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    paddingBottom: 90, // Extra padding to avoid FAB overlap
+  // FlatList content padding
+  flatListContent: {
+    paddingBottom: 100, // Space for FAB
   },
-  secondaryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 12,
-    borderRadius: 12,
+  // List footer with attach photo button
+  listFooter: {
+    paddingHorizontal: 10,
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  attachPhotoButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    gap: 10,
   },
-  secondaryButtonDisabled: {
+  attachPhotoButtonDisabled: {
     opacity: 0.5,
   },
-  secondaryButtonText: {
+  attachPhotoIcon: {
+    fontSize: 20,
+  },
+  attachPhotoText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
   importButton: {
     backgroundColor: 'rgba(0, 122, 255, 0.8)',
