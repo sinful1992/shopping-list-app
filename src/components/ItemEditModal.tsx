@@ -9,14 +9,17 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Item } from '../models/types';
+import CategoryPicker from './CategoryPicker';
+import { CategoryType } from '../services/CategoryService';
 
 interface ItemEditModalProps {
   visible: boolean;
   item: Item | null;
   onClose: () => void;
-  onSave: (itemId: string, updates: { name?: string; price?: number | null }) => Promise<void>;
+  onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
   onDelete: (itemId: string) => Promise<void>;
 }
 
@@ -29,11 +32,13 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [category, setCategory] = useState<CategoryType | null>(null);
 
   useEffect(() => {
     if (item) {
       setName(item.name || '');
       setPrice(item.price ? item.price.toString() : '');
+      setCategory((item.category as CategoryType) || null);
     }
   }, [item]);
 
@@ -55,6 +60,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
       await onSave(item.id, {
         name: name.trim(),
         price: priceValue,
+        category: category,
       });
       onClose();
     } catch (error: any) {
@@ -112,7 +118,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.content}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Name</Text>
               <TextInput
@@ -136,7 +142,12 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 keyboardType="numeric"
               />
             </View>
-          </View>
+
+            <CategoryPicker
+              selectedCategory={category}
+              onSelectCategory={setCategory}
+            />
+          </ScrollView>
 
           <View style={styles.footer}>
             <TouchableOpacity

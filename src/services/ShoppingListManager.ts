@@ -4,6 +4,7 @@ import { ShoppingList, Unsubscribe, User } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
+import PricePredictionService from './PricePredictionService';
 
 /**
  * ShoppingListManager
@@ -151,7 +152,7 @@ class ShoppingListManager {
    * Unlock list and mark as completed
    */
   async completeShoppingAndUnlock(listId: string, userId: string): Promise<ShoppingList> {
-    return this.updateList(listId, {
+    const updatedList = await this.updateList(listId, {
       status: 'completed',
       completedAt: Date.now(),
       completedBy: userId,
@@ -161,6 +162,13 @@ class ShoppingListManager {
       lockedByRole: null,
       lockedAt: null,
     });
+
+    // Invalidate price prediction cache since we have new historical data
+    if (updatedList.familyGroupId) {
+      PricePredictionService.invalidateCache(updatedList.familyGroupId);
+    }
+
+    return updatedList;
   }
 
   /**

@@ -19,6 +19,8 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
+import PricePredictionService from '../../services/PricePredictionService';
+import CategoryService from '../../services/CategoryService';
 import ItemEditModal from '../../components/ItemEditModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 
@@ -235,41 +237,8 @@ const ListDetailScreen = () => {
     if (!list?.familyGroupId || !itemsList) return;
 
     try {
-      // Get all completed lists for this family group
-      const allLists = await ShoppingListManager.getAllLists(list.familyGroupId);
-      const completedLists = allLists.filter(l => l.status === 'completed' && l.id !== listId);
-
-      // Collect all items from completed lists
-      const historicalItems: Item[] = [];
-      for (const completedList of completedLists) {
-        const items = await ItemManager.getItemsForList(completedList.id);
-        if (items && Array.isArray(items)) {
-          historicalItems.push(...items);
-        }
-      }
-
-      // Calculate average prices for each item name
-      const priceMap: { [key: string]: number[] } = {};
-      for (const item of historicalItems) {
-        if (item && item.name && item.price && item.price > 0) {
-          const itemName = item.name.toLowerCase();
-          if (!priceMap[itemName]) {
-            priceMap[itemName] = [];
-          }
-          priceMap[itemName].push(item.price);
-        }
-      }
-
-      // Calculate averages
-      const predictions: { [key: string]: number } = {};
-      for (const itemName in priceMap) {
-        const prices = priceMap[itemName];
-        if (prices && prices.length > 0) {
-          const average = prices.reduce((sum, price) => sum + price, 0) / prices.length;
-          predictions[itemName] = Math.round(average * 100) / 100; // Round to 2 decimal places
-        }
-      }
-
+      // Use cached price prediction service - much faster!
+      const predictions = await PricePredictionService.getPredictionsForFamilyGroup(list.familyGroupId);
       setPredictedPrices(predictions);
 
       // Recalculate stats after predictions are loaded
@@ -279,7 +248,7 @@ const ListDetailScreen = () => {
       // Don't crash - just continue without predictions
       setPredictedPrices({});
     }
-  }, [list?.familyGroupId, listId, calculateShoppingStats]);
+  }, [list?.familyGroupId, calculateShoppingStats]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -296,7 +265,7 @@ const ListDetailScreen = () => {
 
       await ItemManager.addItem(listId, newItemName.trim(), user.uid);
       setNewItemName('');
-      await loadListAndItems();
+      // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
@@ -338,16 +307,16 @@ const ListDetailScreen = () => {
   const handleDeleteItem = async (itemId: string) => {
     try {
       await ItemManager.deleteItem(itemId);
-      await loadListAndItems();
+      // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
   };
 
-  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null }) => {
+  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => {
     try {
       await ItemManager.updateItem(itemId, updates);
-      await loadListAndItems();
+      // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
       Alert.alert('Error', error.message);
       throw error;
@@ -433,18 +402,16 @@ const ListDetailScreen = () => {
               if (!user) return;
 
               try {
-                // Import each new line item
-                for (const lineItem of newItems) {
-                  await ItemManager.addItem(
-                    listId,
-                    lineItem.description,
-                    user.uid,
-                    lineItem.quantity?.toString() || undefined,
-                    lineItem.price || undefined
-                  );
-                }
+                // Use batch import for better performance
+                const itemsData = newItems.map(lineItem => ({
+                  name: lineItem.description,
+                  quantity: lineItem.quantity?.toString() || undefined,
+                  price: lineItem.price || undefined,
+                }));
 
-                await loadListAndItems();
+                await ItemManager.addItemsBatch(listId, itemsData, user.uid);
+
+                // WatermelonDB observer will automatically update the UI
                 Alert.alert('Success', `Imported ${newItems.length} items successfully!`);
               } catch (error: any) {
                 Alert.alert('Error', error.message);
@@ -477,7 +444,7 @@ const ListDetailScreen = () => {
       );
       setIsShoppingMode(true);
       setIsListLocked(false); // Not locked for current user
-      await loadListAndItems(); // Reload to get updated list
+      // WatermelonDB observer will automatically update the list state
       Alert.alert('Shopping Mode', 'You are now shopping. Other family members can only view this list.');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -490,7 +457,7 @@ const ListDetailScreen = () => {
     try {
       await ShoppingListManager.completeShoppingAndUnlock(listId, currentUserId);
       setIsShoppingMode(false);
-      await loadListAndItems(); // Reload to get updated list
+      // WatermelonDB observer will automatically update the list state
       Alert.alert('Shopping Complete!', 'Your shopping list has been completed and saved to history.');
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -550,27 +517,88 @@ const ListDetailScreen = () => {
     );
   };
 
-  // Memoize sorted items to prevent unnecessary re-sorts and maintain stable keys
-  const sortedItems = useMemo(() => {
+  // Group items by category and sort
+  const groupedItems = useMemo(() => {
     if (!items || items.length === 0) {
       return [];
     }
 
-    // Filter out any null/undefined items before sorting
+    // Filter out any null/undefined items
     const validItems = items.filter(item => item && item.id);
 
-    // Create explicit copy before sorting to prevent any mutation
-    const itemsCopy = validItems.map(item => item);
+    // Group items by checked status first, then by category
+    const unchecked = validItems.filter(item => !item.checked);
+    const checked = validItems.filter(item => item.checked);
 
-    return itemsCopy.sort((a, b) => {
-      // Primary sort: unchecked items first, checked items at bottom
-      if (a.checked !== b.checked) {
-        return a.checked ? 1 : -1;
+    // Function to group items by category
+    const groupByCategory = (itemsList: Item[]) => {
+      const grouped: { [category: string]: Item[] } = {};
+
+      itemsList.forEach(item => {
+        const category = item.category || 'Other';
+        if (!grouped[category]) {
+          grouped[category] = [];
+        }
+        grouped[category].push(item);
+      });
+
+      // Sort items within each category by creation time
+      Object.keys(grouped).forEach(cat => {
+        grouped[cat].sort((a, b) => a.createdAt - b.createdAt);
+      });
+
+      return grouped;
+    };
+
+    const uncheckedGrouped = groupByCategory(unchecked);
+    const checkedGrouped = groupByCategory(checked);
+
+    // Flatten groups in order of category sort order
+    const result: Array<{ type: 'header' | 'item'; category?: string; item?: Item }> = [];
+
+    // Add unchecked items by category
+    const categories = CategoryService.getCategories();
+    categories.forEach(cat => {
+      const catItems = uncheckedGrouped[cat.id];
+      if (catItems && catItems.length > 0) {
+        result.push({ type: 'header', category: cat.id });
+        catItems.forEach(item => result.push({ type: 'item', item }));
       }
-      // Secondary sort: by creation time (stable sort within each group)
-      // This ensures items maintain consistent positions when moving between groups
-      return a.createdAt - b.createdAt;
     });
+
+    // Add "Other" category unchecked items (items with no category or unrecognized category)
+    Object.keys(uncheckedGrouped).forEach(catKey => {
+      if (!categories.some(c => c.id === catKey)) {
+        const catItems = uncheckedGrouped[catKey];
+        if (catItems && catItems.length > 0) {
+          result.push({ type: 'header', category: 'Other' });
+          catItems.forEach(item => result.push({ type: 'item', item }));
+        }
+      }
+    });
+
+    // Add checked items (with less prominence, can optionally collapse)
+    const hasCheckedItems = Object.keys(checkedGrouped).length > 0;
+    if (hasCheckedItems) {
+      result.push({ type: 'header', category: 'Completed' });
+      categories.forEach(cat => {
+        const catItems = checkedGrouped[cat.id];
+        if (catItems && catItems.length > 0) {
+          catItems.forEach(item => result.push({ type: 'item', item }));
+        }
+      });
+      // Add checked "Other" items
+      Object.keys(checkedGrouped).forEach(catKey => {
+        if (!categories.some(c => c.id === catKey)) {
+          const catItems = checkedGrouped[catKey];
+          if (catItems && catItems.length > 0) {
+            catItems.forEach(item => result.push({ type: 'item', item }));
+          }
+        }
+      });
+    }
+
+    return result;
   }, [items]);
 
   return (
@@ -743,16 +771,29 @@ const ListDetailScreen = () => {
       )}
 
       <FlatList
-        data={sortedItems}
-        keyExtractor={(item) => {
-          // CRITICAL: Add null safety to prevent native crashes
-          if (!item || !item.id) {
-            return `fallback-${Math.random()}`; // Fallback to prevent crash
+        data={groupedItems}
+        keyExtractor={(row, index) => {
+          if (row.type === 'header') {
+            return `header-${row.category}`;
           }
-          return item.id;
+          return row.item?.id || `item-${index}`;
         }}
-        renderItem={renderItem}
-        removeClippedSubviews={false}
+        renderItem={({ item: row }) => {
+          if (row.type === 'header') {
+            const category = CategoryService.getCategory(row.category as any);
+            return (
+              <View style={styles.categoryHeader}>
+                <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
+                <Text style={styles.categoryName}>{category?.name || row.category}</Text>
+              </View>
+            );
+          }
+          return row.item ? renderItem({ item: row.item }) : null;
+        }}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={15}
+        initialNumToRender={25}
+        windowSize={21}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1031,6 +1072,28 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#a0a0a0',
+  },
+  // Category headers
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingTop: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  categoryIcon: {
+    fontSize: 18,
+  },
+  categoryName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   // Secondary action button (small, minimal)
   secondaryActionContainer: {

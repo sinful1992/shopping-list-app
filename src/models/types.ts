@@ -79,6 +79,7 @@ export interface Item {
   createdAt: number;
   updatedAt: number;
   syncStatus: SyncStatus;
+  category?: string | null; // Sprint 6: Category organization
 }
 
 // Receipt Types

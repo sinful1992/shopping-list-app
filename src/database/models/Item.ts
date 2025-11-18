@@ -13,4 +13,5 @@ export class ItemModel extends Model {
   @readonly @date('created_at') createdAt!: number;
   @field('updated_at') updatedAt!: number;
   @field('sync_status') syncStatus!: string;
+  @field('category') category!: string | null; // Sprint 6: Category organization
 }

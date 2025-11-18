@@ -2,6 +2,7 @@ import { Database, Q } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem } from '../models/types';
 import { schema } from '../database/schema';
+import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
 import { ItemModel } from '../database/models/Item';
 import { SyncQueueModel } from '../database/models/SyncQueue';
@@ -18,6 +19,7 @@ class LocalStorageManager {
   constructor() {
     const adapter = new SQLiteAdapter({
       schema,
+      migrations, // Enable schema migrations
       jsi: true, // Use JSI for better performance
       onSetUpError: (error) => {
         console.error('Database setup error:', error);
@@ -246,6 +248,7 @@ class LocalStorageManager {
             record.checked = item.checked;
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
+            record.category = item.category || null;
           });
         } catch {
           // Create new
@@ -260,6 +263,7 @@ class LocalStorageManager {
             // createdAt is @readonly and automatically set by WatermelonDB
             record.updatedAt = item.updatedAt;
             record.syncStatus = item.syncStatus;
+            record.category = item.category || null;
           });
         }
       });
@@ -318,6 +322,7 @@ class LocalStorageManager {
           if (updates.checked !== undefined) record.checked = updates.checked;
           if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
           if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+          if (updates.category !== undefined) record.category = updates.category;
         });
       });
 
@@ -339,6 +344,58 @@ class LocalStorageManager {
       });
     } catch (error: any) {
       throw new Error(`Failed to delete item: ${error.message}`);
+    }
+  }
+
+  /**
+   * Batch save multiple items (more efficient than individual saves)
+   */
+  async saveItemsBatch(items: Item[]): Promise<void> {
+    try {
+      const itemsCollection = this.database.get<ItemModel>('items');
+
+      await this.database.write(async () => {
+        for (const item of items) {
+          await itemsCollection.create((record) => {
+            record._raw.id = item.id;
+            record.listId = item.listId;
+            record.name = item.name;
+            record.quantity = item.quantity;
+            record.price = item.price;
+            record.checked = item.checked;
+            record.createdBy = item.createdBy;
+            record.createdAt = item.createdAt;
+            record.updatedAt = item.updatedAt;
+            record.syncStatus = item.syncStatus;
+            record.category = item.category || null;
+          });
+        }
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to batch save items: ${error.message}`);
+    }
+  }
+
+  /**
+   * Batch delete multiple items (more efficient than individual deletes)
+   */
+  async deleteItemsBatch(itemIds: string[]): Promise<void> {
+    try {
+      const itemsCollection = this.database.get<ItemModel>('items');
+
+      await this.database.write(async () => {
+        for (const itemId of itemIds) {
+          try {
+            const itemRecord = await itemsCollection.find(itemId);
+            await itemRecord.markAsDeleted();
+          } catch (error) {
+            // Item might not exist, continue with others
+            console.warn(`Item ${itemId} not found during batch delete`);
+          }
+        }
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to batch delete items: ${error.message}`);
     }
   }
 
@@ -787,6 +844,7 @@ class LocalStorageManager {
       createdAt: model.createdAt,
       updatedAt: model.updatedAt,
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+      category: model.category,
     };
   }
 
