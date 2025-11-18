@@ -39,6 +39,7 @@ import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
+import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -112,6 +113,16 @@ function MainTabNavigator() {
           title: 'Urgent',
           tabBarIcon: ({ color, size }) => (
             <Icon name="flame" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{
+          title: 'Analytics',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="bar-chart-outline" size={size} color={color} />
           ),
         }}
       />
