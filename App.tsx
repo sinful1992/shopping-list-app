@@ -38,6 +38,7 @@ import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
+import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -119,8 +120,18 @@ function MainTabNavigator() {
         component={BudgetScreen}
         options={{
           title: 'Budget',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size}) => (
             <Icon name="wallet-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
+        options={{
+          title: 'Pro',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="star-outline" size={size} color={color} />
           ),
         }}
       />
