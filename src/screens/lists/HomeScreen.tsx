@@ -276,11 +276,27 @@ const HomeScreen = () => {
     const isCompleted = item.status === 'completed';
     const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
+    // Format date for completed lists
+    const date = isCompleted ? new Date(item.completedAt || 0) : new Date(item.createdAt);
+    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    const day = date.getDate();
+    const year = date.getFullYear();
+    const formattedDate = `${dayOfWeek}, ${month} ${day}, ${year}`;
+
+    // Sync status indicator color
+    const syncColor = item.syncStatus === 'synced' ? '#30D158' :
+                     item.syncStatus === 'pending' ? '#FFD60A' :
+                     '#FF453A'; // failed
+
     return (
       <TouchableOpacity
         style={[styles.listCard, isCompleted && styles.completedCard]}
         onPress={() => navigation.navigate(targetScreen as never, { listId: item.id } as never)}
       >
+        {/* Sync Status Indicator - Top Right */}
+        <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
+
         <View style={styles.listHeader}>
           <View style={styles.listTitleRow}>
             <Text style={[styles.listName, isCompleted && styles.completedText]}>
@@ -294,8 +310,6 @@ const HomeScreen = () => {
               </Text>
             )}
             {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
-            {item.syncStatus === 'pending' && <Text style={styles.syncBadge}>⏱ Syncing...</Text>}
-            {item.syncStatus === 'synced' && <Text style={styles.syncedBadge}>✓ Synced</Text>}
             <TouchableOpacity
               onPress={(e) => {
                 e.stopPropagation();
@@ -307,11 +321,21 @@ const HomeScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-        <Text style={[styles.listDate, isCompleted && styles.completedText]}>
-          {isCompleted
-            ? `Completed ${new Date(item.completedAt || 0).toLocaleDateString()}${item.storeName ? ` / ${item.storeName}` : ''}`
-            : `Created ${new Date(item.createdAt).toLocaleDateString()}`}
+
+        {/* Date and Store Display */}
+        <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
+          {formattedDate}
         </Text>
+        {isCompleted && item.storeName && (
+          <Text style={[styles.storeName, isCompleted && styles.completedText]}>
+            {item.storeName}
+          </Text>
+        )}
+        {!isCompleted && (
+          <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
+            Created {date.toLocaleDateString()}
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
@@ -442,10 +466,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
+    position: 'relative',
   },
   completedCard: {
     backgroundColor: 'rgba(48, 209, 88, 0.1)',
     borderColor: 'rgba(48, 209, 88, 0.3)',
+  },
+  syncIndicator: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    zIndex: 1,
   },
   listHeader: {
     flexDirection: 'row',
@@ -480,18 +514,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#a0a0a0',
   },
+  listDateFormatted: {
+    fontSize: 15,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  storeName: {
+    fontSize: 17,
+    color: '#ffffff',
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  listDateSecondary: {
+    fontSize: 13,
+    color: '#6E6E73',
+    marginTop: 4,
+  },
   listBadges: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  syncBadge: {
-    fontSize: 12,
-    color: '#FFB340',
-  },
-  syncedBadge: {
-    fontSize: 12,
-    color: '#30D158',
   },
   shoppingBadge: {
     fontSize: 12,
