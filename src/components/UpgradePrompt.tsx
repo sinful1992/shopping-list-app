@@ -58,7 +58,7 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                   <Text style={styles.tierName}>Premium</Text>
                   <View style={styles.priceContainer}>
                     <Text style={styles.price}>
-                      ${SUBSCRIPTION_PRICES.premium.monthly}
+                      {SUBSCRIPTION_PRICES.premium.symbol}{SUBSCRIPTION_PRICES.premium.monthly}
                     </Text>
                     <Text style={styles.priceLabel}>/month</Text>
                   </View>
@@ -86,9 +86,9 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                 <Text style={styles.tierName}>Family</Text>
                 <View style={styles.priceContainer}>
                   <Text style={styles.price}>
-                    ${SUBSCRIPTION_PRICES.family.monthly}
+                    {SUBSCRIPTION_PRICES.family.symbol}{SUBSCRIPTION_PRICES.family.yearly}
                   </Text>
-                  <Text style={styles.priceLabel}>/month</Text>
+                  <Text style={styles.priceLabel}>/year</Text>
                 </View>
               </View>
               <View style={styles.featuresContainer}>

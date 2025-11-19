@@ -14,5 +14,5 @@ export class UrgentItemModel extends Model {
   @field('resolved_at') resolvedAt!: number | null;
   @field('price') price!: number | null;
   @field('status') status!: string;
-  @field('sync_status') syncStatus!: string;
+  // syncStatus is inherited from Model base class
 }

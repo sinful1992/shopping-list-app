@@ -41,7 +41,7 @@ class LocalStorageManager {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
 
-      let listRecord;
+      let listRecord: ShoppingListModel | undefined;
 
       await this.database.write(async () => {
         try {
@@ -54,7 +54,7 @@ class LocalStorageManager {
             record.completedBy = list.completedBy;
             record.receiptUrl = list.receiptUrl;
             record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            record.syncStatus = list.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
             record.isLocked = list.isLocked;
             record.lockedBy = list.lockedBy;
             record.lockedByName = list.lockedByName;
@@ -77,7 +77,7 @@ class LocalStorageManager {
             record.completedBy = list.completedBy;
             record.receiptUrl = list.receiptUrl;
             record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            record.syncStatus = list.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
             record.isLocked = list.isLocked;
             record.lockedBy = list.lockedBy;
             record.lockedByName = list.lockedByName;
@@ -89,6 +89,10 @@ class LocalStorageManager {
           });
         }
       });
+
+      if (!listRecord) {
+        throw new Error('Failed to create or update list record');
+      }
 
       return this.listModelToType(listRecord);
     } catch (error: any) {
@@ -198,7 +202,7 @@ class LocalStorageManager {
           if (updates.receiptData !== undefined) {
             record.receiptData = updates.receiptData ? JSON.stringify(updates.receiptData) : null;
           }
-          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+          // syncStatus is managed by WatermelonDB sync system
           if (updates.isLocked !== undefined) record.isLocked = updates.isLocked;
           if (updates.lockedBy !== undefined) record.lockedBy = updates.lockedBy;
           if (updates.lockedByName !== undefined) record.lockedByName = updates.lockedByName;
@@ -241,7 +245,7 @@ class LocalStorageManager {
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
 
-      let itemRecord;
+      let itemRecord: ItemModel | undefined;
 
       await this.database.write(async () => {
         try {
@@ -253,7 +257,7 @@ class LocalStorageManager {
             record.price = item.price;
             record.checked = item.checked;
             record.updatedAt = item.updatedAt;
-            record.syncStatus = item.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder || null;
           });
@@ -269,12 +273,16 @@ class LocalStorageManager {
             record.createdBy = item.createdBy;
             // createdAt is @readonly and automatically set by WatermelonDB
             record.updatedAt = item.updatedAt;
-            record.syncStatus = item.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder || null;
           });
         }
       });
+
+      if (!itemRecord) {
+        throw new Error('Failed to create or update item record');
+      }
 
       return this.itemModelToType(itemRecord);
     } catch (error: any) {
@@ -329,7 +337,7 @@ class LocalStorageManager {
           if (updates.price !== undefined) record.price = updates.price;
           if (updates.checked !== undefined) record.checked = updates.checked;
           if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
-          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+          // syncStatus is managed by WatermelonDB sync system
           if (updates.category !== undefined) record.category = updates.category;
           if (updates.sortOrder !== undefined) record.sortOrder = updates.sortOrder;
         });
@@ -375,7 +383,7 @@ class LocalStorageManager {
             record.createdBy = item.createdBy;
             record.createdAt = item.createdAt;
             record.updatedAt = item.updatedAt;
-            record.syncStatus = item.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder || null;
           });
@@ -570,7 +578,7 @@ class LocalStorageManager {
     try {
       const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
 
-      let itemRecord;
+      let itemRecord: UrgentItemModel | undefined;
 
       await this.database.write(async () => {
         try {
@@ -583,7 +591,7 @@ class LocalStorageManager {
             record.resolvedAt = urgentItem.resolvedAt;
             record.price = urgentItem.price;
             record.status = urgentItem.status;
-            record.syncStatus = urgentItem.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
           });
         } catch {
           // Create new
@@ -598,10 +606,14 @@ class LocalStorageManager {
             record.resolvedAt = urgentItem.resolvedAt;
             record.price = urgentItem.price;
             record.status = urgentItem.status;
-            record.syncStatus = urgentItem.syncStatus;
+            // syncStatus is managed by WatermelonDB sync system
           });
         }
       });
+
+      if (!itemRecord) {
+        throw new Error('Failed to create or update urgent item record');
+      }
 
       return this.urgentItemModelToType(itemRecord);
     } catch (error: any) {
@@ -708,7 +720,7 @@ class LocalStorageManager {
           if (updates.resolvedAt !== undefined) record.resolvedAt = updates.resolvedAt;
           if (updates.price !== undefined) record.price = updates.price;
           if (updates.status !== undefined) record.status = updates.status;
-          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
+          // syncStatus is managed by WatermelonDB sync system
         });
       });
 
@@ -884,20 +896,18 @@ class LocalStorageManager {
    */
   async clearAllData(): Promise<void> {
     try {
-      const database = await this.getDatabase();
-
-      await database.write(async () => {
+      await this.database.write(async () => {
         // Delete all shopping lists
-        const lists = await database.collections.get('shopping_lists').query().fetch();
-        await Promise.all(lists.map(list => list.markAsDeleted()));
+        const lists = await this.database.collections.get('shopping_lists').query().fetch();
+        await Promise.all(lists.map((list: ShoppingListModel) => list.markAsDeleted()));
 
         // Delete all items
-        const items = await database.collections.get('items').query().fetch();
-        await Promise.all(items.map(item => item.markAsDeleted()));
+        const items = await this.database.collections.get('items').query().fetch();
+        await Promise.all(items.map((item: ItemModel) => item.markAsDeleted()));
 
         // Delete all sync queue entries
-        const syncQueue = await database.collections.get('sync_queue').query().fetch();
-        await Promise.all(syncQueue.map(entry => entry.markAsDeleted()));
+        const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
+        await Promise.all(syncQueue.map((entry: SyncQueueModel) => entry.markAsDeleted()));
       });
 
       console.log('All local WatermelonDB data cleared successfully');
