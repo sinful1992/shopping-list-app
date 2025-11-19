@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
@@ -23,6 +24,7 @@ const AnalyticsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [timePeriod, setTimePeriod] = useState<30 | 90 | 365>(30);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadAnalytics();
@@ -30,10 +32,15 @@ const AnalyticsScreen = () => {
 
   const loadAnalytics = async () => {
     setLoading(true);
+    setError(null);
 
     try {
       const user = await AuthenticationModule.getCurrentUser();
-      if (!user?.familyGroupId) return;
+      if (!user?.familyGroupId) {
+        setError('No family group found');
+        setLoading(false);
+        return;
+      }
 
       const data = await AnalyticsService.getAnalyticsSummary(
         user.familyGroupId,
@@ -41,8 +48,10 @@ const AnalyticsScreen = () => {
       );
 
       setAnalytics(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load analytics:', error);
+      setError(error?.message || 'Failed to load analytics');
+      Alert.alert('Error', error?.message || 'Failed to load analytics');
     } finally {
       setLoading(false);
     }
@@ -101,6 +110,19 @@ const AnalyticsScreen = () => {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading analytics...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyIcon}>⚠️</Text>
+        <Text style={styles.emptyText}>Error loading analytics</Text>
+        <Text style={styles.emptySubtext}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadAnalytics}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -168,13 +190,13 @@ const AnalyticsScreen = () => {
         </View>
 
         {/* Monthly Spending Trend */}
-        {analytics.monthlyTrend.length > 1 && (
+        {analytics.monthlyTrend.length > 1 && monthlyData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
             <LineChart
               data={{
-                labels: monthlyLabels,
-                datasets: [{ data: monthlyData }],
+                labels: monthlyLabels.length > 0 ? monthlyLabels : ['N/A'],
+                datasets: [{ data: monthlyData.length > 0 ? monthlyData : [0] }],
               }}
               width={screenWidth - 40}
               height={220}
@@ -186,13 +208,13 @@ const AnalyticsScreen = () => {
         )}
 
         {/* Spending by Store */}
-        {topStores.length > 0 && (
+        {topStores.length > 0 && storeData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Spending by Store</Text>
             <BarChart
               data={{
-                labels: storeLabels,
-                datasets: [{ data: storeData }],
+                labels: storeLabels.length > 0 ? storeLabels : ['N/A'],
+                datasets: [{ data: storeData.length > 0 ? storeData : [0] }],
               }}
               width={screenWidth - 40}
               height={220}
@@ -443,6 +465,20 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
