@@ -241,8 +241,36 @@ const AnalyticsScreen = () => {
             <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
             <LineChart
               data={monthlyChartData}
-              height={200}
+              width={screenWidth - 80}
+              height={220}
+              spacing={Math.max(40, (screenWidth - 120) / monthlyChartData.length)}
+              initialSpacing={10}
+              endSpacing={10}
+              adjustToWidth={true}
               color="#007AFF"
+              thickness={3}
+              startFillColor="rgba(0, 122, 255, 0.3)"
+              endFillColor="rgba(0, 122, 255, 0.01)"
+              startOpacity={0.9}
+              endOpacity={0.2}
+              areaChart
+              curved
+              isAnimated
+              animateOnDataChange
+              animationDuration={800}
+              rulesType="solid"
+              rulesColor="rgba(255, 255, 255, 0.1)"
+              rulesThickness={1}
+              xAxisColor="rgba(255, 255, 255, 0.1)"
+              yAxisColor="rgba(255, 255, 255, 0.1)"
+              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              yAxisLabelPrefix="£"
+              yAxisLabelWidth={40}
+              hideDataPoints={false}
+              dataPointsColor="#007AFF"
+              dataPointsRadius={4}
+              textColor="#ffffff"
+              textFontSize={10}
             />
           </View>
         )}
@@ -253,7 +281,30 @@ const AnalyticsScreen = () => {
             <Text style={styles.chartTitle}>Spending by Store</Text>
             <BarChart
               data={storeChartData}
-              height={200}
+              width={screenWidth - 80}
+              height={220}
+              barWidth={Math.min(50, (screenWidth - 120) / storeChartData.length - 20)}
+              spacing={20}
+              initialSpacing={10}
+              adjustToWidth={true}
+              barBorderRadius={8}
+              isAnimated
+              animationDuration={800}
+              showValuesAsTopLabel
+              topLabelTextStyle={{
+                color: '#ffffff',
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+              rulesColor="rgba(255, 255, 255, 0.1)"
+              rulesThickness={1}
+              xAxisColor="rgba(255, 255, 255, 0.1)"
+              yAxisColor="rgba(255, 255, 255, 0.1)"
+              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              yAxisLabelPrefix="£"
+              yAxisLabelWidth={40}
+              hideYAxisText={false}
+              noOfSections={5}
             />
           </View>
         )}
@@ -266,8 +317,24 @@ const AnalyticsScreen = () => {
               <PieChart
                 data={categoryPieData}
                 donut
-                radius={90}
-                innerRadius={60}
+                radius={100}
+                innerRadius={65}
+                innerCircleColor="#1c1c1e"
+                centerLabelComponent={() => (
+                  <View style={{ alignItems: 'center' }}>
+                    <Text style={{ fontSize: 20, color: '#ffffff', fontWeight: '700' }}>
+                      £{analytics.totalSpent.toFixed(0)}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#a0a0a0' }}>Total</Text>
+                  </View>
+                )}
+                showText
+                textColor="#ffffff"
+                textSize={13}
+                fontWeight="600"
+                focusOnPress
+                toggleFocusOnPress
+                sectionAutoFocus={false}
               />
             </View>
           </View>
