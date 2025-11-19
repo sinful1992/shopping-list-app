@@ -165,7 +165,8 @@ class LocalStorageManager {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
       const conditions = [
         Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'completed')
+        Q.where('status', 'completed'),
+        Q.sortBy('completed_at', Q.desc)
       ];
 
       if (startDate) {
@@ -175,9 +176,7 @@ class LocalStorageManager {
         conditions.push(Q.where('completed_at', Q.lte(endDate)));
       }
 
-      conditions.push(Q.sortBy('completed_at', Q.desc));
-
-      const lists = await listsCollection.query(...conditions).fetch();
+      const lists = await listsCollection.query(...conditions as any).fetch();
       return lists.map((list) => this.listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get completed lists: ${error.message}`);
@@ -666,7 +665,8 @@ class LocalStorageManager {
       const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
       const conditions = [
         Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'resolved')
+        Q.where('status', 'resolved'),
+        Q.sortBy('resolved_at', Q.desc)
       ];
 
       if (startDate) {
@@ -676,9 +676,7 @@ class LocalStorageManager {
         conditions.push(Q.where('resolved_at', Q.lte(endDate)));
       }
 
-      conditions.push(Q.sortBy('resolved_at', Q.desc));
-
-      const items = await urgentItemsCollection.query(...conditions).fetch();
+      const items = await urgentItemsCollection.query(...conditions as any).fetch();
       return items.map((item) => this.urgentItemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get resolved urgent items: ${error.message}`);
@@ -898,16 +896,16 @@ class LocalStorageManager {
     try {
       await this.database.write(async () => {
         // Delete all shopping lists
-        const lists = await this.database.collections.get('shopping_lists').query().fetch();
-        await Promise.all(lists.map((list: ShoppingListModel) => list.markAsDeleted()));
+        const lists = await this.database.get<ShoppingListModel>('shopping_lists').query().fetch();
+        await Promise.all(lists.map(list => list.markAsDeleted()));
 
         // Delete all items
-        const items = await this.database.collections.get('items').query().fetch();
-        await Promise.all(items.map((item: ItemModel) => item.markAsDeleted()));
+        const items = await this.database.get<ItemModel>('items').query().fetch();
+        await Promise.all(items.map(item => item.markAsDeleted()));
 
         // Delete all sync queue entries
-        const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
-        await Promise.all(syncQueue.map((entry: SyncQueueModel) => entry.markAsDeleted()));
+        const syncQueue = await this.database.get<SyncQueueModel>('sync_queue').query().fetch();
+        await Promise.all(syncQueue.map(entry => entry.markAsDeleted()));
       });
 
       console.log('All local WatermelonDB data cleared successfully');
