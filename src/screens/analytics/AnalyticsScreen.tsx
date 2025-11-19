@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,47 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 
 const screenWidth = Dimensions.get('window').width;
 
+// Error Boundary Component
+class ErrorBoundary extends Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Analytics Error Boundary caught error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorBoundaryContainer}>
+          <Text style={styles.errorBoundaryIcon}>⚠️</Text>
+          <Text style={styles.errorBoundaryTitle}>Something went wrong</Text>
+          <Text style={styles.errorBoundaryText}>
+            {this.state.error?.message || 'Unknown error occurred'}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => this.setState({ hasError: false, error: null })}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 /**
  * AnalyticsScreen
  * Displays shopping analytics with charts and insights
@@ -27,7 +68,14 @@ const AnalyticsScreen = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadAnalytics();
+    // Wrap in try-catch to prevent white screen
+    try {
+      loadAnalytics();
+    } catch (err: any) {
+      console.error('useEffect error:', err);
+      setError(err?.message || 'Failed to initialize');
+      setLoading(false);
+    }
   }, [timePeriod]);
 
   const loadAnalytics = async () => {
@@ -480,6 +528,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  errorBoundaryContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+    paddingHorizontal: 40,
+  },
+  errorBoundaryIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  errorBoundaryTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorBoundaryText: {
+    fontSize: 14,
+    color: '#a0a0a0',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
 });
 
-export default AnalyticsScreen;
+// Wrap with Error Boundary
+const AnalyticsScreenWithErrorBoundary = () => (
+  <ErrorBoundary>
+    <AnalyticsScreen />
+  </ErrorBoundary>
+);
+
+export default AnalyticsScreenWithErrorBoundary;
