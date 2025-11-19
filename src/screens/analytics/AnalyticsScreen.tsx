@@ -196,6 +196,8 @@ const AnalyticsScreen = () => {
               }}
               width={screenWidth - 40}
               height={220}
+              yAxisLabel="£"
+              yAxisSuffix=""
               chartConfig={chartConfig}
               style={styles.chart}
               showValuesOnTopOfBars
