@@ -14,6 +14,5 @@ module.exports = {
       },
     ],
     '@babel/plugin-proposal-export-namespace-from',
-    'react-native-worklets-core/plugin',
   ],
 };

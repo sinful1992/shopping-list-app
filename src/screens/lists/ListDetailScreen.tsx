@@ -13,8 +13,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Item, ShoppingList } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -413,22 +411,6 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleDragEnd = async (data: Array<{ type: 'header' | 'item'; category?: string; item?: Item }>) => {
-    try {
-      // Extract only items (filter out headers)
-      const reorderedItems = data
-        .filter(row => row.type === 'item' && row.item)
-        .map(row => row.item!);
-
-      // Update sort order in database
-      await ItemManager.reorderItems(reorderedItems);
-
-      // WatermelonDB observer will automatically update the UI
-    } catch (error: any) {
-      console.error('Reorder error:', error);
-      Alert.alert('Error', 'Failed to reorder items');
-    }
-  };
 
   const handleDoneShopping = async () => {
     if (!currentUserId) return;
@@ -443,8 +425,8 @@ const ListDetailScreen = () => {
     }
   };
 
-  const renderDraggableItem = ({ item: row, drag, isActive }: RenderItemParams<{ type: 'header' | 'item'; category?: string; item?: Item }>) => {
-    // Render category headers (non-draggable)
+  const renderItem = ({ item: row }: { item: { type: 'header' | 'item'; category?: string; item?: Item } }) => {
+    // Render category headers
     if (row.type === 'header') {
       const category = CategoryService.getCategory(row.category as any);
       return (
@@ -455,7 +437,7 @@ const ListDetailScreen = () => {
       );
     }
 
-    // Render items (draggable)
+    // Render items
     const item = row.item;
     if (!item || !item.id) {
       return null;
@@ -465,60 +447,46 @@ const ListDetailScreen = () => {
     const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
 
     return (
-      <ScaleDecorator>
-        <View style={[
-          styles.itemRow,
-          item.checked === true && styles.itemRowChecked,
-          isActive && styles.itemRowDragging
-        ]}>
-          {/* Drag handle - only show when not locked */}
-          {!isListLocked && (
-            <TouchableOpacity
-              onLongPress={drag}
-              disabled={isListLocked || isActive}
-              style={styles.dragHandle}
+      <View style={[
+        styles.itemRow,
+        item.checked === true && styles.itemRowChecked
+      ]}>
+        <TouchableOpacity
+          style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
+          onPress={() => !isListLocked && handleToggleItem(item.id)}
+          disabled={isListLocked}
+        >
+          <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.itemContentTouchable}
+          onPress={() => handleItemTap(item)}
+          disabled={isListLocked}
+          activeOpacity={0.7}
+        >
+          <View style={styles.itemContentRow}>
+            <Text
+              style={[
+                styles.itemNameText,
+                item.checked === true && styles.itemNameChecked
+              ]}
+              numberOfLines={1}
             >
-              <Text style={styles.dragHandleText}>☰</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity
-            style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
-            onPress={() => !isListLocked && handleToggleItem(item.id)}
-            disabled={isListLocked}
-          >
-            <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.itemContentTouchable}
-            onPress={() => handleItemTap(item)}
-            disabled={isListLocked}
-            activeOpacity={0.7}
-          >
-            <View style={styles.itemContentRow}>
-              <Text
-                style={[
-                  styles.itemNameText,
-                  item.checked === true && styles.itemNameChecked
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-              <Text
-                style={[
-                  styles.itemPriceText,
-                  isPredicted && styles.itemPricePredicted,
-                  item.checked === true && styles.itemPriceChecked
-                ]}
-              >
-                {isPredicted && '~'}£{itemPrice.toFixed(2)}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </ScaleDecorator>
+              {item.name}
+            </Text>
+            <Text
+              style={[
+                styles.itemPriceText,
+                isPredicted && styles.itemPricePredicted,
+                item.checked === true && styles.itemPriceChecked
+              ]}
+            >
+              {isPredicted && '~'}£{itemPrice.toFixed(2)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -611,7 +579,7 @@ const ListDetailScreen = () => {
   }, [items]);
 
   return (
-    <GestureHandlerRootView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.titleContainer}>
         {isEditingListName ? (
           <>
@@ -773,7 +741,7 @@ const ListDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <DraggableFlatList
+      <FlatList
         data={groupedItems}
         keyExtractor={(row, index) => {
           if (row.type === 'header') {
@@ -781,9 +749,11 @@ const ListDetailScreen = () => {
           }
           return row.item?.id || `item-${index}`;
         }}
-        renderItem={renderDraggableItem}
-        onDragEnd={({ data }) => handleDragEnd(data)}
-        containerStyle={styles.flatListContent}
+        renderItem={renderItem}
+        contentContainerStyle={styles.flatListContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No items yet</Text>
@@ -832,7 +802,7 @@ const ListDetailScreen = () => {
         onSelect={handleStoreSelected}
         initialValue={list?.storeName || ''}
       />
-    </GestureHandlerRootView>
+    </View>
   );
 };
 
@@ -935,26 +905,6 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  itemRowDragging: {
-    opacity: 0.9,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  dragHandle: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dragHandleText: {
-    fontSize: 20,
-    color: '#6E6E73',
-    fontWeight: '600',
   },
   checkbox: {
     width: 24,
