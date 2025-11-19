@@ -168,30 +168,44 @@ const AnalyticsScreen = () => {
     );
   }
 
-  // Prepare chart data for gifted-charts
-  const monthlyChartData = analytics.monthlyTrend.map((trend, index) => {
-    const date = new Date(trend.date);
-    const label = date.toLocaleDateString('en-US', { month: 'short' });
-    return {
-      value: trend.amount,
-      label: label,
-      labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
-    };
-  });
+  // Prepare chart data for gifted-charts with safe checks
+  let monthlyChartData: any[] = [];
+  let storeChartData: any[] = [];
+  let categoryPieData: any[] = [];
 
-  const storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
-    value: store.totalSpent,
-    label: store.storeName.length > 8 ? store.storeName.substring(0, 8) + '...' : store.storeName,
-    labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
-    frontColor: '#007AFF',
-  }));
+  try {
+    if (Array.isArray(analytics.monthlyTrend)) {
+      monthlyChartData = analytics.monthlyTrend.map((trend, index) => {
+        const date = new Date(trend.date);
+        const label = date.toLocaleDateString('en-US', { month: 'short' });
+        return {
+          value: trend.amount,
+          label: label,
+          labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
+        };
+      });
+    }
 
-  const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
-  const categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, index) => ({
-    value: cat.totalSpent,
-    text: cat.category,
-    color: categoryColors[index] || '#6E6E73',
-  }));
+    if (Array.isArray(analytics.spendingByStore)) {
+      storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
+        value: store.totalSpent,
+        label: store.storeName.length > 8 ? store.storeName.substring(0, 8) + '...' : store.storeName,
+        labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
+        frontColor: '#007AFF',
+      }));
+    }
+
+    if (Array.isArray(analytics.categoryBreakdown)) {
+      const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
+      categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, index) => ({
+        value: cat.totalSpent,
+        text: cat.category,
+        color: categoryColors[index] || '#6E6E73',
+      }));
+    }
+  } catch (err: any) {
+    console.error('Error preparing chart data:', err);
+  }
 
   return (
     <View style={styles.container}>
@@ -227,21 +241,8 @@ const AnalyticsScreen = () => {
             <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
             <LineChart
               data={monthlyChartData}
-              width={screenWidth - 80}
               height={200}
               color="#007AFF"
-              thickness={3}
-              startFillColor="rgba(0, 122, 255, 0.3)"
-              endFillColor="rgba(0, 122, 255, 0.01)"
-              startOpacity={0.9}
-              endOpacity={0.2}
-              initialSpacing={10}
-              noOfSections={5}
-              yAxisColor="#2c2c2e"
-              xAxisColor="#2c2c2e"
-              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
-              curved
-              areaChart
             />
           </View>
         )}
@@ -252,19 +253,7 @@ const AnalyticsScreen = () => {
             <Text style={styles.chartTitle}>Spending by Store</Text>
             <BarChart
               data={storeChartData}
-              width={screenWidth - 80}
               height={200}
-              barWidth={40}
-              spacing={20}
-              roundedTop
-              roundedBottom
-              hideRules
-              xAxisThickness={0}
-              yAxisThickness={0}
-              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
-              noOfSections={5}
-              showValuesAsTopLabel
-              topLabelTextStyle={{ color: '#fff', fontSize: 10 }}
             />
           </View>
         )}
@@ -279,16 +268,6 @@ const AnalyticsScreen = () => {
                 donut
                 radius={90}
                 innerRadius={60}
-                innerCircleColor="#1c1c1e"
-                centerLabelComponent={() => (
-                  <Text style={{ fontSize: 16, color: '#fff', fontWeight: '700' }}>
-                    £{analytics.totalSpent.toFixed(0)}
-                  </Text>
-                )}
-                showText
-                textColor="#fff"
-                textSize={12}
-                focusOnPress
               />
             </View>
           </View>
