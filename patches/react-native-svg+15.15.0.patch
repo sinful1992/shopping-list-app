@@ -1,5 +1,106 @@
+diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java
+index 26e186a..8bff735 100644
+--- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java
++++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java
+@@ -114,6 +114,8 @@ import com.facebook.react.viewmanagers.RNSVGFeOffsetManagerDelegate;
+ import com.facebook.react.viewmanagers.RNSVGFeOffsetManagerInterface;
+ import com.facebook.react.viewmanagers.RNSVGFilterManagerDelegate;
+ import com.facebook.react.viewmanagers.RNSVGFilterManagerInterface;
++
++import java.lang.reflect.Field;
+ import com.facebook.react.viewmanagers.RNSVGForeignObjectManagerDelegate;
+ import com.facebook.react.viewmanagers.RNSVGForeignObjectManagerInterface;
+ import com.facebook.react.viewmanagers.RNSVGGroupManagerDelegate;
+@@ -294,24 +296,29 @@ class VirtualViewManager<V extends VirtualView> extends ViewGroupManager<Virtual
+ 
+     sMatrixDecompositionContext.reset();
+     TransformHelper.processTransform(
+-        transforms, sTransformDecompositionArray, view.getWidth(), view.getHeight(), null, false);
++        transforms, sTransformDecompositionArray, view.getWidth(), view.getHeight(), null);
+     MatrixMathHelper.decomposeMatrix(sTransformDecompositionArray, sMatrixDecompositionContext);
++
++    double[] translation = getTranslation(sMatrixDecompositionContext);
++    double[] rotationDegrees = getRotationDegrees(sMatrixDecompositionContext);
++    double[] scale = getScale(sMatrixDecompositionContext);
++
+     view.setTranslationX(
+         PixelUtil.toPixelFromDIP(
+-            sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.translation[0])));
++            sanitizeFloatPropertyValue((float) translation[0])));
+     view.setTranslationY(
+         PixelUtil.toPixelFromDIP(
+-            sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.translation[1])));
++            sanitizeFloatPropertyValue((float) translation[1])));
+     view.setRotation(
+-        sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.rotationDegrees[2]));
++        sanitizeFloatPropertyValue((float) rotationDegrees[2]));
+     view.setRotationX(
+-        sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.rotationDegrees[0]));
++        sanitizeFloatPropertyValue((float) rotationDegrees[0]));
+     view.setRotationY(
+-        sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.rotationDegrees[1]));
+-    view.setScaleX(sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.scale[0]));
+-    view.setScaleY(sanitizeFloatPropertyValue((float) sMatrixDecompositionContext.scale[1]));
++        sanitizeFloatPropertyValue((float) rotationDegrees[1]));
++    view.setScaleX(sanitizeFloatPropertyValue((float) scale[0]));
++    view.setScaleY(sanitizeFloatPropertyValue((float) scale[1]));
+ 
+-    double[] perspectiveArray = sMatrixDecompositionContext.perspective;
++    double[] perspectiveArray = getPerspective(sMatrixDecompositionContext);
+ 
+     if (perspectiveArray.length > PERSPECTIVE_ARRAY_INVERTED_CAMERA_DISTANCE_INDEX) {
+       float invertedCameraDistance =
+@@ -597,6 +604,48 @@ class VirtualViewManager<V extends VirtualView> extends ViewGroupManager<Virtual
+ /** ViewManager for Renderable RNSVG views */
+ class RenderableViewManager<T extends RenderableView> extends VirtualViewManager<T> {
+ 
++  // Helper methods to access package-private fields in MatrixMathHelper.MatrixDecompositionContext
++  // These fields became package-private in React Native 0.74
++  private static double[] getTranslation(MatrixMathHelper.MatrixDecompositionContext context) {
++    try {
++      Field field = context.getClass().getDeclaredField("translation");
++      field.setAccessible(true);
++      return (double[]) field.get(context);
++    } catch (Exception e) {
++      throw new RuntimeException("Failed to access translation field", e);
++    }
++  }
++
++  private static double[] getRotationDegrees(MatrixMathHelper.MatrixDecompositionContext context) {
++    try {
++      Field field = context.getClass().getDeclaredField("rotationDegrees");
++      field.setAccessible(true);
++      return (double[]) field.get(context);
++    } catch (Exception e) {
++      throw new RuntimeException("Failed to access rotationDegrees field", e);
++    }
++  }
++
++  private static double[] getScale(MatrixMathHelper.MatrixDecompositionContext context) {
++    try {
++      Field field = context.getClass().getDeclaredField("scale");
++      field.setAccessible(true);
++      return (double[]) field.get(context);
++    } catch (Exception e) {
++      throw new RuntimeException("Failed to access scale field", e);
++    }
++  }
++
++  private static double[] getPerspective(MatrixMathHelper.MatrixDecompositionContext context) {
++    try {
++      Field field = context.getClass().getDeclaredField("perspective");
++      field.setAccessible(true);
++      return (double[]) field.get(context);
++    } catch (Exception e) {
++      throw new RuntimeException("Failed to access perspective field", e);
++    }
++  }
++
+   RenderableViewManager(SVGClass svgclass) {
+     super(svgclass);
+   }
 diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java
-index 1ee4622..db97cc0 100644
+index 1ee4622..b2ca4de 100644
 --- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java
 +++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java
 @@ -323,66 +323,66 @@ class SvgViewManager extends ReactViewManager
@@ -7,78 +108,78 @@ index 1ee4622..db97cc0 100644
    @Override
    public void setBorderRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 0, rawBorderRadius);
-+    super.setBorderRadius(view, 0, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 0, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderTopLeftRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 1, rawBorderRadius);
-+    super.setBorderRadius(view, 1, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 1, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderTopRightRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 2, rawBorderRadius);
-+    super.setBorderRadius(view, 2, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 2, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderBottomRightRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 3, rawBorderRadius);
-+    super.setBorderRadius(view, 3, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 3, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderBottomLeftRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 4, rawBorderRadius);
-+    super.setBorderRadius(view, 4, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 4, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderTopStartRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 5, rawBorderRadius);
-+    super.setBorderRadius(view, 5, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 5, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderTopEndRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 6, rawBorderRadius);
-+    super.setBorderRadius(view, 6, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 6, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderBottomStartRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 7, rawBorderRadius);
-+    super.setBorderRadius(view, 7, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 7, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderBottomEndRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 8, rawBorderRadius);
-+    super.setBorderRadius(view, 8, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 8, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderEndEndRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 9, rawBorderRadius);
-+    super.setBorderRadius(view, 9, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 9, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderEndStartRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 10, rawBorderRadius);
-+    super.setBorderRadius(view, 10, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 10, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderStartEndRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 11, rawBorderRadius);
-+    super.setBorderRadius(view, 11, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 11, (float) rawBorderRadius.asDouble());
    }
  
    @Override
    public void setBorderStartStartRadius(SvgView view, Dynamic rawBorderRadius) {
 -    super.setBorderRadius(view, 12, rawBorderRadius);
-+    super.setBorderRadius(view, 12, rawBorderRadius.asDouble().floatValue());
++    super.setBorderRadius(view, 12, (float) rawBorderRadius.asDouble());
    }
  }
