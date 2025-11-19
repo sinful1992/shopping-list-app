@@ -9,7 +9,8 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+// Temporarily disabled due to compatibility issues with react-native-svg
+// import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 
@@ -185,29 +186,24 @@ const AnalyticsScreen = () => {
     );
   }
 
-  // Prepare monthly trend data
-  const monthlyLabels = analytics.monthlyTrend.map(trend => {
-    const date = new Date(trend.date);
-    return date.toLocaleDateString('en-US', { month: 'short' });
-  });
-
-  const monthlyData = analytics.monthlyTrend.map(trend => trend.amount);
-
-  // Prepare store spending data (top 5)
-  const topStores = analytics.spendingByStore.slice(0, 5);
-  const storeLabels = topStores.map(store => store.storeName.substring(0, 10));
-  const storeData = topStores.map(store => store.totalSpent);
-
-  // Prepare category pie chart data (top 5)
-  const topCategories = analytics.categoryBreakdown.slice(0, 5);
-  const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
-  const categoryPieData = topCategories.map((cat, index) => ({
-    name: cat.category,
-    population: cat.totalSpent,
-    color: categoryColors[index] || '#6E6E73',
-    legendFontColor: '#ffffff',
-    legendFontSize: 12,
-  }));
+  // Chart data preparation temporarily disabled
+  // const monthlyLabels = analytics.monthlyTrend.map(trend => {
+  //   const date = new Date(trend.date);
+  //   return date.toLocaleDateString('en-US', { month: 'short' });
+  // });
+  // const monthlyData = analytics.monthlyTrend.map(trend => trend.amount);
+  // const topStores = analytics.spendingByStore.slice(0, 5);
+  // const storeLabels = topStores.map(store => store.storeName.substring(0, 10));
+  // const storeData = topStores.map(store => store.totalSpent);
+  // const topCategories = analytics.categoryBreakdown.slice(0, 5);
+  // const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
+  // const categoryPieData = topCategories.map((cat, index) => ({
+  //   name: cat.category,
+  //   population: cat.totalSpent,
+  //   color: categoryColors[index] || '#6E6E73',
+  //   legendFontColor: '#ffffff',
+  //   legendFontSize: 12,
+  // }));
 
   return (
     <View style={styles.container}>
@@ -237,60 +233,29 @@ const AnalyticsScreen = () => {
           </View>
         </View>
 
-        {/* Monthly Spending Trend */}
-        {analytics.monthlyTrend.length > 1 && monthlyData.length > 0 && (
+        {/* Monthly Spending Trend - Temporarily disabled */}
+        {/* {analytics.monthlyTrend.length > 1 && monthlyData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
-            <LineChart
-              data={{
-                labels: monthlyLabels.length > 0 ? monthlyLabels : ['N/A'],
-                datasets: [{ data: monthlyData.length > 0 ? monthlyData : [0] }],
-              }}
-              width={screenWidth - 40}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
+            <Text style={styles.chartPlaceholder}>Chart coming soon...</Text>
           </View>
-        )}
+        )} */}
 
-        {/* Spending by Store */}
-        {topStores.length > 0 && storeData.length > 0 && (
+        {/* Spending by Store - Temporarily disabled */}
+        {/* {topStores.length > 0 && storeData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Spending by Store</Text>
-            <BarChart
-              data={{
-                labels: storeLabels.length > 0 ? storeLabels : ['N/A'],
-                datasets: [{ data: storeData.length > 0 ? storeData : [0] }],
-              }}
-              width={screenWidth - 40}
-              height={220}
-              yAxisLabel="£"
-              yAxisSuffix=""
-              chartConfig={chartConfig}
-              style={styles.chart}
-              showValuesOnTopOfBars
-            />
+            <Text style={styles.chartPlaceholder}>Chart coming soon...</Text>
           </View>
-        )}
+        )} */}
 
-        {/* Category Breakdown */}
-        {categoryPieData.length > 0 && (
+        {/* Category Breakdown - Temporarily disabled */}
+        {/* {categoryPieData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Spending by Category</Text>
-            <PieChart
-              data={categoryPieData}
-              width={screenWidth - 40}
-              height={220}
-              chartConfig={chartConfig}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
-            />
+            <Text style={styles.chartPlaceholder}>Chart coming soon...</Text>
           </View>
-        )}
+        )} */}
 
         {/* Top Items */}
         <View style={styles.chartCard}>
