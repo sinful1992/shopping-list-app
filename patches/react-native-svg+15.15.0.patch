@@ -1,0 +1,84 @@
+diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java
+index 1ee4622..db97cc0 100644
+--- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java
++++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/SvgViewManager.java
+@@ -323,66 +323,66 @@ class SvgViewManager extends ReactViewManager
+ 
+   @Override
+   public void setBorderRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 0, rawBorderRadius);
++    super.setBorderRadius(view, 0, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderTopLeftRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 1, rawBorderRadius);
++    super.setBorderRadius(view, 1, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderTopRightRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 2, rawBorderRadius);
++    super.setBorderRadius(view, 2, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderBottomRightRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 3, rawBorderRadius);
++    super.setBorderRadius(view, 3, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderBottomLeftRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 4, rawBorderRadius);
++    super.setBorderRadius(view, 4, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderTopStartRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 5, rawBorderRadius);
++    super.setBorderRadius(view, 5, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderTopEndRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 6, rawBorderRadius);
++    super.setBorderRadius(view, 6, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderBottomStartRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 7, rawBorderRadius);
++    super.setBorderRadius(view, 7, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderBottomEndRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 8, rawBorderRadius);
++    super.setBorderRadius(view, 8, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderEndEndRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 9, rawBorderRadius);
++    super.setBorderRadius(view, 9, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderEndStartRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 10, rawBorderRadius);
++    super.setBorderRadius(view, 10, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderStartEndRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 11, rawBorderRadius);
++    super.setBorderRadius(view, 11, rawBorderRadius.asDouble().floatValue());
+   }
+ 
+   @Override
+   public void setBorderStartStartRadius(SvgView view, Dynamic rawBorderRadius) {
+-    super.setBorderRadius(view, 12, rawBorderRadius);
++    super.setBorderRadius(view, 12, rawBorderRadius.asDouble().floatValue());
+   }
+ }
