@@ -9,8 +9,7 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-// Temporarily disabled due to compatibility issues with react-native-svg
-// import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 
@@ -106,23 +105,6 @@ const AnalyticsScreen = () => {
     }
   };
 
-  const chartConfig = {
-    backgroundColor: '#1c1c1e',
-    backgroundGradientFrom: '#1c1c1e',
-    backgroundGradientTo: '#2c2c2e',
-    decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '6',
-      strokeWidth: '2',
-      stroke: '#007AFF',
-    },
-  };
-
   const formatCurrency = (amount: number) => `£${amount.toFixed(2)}`;
 
   const renderTimePeriodSelector = () => (
@@ -186,24 +168,30 @@ const AnalyticsScreen = () => {
     );
   }
 
-  // Chart data preparation temporarily disabled
-  // const monthlyLabels = analytics.monthlyTrend.map(trend => {
-  //   const date = new Date(trend.date);
-  //   return date.toLocaleDateString('en-US', { month: 'short' });
-  // });
-  // const monthlyData = analytics.monthlyTrend.map(trend => trend.amount);
-  // const topStores = analytics.spendingByStore.slice(0, 5);
-  // const storeLabels = topStores.map(store => store.storeName.substring(0, 10));
-  // const storeData = topStores.map(store => store.totalSpent);
-  // const topCategories = analytics.categoryBreakdown.slice(0, 5);
-  // const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
-  // const categoryPieData = topCategories.map((cat, index) => ({
-  //   name: cat.category,
-  //   population: cat.totalSpent,
-  //   color: categoryColors[index] || '#6E6E73',
-  //   legendFontColor: '#ffffff',
-  //   legendFontSize: 12,
-  // }));
+  // Prepare chart data for gifted-charts
+  const monthlyChartData = analytics.monthlyTrend.map((trend, index) => {
+    const date = new Date(trend.date);
+    const label = date.toLocaleDateString('en-US', { month: 'short' });
+    return {
+      value: trend.amount,
+      label: label,
+      labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
+    };
+  });
+
+  const storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
+    value: store.totalSpent,
+    label: store.storeName.length > 8 ? store.storeName.substring(0, 8) + '...' : store.storeName,
+    labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
+    frontColor: '#007AFF',
+  }));
+
+  const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
+  const categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, index) => ({
+    value: cat.totalSpent,
+    text: cat.category,
+    color: categoryColors[index] || '#6E6E73',
+  }));
 
   return (
     <View style={styles.container}>
@@ -233,29 +221,78 @@ const AnalyticsScreen = () => {
           </View>
         </View>
 
-        {/* Monthly Spending Trend - Temporarily disabled */}
-        {/* {analytics.monthlyTrend.length > 1 && monthlyData.length > 0 && (
+        {/* Monthly Spending Trend */}
+        {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
-            <Text style={styles.chartPlaceholder}>Chart coming soon...</Text>
+            <LineChart
+              data={monthlyChartData}
+              width={screenWidth - 80}
+              height={200}
+              color="#007AFF"
+              thickness={3}
+              startFillColor="rgba(0, 122, 255, 0.3)"
+              endFillColor="rgba(0, 122, 255, 0.01)"
+              startOpacity={0.9}
+              endOpacity={0.2}
+              initialSpacing={10}
+              noOfSections={5}
+              yAxisColor="#2c2c2e"
+              xAxisColor="#2c2c2e"
+              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              curved
+              areaChart
+            />
           </View>
-        )} */}
+        )}
 
-        {/* Spending by Store - Temporarily disabled */}
-        {/* {topStores.length > 0 && storeData.length > 0 && (
+        {/* Spending by Store */}
+        {storeChartData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Spending by Store</Text>
-            <Text style={styles.chartPlaceholder}>Chart coming soon...</Text>
+            <BarChart
+              data={storeChartData}
+              width={screenWidth - 80}
+              height={200}
+              barWidth={40}
+              spacing={20}
+              roundedTop
+              roundedBottom
+              hideRules
+              xAxisThickness={0}
+              yAxisThickness={0}
+              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              noOfSections={5}
+              showValuesAsTopLabel
+              topLabelTextStyle={{ color: '#fff', fontSize: 10 }}
+            />
           </View>
-        )} */}
+        )}
 
-        {/* Category Breakdown - Temporarily disabled */}
-        {/* {categoryPieData.length > 0 && (
+        {/* Category Breakdown */}
+        {categoryPieData.length > 0 && (
           <View style={styles.chartCard}>
             <Text style={styles.chartTitle}>Spending by Category</Text>
-            <Text style={styles.chartPlaceholder}>Chart coming soon...</Text>
+            <View style={{ alignItems: 'center', marginTop: 10 }}>
+              <PieChart
+                data={categoryPieData}
+                donut
+                radius={90}
+                innerRadius={60}
+                innerCircleColor="#1c1c1e"
+                centerLabelComponent={() => (
+                  <Text style={{ fontSize: 16, color: '#fff', fontWeight: '700' }}>
+                    £{analytics.totalSpent.toFixed(0)}
+                  </Text>
+                )}
+                showText
+                textColor="#fff"
+                textSize={12}
+                focusOnPress
+              />
+            </View>
           </View>
-        )} */}
+        )}
 
         {/* Top Items */}
         <View style={styles.chartCard}>
