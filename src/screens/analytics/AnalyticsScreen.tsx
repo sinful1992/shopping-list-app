@@ -243,10 +243,9 @@ const AnalyticsScreen = () => {
               data={monthlyChartData}
               width={screenWidth - 80}
               height={220}
-              spacing={Math.max(40, (screenWidth - 120) / monthlyChartData.length)}
-              initialSpacing={10}
-              endSpacing={10}
               adjustToWidth={true}
+              initialSpacing={0}
+              endSpacing={0}
               color="#007AFF"
               thickness={3}
               startFillColor="rgba(0, 122, 255, 0.3)"
@@ -283,10 +282,8 @@ const AnalyticsScreen = () => {
               data={storeChartData}
               width={screenWidth - 80}
               height={220}
-              barWidth={Math.min(50, (screenWidth - 120) / storeChartData.length - 20)}
-              spacing={20}
-              initialSpacing={10}
               adjustToWidth={true}
+              initialSpacing={0}
               barBorderRadius={8}
               isAnimated
               animationDuration={800}
