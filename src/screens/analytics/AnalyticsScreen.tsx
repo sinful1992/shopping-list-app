@@ -241,7 +241,7 @@ const AnalyticsScreen = () => {
             <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
             <LineChart
               data={monthlyChartData}
-              width={screenWidth - 80}
+              width={screenWidth - 62 - 40}
               height={220}
               adjustToWidth={true}
               initialSpacing={0}
@@ -280,7 +280,7 @@ const AnalyticsScreen = () => {
             <Text style={styles.chartTitle}>Spending by Store</Text>
             <BarChart
               data={storeChartData}
-              width={screenWidth - 80}
+              width={screenWidth - 62 - 40}
               height={220}
               adjustToWidth={true}
               initialSpacing={0}
