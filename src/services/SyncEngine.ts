@@ -22,6 +22,9 @@ class SyncEngine {
   private isOnline: boolean = true;
   private familyGroupId: string | null = null;
   private syncInProgress: boolean = false;
+  private retryIntervalId: ReturnType<typeof setInterval> | null = null;
+  private readonly SYNC_TIMEOUT_MS = 30000; // 30 second timeout for sync operations
+  private readonly RETRY_INTERVAL_MS = 60000; // Retry pending operations every 60 seconds
 
   constructor() {
     // Monitor network connectivity
@@ -33,6 +36,55 @@ class SyncEngine {
       if (wasOffline && this.isOnline) {
         this.processOperationQueue().catch(console.error);
       }
+    });
+
+    // Start periodic retry for queued operations
+    this.startPeriodicRetry();
+  }
+
+  /**
+   * Start periodic retry of queued operations
+   */
+  private startPeriodicRetry(): void {
+    if (this.retryIntervalId) {
+      clearInterval(this.retryIntervalId);
+    }
+
+    this.retryIntervalId = setInterval(() => {
+      if (this.isOnline && !this.syncInProgress) {
+        this.processOperationQueue().catch(console.error);
+      }
+    }, this.RETRY_INTERVAL_MS);
+  }
+
+  /**
+   * Stop periodic retry (for cleanup)
+   */
+  stopPeriodicRetry(): void {
+    if (this.retryIntervalId) {
+      clearInterval(this.retryIntervalId);
+      this.retryIntervalId = null;
+    }
+  }
+
+  /**
+   * Wrap a promise with a timeout
+   */
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number = this.SYNC_TIMEOUT_MS): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Sync operation timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      promise
+        .then((result) => {
+          clearTimeout(timeoutId);
+          resolve(result);
+        })
+        .catch((error) => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
     });
   }
 
@@ -62,7 +114,8 @@ class SyncEngine {
 
     if (this.isOnline) {
       try {
-        await this.syncToFirebase(entityType, entityId, operation, data);
+        // Wrap with timeout to prevent hanging
+        await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, data));
         // Update sync status to 'synced'
         if (entityType === 'list') {
           await LocalStorageManager.updateList(entityId, { syncStatus: 'synced' });
@@ -264,11 +317,14 @@ class SyncEngine {
         }
 
         try {
-          await this.syncToFirebase(
-            operation.entityType,
-            operation.entityId,
-            operation.operation,
-            operation.data
+          // Wrap with timeout to prevent hanging
+          await this.withTimeout(
+            this.syncToFirebase(
+              operation.entityType,
+              operation.entityId,
+              operation.operation,
+              operation.data
+            )
           );
 
           // Remove from queue on success

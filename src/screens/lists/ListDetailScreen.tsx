@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Item, ShoppingList } from '../../models/types';
+import { Item, ShoppingList, User } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -48,6 +48,7 @@ const ListDetailScreen = () => {
   const [isListCompleted, setIsListCompleted] = useState(false);
   const [canAddItems, setCanAddItems] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Edit modal state
@@ -117,15 +118,12 @@ const ListDetailScreen = () => {
     loadListAndItems();
     loadCurrentUser();
 
-    // Step 1: Start listening to Firebase for remote changes to this list
-    const unsubscribeFirebaseList = FirebaseSyncListener.startListeningToLists(
-      list?.familyGroupId || ''
-    );
-
-    // Step 2: Start listening to Firebase for remote changes to items in this list
+    // Start listening to Firebase for remote changes to items in this list
+    // Note: We don't need to listen to ALL lists here - the HomeScreen already does that
+    // We only need item-level listeners for this specific list
     const unsubscribeFirebaseItems = FirebaseSyncListener.startListeningToItems(listId);
 
-    // Step 3: Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
+    // Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
     const unsubscribeList = ShoppingListManager.subscribeToSingleList(
       listId,
       async (updatedList) => {
@@ -159,7 +157,7 @@ const ListDetailScreen = () => {
       }
     );
 
-    // Step 4: Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
+    // Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
     const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
       if (!isMountedRef.current) {
         return;
@@ -179,7 +177,7 @@ const ListDetailScreen = () => {
       }
     });
 
-    // Step 5: Subscribe to network status changes
+    // Subscribe to network status changes
     const unsubscribeNetInfo = NetInfo.addEventListener(state => {
       if (isMountedRef.current) {
         setIsOnline(state.isConnected ?? false);
@@ -188,11 +186,13 @@ const ListDetailScreen = () => {
 
     return () => {
       isMountedRef.current = false;
-      unsubscribeFirebaseList();
       unsubscribeFirebaseItems();
       unsubscribeList();
       unsubscribeItems();
       unsubscribeNetInfo();
+      // Memory cleanup: clear cached data
+      setPredictedPrices({});
+      setSmartSuggestions(new Map());
     };
   }, [listId, currentUserId, calculateShoppingStats]);
 
@@ -200,6 +200,7 @@ const ListDetailScreen = () => {
     const user = await AuthenticationModule.getCurrentUser();
     if (user) {
       setCurrentUserId(user.uid);
+      setCurrentUser(user);
     }
   };
 
@@ -275,12 +276,10 @@ const ListDetailScreen = () => {
 
   const handleAddItem = async () => {
     if (!newItemName.trim()) return;
+    if (!currentUserId) return;
 
     try {
-      const user = await AuthenticationModule.getCurrentUser();
-      if (!user) return;
-
-      await ItemManager.addItem(listId, newItemName.trim(), user.uid);
+      await ItemManager.addItem(listId, newItemName.trim(), currentUserId);
       setNewItemName('');
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
@@ -289,11 +288,10 @@ const ListDetailScreen = () => {
   };
 
   const handleAddFrequentItem = async (itemName: string) => {
-    try {
-      const user = await AuthenticationModule.getCurrentUser();
-      if (!user) return;
+    if (!currentUserId) return;
 
-      await ItemManager.addItem(listId, itemName, user.uid);
+    try {
+      await ItemManager.addItem(listId, itemName, currentUserId);
       Alert.alert('Added', `${itemName} added to list`);
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
@@ -404,12 +402,9 @@ const ListDetailScreen = () => {
   };
 
   const handleStoreSelected = async (storeName: string) => {
-    if (!currentUserId) return;
+    if (!currentUserId || !currentUser) return;
 
     try {
-      const user = await AuthenticationModule.getCurrentUser();
-      if (!user) return;
-
       // Add store to history if provided
       if (storeName) {
         await StoreHistoryService.addStore(storeName);
@@ -424,8 +419,8 @@ const ListDetailScreen = () => {
       await ShoppingListManager.lockListForShopping(
         listId,
         currentUserId,
-        user.displayName,
-        user.role || null
+        currentUser.displayName,
+        currentUser.role || null
       );
 
       setIsShoppingMode(true);
@@ -798,6 +793,16 @@ const ListDetailScreen = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        // Performance optimizations
+        getItemLayout={(data, index) => ({
+          length: 66, // Approximate item height (padding + content)
+          offset: 66 * index,
+          index,
+        })}
+        maxToRenderPerBatch={15}
+        windowSize={10}
+        removeClippedSubviews={true}
+        initialNumToRender={20}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No items yet</Text>

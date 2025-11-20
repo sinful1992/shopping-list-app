@@ -155,6 +155,9 @@ class FirebaseSyncListener {
         lockedByName: firebaseData.lockedByName || null,
         lockedByRole: firebaseData.lockedByRole || null,
         lockedAt: firebaseData.lockedAt || null,
+        budget: firebaseData.budget || null,
+        storeName: firebaseData.storeName || null,
+        archived: firebaseData.archived || false,
       };
 
       // Save to local DB (will create or update)

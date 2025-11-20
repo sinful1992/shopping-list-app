@@ -435,6 +435,16 @@ const HistoryScreen = () => {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
+          // Performance optimizations
+          getItemLayout={(data, index) => ({
+            length: 100, // Approximate list item height
+            offset: 100 * index,
+            index,
+          })}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews={true}
+          initialNumToRender={15}
         />
       )}
 

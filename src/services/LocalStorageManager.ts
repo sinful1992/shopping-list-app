@@ -396,20 +396,28 @@ class LocalStorageManager {
 
   /**
    * Batch delete multiple items (more efficient than individual deletes)
+   * Uses Q.oneOf to fetch all items in one query instead of N+1 queries
    */
   async deleteItemsBatch(itemIds: string[]): Promise<void> {
+    if (itemIds.length === 0) return;
+
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
 
       await this.database.write(async () => {
-        for (const itemId of itemIds) {
-          try {
-            const itemRecord = await itemsCollection.find(itemId);
-            await itemRecord.markAsDeleted();
-          } catch (error) {
-            // Item might not exist, continue with others
-            console.warn(`Item ${itemId} not found during batch delete`);
-          }
+        // Fetch all items in one query using Q.oneOf
+        const itemRecords = await itemsCollection
+          .query(Q.where('id', Q.oneOf(itemIds)))
+          .fetch();
+
+        // Mark all found items as deleted
+        await Promise.all(itemRecords.map(item => item.markAsDeleted()));
+
+        // Log if any items weren't found
+        if (itemRecords.length < itemIds.length) {
+          const foundIds = new Set(itemRecords.map(item => item.id));
+          const missingIds = itemIds.filter(id => !foundIds.has(id));
+          console.warn(`Items not found during batch delete: ${missingIds.join(', ')}`);
         }
       });
     } catch (error: any) {

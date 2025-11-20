@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
-import { ShoppingList } from '../../models/types';
+import { ShoppingList, User } from '../../models/types';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
@@ -29,6 +29,7 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -65,15 +66,16 @@ const HomeScreen = () => {
 
   const loadLists = async () => {
     try {
-      const user = await AuthenticationModule.getCurrentUser();
-      if (!user || !user.familyGroupId) {
+      const currentUser = await AuthenticationModule.getCurrentUser();
+      if (!currentUser || !currentUser.familyGroupId) {
         Alert.alert('Error', 'No family group found');
         return;
       }
 
-      setFamilyGroupId(user.familyGroupId);
+      setUser(currentUser);
+      setFamilyGroupId(currentUser.familyGroupId);
       // Get all lists (active and completed), sorted by creation date (newest first)
-      const allLists = await ShoppingListManager.getAllLists(user.familyGroupId);
+      const allLists = await ShoppingListManager.getAllLists(currentUser.familyGroupId);
       // Filter out deleted lists
       const visibleLists = allLists.filter(list => list.status !== 'deleted');
       setLists(visibleLists);
@@ -125,7 +127,6 @@ const HomeScreen = () => {
   const handleConfirmCreate = async () => {
     if (creating) return; // Prevent double-tap
 
-    const user = await AuthenticationModule.getCurrentUser();
     if (!user) {
       Alert.alert('Error', 'User not authenticated');
       return;
@@ -186,8 +187,7 @@ const HomeScreen = () => {
     try {
       setScanningReceipt(true);
 
-      // Get current user
-      const user = await AuthenticationModule.getCurrentUser();
+      // Use cached user state
       if (!user || !user.familyGroupId) {
         Alert.alert('Error', 'User not authenticated or no family group found');
         return;
@@ -346,6 +346,16 @@ const HomeScreen = () => {
         keyExtractor={(item) => item.id}
         renderItem={renderListItem}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        // Performance optimizations
+        getItemLayout={(data, index) => ({
+          length: 100, // Approximate list item height
+          offset: 100 * index,
+          index,
+        })}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews={true}
+        initialNumToRender={15}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No shopping lists yet</Text>

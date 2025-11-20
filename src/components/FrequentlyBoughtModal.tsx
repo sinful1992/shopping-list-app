@@ -142,6 +142,14 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
               keyExtractor={(item) => item.name}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              // Performance optimizations
+              getItemLayout={(data, index) => ({
+                length: 70, // Approximate item height
+                offset: 70 * index,
+                index,
+              })}
+              maxToRenderPerBatch={10}
+              initialNumToRender={15}
             />
           )}
         </View>

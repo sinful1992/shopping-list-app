@@ -29,6 +29,8 @@ export interface PriceStats {
 
 class PriceHistoryService {
   private static instance: PriceHistoryService;
+  private suggestionsCache: Map<string, { data: Map<string, { bestStore: string; bestPrice: number; savings: number }>; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   private constructor() {}
 
@@ -37,6 +39,17 @@ class PriceHistoryService {
       PriceHistoryService.instance = new PriceHistoryService();
     }
     return PriceHistoryService.instance;
+  }
+
+  /**
+   * Clear suggestions cache for a family group
+   */
+  clearSuggestionsCache(familyGroupId?: string): void {
+    if (familyGroupId) {
+      this.suggestionsCache.delete(familyGroupId);
+    } else {
+      this.suggestionsCache.clear();
+    }
   }
 
   /**
@@ -280,12 +293,19 @@ class PriceHistoryService {
   /**
    * Get smart shopping suggestions for a list of items
    * Returns the cheapest store for each item based on historical prices
+   * Results are cached for 5 minutes
    */
   async getSmartSuggestions(
     familyGroupId: string,
     itemNames: string[]
   ): Promise<Map<string, { bestStore: string; bestPrice: number; savings: number }>> {
     try {
+      // Check cache first
+      const cached = this.suggestionsCache.get(familyGroupId);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        return cached.data;
+      }
+
       const suggestions = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
 
       for (const itemName of itemNames) {
@@ -318,6 +338,12 @@ class PriceHistoryService {
           }
         }
       }
+
+      // Cache the results
+      this.suggestionsCache.set(familyGroupId, {
+        data: suggestions,
+        timestamp: Date.now(),
+      });
 
       return suggestions;
     } catch (error) {
