@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  FlatList,
   Alert,
   TextInput,
 } from 'react-native';
@@ -250,7 +249,7 @@ const BudgetScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       {/* Date Range Selector */}
       <View style={styles.dateRangeContainer}>
         <Text style={styles.dateRangeLabel}>Time Period</Text>
@@ -458,15 +457,16 @@ const BudgetScreen = () => {
             </Text>
           </View>
         ) : (
-          <FlatList
-            data={breakdown}
-            renderItem={renderBreakdownItem}
-            keyExtractor={(item) => item.listId}
-            contentContainerStyle={styles.breakdownList}
-          />
+          <View style={styles.breakdownList}>
+            {breakdown.map((item) => (
+              <View key={item.listId}>
+                {renderBreakdownItem({ item })}
+              </View>
+            ))}
+          </View>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -474,6 +474,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0a0a0a',
+  },
+  scrollContent: {
+    paddingBottom: 30,
   },
   centerContainer: {
     flex: 1,
