@@ -236,9 +236,9 @@ const AnalyticsScreen = () => {
         </View>
 
         {/* Monthly Spending Trend */}
-        {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 && (
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
+          {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 ? (
             <LineChart
               data={monthlyChartData}
               width={screenWidth - 62 - 40}
@@ -271,13 +271,15 @@ const AnalyticsScreen = () => {
               textColor="#ffffff"
               textFontSize={10}
             />
-          </View>
-        )}
+          ) : (
+            <Text style={styles.noDataText}>Not enough data to display trend</Text>
+          )}
+        </View>
 
         {/* Spending by Store */}
-        {storeChartData.length > 0 && (
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Spending by Store</Text>
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Spending by Store</Text>
+          {storeChartData.length > 0 ? (
             <BarChart
               data={storeChartData}
               width={screenWidth - 62 - 40}
@@ -303,13 +305,15 @@ const AnalyticsScreen = () => {
               hideYAxisText={false}
               noOfSections={5}
             />
-          </View>
-        )}
+          ) : (
+            <Text style={styles.noDataText}>No store data available</Text>
+          )}
+        </View>
 
         {/* Category Breakdown */}
-        {categoryPieData.length > 0 && (
-          <View style={styles.chartCard}>
-            <Text style={styles.chartTitle}>Spending by Category</Text>
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Spending by Category</Text>
+          {categoryPieData.length > 0 ? (
             <View style={{ alignItems: 'center', marginTop: 10 }}>
               <PieChart
                 data={categoryPieData}
@@ -334,8 +338,10 @@ const AnalyticsScreen = () => {
                 sectionAutoFocus={false}
               />
             </View>
-          </View>
-        )}
+          ) : (
+            <Text style={styles.noDataText}>No category data available</Text>
+          )}
+        </View>
 
         {/* Top Items */}
         <View style={styles.chartCard}>
@@ -450,35 +456,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 10,
+    paddingHorizontal: 15,
+    paddingTop: 10,
   },
   summaryCard: {
-    width: '48%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    padding: 16,
-    margin: 5,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#a0a0a0',
-    marginBottom: 8,
+    flex: 1,
   },
   summaryValue: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#ffffff',
   },
   chartCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 12,
     marginHorizontal: 15,
-    marginTop: 15,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
   },
@@ -596,6 +603,13 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: '#a0a0a0',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginVertical: 20,
   },
 });
 

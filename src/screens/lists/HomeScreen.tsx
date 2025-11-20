@@ -276,13 +276,12 @@ const HomeScreen = () => {
     const isCompleted = item.status === 'completed';
     const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
-    // Format date for completed lists
+    // Format date for completed lists - UK format
     const date = isCompleted ? new Date(item.completedAt || 0) : new Date(item.createdAt);
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
-    const formattedDate = `${dayOfWeek}, ${month} ${day}, ${year}`;
+    const formattedDate = `${day}/${month}/${year}`;
 
     // Sync status indicator color
     const syncColor = item.syncStatus === 'synced' ? '#30D158' :
@@ -333,7 +332,7 @@ const HomeScreen = () => {
         )}
         {!isCompleted && (
           <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
-            Created {date.toLocaleDateString()}
+            Created {formattedDate}
           </Text>
         )}
       </TouchableOpacity>

@@ -155,7 +155,7 @@ const BudgetScreen = () => {
       </View>
       <View style={styles.breakdownRight}>
         {item.totalAmount !== null ? (
-          <Text style={styles.amount}>${item.totalAmount.toFixed(2)}</Text>
+          <Text style={styles.amount}>£{item.totalAmount.toFixed(2)}</Text>
         ) : (
           <Text style={styles.noReceipt}>No receipt</Text>
         )}
@@ -251,7 +251,7 @@ const BudgetScreen = () => {
           <Text style={styles.summaryTitle}>Total Spending</Text>
           <Text style={styles.summaryPeriod}>{getDateRangeLabel()}</Text>
           <Text style={styles.totalAmount}>
-            ${summary.totalAmount.toFixed(2)}
+            £{summary.totalAmount.toFixed(2)}
           </Text>
           <View style={styles.summaryStats}>
             <View style={styles.statItem}>

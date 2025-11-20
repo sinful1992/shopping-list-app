@@ -24,6 +24,7 @@ import CategoryService from '../../services/CategoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
 import ItemEditModal from '../../components/ItemEditModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
+import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 
 /**
@@ -54,6 +55,9 @@ const ListDetailScreen = () => {
 
   // Store picker modal state
   const [storePickerVisible, setStorePickerVisible] = useState(false);
+
+  // Frequent items modal state
+  const [frequentItemsVisible, setFrequentItemsVisible] = useState(false);
 
   // Shopping mode UI state
   const [runningTotal, setRunningTotal] = useState(0);
@@ -273,6 +277,20 @@ const ListDetailScreen = () => {
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
       Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleAddFrequentItem = async (itemName: string) => {
+    try {
+      const user = await AuthenticationModule.getCurrentUser();
+      if (!user) return;
+
+      await ItemManager.addItem(listId, itemName, user.uid);
+      Alert.alert('Added', `${itemName} added to list`);
+      // WatermelonDB observer will automatically update the UI
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+      throw error;
     }
   };
 
@@ -736,6 +754,13 @@ const ListDetailScreen = () => {
           onSubmitEditing={handleAddItem}
           editable={canAddItems}
         />
+        <TouchableOpacity
+          style={styles.frequentItemsButton}
+          onPress={() => setFrequentItemsVisible(true)}
+          disabled={!canAddItems}
+        >
+          <Text style={styles.frequentItemsIcon}>🕐</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
@@ -801,6 +826,12 @@ const ListDetailScreen = () => {
         onClose={() => setStorePickerVisible(false)}
         onSelect={handleStoreSelected}
         initialValue={list?.storeName || ''}
+      />
+
+      <FrequentlyBoughtModal
+        visible={frequentItemsVisible}
+        onClose={() => setFrequentItemsVisible(false)}
+        onAddItem={handleAddFrequentItem}
       />
     </View>
   );
@@ -889,6 +920,20 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  frequentItemsButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 10,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginRight: 10,
+    minWidth: 44,
+  },
+  frequentItemsIcon: {
+    fontSize: 20,
   },
   itemRow: {
     flexDirection: 'row',
