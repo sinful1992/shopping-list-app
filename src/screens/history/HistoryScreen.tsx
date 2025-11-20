@@ -85,7 +85,22 @@ const HistoryScreen = () => {
     if (user) {
       loadHistory(true);
     }
-  }, [user, debouncedSearchQuery, receiptFilter, activeTab, currentSort]);
+  }, [user, debouncedSearchQuery, receiptFilter, activeTab, currentSort, currentFilters]);
+
+  // Load available stores for filter
+  useEffect(() => {
+    const loadStores = async () => {
+      if (!user?.familyGroupId) return;
+      try {
+        const lists = await HistoryTracker.getCompletedLists(user.familyGroupId);
+        const stores = [...new Set(lists.map(l => l.storeName).filter(Boolean))] as string[];
+        setAvailableStores(stores);
+      } catch (error) {
+        console.error('Failed to load stores:', error);
+      }
+    };
+    loadStores();
+  }, [user?.familyGroupId]);
 
   const autoArchiveOldLists = async () => {
     if (!user?.familyGroupId) return;
@@ -146,6 +161,40 @@ const HistoryScreen = () => {
         } else if (receiptFilter === 'without') {
           filteredLists = filteredLists.filter(list => list.receiptUrl === null);
         }
+      }
+
+      // Apply advanced filters from FilterModal
+      if (currentFilters.startDate) {
+        filteredLists = filteredLists.filter(list =>
+          (list.completedAt || 0) >= currentFilters.startDate!.getTime()
+        );
+      }
+      if (currentFilters.endDate) {
+        filteredLists = filteredLists.filter(list =>
+          (list.completedAt || 0) <= currentFilters.endDate!.getTime()
+        );
+      }
+      if (currentFilters.stores.length > 0) {
+        filteredLists = filteredLists.filter(list =>
+          list.storeName && currentFilters.stores.includes(list.storeName)
+        );
+      }
+      if (currentFilters.minPrice !== null) {
+        filteredLists = filteredLists.filter(list =>
+          (list.receiptData?.totalAmount || 0) >= currentFilters.minPrice!
+        );
+      }
+      if (currentFilters.maxPrice !== null) {
+        filteredLists = filteredLists.filter(list =>
+          (list.receiptData?.totalAmount || 0) <= currentFilters.maxPrice!
+        );
+      }
+      if (currentFilters.hasReceipt !== 'all') {
+        filteredLists = filteredLists.filter(list =>
+          currentFilters.hasReceipt === 'with'
+            ? list.receiptUrl !== null
+            : list.receiptUrl === null
+        );
       }
 
       // Apply sorting
@@ -216,6 +265,11 @@ const HistoryScreen = () => {
 
   const handleReceiptFilterChange = (filter: 'all' | 'with' | 'without') => {
     setReceiptFilter(filter);
+  };
+
+  const handleApplyFilters = (filters: FilterOptions) => {
+    setCurrentFilters(filters);
+    setFilterModalVisible(false);
   };
 
   const handleListPress = (listId: string) => {
@@ -297,6 +351,12 @@ const HistoryScreen = () => {
           autoCapitalize="none"
         />
         <View style={styles.searchActions}>
+          <TouchableOpacity
+            style={styles.filterIconButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <Text style={styles.filterIconText}>⚙️ Filter</Text>
+          </TouchableOpacity>
           <SortDropdown
             currentSort={currentSort}
             onSelect={setCurrentSort}
@@ -377,6 +437,16 @@ const HistoryScreen = () => {
           ListFooterComponent={renderFooter}
         />
       )}
+
+      {/* Filter Modal */}
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        onApply={handleApplyFilters}
+        currentFilters={currentFilters}
+        availableStores={availableStores}
+        availableCategories={[]}
+      />
     </View>
   );
 };
@@ -440,6 +510,21 @@ const styles = StyleSheet.create({
   searchActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 10,
+  },
+  filterIconButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  filterIconText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   filterContainer: {
     flexDirection: 'row',
