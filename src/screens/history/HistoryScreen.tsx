@@ -85,7 +85,7 @@ const HistoryScreen = () => {
     if (user) {
       loadHistory(true);
     }
-  }, [user, debouncedSearchQuery, receiptFilter, activeTab]);
+  }, [user, debouncedSearchQuery, receiptFilter, activeTab, currentSort]);
 
   const autoArchiveOldLists = async () => {
     if (!user?.familyGroupId) return;
@@ -147,6 +147,32 @@ const HistoryScreen = () => {
           filteredLists = filteredLists.filter(list => list.receiptUrl === null);
         }
       }
+
+      // Apply sorting
+      filteredLists = filteredLists.sort((a, b) => {
+        let comparison = 0;
+
+        switch (currentSort.field) {
+          case 'date':
+            comparison = (a.completedAt || 0) - (b.completedAt || 0);
+            break;
+          case 'amount':
+            const amountA = a.receiptData?.totalAmount || 0;
+            const amountB = b.receiptData?.totalAmount || 0;
+            comparison = amountA - amountB;
+            break;
+          case 'store':
+            const storeA = a.storeName || '';
+            const storeB = b.storeName || '';
+            comparison = storeA.localeCompare(storeB);
+            break;
+          case 'name':
+            comparison = a.name.localeCompare(b.name);
+            break;
+        }
+
+        return currentSort.order === 'desc' ? -comparison : comparison;
+      });
 
       // Paginate
       const paginatedLists = filteredLists.slice(
@@ -260,7 +286,7 @@ const HistoryScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
+      {/* Search Bar with Sort */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -270,6 +296,12 @@ const HistoryScreen = () => {
           onChangeText={handleSearchChange}
           autoCapitalize="none"
         />
+        <View style={styles.searchActions}>
+          <SortDropdown
+            currentSort={currentSort}
+            onSelect={setCurrentSort}
+          />
+        </View>
       </View>
 
       {/* Receipt Filter - Only show on Recent tab */}
@@ -403,6 +435,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
+    marginBottom: 10,
+  },
+  searchActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   filterContainer: {
     flexDirection: 'row',
