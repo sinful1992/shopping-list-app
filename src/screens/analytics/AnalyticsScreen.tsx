@@ -12,6 +12,7 @@ import {
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -360,21 +361,44 @@ const AnalyticsScreen = () => {
           ))}
         </View>
 
-        {/* Store Details */}
+        {/* Store Details with Best Value Indicators */}
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Store Breakdown</Text>
-          {analytics.spendingByStore.map(store => (
-            <View key={store.storeName} style={styles.storeDetailRow}>
-              <Text style={styles.storeDetailName}>{store.storeName}</Text>
-              <View style={styles.storeDetailStats}>
-                <Text style={styles.storeDetailTrips}>{store.tripCount} trips</Text>
-                <Text style={styles.storeDetailTotal}>{formatCurrency(store.totalSpent)}</Text>
-                <Text style={styles.storeDetailAverage}>
-                  Avg: {formatCurrency(store.averagePerTrip)}
-                </Text>
+          {analytics.spendingByStore.map((store, index) => {
+            const lowestAverage = Math.min(
+              ...analytics.spendingByStore.map(s => s.averagePerTrip)
+            );
+            const isBestValue = store.averagePerTrip === lowestAverage && analytics.spendingByStore.length > 1;
+            const mostVisited = Math.max(
+              ...analytics.spendingByStore.map(s => s.tripCount)
+            );
+            const isMostVisited = store.tripCount === mostVisited && analytics.spendingByStore.length > 1;
+
+            return (
+              <View key={store.storeName} style={styles.storeDetailRow}>
+                <View style={styles.storeNameWithBadge}>
+                  <Text style={styles.storeDetailName}>{store.storeName}</Text>
+                  {isBestValue && (
+                    <View style={styles.bestValueBadge}>
+                      <Text style={styles.bestValueText}>Best Avg</Text>
+                    </View>
+                  )}
+                  {isMostVisited && !isBestValue && (
+                    <View style={styles.mostVisitedBadge}>
+                      <Text style={styles.mostVisitedText}>Most Visited</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.storeDetailStats}>
+                  <Text style={styles.storeDetailTrips}>{store.tripCount} trips</Text>
+                  <Text style={styles.storeDetailTotal}>{formatCurrency(store.totalSpent)}</Text>
+                  <Text style={[styles.storeDetailAverage, isBestValue && styles.bestValuePrice]}>
+                    Avg: {formatCurrency(store.averagePerTrip)}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <View style={styles.bottomPadding} />
@@ -544,7 +568,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 8,
   },
   storeDetailStats: {
     flexDirection: 'row',
@@ -562,6 +585,40 @@ const styles = StyleSheet.create({
   storeDetailAverage: {
     fontSize: 13,
     color: '#6E6E73',
+  },
+  storeNameWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  bestValueBadge: {
+    backgroundColor: 'rgba(48, 209, 88, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  bestValueText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#30D158',
+    textTransform: 'uppercase',
+  },
+  bestValuePrice: {
+    color: '#30D158',
+    fontWeight: '700',
+  },
+  mostVisitedBadge: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  mostVisitedText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#007AFF',
+    textTransform: 'uppercase',
   },
   bottomPadding: {
     height: 40,

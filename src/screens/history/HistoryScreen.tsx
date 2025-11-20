@@ -14,6 +14,9 @@ import { useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { ShoppingList, User } from '../../models/types';
+import FilterModal, { FilterOptions } from '../../components/FilterModal';
+import SortDropdown, { SortOption } from '../../components/SortDropdown';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
 
 /**
  * HistoryScreen
@@ -32,6 +35,26 @@ const HistoryScreen = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [receiptFilter, setReceiptFilter] = useState<'all' | 'with' | 'without'>('all');
   const [activeTab, setActiveTab] = useState<'recent' | 'archived'>('recent');
+
+  // Filter modal state
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState<FilterOptions>({
+    startDate: null,
+    endDate: null,
+    stores: [],
+    minPrice: null,
+    maxPrice: null,
+    categories: [],
+    hasReceipt: 'all',
+  });
+  const [availableStores, setAvailableStores] = useState<string[]>([]);
+
+  // Sort state
+  const [currentSort, setCurrentSort] = useState<SortOption>({
+    field: 'date',
+    order: 'desc',
+    label: 'Date (newest first)',
+  });
 
   // Pagination
   const [offset, setOffset] = useState(0);

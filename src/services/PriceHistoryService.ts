@@ -276,6 +276,55 @@ class PriceHistoryService {
       return { cheapest: [], mostExpensive: [] };
     }
   }
+
+  /**
+   * Get smart shopping suggestions for a list of items
+   * Returns the cheapest store for each item based on historical prices
+   */
+  async getSmartSuggestions(
+    familyGroupId: string,
+    itemNames: string[]
+  ): Promise<Map<string, { bestStore: string; bestPrice: number; savings: number }>> {
+    try {
+      const suggestions = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
+
+      for (const itemName of itemNames) {
+        const storeData = await this.getPriceByStore(familyGroupId, itemName);
+        const stores = Object.entries(storeData);
+
+        if (stores.length > 1) {
+          // Find the cheapest store
+          let cheapestStore = '';
+          let cheapestPrice = Infinity;
+          let averagePrice = 0;
+
+          stores.forEach(([store, data]) => {
+            if (data.average < cheapestPrice) {
+              cheapestPrice = data.average;
+              cheapestStore = store;
+            }
+            averagePrice += data.average;
+          });
+
+          averagePrice = averagePrice / stores.length;
+          const savings = averagePrice - cheapestPrice;
+
+          if (savings > 0.01) { // Only suggest if there's actual savings
+            suggestions.set(itemName.toLowerCase(), {
+              bestStore: cheapestStore,
+              bestPrice: cheapestPrice,
+              savings: savings,
+            });
+          }
+        }
+      }
+
+      return suggestions;
+    } catch (error) {
+      console.error('Failed to get smart suggestions:', error);
+      return new Map();
+    }
+  }
 }
 
 export default PriceHistoryService.getInstance();

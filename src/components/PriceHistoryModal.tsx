@@ -7,9 +7,14 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
+import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import AuthenticationModule from '../services/AuthenticationModule';
+import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+
+const screenWidth = Dimensions.get('window').width;
 
 interface PriceHistoryModalProps {
   visible: boolean;
@@ -160,22 +165,80 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                 </View>
               </View>
 
-              {/* Price by Store */}
+              {/* Price by Store with Chart */}
               {Object.keys(priceByStore).length > 0 && (
                 <View style={styles.statsCard}>
                   <Text style={styles.cardTitle}>Price by Store</Text>
-                  {Object.entries(priceByStore).map(([store, data]) => (
-                    <View key={store} style={styles.storeRow}>
-                      <Text style={styles.storeName}>{store}</Text>
-                      <View style={styles.storePrices}>
-                        <Text style={styles.storeAverage}>Avg: £{data.average.toFixed(2)}</Text>
-                        <Text style={styles.storeRange}>
-                          £{data.lowest.toFixed(2)} - £{data.highest.toFixed(2)}
-                        </Text>
-                        <Text style={styles.storeCount}>({data.count}x)</Text>
-                      </View>
+
+                  {/* Bar Chart for Store Comparison */}
+                  {Object.keys(priceByStore).length > 1 && (
+                    <View style={styles.chartContainer}>
+                      <BarChart
+                        data={Object.entries(priceByStore).map(([store, data], index) => {
+                          const lowestAverage = Math.min(
+                            ...Object.values(priceByStore).map((d: any) => d.average)
+                          );
+                          const isCheapest = data.average === lowestAverage;
+                          return {
+                            value: data.average,
+                            label: store.length > 8 ? store.substring(0, 8) + '...' : store,
+                            labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
+                            frontColor: isCheapest ? COLORS.accent.green : COLORS.accent.blue,
+                          };
+                        })}
+                        width={screenWidth - 120}
+                        height={150}
+                        barWidth={30}
+                        barBorderRadius={8}
+                        isAnimated
+                        animationDuration={600}
+                        showValuesAsTopLabel
+                        topLabelTextStyle={{
+                          color: COLORS.text.primary,
+                          fontSize: 10,
+                          fontWeight: '600',
+                        }}
+                        rulesColor={COLORS.border.medium}
+                        rulesThickness={1}
+                        xAxisColor={COLORS.border.medium}
+                        yAxisColor={COLORS.border.medium}
+                        yAxisTextStyle={{ color: COLORS.text.secondary, fontSize: 10 }}
+                        yAxisLabelPrefix="£"
+                        yAxisLabelWidth={35}
+                        noOfSections={4}
+                      />
                     </View>
-                  ))}
+                  )}
+
+                  {/* Store List with Best Deal Badge */}
+                  {Object.entries(priceByStore).map(([store, data]) => {
+                    const lowestAverage = Math.min(
+                      ...Object.values(priceByStore).map((d: any) => d.average)
+                    );
+                    const isCheapest = data.average === lowestAverage && Object.keys(priceByStore).length > 1;
+
+                    return (
+                      <View key={store} style={styles.storeRow}>
+                        <View style={styles.storeNameContainer}>
+                          <Text style={styles.storeName}>{store}</Text>
+                          {isCheapest && (
+                            <View style={styles.bestDealBadge}>
+                              <Text style={styles.bestDealText}>Best Deal</Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={styles.storePrices}>
+                          <Text style={[styles.storeAverage, isCheapest && styles.bestDealPrice]}>
+                            Avg: £{data.average.toFixed(2)}
+                          </Text>
+                          <Text style={styles.storeRange}>
+                            £{data.lowest.toFixed(2)} - £{data.highest.toFixed(2)}
+                          </Text>
+                          <Text style={styles.storeCount}>({data.count}x)</Text>
+                        </View>
+                      </View>
+                    );
+                  })}
                 </View>
               )}
 
@@ -339,6 +402,11 @@ const styles = StyleSheet.create({
   priceRed: {
     color: '#FF453A',
   },
+  chartContainer: {
+    marginBottom: 16,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
   storeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -348,11 +416,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.06)',
   },
+  storeNameContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   storeName: {
     fontSize: 15,
     fontWeight: '600',
     color: '#ffffff',
-    flex: 1,
+  },
+  bestDealBadge: {
+    backgroundColor: COLORS.accent.greenDim,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: RADIUS.small,
+  },
+  bestDealText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.accent.green,
+    textTransform: 'uppercase',
+  },
+  bestDealPrice: {
+    color: COLORS.accent.green,
   },
   storePrices: {
     alignItems: 'flex-end',

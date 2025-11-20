@@ -20,6 +20,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
+import PriceHistoryService from '../../services/PriceHistoryService';
 import CategoryService from '../../services/CategoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
 import ItemEditModal from '../../components/ItemEditModal';
@@ -64,6 +65,7 @@ const ListDetailScreen = () => {
   const [checkedCount, setCheckedCount] = useState(0);
   const [uncheckedCount, setUncheckedCount] = useState(0);
   const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
+  const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const [isOnline, setIsOnline] = useState(true);
   const [isShoppingHeaderExpanded, setIsShoppingHeaderExpanded] = useState(false);
 
@@ -250,12 +252,18 @@ const ListDetailScreen = () => {
       const predictions = await PricePredictionService.getPredictionsForFamilyGroup(list.familyGroupId);
       setPredictedPrices(predictions);
 
+      // Get smart suggestions for items where there's a price difference across stores
+      const itemNames = itemsList.map(item => item.name);
+      const suggestions = await PriceHistoryService.getSmartSuggestions(list.familyGroupId, itemNames);
+      setSmartSuggestions(suggestions);
+
       // Recalculate stats after predictions are loaded
       calculateShoppingStats(itemsList);
     } catch (error) {
       console.error('Failed to predict prices:', error);
       // Don't crash - just continue without predictions
       setPredictedPrices({});
+      setSmartSuggestions(new Map());
     }
   }, [list?.familyGroupId, calculateShoppingStats]);
 
@@ -463,6 +471,8 @@ const ListDetailScreen = () => {
 
     const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
     const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
+    const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
+    const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
 
     return (
       <View style={[
@@ -483,25 +493,34 @@ const ListDetailScreen = () => {
           disabled={isListLocked}
           activeOpacity={0.7}
         >
-          <View style={styles.itemContentRow}>
-            <Text
-              style={[
-                styles.itemNameText,
-                item.checked === true && styles.itemNameChecked
-              ]}
-              numberOfLines={1}
-            >
-              {item.name}
-            </Text>
-            <Text
-              style={[
-                styles.itemPriceText,
-                isPredicted && styles.itemPricePredicted,
-                item.checked === true && styles.itemPriceChecked
-              ]}
-            >
-              {isPredicted && '~'}£{itemPrice.toFixed(2)}
-            </Text>
+          <View style={styles.itemContentColumn}>
+            <View style={styles.itemContentRow}>
+              <Text
+                style={[
+                  styles.itemNameText,
+                  item.checked === true && styles.itemNameChecked
+                ]}
+                numberOfLines={1}
+              >
+                {item.name}
+              </Text>
+              <Text
+                style={[
+                  styles.itemPriceText,
+                  isPredicted ? styles.itemPricePredicted : null,
+                  item.checked === true ? styles.itemPriceChecked : null
+                ]}
+              >
+                {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
+              </Text>
+            </View>
+            {showSuggestion && (
+              <View style={styles.suggestionRow}>
+                <Text style={styles.suggestionText}>
+                  💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
+                </Text>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </View>
@@ -976,11 +995,22 @@ const styles = StyleSheet.create({
   itemContentTouchable: {
     flex: 1,
   },
+  itemContentColumn: {
+    flex: 1,
+  },
   itemContentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+  },
+  suggestionRow: {
+    marginTop: 4,
+  },
+  suggestionText: {
+    fontSize: 12,
+    color: '#30D158',
+    fontStyle: 'italic',
   },
   itemNameText: {
     flex: 1,

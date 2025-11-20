@@ -291,6 +291,16 @@ class UrgentItemManager {
     // Use WatermelonDB observers for true real-time updates (no polling!)
     return LocalStorageManager.observeActiveUrgentItems(familyGroupId, callback);
   }
+
+  /**
+   * Subscribe to resolved urgent item changes for real-time updates using WatermelonDB observers
+   */
+  subscribeToResolvedUrgentItems(
+    familyGroupId: string,
+    callback: (items: UrgentItem[]) => void
+  ): Unsubscribe {
+    return LocalStorageManager.observeResolvedUrgentItems(familyGroupId, callback);
+  }
 }
 
 export default new UrgentItemManager();

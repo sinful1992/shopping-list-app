@@ -830,6 +830,26 @@ class LocalStorageManager {
     return () => subscription.unsubscribe();
   }
 
+  /**
+   * Observe resolved urgent items for a family group
+   * Returns unsubscribe function
+   */
+  observeResolvedUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
+    const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
+    const query = urgentItemsCollection.query(
+      Q.where('family_group_id', familyGroupId),
+      Q.where('status', 'resolved'),
+      Q.sortBy('resolved_at', Q.desc)
+    );
+
+    const subscription = query.observe().subscribe((itemModels) => {
+      const items = itemModels.map((model) => this.urgentItemModelToType(model));
+      callback(items);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
   // ===== HELPER METHODS =====
 
   private listModelToType(model: ShoppingListModel): ShoppingList {

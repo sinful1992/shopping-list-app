@@ -8,14 +8,17 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  TextInput,
 } from 'react-native';
 import BudgetTracker from '../../services/BudgetTracker';
+import BudgetAlertService, { BudgetAlert, BudgetSettings } from '../../services/BudgetAlertService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import {
   ExpenditureSummary,
   ExpenditureBreakdownItem,
   User,
 } from '../../models/types';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
 
 /**
  * BudgetScreen
@@ -32,6 +35,20 @@ const BudgetScreen = () => {
   const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
   const [filterUserId, setFilterUserId] = useState<string | null>(null);
 
+  // Budget settings state
+  const [budgetSettings, setBudgetSettings] = useState<BudgetSettings>({
+    monthlyLimit: null,
+    weeklyLimit: null,
+    enableAlerts: true,
+  });
+  const [monthlyLimitInput, setMonthlyLimitInput] = useState('');
+  const [weeklyLimitInput, setWeeklyLimitInput] = useState('');
+  const [showBudgetConfig, setShowBudgetConfig] = useState(false);
+
+  // Budget alert state
+  const [monthlyAlert, setMonthlyAlert] = useState<BudgetAlert | null>(null);
+  const [weeklyAlert, setWeeklyAlert] = useState<BudgetAlert | null>(null);
+
   useEffect(() => {
     loadUser();
   }, []);
@@ -46,9 +63,69 @@ const BudgetScreen = () => {
     try {
       const currentUser = await AuthenticationModule.getCurrentUser();
       setUser(currentUser);
+      if (currentUser?.familyGroupId) {
+        await loadBudgetSettings(currentUser.familyGroupId);
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const loadBudgetSettings = async (familyGroupId: string) => {
+    try {
+      const settings = await BudgetAlertService.getBudgetSettings(familyGroupId);
+      setBudgetSettings(settings);
+      setMonthlyLimitInput(settings.monthlyLimit?.toString() || '');
+      setWeeklyLimitInput(settings.weeklyLimit?.toString() || '');
+
+      // Check budget alerts
+      const [monthly, weekly] = await Promise.all([
+        BudgetAlertService.checkBudget(familyGroupId, 'monthly'),
+        BudgetAlertService.checkBudget(familyGroupId, 'weekly'),
+      ]);
+      setMonthlyAlert(monthly);
+      setWeeklyAlert(weekly);
+    } catch (error) {
+      console.error('Error loading budget settings:', error);
+    }
+  };
+
+  const saveBudgetSettings = async () => {
+    if (!user?.familyGroupId) return;
+
+    try {
+      const settings: BudgetSettings = {
+        monthlyLimit: monthlyLimitInput ? parseFloat(monthlyLimitInput) : null,
+        weeklyLimit: weeklyLimitInput ? parseFloat(weeklyLimitInput) : null,
+        enableAlerts: budgetSettings.enableAlerts,
+      };
+
+      await BudgetAlertService.saveBudgetSettings(user.familyGroupId, settings);
+      setBudgetSettings(settings);
+      setShowBudgetConfig(false);
+
+      // Refresh alerts
+      const [monthly, weekly] = await Promise.all([
+        BudgetAlertService.checkBudget(user.familyGroupId, 'monthly'),
+        BudgetAlertService.checkBudget(user.familyGroupId, 'weekly'),
+      ]);
+      setMonthlyAlert(monthly);
+      setWeeklyAlert(weekly);
+
+      Alert.alert('Success', 'Budget limits saved');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const getBudgetProgress = (spent: number, limit: number): number => {
+    if (limit <= 0) return 0;
+    return Math.min((spent / limit) * 100, 100);
+  };
+
+  const getAlertColor = (alert: BudgetAlert | null): string => {
+    if (!alert) return COLORS.accent.green;
+    return BudgetAlertService.getAlertColor(alert.level);
   };
 
   const loadBudgetData = async () => {
@@ -282,6 +359,95 @@ const BudgetScreen = () => {
         </View>
       )}
 
+      {/* Budget Alerts */}
+      {(monthlyAlert || weeklyAlert) && (
+        <View style={styles.alertsContainer}>
+          {monthlyAlert && BudgetAlertService.shouldShowAlert(monthlyAlert) && (
+            <View style={[styles.alertCard, { borderLeftColor: getAlertColor(monthlyAlert) }]}>
+              <View style={styles.alertHeader}>
+                <Text style={styles.alertIcon}>{BudgetAlertService.getAlertIcon(monthlyAlert.level)}</Text>
+                <Text style={styles.alertTitle}>Monthly Budget</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${getBudgetProgress(monthlyAlert.spent, monthlyAlert.limit)}%`,
+                      backgroundColor: getAlertColor(monthlyAlert),
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.alertMessage}>{monthlyAlert.message}</Text>
+            </View>
+          )}
+          {weeklyAlert && BudgetAlertService.shouldShowAlert(weeklyAlert) && (
+            <View style={[styles.alertCard, { borderLeftColor: getAlertColor(weeklyAlert) }]}>
+              <View style={styles.alertHeader}>
+                <Text style={styles.alertIcon}>{BudgetAlertService.getAlertIcon(weeklyAlert.level)}</Text>
+                <Text style={styles.alertTitle}>Weekly Budget</Text>
+              </View>
+              <View style={styles.progressBar}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${getBudgetProgress(weeklyAlert.spent, weeklyAlert.limit)}%`,
+                      backgroundColor: getAlertColor(weeklyAlert),
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.alertMessage}>{weeklyAlert.message}</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Budget Configuration */}
+      <View style={styles.configContainer}>
+        <TouchableOpacity
+          style={styles.configToggle}
+          onPress={() => setShowBudgetConfig(!showBudgetConfig)}
+        >
+          <Text style={styles.configToggleText}>
+            {showBudgetConfig ? 'Hide Budget Settings' : 'Set Budget Limits'}
+          </Text>
+          <Text style={styles.configToggleIcon}>{showBudgetConfig ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+
+        {showBudgetConfig && (
+          <View style={styles.configForm}>
+            <View style={styles.configInputGroup}>
+              <Text style={styles.configLabel}>Monthly Limit</Text>
+              <TextInput
+                style={styles.configInput}
+                value={monthlyLimitInput}
+                onChangeText={setMonthlyLimitInput}
+                placeholder="e.g., 500"
+                placeholderTextColor={COLORS.text.tertiary}
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.configInputGroup}>
+              <Text style={styles.configLabel}>Weekly Limit</Text>
+              <TextInput
+                style={styles.configInput}
+                value={weeklyLimitInput}
+                onChangeText={setWeeklyLimitInput}
+                placeholder="e.g., 150"
+                placeholderTextColor={COLORS.text.tertiary}
+                keyboardType="numeric"
+              />
+            </View>
+            <TouchableOpacity style={styles.saveButton} onPress={saveBudgetSettings}>
+              <Text style={styles.saveButtonText}>Save Budget Limits</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
       {/* Breakdown List */}
       <View style={styles.breakdownContainer}>
         <Text style={styles.breakdownTitle}>Shopping Trips</Text>
@@ -431,6 +597,113 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffffff',
     fontWeight: '600',
+  },
+  alertsContainer: {
+    paddingHorizontal: 15,
+    marginBottom: 10,
+  },
+  alertCard: {
+    backgroundColor: COLORS.glass.medium,
+    borderRadius: RADIUS.medium,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border.strong,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  alertIcon: {
+    fontSize: 16,
+  },
+  alertTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: COLORS.glass.subtle,
+    borderRadius: 4,
+    marginBottom: SPACING.sm,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  alertMessage: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  configContainer: {
+    marginHorizontal: 15,
+    marginBottom: 10,
+  },
+  configToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: COLORS.glass.medium,
+    padding: SPACING.md,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: COLORS.border.strong,
+  },
+  configToggleText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  configToggleIcon: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+  },
+  configForm: {
+    backgroundColor: COLORS.glass.medium,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.medium,
+    marginTop: SPACING.sm,
+    borderWidth: 1,
+    borderColor: COLORS.border.strong,
+  },
+  configInputGroup: {
+    marginBottom: SPACING.lg,
+  },
+  configLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.sm,
+  },
+  configInput: {
+    backgroundColor: COLORS.glass.medium,
+    padding: SPACING.md,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: COLORS.border.strong,
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+  },
+  saveButton: {
+    backgroundColor: COLORS.accent.blueLight,
+    padding: SPACING.md,
+    borderRadius: RADIUS.medium,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.accent.blueDim,
+    ...SHADOWS.blue,
+  },
+  saveButtonText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   breakdownContainer: {
     flex: 1,

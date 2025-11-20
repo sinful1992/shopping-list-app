@@ -55,16 +55,26 @@ const UrgentItemsScreen = () => {
 
     // Step 2: Subscribe to local WatermelonDB changes (triggered by Firebase or local edits)
     // This gives us instant UI updates without polling
-    const unsubscribeLocal = UrgentItemManager.subscribeToUrgentItems(
+    const unsubscribeActiveItems = UrgentItemManager.subscribeToUrgentItems(
       user.familyGroupId,
       (updatedItems) => {
         setActiveItems(updatedItems);
       }
     );
 
+    // Step 3: Subscribe to resolved items changes
+    // This ensures resolved items appear instantly when an item is completed
+    const unsubscribeResolvedItems = UrgentItemManager.subscribeToResolvedUrgentItems(
+      user.familyGroupId,
+      (updatedItems) => {
+        setResolvedItems(updatedItems);
+      }
+    );
+
     return () => {
       unsubscribeFirebase();
-      unsubscribeLocal();
+      unsubscribeActiveItems();
+      unsubscribeResolvedItems();
     };
   }, [user?.familyGroupId]);
 
