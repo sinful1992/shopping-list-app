@@ -237,7 +237,9 @@ const ListDetailScreen = () => {
       setItems(listItems);
 
       // Predict prices from history when loading items
-      await predictPricesFromHistory(listItems);
+      if (fetchedList && fetchedList.familyGroupId) {
+        await predictPricesFromHistory(listItems, fetchedList.familyGroupId);
+      }
 
       calculateShoppingStats(listItems);
     } catch (error: any) {
@@ -245,17 +247,17 @@ const ListDetailScreen = () => {
     }
   };
 
-  const predictPricesFromHistory = useCallback(async (itemsList: Item[]) => {
-    if (!list?.familyGroupId || !itemsList) return;
+  const predictPricesFromHistory = useCallback(async (itemsList: Item[], familyGroupId: string) => {
+    if (!familyGroupId || !itemsList) return;
 
     try {
       // Use cached price prediction service - much faster!
-      const predictions = await PricePredictionService.getPredictionsForFamilyGroup(list.familyGroupId);
+      const predictions = await PricePredictionService.getPredictionsForFamilyGroup(familyGroupId);
       setPredictedPrices(predictions);
 
       // Get smart suggestions for items where there's a price difference across stores
       const itemNames = itemsList.map(item => item.name);
-      const suggestions = await PriceHistoryService.getSmartSuggestions(list.familyGroupId, itemNames);
+      const suggestions = await PriceHistoryService.getSmartSuggestions(familyGroupId, itemNames);
       setSmartSuggestions(suggestions);
 
       // Recalculate stats after predictions are loaded
@@ -266,7 +268,7 @@ const ListDetailScreen = () => {
       setPredictedPrices({});
       setSmartSuggestions(new Map());
     }
-  }, [list?.familyGroupId, calculateShoppingStats]);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);

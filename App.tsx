@@ -33,6 +33,7 @@ import FamilyGroupScreen from './src/screens/auth/FamilyGroupScreen';
 import HomeScreen from './src/screens/lists/HomeScreen';
 import ListDetailScreen from './src/screens/lists/ListDetailScreen';
 import BudgetScreen from './src/screens/budget/BudgetScreen';
+import HistoryScreen from './src/screens/history/HistoryScreen';
 import HistoryDetailScreen from './src/screens/history/HistoryDetailScreen';
 import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
@@ -67,6 +68,29 @@ function ListsStack() {
         name="ReceiptCamera"
         component={ReceiptCameraScreen}
         options={{ title: 'Capture Receipt' }}
+      />
+      <Stack.Screen
+        name="ReceiptView"
+        component={ReceiptViewScreen}
+        options={{ title: 'Receipt Details' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// History Stack Navigator
+function HistoryStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="HistoryHome"
+        component={HistoryScreen}
+        options={{ title: 'Shopping History' }}
+      />
+      <Stack.Screen
+        name="HistoryDetail"
+        component={HistoryDetailScreen}
+        options={{ title: 'List Details' }}
       />
       <Stack.Screen
         name="ReceiptView"
@@ -123,6 +147,17 @@ function MainTabNavigator() {
           title: 'Analytics',
           tabBarIcon: ({ color, size }) => (
             <Icon name="bar-chart-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryStack}
+        options={{
+          title: 'History',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="time-outline" size={size} color={color} />
           ),
         }}
       />
