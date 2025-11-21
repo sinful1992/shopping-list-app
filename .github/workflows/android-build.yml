@@ -147,8 +147,8 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
 
-          # Deploy database and storage security rules only
-          firebase deploy --only database,storage --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+          # Deploy database security rules only
+          firebase deploy --only database --project "${{ secrets.FIREBASE_PROJECT_ID }}"
 
           # Clean up
           rm /tmp/sa.json
