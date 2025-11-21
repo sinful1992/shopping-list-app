@@ -20,13 +20,16 @@ jobs:
         with:
           version: latest
 
-      - name: Deploy Edge Function
+      - name: Deploy Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: cwpzfsfjrlxekghfyqub
         run: |
           supabase link --project-ref $SUPABASE_PROJECT_ID
           supabase functions deploy notify-urgent-item --no-verify-jwt
+          supabase functions deploy process-ocr
+          supabase functions deploy create-list
+          supabase functions deploy create-urgent-item
 
       - name: Set Edge Function Secrets
         env:
