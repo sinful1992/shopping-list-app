@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import RNFS from 'react-native-fs';
-import functions from '@react-native-firebase/functions';
+import { supabase } from './SupabaseClient';
+import auth from '@react-native-firebase/auth';
 import {
   OCRResult,
   OCRStatus,
@@ -205,25 +206,34 @@ class ReceiptOCRProcessor {
   }
 
   /**
-   * Helper: Call Google Cloud Vision API via Cloud Function
+   * Helper: Call Google Cloud Vision API via Supabase Edge Function
    * Implements Req 6.2
    *
-   * SECURITY: The API key is now stored in Cloud Functions config,
+   * SECURITY: The API key is stored in Supabase secrets,
    * not in the client app. This prevents key exposure.
    */
   private async callVisionAPI(base64Image: string, familyGroupId: string): Promise<VisionAnnotateImageResponse> {
-    // Call Cloud Function which has the API key securely stored
-    const processOCRFunction = functions().httpsCallable('processOCR');
+    // Get current user ID
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
 
-    const result = await processOCRFunction({
-      image: base64Image,
-      familyGroupId,
+    // Call Supabase Edge Function which has the API key securely stored
+    const { data, error } = await supabase.functions.invoke('process-ocr', {
+      body: {
+        image: base64Image,
+        familyGroupId,
+        userId: currentUser.uid,
+      },
     });
 
-    const data = result.data as { success: boolean; result: VisionAnnotateImageResponse };
+    if (error) {
+      throw new Error(error.message || 'OCR processing failed');
+    }
 
     if (!data.success) {
-      throw new Error('OCR processing failed');
+      throw new Error(data.error || 'OCR processing failed');
     }
 
     return data.result;
