@@ -85,7 +85,12 @@ const HistoryScreen = () => {
     if (user) {
       loadHistory(true);
     }
-  }, [user, debouncedSearchQuery, receiptFilter, activeTab, currentSort, currentFilters]);
+  // Use primitive values to avoid re-renders from object reference changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, debouncedSearchQuery, receiptFilter, activeTab, currentSort.field, currentSort.order,
+      currentFilters.startDate?.getTime(), currentFilters.endDate?.getTime(),
+      currentFilters.stores.join(','), currentFilters.minPrice, currentFilters.maxPrice,
+      currentFilters.hasReceipt]);
 
   // Load available stores for filter
   useEffect(() => {
