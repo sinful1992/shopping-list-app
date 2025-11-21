@@ -57,8 +57,8 @@ git push -u origin main
 The GitHub Actions workflow automatically generates a fresh keystore during each build with these credentials:
 - **Keystore File**: `release.keystore` (auto-generated)
 - **Key Alias**: `shoppinglistapp`
-- **Store Password**: `shoppinglist2024`
-- **Key Password**: `shoppinglist2024`
+- **Store Password**: (see workflow file)
+- **Key Password**: (see workflow file)
 
 **Note**: The keystore is temporary and only used for CI builds. Each build generates a new keystore, so the APK signatures will differ between builds. For production releases to Google Play Store, you should use a persistent keystore stored in GitHub Secrets (see Advanced Setup section below).
 
