@@ -2,6 +2,7 @@ import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import database from '@react-native-firebase/database';
 import storage from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import EncryptedStorage from 'react-native-encrypted-storage';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import PaymentService from './PaymentService';
@@ -110,7 +111,10 @@ class AuthenticationModule {
   async signOut(): Promise<void> {
     try {
       await auth().signOut();
-      await AsyncStorage.multiRemove([this.AUTH_TOKEN_KEY, this.USER_KEY]);
+      // Clear user data from regular storage
+      await AsyncStorage.removeItem(this.USER_KEY);
+      // Clear token from encrypted storage
+      await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
 
       // Logout from RevenueCat
       await PaymentService.logout();
@@ -261,17 +265,31 @@ class AuthenticationModule {
   /**
    * Get authentication token
    * Implements Req 1.2
+   * SECURITY: Token is stored in encrypted storage (EncryptedSharedPreferences on Android, Keychain on iOS)
    */
   async getAuthToken(): Promise<string | null> {
     try {
-      const token = await AsyncStorage.getItem(this.AUTH_TOKEN_KEY);
+      // Try encrypted storage first
+      const token = await EncryptedStorage.getItem(this.AUTH_TOKEN_KEY);
       if (token) {
         return token;
       }
 
+      // Migration: Check if token exists in old AsyncStorage
+      const oldToken = await AsyncStorage.getItem(this.AUTH_TOKEN_KEY);
+      if (oldToken) {
+        // Migrate to encrypted storage
+        await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, oldToken);
+        await AsyncStorage.removeItem(this.AUTH_TOKEN_KEY);
+        return oldToken;
+      }
+
+      // Get fresh token from Firebase
       const currentUser = auth().currentUser;
       if (currentUser) {
-        return await currentUser.getIdToken();
+        const freshToken = await currentUser.getIdToken();
+        await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, freshToken);
+        return freshToken;
       }
 
       return null;
@@ -368,6 +386,10 @@ class AuthenticationModule {
 
       // Step 2: Delete all shopping lists and items created by this user
       if (familyGroupId) {
+        // Build a single update object for atomic deletion
+        const updates: { [key: string]: null } = {};
+        const storageDeletePromises: Promise<void>[] = [];
+
         // Get all lists created by this user
         const listsSnapshot = await database()
           .ref(`/familyGroups/${familyGroupId}/lists`)
@@ -375,43 +397,44 @@ class AuthenticationModule {
           .equalTo(userId)
           .once('value');
 
-        const lists = listsSnapshot.val();
+        const lists = listsSnapshot.val() || {};
 
-        if (lists) {
-          const deletePromises: Promise<void>[] = [];
+        // Get ALL items once (instead of per-list N+1 queries)
+        const allItemsSnapshot = await database()
+          .ref(`/familyGroups/${familyGroupId}/items`)
+          .once('value');
+        const allItems = allItemsSnapshot.val() || {};
 
-          for (const listId in lists) {
-            // Delete all items in this list
-            deletePromises.push(
-              database().ref(`/familyGroups/${familyGroupId}/items`).orderByChild('listId').equalTo(listId).once('value')
-                .then((itemsSnapshot) => {
-                  const items = itemsSnapshot.val();
-                  if (items) {
-                    const itemDeletePromises = Object.keys(items).map(itemId =>
-                      database().ref(`/familyGroups/${familyGroupId}/items/${itemId}`).remove()
-                    );
-                    return Promise.all(itemDeletePromises);
-                  }
-                })
-            );
+        // Queue list deletions and find their items
+        for (const listId in lists) {
+          updates[`/familyGroups/${familyGroupId}/lists/${listId}`] = null;
 
-            // Delete the list itself
-            deletePromises.push(
-              database().ref(`/familyGroups/${familyGroupId}/lists/${listId}`).remove()
-            );
-
-            // Delete receipt image from Cloud Storage if exists
-            const list = lists[listId];
-            if (list.receiptUrl) {
-              deletePromises.push(
-                storage().ref(list.receiptUrl).delete().catch(() => {
-                  // Ignore errors if receipt doesn't exist
-                })
-              );
+          // Find items for this list in memory (not a DB query)
+          for (const itemId in allItems) {
+            if (allItems[itemId].listId === listId) {
+              updates[`/familyGroups/${familyGroupId}/items/${itemId}`] = null;
             }
           }
 
-          await Promise.all(deletePromises);
+          // Delete receipt image from Cloud Storage if exists
+          const list = lists[listId];
+          if (list.receiptUrl) {
+            storageDeletePromises.push(
+              storage().ref(list.receiptUrl).delete().catch(() => {
+                // Ignore errors if receipt doesn't exist
+              })
+            );
+          }
+        }
+
+        // Single atomic update for all deletions
+        if (Object.keys(updates).length > 0) {
+          await database().ref().update(updates);
+        }
+
+        // Delete storage files in parallel
+        if (storageDeletePromises.length > 0) {
+          await Promise.all(storageDeletePromises);
         }
 
         // Step 3: Delete all urgent items created by this user
@@ -453,8 +476,9 @@ class AuthenticationModule {
       // Step 6: Clear all local WatermelonDB data
       await LocalStorageManager.clearAllData();
 
-      // Step 7: Clear AsyncStorage
-      await AsyncStorage.multiRemove([this.AUTH_TOKEN_KEY, this.USER_KEY]);
+      // Step 7: Clear storage (user data from AsyncStorage, token from EncryptedStorage)
+      await AsyncStorage.removeItem(this.USER_KEY);
+      await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
 
       // Step 8: Delete user from Firebase Authentication (must be last)
       await currentUser.delete();
@@ -504,10 +528,13 @@ class AuthenticationModule {
 
   /**
    * Helper: Store auth data locally
+   * SECURITY: Token is stored in encrypted storage for security
    */
   private async storeAuthData(user: User, token: string): Promise<void> {
+    // User data in regular storage (not sensitive)
     await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    await AsyncStorage.setItem(this.AUTH_TOKEN_KEY, token);
+    // Token in encrypted storage (sensitive)
+    await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, token);
   }
 }
 

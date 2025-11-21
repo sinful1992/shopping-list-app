@@ -1,13 +1,18 @@
 import { SubscriptionTier, SubscriptionLimits } from './types';
 
 /**
- * Owner email whitelist
- * Users with these emails bypass all subscription limits (free unlimited access)
+ * Admin privileges are now managed via Firebase Custom Claims
+ *
+ * To set up an admin user:
+ * 1. Deploy Cloud Functions: firebase deploy --only functions
+ * 2. Call initializeFirstAdmin: https://YOUR_REGION-YOUR_PROJECT.cloudfunctions.net/initializeFirstAdmin?email=YOUR_EMAIL
+ * 3. The user must sign out and sign back in to get the new token with admin claim
+ *
+ * After first admin is set up, use the setAdminClaim Cloud Function to add more admins.
+ *
+ * SECURITY: Never use email-based admin checks - emails can be spoofed.
+ * Custom Claims are embedded in the Firebase ID token and validated server-side.
  */
-export const OWNER_EMAILS = [
-  'barkus.giedrius@gmail.com',
-  // Add more owner emails here if needed
-];
 
 /**
  * Subscription tier limits configuration

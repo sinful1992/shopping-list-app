@@ -22,10 +22,14 @@ class PaymentService {
 
   /**
    * Get the API key from environment variable
+   * SECURITY: Never log API keys or any part of them
    */
   private getApiKey(): string {
     const apiKey = REVENUECAT_ANDROID_API_KEY;
-    console.log(`🔑 RevenueCat API Key from env: ${apiKey ? apiKey.substring(0, 10) + '...' : 'NOT SET'}`);
+
+    if (__DEV__) {
+      console.log(`🔑 RevenueCat API Key: ${apiKey ? 'SET' : 'NOT SET'}`);
+    }
 
     if (!apiKey) {
       throw new Error('REVENUECAT_ANDROID_API_KEY is not set in environment variables. Please configure it in .env file or GitHub Secrets.');
@@ -43,8 +47,6 @@ class PaymentService {
 
     try {
       const apiKey = this.getApiKey();
-      // Log which API key is being used (first 10 chars only for security)
-      console.log(`🔑 Using RevenueCat API Key: ${apiKey.substring(0, 10)}...`);
 
       // Enable debug logs in development
       if (__DEV__) {

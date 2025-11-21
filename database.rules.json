@@ -1,0 +1,72 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+
+        "usageCounters": {
+          ".write": "auth != null && auth.uid == $uid && (
+            !newData.exists() ||
+            (newData.child('listsCreated').val() >= data.child('listsCreated').val() &&
+             newData.child('ocrProcessed').val() >= data.child('ocrProcessed').val() &&
+             newData.child('urgentItemsCreated').val() >= data.child('urgentItemsCreated').val())
+          )",
+          ".validate": "newData.hasChildren(['listsCreated', 'ocrProcessed', 'urgentItemsCreated', 'lastResetDate'])"
+        }
+      }
+    },
+
+    "familyGroups": {
+      "$groupId": {
+        ".read": "auth != null && data.child('memberIds').hasChild(auth.uid)",
+        ".write": "auth != null && data.child('memberIds').hasChild(auth.uid)",
+
+        "subscriptionTier": {
+          ".write": "auth != null && auth.token.admin === true"
+        },
+
+        "lists": {
+          "$listId": {
+            ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId'])"
+          }
+        },
+
+        "items": {
+          "$itemId": {
+            ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".validate": "newData.hasChildren(['name', 'listId', 'createdBy', 'checked'])"
+          }
+        },
+
+        "urgentItems": {
+          "$itemId": {
+            ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId'])"
+          }
+        },
+
+        "priceHistory": {
+          "$itemName": {
+            ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+            ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)"
+          }
+        }
+      }
+    },
+
+    "invitations": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import RNFS from 'react-native-fs';
+import functions from '@react-native-firebase/functions';
 import {
   OCRResult,
   OCRStatus,
@@ -41,6 +42,7 @@ class ReceiptOCRProcessor {
   async processReceipt(localFilePath: string, listId: string, user: User): Promise<OCRResult> {
     try {
       // Check if user can process OCR based on their subscription tier
+      // NOTE: This is a client-side UX check. Actual enforcement happens in Cloud Function.
       const permission = await UsageTracker.canProcessOCR(user);
       if (!permission.allowed) {
         return {
@@ -52,21 +54,21 @@ class ReceiptOCRProcessor {
         };
       }
 
-      if (!this.apiKey) {
-        throw new Error('Google Cloud Vision API key not configured');
+      if (!user.familyGroupId) {
+        throw new Error('User must belong to a family group to use OCR');
       }
 
       // Read local image and convert to base64
       const base64Image = await this.readLocalImageAsBase64(localFilePath);
 
-      // Send to Google Cloud Vision API
-      const visionResponse = await this.callVisionAPI(base64Image);
+      // Send to Cloud Function which calls Google Cloud Vision API
+      // The API key is stored securely in Cloud Functions config
+      const visionResponse = await this.callVisionAPI(base64Image, user.familyGroupId);
 
       // Parse receipt data with spatial information
       const receiptData = this.parseReceiptWithSpatialData(visionResponse);
 
-      // Increment usage counter
-      await UsageTracker.incrementOCRCounter(user.uid);
+      // Usage counter is incremented by Cloud Function server-side
 
       // Increment API usage count
       await this.incrementAPIUsage();
@@ -203,34 +205,28 @@ class ReceiptOCRProcessor {
   }
 
   /**
-   * Helper: Call Google Cloud Vision API
+   * Helper: Call Google Cloud Vision API via Cloud Function
    * Implements Req 6.2
+   *
+   * SECURITY: The API key is now stored in Cloud Functions config,
+   * not in the client app. This prevents key exposure.
    */
-  private async callVisionAPI(base64Image: string): Promise<VisionAnnotateImageResponse> {
-    const url = `https://vision.googleapis.com/v1/images:annotate?key=${this.apiKey}`;
+  private async callVisionAPI(base64Image: string, familyGroupId: string): Promise<VisionAnnotateImageResponse> {
+    // Call Cloud Function which has the API key securely stored
+    const processOCRFunction = functions().httpsCallable('processOCR');
 
-    const requestBody = {
-      requests: [
-        {
-          image: {
-            content: base64Image,
-          },
-          features: [
-            {
-              type: 'DOCUMENT_TEXT_DETECTION',
-            },
-          ],
-        },
-      ],
-    };
+    const result = await processOCRFunction({
+      image: base64Image,
+      familyGroupId,
+    });
 
-    const response = await axios.post<VisionApiResponse>(url, requestBody);
+    const data = result.data as { success: boolean; result: VisionAnnotateImageResponse };
 
-    if (response.data.responses[0].error) {
-      throw new Error(response.data.responses[0].error.message);
+    if (!data.success) {
+      throw new Error('OCR processing failed');
     }
 
-    return response.data.responses[0];
+    return data.result;
   }
 
   /**

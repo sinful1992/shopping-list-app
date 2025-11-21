@@ -1,6 +1,7 @@
 import database from '@react-native-firebase/database';
+import auth from '@react-native-firebase/auth';
 import { User, UsageCounters, FamilyGroup, SubscriptionTier } from '../models/types';
-import { SUBSCRIPTION_LIMITS, OWNER_EMAILS } from '../models/SubscriptionConfig';
+import { SUBSCRIPTION_LIMITS } from '../models/SubscriptionConfig';
 
 /**
  * UsageTracker
@@ -9,6 +10,26 @@ import { SUBSCRIPTION_LIMITS, OWNER_EMAILS } from '../models/SubscriptionConfig'
  * Subscription is at FAMILY level - one person pays, everyone benefits
  */
 class UsageTracker {
+  /**
+   * Check if current user has admin custom claim
+   * Admin users bypass all subscription limits
+   * This is validated server-side in Cloud Functions for actual operations
+   */
+  private async isAdmin(): Promise<boolean> {
+    try {
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        return false;
+      }
+
+      const idTokenResult = await currentUser.getIdTokenResult();
+      return idTokenResult.claims.admin === true;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  }
+
   /**
    * Get family group's subscription tier
    * This is the key fix: check family tier, not individual user tier
@@ -61,11 +82,12 @@ class UsageTracker {
   /**
    * Check if user can create a shopping list
    * Uses FAMILY subscription tier, not individual user tier
-   * Owner emails bypass all limits
+   * Admin users (via Custom Claims) bypass all limits
+   * NOTE: This is a client-side UX check. Actual enforcement is in Cloud Functions.
    */
   async canCreateList(user: User): Promise<{ allowed: boolean; reason?: string }> {
-    // Whitelist check - owner emails get unlimited access
-    if (OWNER_EMAILS.includes(user.email)) {
+    // Admin check via Firebase Custom Claims
+    if (await this.isAdmin()) {
       return { allowed: true };
     }
 
@@ -90,11 +112,12 @@ class UsageTracker {
   /**
    * Check if user can process OCR
    * Uses FAMILY subscription tier, not individual user tier
-   * Owner emails bypass all limits
+   * Admin users (via Custom Claims) bypass all limits
+   * NOTE: This is a client-side UX check. Actual enforcement is in Cloud Functions.
    */
   async canProcessOCR(user: User): Promise<{ allowed: boolean; reason?: string }> {
-    // Whitelist check - owner emails get unlimited access
-    if (OWNER_EMAILS.includes(user.email)) {
+    // Admin check via Firebase Custom Claims
+    if (await this.isAdmin()) {
       return { allowed: true };
     }
 
@@ -119,11 +142,12 @@ class UsageTracker {
   /**
    * Check if user can create urgent item
    * Uses FAMILY subscription tier, not individual user tier
-   * Owner emails bypass all limits
+   * Admin users (via Custom Claims) bypass all limits
+   * NOTE: This is a client-side UX check. Actual enforcement is in Cloud Functions.
    */
   async canCreateUrgentItem(user: User): Promise<{ allowed: boolean; reason?: string }> {
-    // Whitelist check - owner emails get unlimited access
-    if (OWNER_EMAILS.includes(user.email)) {
+    // Admin check via Firebase Custom Claims
+    if (await this.isAdmin()) {
       return { allowed: true };
     }
 

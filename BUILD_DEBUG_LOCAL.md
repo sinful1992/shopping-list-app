@@ -1,5 +1,17 @@
 # Build Debug APK Locally (No Secrets Required)
 
+> ## ⚠️ SECURITY NOTICE
+>
+> This guide uses **INTENTIONALLY FAKE** credentials for build testing only.
+> The resulting APK will NOT connect to any real services.
+>
+> **NEVER commit real credentials to version control.**
+>
+> For a working app, get real credentials from:
+> - Firebase Console (google-services.json)
+> - Google Cloud Console (Vision API key)
+> - RevenueCat Dashboard (API keys)
+
 You can build a debug APK on your local machine without any Firebase configuration or signing keys.
 
 ## Prerequisites
@@ -19,16 +31,19 @@ npm install
 
 ### Step 2: Create Dummy .env File
 
+> **WARNING:** These are FAKE credentials - the app will NOT work with these!
+
 ```bash
 # Create a basic .env file (app will build but won't connect to Firebase)
-echo FIREBASE_API_KEY=dummy > .env
-echo FIREBASE_AUTH_DOMAIN=dummy.firebaseapp.com >> .env
-echo FIREBASE_DATABASE_URL=https://dummy.firebaseio.com >> .env
-echo FIREBASE_PROJECT_ID=dummy >> .env
-echo FIREBASE_STORAGE_BUCKET=dummy.appspot.com >> .env
-echo FIREBASE_MESSAGING_SENDER_ID=123456789 >> .env
-echo FIREBASE_APP_ID=1:123456789:android:abc123 >> .env
-echo GOOGLE_CLOUD_VISION_API_KEY=dummy >> .env
+echo FIREBASE_API_KEY=FAKE_KEY_FOR_BUILD_TEST_ONLY > .env
+echo FIREBASE_AUTH_DOMAIN=fake-project.firebaseapp.com >> .env
+echo FIREBASE_DATABASE_URL=https://fake-project.firebaseio.com >> .env
+echo FIREBASE_PROJECT_ID=fake-project >> .env
+echo FIREBASE_STORAGE_BUCKET=fake-project.appspot.com >> .env
+echo FIREBASE_MESSAGING_SENDER_ID=000000000000 >> .env
+echo FIREBASE_APP_ID=1:000000000000:android:fake123 >> .env
+echo GOOGLE_CLOUD_VISION_API_KEY=FAKE_VISION_KEY_FOR_BUILD_TEST >> .env
+echo REVENUECAT_ANDROID_API_KEY=FAKE_REVENUECAT_KEY >> .env
 ```
 
 ### Step 3: Create Dummy google-services.json
@@ -42,18 +57,21 @@ mkdir -p android\app
 
 Save this content to `android/app/google-services.json`:
 
+> **WARNING:** This is a FAKE configuration for build testing only.
+> Get real credentials from Firebase Console for a working app.
+
 ```json
 {
   "project_info": {
-    "project_number": "123456789",
-    "firebase_url": "https://dummy.firebaseio.com",
-    "project_id": "dummy-project",
-    "storage_bucket": "dummy-project.appspot.com"
+    "project_number": "000000000000",
+    "firebase_url": "https://fake-project.firebaseio.com",
+    "project_id": "fake-project",
+    "storage_bucket": "fake-project.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789:android:abc123",
+        "mobilesdk_app_id": "1:000000000000:android:fake123",
         "android_client_info": {
           "package_name": "com.shoppinglistapp"
         }
@@ -61,7 +79,7 @@ Save this content to `android/app/google-services.json`:
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaDummyKeyForLocalBuildOnly"
+          "current_key": "FAKE_API_KEY_FOR_BUILD_TEST_ONLY"
         }
       ],
       "services": {
