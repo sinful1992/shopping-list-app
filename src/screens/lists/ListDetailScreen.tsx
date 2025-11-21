@@ -194,7 +194,7 @@ const ListDetailScreen = () => {
       setPredictedPrices({});
       setSmartSuggestions(new Map());
     };
-  }, [listId, currentUserId, calculateShoppingStats]);
+  }, [listId, currentUserId]);
 
   const loadCurrentUser = async () => {
     const user = await AuthenticationModule.getCurrentUser();
