@@ -1,8 +1,13 @@
-import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
+import { defineSecret } from 'firebase-functions/params';
 
 admin.initializeApp();
+
+// Define secrets using Secret Manager
+const visionApiKey = defineSecret('VISION_API_KEY');
+const revenuecatWebhookToken = defineSecret('REVENUECAT_WEBHOOK_TOKEN');
 
 const database = admin.database();
 
@@ -33,18 +38,18 @@ const SUBSCRIPTION_LIMITS: Record<string, {
  * Set admin custom claim for a user
  * Only callable by existing admins
  */
-export const setAdminClaim = functions.https.onCall(async (data, context) => {
+export const setAdminClaim = onCall(async (request) => {
   // Verify caller is admin
-  if (!context.auth || context.auth.token.admin !== true) {
-    throw new functions.https.HttpsError(
+  if (!request.auth || request.auth.token.admin !== true) {
+    throw new HttpsError(
       'permission-denied',
       'Only admins can grant admin privileges'
     );
   }
 
-  const { uid } = data;
+  const { uid } = request.data;
   if (!uid) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'User ID is required'
     );
@@ -68,7 +73,7 @@ export const setAdminClaim = functions.https.onCall(async (data, context) => {
  * This should be called once to set up the first admin user
  * Then disabled or removed
  */
-export const initializeFirstAdmin = functions.https.onRequest(async (req, res) => {
+export const initializeFirstAdmin = onRequest(async (req, res) => {
   // IMPORTANT: Remove or disable this function after first use
   const adminEmail = req.query.email as string;
 
@@ -171,19 +176,19 @@ async function checkSubscriptionLimit(
 /**
  * Create a shopping list with server-side limit validation
  */
-export const createList = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+export const createList = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
       'unauthenticated',
       'Must be authenticated to create a list'
     );
   }
 
-  const userId = context.auth.uid;
-  const { name, familyGroupId } = data;
+  const userId = request.auth.uid;
+  const { name, familyGroupId } = request.data;
 
   if (!name || !familyGroupId) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'List name and family group ID are required'
     );
@@ -192,7 +197,7 @@ export const createList = functions.https.onCall(async (data, context) => {
   // Check subscription limit
   const permission = await checkSubscriptionLimit(userId, familyGroupId, 'lists');
   if (!permission.allowed) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'resource-exhausted',
       permission.reason || 'List limit reached'
     );
@@ -201,7 +206,7 @@ export const createList = functions.https.onCall(async (data, context) => {
   // Create list and increment counter atomically
   const listId = database.ref().push().key;
   if (!listId) {
-    throw new functions.https.HttpsError('internal', 'Failed to generate list ID');
+    throw new HttpsError('internal', 'Failed to generate list ID');
   }
 
   const listData = {
@@ -227,93 +232,96 @@ export const createList = functions.https.onCall(async (data, context) => {
 /**
  * Process OCR with server-side validation and API key protection
  */
-export const processOCR = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      'unauthenticated',
-      'Must be authenticated to process OCR'
-    );
+export const processOCR = onCall(
+  { secrets: [visionApiKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError(
+        'unauthenticated',
+        'Must be authenticated to process OCR'
+      );
+    }
+
+    const userId = request.auth.uid;
+    const { image, familyGroupId } = request.data;
+
+    if (!image || !familyGroupId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Image and family group ID are required'
+      );
+    }
+
+    // Check subscription limit
+    const permission = await checkSubscriptionLimit(userId, familyGroupId, 'ocr');
+    if (!permission.allowed) {
+      throw new HttpsError(
+        'resource-exhausted',
+        permission.reason || 'OCR limit reached'
+      );
+    }
+
+    // Get API key from Secret Manager
+    const apiKey = visionApiKey.value();
+    if (!apiKey) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Vision API key not configured'
+      );
+    }
+
+    try {
+      // Call Google Cloud Vision API
+      const response = await axios.post(
+        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+        {
+          requests: [
+            {
+              image: { content: image },
+              features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+            },
+          ],
+        },
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      // Increment usage counter
+      await database
+        .ref(`/users/${userId}/usageCounters/ocrProcessed`)
+        .set(admin.database.ServerValue.increment(1));
+
+      return {
+        success: true,
+        result: response.data.responses[0],
+      };
+    } catch (error: any) {
+      console.error('Vision API error:', error.message);
+      throw new HttpsError(
+        'internal',
+        'Failed to process image'
+      );
+    }
   }
-
-  const userId = context.auth.uid;
-  const { image, familyGroupId } = data;
-
-  if (!image || !familyGroupId) {
-    throw new functions.https.HttpsError(
-      'invalid-argument',
-      'Image and family group ID are required'
-    );
-  }
-
-  // Check subscription limit
-  const permission = await checkSubscriptionLimit(userId, familyGroupId, 'ocr');
-  if (!permission.allowed) {
-    throw new functions.https.HttpsError(
-      'resource-exhausted',
-      permission.reason || 'OCR limit reached'
-    );
-  }
-
-  // Get API key from Cloud Functions config
-  const apiKey = functions.config().vision?.apikey;
-  if (!apiKey) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Vision API key not configured'
-    );
-  }
-
-  try {
-    // Call Google Cloud Vision API
-    const response = await axios.post(
-      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-      {
-        requests: [
-          {
-            image: { content: image },
-            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
-          },
-        ],
-      },
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
-    );
-
-    // Increment usage counter
-    await database
-      .ref(`/users/${userId}/usageCounters/ocrProcessed`)
-      .set(admin.database.ServerValue.increment(1));
-
-    return {
-      success: true,
-      result: response.data.responses[0],
-    };
-  } catch (error: any) {
-    console.error('Vision API error:', error.message);
-    throw new functions.https.HttpsError(
-      'internal',
-      'Failed to process image'
-    );
-  }
-});
+);
 
 /**
  * Create urgent item with server-side validation
  */
-export const createUrgentItem = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
+export const createUrgentItem = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
       'unauthenticated',
       'Must be authenticated to create urgent item'
     );
   }
 
-  const userId = context.auth.uid;
-  const { name, familyGroupId, requestedBy } = data;
+  const userId = request.auth.uid;
+  const { name, familyGroupId, requestedBy } = request.data;
 
   if (!name || !familyGroupId) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'invalid-argument',
       'Item name and family group ID are required'
     );
@@ -322,7 +330,7 @@ export const createUrgentItem = functions.https.onCall(async (data, context) => 
   // Check subscription limit
   const permission = await checkSubscriptionLimit(userId, familyGroupId, 'urgentItems');
   if (!permission.allowed) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       'resource-exhausted',
       permission.reason || 'Urgent item limit reached'
     );
@@ -331,7 +339,7 @@ export const createUrgentItem = functions.https.onCall(async (data, context) => 
   // Create urgent item and increment counter atomically
   const itemId = database.ref().push().key;
   if (!itemId) {
-    throw new functions.https.HttpsError('internal', 'Failed to generate item ID');
+    throw new HttpsError('internal', 'Failed to generate item ID');
   }
 
   const itemData = {
@@ -358,43 +366,46 @@ export const createUrgentItem = functions.https.onCall(async (data, context) => 
  * Sync subscription tier from RevenueCat webhook
  * This should be called by RevenueCat webhook, not client
  */
-export const syncSubscriptionFromWebhook = functions.https.onRequest(async (req, res) => {
-  // Verify webhook signature (RevenueCat sends this)
-  const authHeader = req.headers.authorization;
-  const expectedToken = functions.config().revenuecat?.webhook_token;
+export const syncSubscriptionFromWebhook = onRequest(
+  { secrets: [revenuecatWebhookToken] },
+  async (req, res) => {
+    // Verify webhook signature (RevenueCat sends this)
+    const authHeader = req.headers.authorization;
+    const expectedToken = revenuecatWebhookToken.value();
 
-  if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
-    res.status(401).send('Unauthorized');
-    return;
-  }
-
-  const event = req.body;
-
-  try {
-    const userId = event.app_user_id;
-    const productId = event.product_id;
-
-    // Map product ID to tier
-    let tier = 'free';
-    if (productId?.includes('premium')) {
-      tier = 'premium';
-    } else if (productId?.includes('family')) {
-      tier = 'family';
+    if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+      res.status(401).send('Unauthorized');
+      return;
     }
 
-    // Get user's family group
-    const userSnapshot = await database.ref(`/users/${userId}`).once('value');
-    const user = userSnapshot.val();
+    const event = req.body;
 
-    if (user?.familyGroupId) {
-      await database
-        .ref(`/familyGroups/${user.familyGroupId}/subscriptionTier`)
-        .set(tier);
+    try {
+      const userId = event.app_user_id;
+      const productId = event.product_id;
+
+      // Map product ID to tier
+      let tier = 'free';
+      if (productId?.includes('premium')) {
+        tier = 'premium';
+      } else if (productId?.includes('family')) {
+        tier = 'family';
+      }
+
+      // Get user's family group
+      const userSnapshot = await database.ref(`/users/${userId}`).once('value');
+      const user = userSnapshot.val();
+
+      if (user?.familyGroupId) {
+        await database
+          .ref(`/familyGroups/${user.familyGroupId}/subscriptionTier`)
+          .set(tier);
+      }
+
+      res.status(200).send('OK');
+    } catch (error: any) {
+      console.error('Webhook error:', error.message);
+      res.status(500).send('Error processing webhook');
     }
-
-    res.status(200).send('OK');
-  } catch (error: any) {
-    console.error('Webhook error:', error.message);
-    res.status(500).send('Error processing webhook');
   }
-});
+);

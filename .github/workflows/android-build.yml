@@ -44,6 +44,11 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: 'latest'
+
       - name: Install Cloud Functions dependencies
         run: cd functions && npm install
 
@@ -150,8 +155,10 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
 
-          # Set Cloud Functions config
-          firebase functions:config:set vision.apikey="${{ secrets.GOOGLE_CLOUD_VISION_API_KEY }}" --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+          # Set secrets in Google Cloud Secret Manager
+          # These will be accessed by Cloud Functions using defineSecret
+          echo "${{ secrets.GOOGLE_CLOUD_VISION_API_KEY }}" | gcloud secrets create VISION_API_KEY --data-file=- --project="${{ secrets.FIREBASE_PROJECT_ID }}" 2>/dev/null || \
+            echo "${{ secrets.GOOGLE_CLOUD_VISION_API_KEY }}" | gcloud secrets versions add VISION_API_KEY --data-file=- --project="${{ secrets.FIREBASE_PROJECT_ID }}"
 
           # Deploy security rules and functions
           firebase deploy --only database,storage,functions --project "${{ secrets.FIREBASE_PROJECT_ID }}"

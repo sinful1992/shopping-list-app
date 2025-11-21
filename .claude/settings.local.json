@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRemove redundant docs and exposed credentials\n\n- Delete 11 redundant/outdated MD files\n- Remove exposed RevenueCat test key from PROGRESS.md\n- Remove exposed keystore password from GITHUB_ACTIONS_SETUP.md\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "Bash(gh run list:*)"
     ],
     "deny": [],
     "ask": []
