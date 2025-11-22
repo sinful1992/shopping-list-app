@@ -23,7 +23,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const listsRef = database().ref(`familyGroups/${familyGroupId}/lists`);
+    const listsRef = database().ref(`shoppingLists/${familyGroupId}`);
 
     // Listen for new lists
     const onChildAdded = listsRef.on('child_added', async (snapshot) => {
