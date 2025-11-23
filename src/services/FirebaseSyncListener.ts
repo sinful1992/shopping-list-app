@@ -77,22 +77,23 @@ class FirebaseSyncListener {
   /**
    * Start listening to items for a specific list
    */
-  startListeningToItems(listId: string): Unsubscribe {
-    const key = `items_${listId}`;
+  startListeningToItems(familyGroupId: string, listId: string): Unsubscribe {
+    const key = `items_${familyGroupId}_${listId}`;
 
     // Don't create duplicate listeners
     if (this.activeListeners.has(key)) {
       return this.activeListeners.get(key)!;
     }
 
-    const itemsRef = database().ref(`items/${listId}`);
+    const itemsRef = database().ref(`familyGroups/${familyGroupId}/items`);
 
     // Listen for new items
     const onChildAdded = itemsRef.on('child_added', async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
 
-      if (itemId && itemData) {
+      // Only sync items belonging to this list
+      if (itemId && itemData && itemData.listId === listId) {
         await this.syncItemToLocal(listId, itemId, itemData);
       }
     });
@@ -102,7 +103,8 @@ class FirebaseSyncListener {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
 
-      if (itemId && itemData) {
+      // Only sync items belonging to this list
+      if (itemId && itemData && itemData.listId === listId) {
         await this.syncItemToLocal(listId, itemId, itemData);
       }
     });
@@ -110,9 +112,10 @@ class FirebaseSyncListener {
     // Listen for deleted items
     const onChildRemoved = itemsRef.on('child_removed', async (snapshot) => {
       const itemId = snapshot.key;
+      const itemData = snapshot.val();
 
-      if (itemId) {
-        // Delete from local DB
+      // Only delete items belonging to this list
+      if (itemId && itemData && itemData.listId === listId) {
         try {
           await LocalStorageManager.deleteItem(itemId);
         } catch (error) {
@@ -214,8 +217,8 @@ class FirebaseSyncListener {
   /**
    * Stop listening to items for a list
    */
-  stopListeningToItems(listId: string): void {
-    const key = `items_${listId}`;
+  stopListeningToItems(familyGroupId: string, listId: string): void {
+    const key = `items_${familyGroupId}_${listId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();

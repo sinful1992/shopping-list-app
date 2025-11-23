@@ -118,11 +118,6 @@ const ListDetailScreen = () => {
     loadListAndItems();
     loadCurrentUser();
 
-    // Start listening to Firebase for remote changes to items in this list
-    // Note: We don't need to listen to ALL lists here - the HomeScreen already does that
-    // We only need item-level listeners for this specific list
-    const unsubscribeFirebaseItems = FirebaseSyncListener.startListeningToItems(listId);
-
     // Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
     const unsubscribeList = ShoppingListManager.subscribeToSingleList(
       listId,
@@ -186,7 +181,6 @@ const ListDetailScreen = () => {
 
     return () => {
       isMountedRef.current = false;
-      unsubscribeFirebaseItems();
       unsubscribeList();
       unsubscribeItems();
       unsubscribeNetInfo();
@@ -195,6 +189,21 @@ const ListDetailScreen = () => {
       setSmartSuggestions(new Map());
     };
   }, [listId, currentUserId]);
+
+  // Start Firebase items listener once we have the list's familyGroupId
+  useEffect(() => {
+    if (!list?.familyGroupId) return;
+
+    // Start listening to Firebase for remote changes to items in this list
+    const unsubscribeFirebaseItems = FirebaseSyncListener.startListeningToItems(
+      list.familyGroupId,
+      listId
+    );
+
+    return () => {
+      unsubscribeFirebaseItems();
+    };
+  }, [list?.familyGroupId, listId]);
 
   const loadCurrentUser = async () => {
     const user = await AuthenticationModule.getCurrentUser();
