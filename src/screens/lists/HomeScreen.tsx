@@ -81,13 +81,13 @@ const HomeScreen = () => {
       if (needsMigration) {
         console.log('Migration needed, running automatic migration...');
         try {
-          await DatabaseMigration.runFullMigration(currentUser.familyGroupId);
+          await DatabaseMigration.runAllMigrations(currentUser.familyGroupId);
           console.log('Migration completed successfully');
         } catch (migrationError: any) {
           console.error('Migration failed:', migrationError);
           Alert.alert(
             'Migration Notice',
-            'Found old data that needs to be migrated. Please contact support if lists do not appear.'
+            'Database migration in progress. Please restart the app if lists do not appear.'
           );
         }
       }

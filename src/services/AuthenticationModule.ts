@@ -164,7 +164,7 @@ class AuthenticationModule {
         name: groupName,
         invitationCode,
         createdBy: userId,
-        memberIds: [userId],
+        memberIds: { [userId]: true },
         createdAt: Date.now(),
         subscriptionTier: 'free', // New family groups start with free tier
       };
@@ -212,9 +212,9 @@ class AuthenticationModule {
       const familyGroup: FamilyGroup = groupData[groupId];
 
       // Add user to family group
-      if (!familyGroup.memberIds.includes(userId)) {
-        familyGroup.memberIds.push(userId);
-        await database().ref(`/familyGroups/${groupId}/memberIds`).set(familyGroup.memberIds);
+      if (!familyGroup.memberIds[userId]) {
+        familyGroup.memberIds[userId] = true;
+        await database().ref(`/familyGroups/${groupId}/memberIds/${userId}`).set(true);
       }
 
       // Update user's familyGroupId
@@ -459,13 +459,15 @@ class AuthenticationModule {
         const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
 
         if (familyGroup && familyGroup.memberIds) {
-          const updatedMemberIds = familyGroup.memberIds.filter(id => id !== userId);
+          // Remove user from memberIds
+          delete familyGroup.memberIds[userId];
+          const remainingMembers = Object.keys(familyGroup.memberIds);
 
           // If this was the last member, delete the entire family group
-          if (updatedMemberIds.length === 0) {
+          if (remainingMembers.length === 0) {
             await database().ref(`/familyGroups/${familyGroupId}`).remove();
           } else {
-            await database().ref(`/familyGroups/${familyGroupId}/memberIds`).set(updatedMemberIds);
+            await database().ref(`/familyGroups/${familyGroupId}/memberIds/${userId}`).remove();
           }
         }
       }

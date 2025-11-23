@@ -2,136 +2,162 @@ import database from '@react-native-firebase/database';
 
 /**
  * DatabaseMigration
- * One-time migration to move data from old paths to new paths
+ *
+ * Handles all database migrations for the shopping list app.
+ *
+ * MIGRATION HISTORY:
+ * -----------------
+ * 1. memberIds format migration (v1.0)
+ *    - Converts memberIds from array format to object format
+ *    - Required for Firebase security rules to work with hasChild()/exists()
+ *    - Old: memberIds: ["uid1", "uid2"]
+ *    - New: memberIds: { "uid1": true, "uid2": true }
+ *
+ * 2. Old path cleanup (v1.0)
+ *    - Removes deprecated database paths that are no longer used
+ *    - Old paths: shoppingLists/{familyGroupId}, items/{listId}
+ *    - New paths: familyGroups/{familyGroupId}/lists, familyGroups/{familyGroupId}/items
  */
 class DatabaseMigration {
   /**
-   * Migrate lists from old path to new path
-   * Old: shoppingLists/{familyGroupId}/{listId}
-   * New: familyGroups/{familyGroupId}/lists/{listId}
+   * Convert memberIds from array to object format
+   * This is required for Firebase security rules to work properly
    */
-  async migrateLists(familyGroupId: string): Promise<{ success: boolean; migratedCount: number; error?: string }> {
+  async migrateMemberIds(familyGroupId: string): Promise<{ success: boolean; migrated: boolean; error?: string }> {
     try {
-      console.log(`Starting migration for family group: ${familyGroupId}`);
+      console.log(`Checking memberIds format for family group: ${familyGroupId}`);
 
-      // Read from old path
-      const oldPath = `shoppingLists/${familyGroupId}`;
-      const snapshot = await database().ref(oldPath).once('value');
+      const memberIdsRef = database().ref(`familyGroups/${familyGroupId}/memberIds`);
+      const snapshot = await memberIdsRef.once('value');
 
       if (!snapshot.exists()) {
-        console.log('No data found at old path, migration not needed');
-        return { success: true, migratedCount: 0 };
+        console.log('No memberIds found');
+        return { success: true, migrated: false };
       }
 
-      const listsData = snapshot.val();
-      const listIds = Object.keys(listsData);
-      console.log(`Found ${listIds.length} lists to migrate`);
+      const memberIds = snapshot.val();
 
-      // Copy each list to new path
-      const newBasePath = `familyGroups/${familyGroupId}/lists`;
-
-      for (const listId of listIds) {
-        const listData = listsData[listId];
-        await database().ref(`${newBasePath}/${listId}`).set(listData);
-        console.log(`Migrated list: ${listId}`);
+      // Check if already in object format
+      if (!Array.isArray(memberIds)) {
+        console.log('memberIds already in object format, no migration needed');
+        return { success: true, migrated: false };
       }
 
-      console.log(`Successfully migrated ${listIds.length} lists`);
+      // Convert array to object
+      console.log(`Converting memberIds from array (${memberIds.length} members) to object format`);
+      const memberIdsObject: { [key: string]: boolean } = {};
+      memberIds.forEach((uid: string) => {
+        memberIdsObject[uid] = true;
+      });
 
-      // Optional: Remove old path after successful migration
-      // Uncomment the line below if you want to clean up old data
-      // await database().ref(oldPath).remove();
+      // Update in database
+      await memberIdsRef.set(memberIdsObject);
+      console.log('memberIds migration completed successfully');
 
-      return { success: true, migratedCount: listIds.length };
+      return { success: true, migrated: true };
     } catch (error: any) {
-      console.error('Migration failed:', error);
-      return { success: false, migratedCount: 0, error: error.message };
+      console.error('memberIds migration failed:', error);
+      return { success: false, migrated: false, error: error.message };
     }
   }
 
   /**
-   * Migrate items from old path to new path (if needed)
-   * Old: items/{listId}/{itemId}
-   * New: familyGroups/{familyGroupId}/items/{itemId}
+   * Clean up old database paths that are no longer used
+   * Old structure: shoppingLists/{familyGroupId}, items/{listId}
+   * New structure: familyGroups/{familyGroupId}/lists, familyGroups/{familyGroupId}/items
    */
-  async migrateItems(familyGroupId: string, listIds: string[]): Promise<{ success: boolean; migratedCount: number; error?: string }> {
+  async cleanupOldPaths(familyGroupId: string): Promise<{ success: boolean; cleaned: string[]; error?: string }> {
     try {
-      console.log(`Starting items migration for family group: ${familyGroupId}`);
+      console.log(`Cleaning up old database paths for family group: ${familyGroupId}`);
+      const cleaned: string[] = [];
 
-      let totalMigrated = 0;
+      // Check and remove old shoppingLists path
+      const oldListsPath = `shoppingLists/${familyGroupId}`;
+      const oldListsSnapshot = await database().ref(oldListsPath).once('value');
 
-      for (const listId of listIds) {
-        // Read from old path
-        const oldPath = `items/${listId}`;
-        const snapshot = await database().ref(oldPath).once('value');
-
-        if (!snapshot.exists()) {
-          continue;
-        }
-
-        const itemsData = snapshot.val();
-        const itemIds = Object.keys(itemsData);
-        console.log(`Found ${itemIds.length} items for list ${listId}`);
-
-        // Copy each item to new path
-        const newBasePath = `familyGroups/${familyGroupId}/items`;
-
-        for (const itemId of itemIds) {
-          const itemData = itemsData[itemId];
-          await database().ref(`${newBasePath}/${itemId}`).set(itemData);
-          console.log(`Migrated item: ${itemId}`);
-        }
-
-        totalMigrated += itemIds.length;
-
-        // Optional: Remove old path after successful migration
-        // Uncomment the line below if you want to clean up old data
-        // await database().ref(oldPath).remove();
+      if (oldListsSnapshot.exists()) {
+        console.log(`Found old lists at ${oldListsPath}, removing...`);
+        await database().ref(oldListsPath).remove();
+        cleaned.push(oldListsPath);
       }
 
-      console.log(`Successfully migrated ${totalMigrated} items`);
-      return { success: true, migratedCount: totalMigrated };
+      // Check and remove old items paths
+      // First, get all list IDs from the new location
+      const listsSnapshot = await database().ref(`familyGroups/${familyGroupId}/lists`).once('value');
+
+      if (listsSnapshot.exists()) {
+        const lists = listsSnapshot.val();
+        const listIds = Object.keys(lists);
+
+        for (const listId of listIds) {
+          const oldItemsPath = `items/${listId}`;
+          const oldItemsSnapshot = await database().ref(oldItemsPath).once('value');
+
+          if (oldItemsSnapshot.exists()) {
+            console.log(`Found old items at ${oldItemsPath}, removing...`);
+            await database().ref(oldItemsPath).remove();
+            cleaned.push(oldItemsPath);
+          }
+        }
+      }
+
+      if (cleaned.length > 0) {
+        console.log(`Cleanup completed. Removed paths: ${cleaned.join(', ')}`);
+      } else {
+        console.log('No old paths found to clean up');
+      }
+
+      return { success: true, cleaned };
     } catch (error: any) {
-      console.error('Items migration failed:', error);
-      return { success: false, migratedCount: 0, error: error.message };
+      console.error('Old path cleanup failed:', error);
+      return { success: false, cleaned: [], error: error.message };
     }
   }
 
   /**
-   * Run full migration for a family group
+   * Run all migrations for a family group
    */
-  async runFullMigration(familyGroupId: string): Promise<void> {
-    console.log('=== Starting Full Database Migration ===');
+  async runAllMigrations(familyGroupId: string): Promise<void> {
+    console.log('=== Starting Database Migrations ===');
+    console.log(`Family Group ID: ${familyGroupId}`);
 
-    // Step 1: Migrate lists
-    const listsResult = await this.migrateLists(familyGroupId);
-    console.log(`Lists migration: ${listsResult.success ? 'SUCCESS' : 'FAILED'}`, listsResult);
-
-    if (!listsResult.success) {
-      throw new Error(`Lists migration failed: ${listsResult.error}`);
+    // Migration 1: Convert memberIds to object format
+    const memberIdsResult = await this.migrateMemberIds(familyGroupId);
+    if (!memberIdsResult.success) {
+      console.error('Migration failed at memberIds conversion');
+      throw new Error(`memberIds migration failed: ${memberIdsResult.error}`);
     }
 
-    // Step 2: Get list IDs for items migration
-    const listsSnapshot = await database().ref(`familyGroups/${familyGroupId}/lists`).once('value');
-    const listIds = listsSnapshot.exists() ? Object.keys(listsSnapshot.val()) : [];
-
-    // Step 3: Migrate items
-    if (listIds.length > 0) {
-      const itemsResult = await this.migrateItems(familyGroupId, listIds);
-      console.log(`Items migration: ${itemsResult.success ? 'SUCCESS' : 'FAILED'}`, itemsResult);
+    // Migration 2: Clean up old paths
+    const cleanupResult = await this.cleanupOldPaths(familyGroupId);
+    if (!cleanupResult.success) {
+      console.error('Migration failed at old path cleanup');
+      throw new Error(`Old path cleanup failed: ${cleanupResult.error}`);
     }
 
-    console.log('=== Migration Complete ===');
+    console.log('=== All Migrations Completed Successfully ===');
   }
 
   /**
-   * Check if migration is needed
+   * Check if any migrations are needed
    */
   async needsMigration(familyGroupId: string): Promise<boolean> {
     try {
-      const oldPath = `shoppingLists/${familyGroupId}`;
-      const snapshot = await database().ref(oldPath).once('value');
-      return snapshot.exists();
+      // Check 1: Is memberIds in array format?
+      const memberIdsSnapshot = await database().ref(`familyGroups/${familyGroupId}/memberIds`).once('value');
+      if (memberIdsSnapshot.exists() && Array.isArray(memberIdsSnapshot.val())) {
+        console.log('Migration needed: memberIds is in array format');
+        return true;
+      }
+
+      // Check 2: Do old paths exist?
+      const oldListsSnapshot = await database().ref(`shoppingLists/${familyGroupId}`).once('value');
+      if (oldListsSnapshot.exists()) {
+        console.log('Migration needed: old shoppingLists path exists');
+        return true;
+      }
+
+      return false;
     } catch (error) {
       console.error('Error checking migration status:', error);
       return false;

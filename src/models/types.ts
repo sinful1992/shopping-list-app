@@ -33,7 +33,7 @@ export interface FamilyGroup {
   name: string;
   invitationCode: string;
   createdBy: string;
-  memberIds: string[];
+  memberIds: { [userId: string]: boolean };
   createdAt: number;
   subscriptionTier: SubscriptionTier; // Subscription is at family level, not user level
 }

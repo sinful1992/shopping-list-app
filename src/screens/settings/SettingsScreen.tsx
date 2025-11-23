@@ -104,8 +104,9 @@ const SettingsScreen = () => {
         setFamilyGroup(group);
 
         // Get family members
-        if (group) {
-          const members = await loadFamilyMembers(group.memberIds);
+        if (group && group.memberIds) {
+          const memberIdsList = Object.keys(group.memberIds);
+          const members = await loadFamilyMembers(memberIdsList);
           setFamilyMembers(members);
         }
       }
