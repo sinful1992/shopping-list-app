@@ -22,8 +22,8 @@
 
     "familyGroups": {
       "$groupId": {
-        ".read": "auth != null && (data.child('memberIds').child(auth.uid).exists() || data.child('memberIds').val().contains(auth.uid))",
-        ".write": "auth != null && (data.child('memberIds').child(auth.uid).exists() || data.child('memberIds').val().contains(auth.uid))",
+        ".read": "auth != null && data.child('memberIds').child(auth.uid).exists()",
+        ".write": "auth != null && data.child('memberIds').child(auth.uid).exists()",
 
         "subscriptionTier": {
           ".write": "auth != null && auth.token.admin === true"
