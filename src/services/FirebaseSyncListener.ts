@@ -25,6 +25,18 @@ class FirebaseSyncListener {
 
     const listsRef = database().ref(`familyGroups/${familyGroupId}/lists`);
 
+    // Perform initial sync of all existing lists
+    listsRef.once('value').then(async (snapshot) => {
+      if (snapshot.exists()) {
+        const listsData = snapshot.val();
+        for (const listId of Object.keys(listsData)) {
+          await this.syncListToLocal(listId, listsData[listId]);
+        }
+      }
+    }).catch((error) => {
+      console.error('Error fetching initial lists:', error);
+    });
+
     // Listen for new lists
     const onChildAdded = listsRef.on('child_added', async (snapshot) => {
       const listId = snapshot.key;
