@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, Platform } from 'react-native';
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import { StatusBar, Platform, TouchableOpacity } from 'react-native';
+import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +33,7 @@ import FamilyGroupScreen from './src/screens/auth/FamilyGroupScreen';
 import HomeScreen from './src/screens/lists/HomeScreen';
 import ListDetailScreen from './src/screens/lists/ListDetailScreen';
 import BudgetScreen from './src/screens/budget/BudgetScreen';
+import HistoryScreen from './src/screens/history/HistoryScreen';
 import HistoryDetailScreen from './src/screens/history/HistoryDetailScreen';
 import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
@@ -80,6 +81,7 @@ function ListsStack() {
 // Main Tab Navigator with safe area handling
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
 
   return (
     <Tab.Navigator
@@ -94,6 +96,14 @@ function MainTabNavigator() {
           borderTopWidth: 1,
           borderTopColor: 'rgba(255, 255, 255, 0.1)',
         },
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Settings' as never)}
+            style={{ marginRight: 15 }}
+          >
+            <Icon name="settings-outline" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        ),
       }}
     >
       <Tab.Screen
@@ -113,6 +123,16 @@ function MainTabNavigator() {
           title: 'Urgent',
           tabBarIcon: ({ color, size }) => (
             <Icon name="flame" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="time-outline" size={size} color={color} />
           ),
         }}
       />
@@ -143,16 +163,6 @@ function MainTabNavigator() {
           title: 'Pro',
           tabBarIcon: ({ color, size }) => (
             <Icon name="star-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="settings-outline" size={size} color={color} />
           ),
         }}
       />
@@ -282,8 +292,19 @@ function App(): JSX.Element {
             />
           </Stack.Navigator>
         ) : (
-          // Main App Tabs
-          <MainTabNavigator />
+          // Main App with Settings accessible from header
+          <Stack.Navigator>
+            <Stack.Screen
+              name="MainTabs"
+              component={MainTabNavigator}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ title: 'Settings' }}
+            />
+          </Stack.Navigator>
         )}
       </NavigationContainer>
     </SafeAreaProvider>

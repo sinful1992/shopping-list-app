@@ -11,6 +11,8 @@ import {
   OCRError,
   ReceiptData,
   ReceiptLineItem,
+  ReceiptDiscount,
+  VATBreakdownItem,
   VisionApiResponse,
   VisionAnnotateImageResponse,
   VisionEntityAnnotation,
@@ -31,8 +33,39 @@ class ReceiptOCRProcessor {
   private readonly OCR_QUEUE_KEY = '@ocr_queue';
   private readonly API_USAGE_KEY = '@api_usage_count';
 
+  // Store detection patterns
+  private readonly STORE_PATTERNS = {
+    lidl: /\blidl\b/i,
+    tesco: /\btesco\b/i,
+    sainsburys: /\bsainsbury/i,
+    coop: /\bco-?op\b/i,
+  };
+
+  // Quantity patterns
+  private readonly QTY_MULTIPLIER = /^(\d+)\s*[x×]\s*[£$€]?([\d.]+)/i; // "2 x £1.95"
+  private readonly QTY_WEIGHT = /^(\d+\.?\d*)\s*kg\s*[@]?\s*[£$€]?([\d.]+)\s*\/\s*kg/i; // "0.990 kg @ £0.90/kg"
+
+  // Discount patterns
+  private readonly DISCOUNT_NEGATIVE = /^(.+?)\s+(-\d+\.?\d*)$/; // "15% off coupon -0.26"
+  private readonly DISCOUNT_KEYWORDS = /\b(coupon|discount|off|saving|price\s*cut|clubcard|nectar|lidl\s*plus|member)\b/i;
+
+  // VAT patterns
+  private readonly VAT_LIDL = /^([A-Z])\s+(\d+)\s*%\s+([\d.]+)\s+([\d.]+)$/; // "A 0% 56.21 0.00"
+  private readonly VAT_ASTERISK = /\*$/; // Items ending with *
+
   constructor(apiKey: string) {
     this.apiKey = apiKey || process.env.GOOGLE_CLOUD_VISION_API_KEY || '';
+  }
+
+  /**
+   * Helper: Detect store from merchant name
+   */
+  private detectStore(text: string): 'lidl' | 'tesco' | 'sainsburys' | 'coop' | 'other' {
+    if (this.STORE_PATTERNS.lidl.test(text)) return 'lidl';
+    if (this.STORE_PATTERNS.tesco.test(text)) return 'tesco';
+    if (this.STORE_PATTERNS.sainsburys.test(text)) return 'sainsburys';
+    if (this.STORE_PATTERNS.coop.test(text)) return 'coop';
+    return 'other';
   }
 
   /**
@@ -368,6 +401,7 @@ class ReceiptOCRProcessor {
   /**
    * Helper: Parse receipt using spatial information from Vision API
    * Implements Req 6.3
+   * Enhanced for UK supermarkets: Lidl, Tesco, Sainsbury's, Co-op
    */
   private parseReceiptWithSpatialData(visionResponse: VisionAnnotateImageResponse): ReceiptData {
     const { textAnnotations } = visionResponse;
@@ -383,8 +417,8 @@ class ReceiptOCRProcessor {
     // Extract merchant name (typically first line)
     const merchantName = plainLines[0] || null;
 
-    // Extract language
-    const detectedLanguage = textAnnotations[0].locale;
+    // Detect store type for store-specific parsing
+    const store = this.detectStore(text);
 
     // Extract date (common formats: MM/DD/YYYY, DD-MM-YYYY, DD'MMM'YY, etc.)
     const dateRegex = /\b(\d{1,2}[\/\-\.'\s](?:\d{1,2}|[A-Za-z]{3})[\/\-\.'\s]\d{2,4})\b/;
@@ -393,7 +427,7 @@ class ReceiptOCRProcessor {
 
     // Detect currency (£, $, €, etc.)
     let currency = 'USD';
-    if (text.includes('£') || /GBP|UK|Premier Inn|Tesco|Sainsbury/i.test(text)) {
+    if (text.includes('£') || /GBP|UK|Premier Inn|Tesco|Sainsbury|Lidl|Co-op/i.test(text)) {
       currency = 'GBP';
     } else if (text.includes('€') || /EUR/i.test(text)) {
       currency = 'EUR';
@@ -407,24 +441,28 @@ class ReceiptOCRProcessor {
 
     // Find total amount by looking for "Total", "Subtotal", or rightmost price in footer
     let totalAmount: number | null = null;
+    let subtotal: number | null = null;
 
     // Strategy 1: Look for line with "Total" or "Subtotal" keyword
     for (const line of plainLines) {
-      if (/\b(total|subtotal|sub total|to\s*pay)\b/i.test(line)) {
-        // Extract price from this line
+      if (/\b(total|to\s*pay)\b/i.test(line) && !/\bsub\s*total\b/i.test(line)) {
         const priceMatch = line.match(/[£$€]?\s*(\d{1,4}\.\d{2})\b/);
         if (priceMatch) {
           const amount = parseFloat(priceMatch[1]);
-          // Reasonable total range: £0.01 - £999.99
           if (amount > 0 && amount < 1000) {
             totalAmount = amount;
-            break;
           }
+        }
+      }
+      if (/\b(subtotal|sub\s*total)\b/i.test(line)) {
+        const priceMatch = line.match(/[£$€]?\s*(\d{1,4}\.\d{2})\b/);
+        if (priceMatch) {
+          subtotal = parseFloat(priceMatch[1]);
         }
       }
     }
 
-    // Strategy 2: If no total found, use largest reasonable price from item lines
+    // Strategy 2: If no total found, use largest reasonable price
     if (totalAmount === null) {
       const reasonablePrices: number[] = [];
       words.forEach(word => {
@@ -439,6 +477,67 @@ class ReceiptOCRProcessor {
       totalAmount = reasonablePrices.length > 0 ? Math.max(...reasonablePrices) : null;
     }
 
+    // Extract discounts
+    const discounts: ReceiptDiscount[] = [];
+    for (const line of plainLines) {
+      // Look for negative amounts (discounts)
+      const negMatch = line.match(/^(.+?)\s+(-\d+\.?\d*)$/);
+      if (negMatch) {
+        const desc = negMatch[1].trim();
+        const amount = parseFloat(negMatch[2]);
+
+        // Determine discount type
+        let type: ReceiptDiscount['type'] = 'other';
+        if (/coupon/i.test(desc)) type = 'coupon';
+        else if (/price\s*cut/i.test(desc)) type = 'price_cut';
+        else if (/clubcard|nectar|lidl\s*plus|member/i.test(desc)) type = 'loyalty';
+        else if (/off|discount|saving/i.test(desc)) type = 'promotion';
+
+        discounts.push({ description: desc, amount, type });
+      }
+    }
+    const totalDiscount = discounts.length > 0
+      ? discounts.reduce((sum, d) => sum + d.amount, 0)
+      : null;
+
+    // Extract VAT breakdown (store-specific)
+    const vatBreakdown: VATBreakdownItem[] = [];
+
+    if (store === 'lidl') {
+      // Lidl format: "A 0% 56.21 0.00"
+      for (const line of plainLines) {
+        const vatMatch = line.match(this.VAT_LIDL);
+        if (vatMatch) {
+          vatBreakdown.push({
+            code: vatMatch[1],
+            rate: parseInt(vatMatch[2]),
+            salesAmount: parseFloat(vatMatch[3]),
+            vatAmount: parseFloat(vatMatch[4]),
+          });
+        }
+      }
+    } else {
+      // Tesco/Sainsbury's/Co-op: Count items with asterisk
+      let vatableTotal = 0;
+      for (const line of plainLines) {
+        if (this.VAT_ASTERISK.test(line)) {
+          const priceMatch = line.match(/(\d+\.?\d{2})\s*\*?$/);
+          if (priceMatch) {
+            vatableTotal += parseFloat(priceMatch[1]);
+          }
+        }
+      }
+      if (vatableTotal > 0) {
+        const vatAmount = vatableTotal / 6; // 20% VAT = divide by 6
+        vatBreakdown.push({
+          code: '*',
+          rate: 20,
+          salesAmount: vatableTotal - vatAmount,
+          vatAmount: Math.round(vatAmount * 100) / 100,
+        });
+      }
+    }
+
     // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];
     const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|server|table|tbl|chk|check|guest|gst|cover|change|payment|date|time|tel|phone|address|street|road|lane|ave|avenue|www\.|http|store|manager|customer|food|soft\s*bev|beverage|alcohol|service|tender|cash|credit|debit|to\s*pay|amount|paid|payable)/i;
@@ -447,7 +546,7 @@ class ReceiptOCRProcessor {
     const { headerEnd, footerStart } = this.calculateReceiptZones(lineGroups);
     const receiptWidth = Math.max(...words.map(w => w.x + w.width), 1);
 
-    // Track multi-line items (common in UK supermarkets)
+    // Track multi-line items
     let pendingDescription = '';
 
     for (let i = 0; i < lineGroups.length; i++) {
@@ -468,19 +567,25 @@ class ReceiptOCRProcessor {
 
       const lineText = lineWords.map(w => w.text).join(' ');
 
+      // Skip if it's a discount line (already processed)
+      if (/^.+\s+-\d+\.?\d*$/.test(lineText)) {
+        pendingDescription = '';
+        continue;
+      }
+
       // Skip header/footer lines by keyword
       if (lineText.length < 2 || skipKeywords.test(lineText.trim())) {
         pendingDescription = '';
         continue;
       }
 
-      // Skip VAT category lines (e.g., "T1 2.33 Food 20%")
-      if (/^[A-Z]{1,2}\d+\s+[\d.]+\s+[A-Za-z\s]+\d{1,3}%?$/.test(lineText)) {
+      // Skip VAT category lines
+      if (/^[A-Z]{1,2}\d*\s+\d+\s*%?\s+[\d.]+\s+[\d.]+$/.test(lineText)) {
         pendingDescription = '';
         continue;
       }
 
-      // Skip transaction metadata (e.g., "Tbl 7/1 Chk 6139")
+      // Skip transaction metadata
       if (/\b(tbl|table|check|chk|guest|gst|cover)\s*\d+/i.test(lineText)) {
         pendingDescription = '';
         continue;
@@ -490,54 +595,74 @@ class ReceiptOCRProcessor {
       const priceWord = lineWords
         .filter(w => {
           const isPricePattern = /^[£$€]?\s*\d+\.?\d{0,2}$/.test(w.text);
-          const isRightAligned = (w.x / receiptWidth) > 0.5; // Must be in right half
+          const isRightAligned = (w.x / receiptWidth) > 0.5;
           return isPricePattern && isRightAligned;
         })
-        .sort((a, b) => b.x - a.x)[0]; // Rightmost
+        .sort((a, b) => b.x - a.x)[0];
 
       if (priceWord) {
         const priceMatch = priceWord.text.match(/(\d+\.?\d{0,2})/);
         if (priceMatch) {
           const price = parseFloat(priceMatch[1]);
 
-          // Skip unreasonable prices (but allow small prices like 0.50)
           if (price <= 0 || price > 1000) continue;
 
           // Description is everything left of the price
           const descriptionWords = lineWords.filter(w => w.x < priceWord.x);
           let description = descriptionWords.map(w => w.text).join(' ').trim();
 
-          // If we have a pending description from previous line, prepend it
           if (pendingDescription) {
             description = pendingDescription + ' ' + description;
             pendingDescription = '';
           }
 
+          // Extract quantity and unit price BEFORE cleaning description
+          let quantity: number | null = null;
+          let unitPrice: number | null = null;
+
+          // Check for "2 x £1.95" pattern
+          const qtyMatch = description.match(this.QTY_MULTIPLIER);
+          if (qtyMatch) {
+            quantity = parseInt(qtyMatch[1]);
+            unitPrice = parseFloat(qtyMatch[2]);
+            // Remove quantity pattern from description
+            description = description.replace(this.QTY_MULTIPLIER, '').trim();
+          }
+
+          // Check for weight pattern "0.990 kg @ £0.90/kg" - don't set quantity for weight
+          const weightMatch = description.match(this.QTY_WEIGHT);
+          if (weightMatch) {
+            // For weight-based items, just clean up the description
+            description = description.replace(this.QTY_WEIGHT, '').trim();
+          }
+
           // Clean up description
-          // Remove leading item codes (e.g., "12345678 MILK" → "MILK")
-          description = description.replace(/^\d{6,}\s+/, '');
-          // Remove leading SKU patterns (e.g., "SKU123 ITEM" → "ITEM")
-          description = description.replace(/^SKU\d+\s+/i, '');
-          // Remove quantity indicators (e.g., "2 @ £1.50" or "2x Item")
-          description = description.replace(/^\d+\s*[@x]\s*[£$€]?\s*[\d.]+\s*/i, '');
-          // Remove standalone numbers at start
-          description = description.replace(/^\d+\s+/, '');
+          description = description.replace(/^\d{6,}\s+/, ''); // Remove item codes
+          description = description.replace(/^SKU\d+\s+/i, ''); // Remove SKU
+          description = description.replace(/^\d+\s+/, ''); // Remove standalone numbers
+
+          // Extract VAT code (A, B, or *)
+          let vatCode: string | null = null;
+          const vatCodeMatch = description.match(/\s+([AB*])$/);
+          if (vatCodeMatch) {
+            vatCode = vatCodeMatch[1];
+            description = description.replace(/\s+[AB*]$/, '');
+          }
 
           // VALIDATION: Check if valid product line
           if (!this.isValidProductLine(description, price, lineText)) continue;
 
           lineItems.push({
             description: description.trim(),
-            quantity: null,
+            quantity,
+            unitPrice,
             price,
+            vatCode,
           });
         }
       } else {
-        // No price on this line - might be continuation of previous item (multi-line)
-        // Store it as pending description for next line
-        // But only if it looks like text (not numbers/codes)
+        // No price - might be continuation
         if (lineText.length > 2 && !/^\d+$/.test(lineText) && !skipKeywords.test(lineText)) {
-          // Remove item codes from pending text too
           let cleanText = lineText.replace(/^\d{6,}\s+/, '');
           cleanText = cleanText.replace(/^SKU\d+\s+/i, '');
 
@@ -548,19 +673,28 @@ class ReceiptOCRProcessor {
       }
     }
 
-    // Calculate confidence (simple heuristic)
-    let confidence = 50; // Base confidence
+    // Calculate confidence with UK-specific bonuses
+    let confidence = 50;
     if (merchantName) confidence += 15;
     if (purchaseDate) confidence += 15;
     if (totalAmount) confidence += 10;
     if (lineItems.length > 0) confidence += 10;
+    if (currency === 'GBP') confidence += 5;
+    if (vatBreakdown.length > 0) confidence += 5;
+    if (discounts.length > 0) confidence += 3;
+    if (store !== 'other') confidence += 5;
 
     return {
       merchantName,
       purchaseDate,
       totalAmount,
+      subtotal,
       currency,
       lineItems,
+      discounts,
+      totalDiscount,
+      vatBreakdown,
+      store,
       extractedAt: Date.now(),
       confidence: Math.min(confidence, 100),
     };

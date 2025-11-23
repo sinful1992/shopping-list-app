@@ -87,12 +87,30 @@ export interface Item {
 
 // Receipt Types
 
+export interface ReceiptDiscount {
+  description: string;
+  amount: number; // Always negative
+  type: 'coupon' | 'promotion' | 'loyalty' | 'price_cut' | 'other';
+}
+
+export interface VATBreakdownItem {
+  code: string; // e.g., 'A', 'B', 'T1'
+  rate: number; // e.g., 0, 5, 20
+  salesAmount: number;
+  vatAmount: number;
+}
+
 export interface ReceiptData {
   merchantName: string | null;
   purchaseDate: string | null;
   totalAmount: number | null;
+  subtotal: number | null;
   currency: string | null;
   lineItems: ReceiptLineItem[];
+  discounts: ReceiptDiscount[];
+  totalDiscount: number | null;
+  vatBreakdown: VATBreakdownItem[];
+  store: 'lidl' | 'tesco' | 'sainsburys' | 'coop' | 'other' | null;
   extractedAt: number;
   confidence: number;
 }
@@ -100,7 +118,9 @@ export interface ReceiptData {
 export interface ReceiptLineItem {
   description: string;
   quantity: number | null;
+  unitPrice: number | null;
   price: number | null;
+  vatCode: string | null; // e.g., 'A', 'B', '*'
 }
 
 // Google Cloud Vision API Response Types
