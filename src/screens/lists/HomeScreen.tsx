@@ -19,6 +19,7 @@ import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
 import ItemManager from '../../services/ItemManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
+import DatabaseMigration from '../../services/DatabaseMigration';
 
 /**
  * HomeScreen
@@ -74,6 +75,23 @@ const HomeScreen = () => {
 
       setUser(currentUser);
       setFamilyGroupId(currentUser.familyGroupId);
+
+      // Check if migration is needed and run it automatically
+      const needsMigration = await DatabaseMigration.needsMigration(currentUser.familyGroupId);
+      if (needsMigration) {
+        console.log('Migration needed, running automatic migration...');
+        try {
+          await DatabaseMigration.runFullMigration(currentUser.familyGroupId);
+          console.log('Migration completed successfully');
+        } catch (migrationError: any) {
+          console.error('Migration failed:', migrationError);
+          Alert.alert(
+            'Migration Notice',
+            'Found old data that needs to be migrated. Please contact support if lists do not appear.'
+          );
+        }
+      }
+
       // Get all lists (active and completed), sorted by creation date (newest first)
       const allLists = await ShoppingListManager.getAllLists(currentUser.familyGroupId);
       // Filter out deleted lists
