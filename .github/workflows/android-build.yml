@@ -79,17 +79,11 @@ jobs:
         run: |
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' | base64 -d > android/app/google-services.json
 
-      - name: Create keystore file
+      - name: Decode keystore file
         if: github.event_name != 'pull_request'
         run: |
-          # Generate a new keystore for CI builds
-          keytool -genkeypair -v -storetype PKCS12 \
-            -keystore android/app/release.keystore \
-            -alias shoppinglistapp \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass shoppinglist2024 \
-            -keypass shoppinglist2024 \
-            -dname "CN=Shopping List App, OU=Development, O=Shopping List, L=Unknown, ST=Unknown, C=US"
+          # Decode the base64 keystore from GitHub secrets
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
 
       - name: Update heap settings in android/gradle.properties
         run: |
@@ -102,8 +96,8 @@ jobs:
         run: |
           echo "MYAPP_RELEASE_STORE_FILE=release.keystore" >> android/gradle.properties
           echo "MYAPP_RELEASE_KEY_ALIAS=shoppinglistapp" >> android/gradle.properties
-          echo "MYAPP_RELEASE_STORE_PASSWORD=shoppinglist2024" >> android/gradle.properties
-          echo "MYAPP_RELEASE_KEY_PASSWORD=shoppinglist2024" >> android/gradle.properties
+          echo "MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.KEYSTORE_PASSWORD }}" >> android/gradle.properties
+          echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.KEY_PASSWORD }}" >> android/gradle.properties
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
