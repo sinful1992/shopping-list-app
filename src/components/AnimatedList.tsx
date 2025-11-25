@@ -33,16 +33,30 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
 }) => {
   // Create animation values for each child
   const childrenArray = React.Children.toArray(children);
-  const animatedValues = useRef(
-    childrenArray.map(() => ({
+
+  // Initialize animation values with the same length as children
+  const animatedValues = useRef<Array<{
+    opacity: Animated.Value;
+    translateY: Animated.Value;
+  }>>([]);
+
+  // Update animation values when children count changes
+  if (animatedValues.current.length !== childrenArray.length) {
+    animatedValues.current = childrenArray.map(() => ({
       opacity: new Animated.Value(0),
       translateY: new Animated.Value(20),
-    }))
-  ).current;
+    }));
+  }
 
   useEffect(() => {
+    // Reset all values before animating
+    animatedValues.current.forEach(values => {
+      values.opacity.setValue(0);
+      values.translateY.setValue(20);
+    });
+
     // Create staggered animations
-    const animations = animatedValues.map((values, index) =>
+    const animations = animatedValues.current.map((values, index) =>
       Animated.parallel([
         Animated.timing(values.opacity, {
           toValue: 1,
@@ -64,26 +78,31 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
 
     // Cleanup: Reset animations when component unmounts
     return () => {
-      animatedValues.forEach(values => {
+      animatedValues.current.forEach(values => {
         values.opacity.setValue(0);
         values.translateY.setValue(20);
       });
     };
-  }, [animatedValues, staggerDelay, duration, initialDelay]);
+  }, [childrenArray.length, staggerDelay, duration, initialDelay]);
 
   return (
     <View style={style}>
-      {childrenArray.map((child, index) => (
-        <Animated.View
-          key={index}
-          style={{
-            opacity: animatedValues[index].opacity,
-            transform: [{ translateY: animatedValues[index].translateY }],
-          }}
-        >
-          {child}
-        </Animated.View>
-      ))}
+      {childrenArray.map((child, index) => {
+        const values = animatedValues.current[index];
+        if (!values) return null;
+
+        return (
+          <Animated.View
+            key={index}
+            style={{
+              opacity: values.opacity,
+              transform: [{ translateY: values.translateY }],
+            }}
+          >
+            {child}
+          </Animated.View>
+        );
+      })}
     </View>
   );
 };
