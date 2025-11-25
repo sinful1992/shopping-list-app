@@ -13,6 +13,7 @@ import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import AuthenticationModule from '../services/AuthenticationModule';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import AnimatedList from './AnimatedList';
 
 interface FrequentlyBoughtModalProps {
   visible: boolean;
@@ -76,32 +77,6 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
     }
   };
 
-  const renderItem = ({ item }: { item: TopItem }) => (
-    <View style={styles.itemRow}>
-      <View style={styles.itemLeft}>
-        <Text style={styles.itemName}>{item.name}</Text>
-        <View style={styles.itemStats}>
-          <Text style={styles.itemCount}>Bought {item.purchaseCount} times</Text>
-          <Text style={styles.itemPrice}>£{item.averagePrice.toFixed(2)}</Text>
-        </View>
-      </View>
-      <TouchableOpacity
-        style={[
-          styles.addButton,
-          addingItemName === item.name && styles.addButtonDisabled,
-        ]}
-        onPress={() => handleAddItem(item.name)}
-        disabled={addingItemName === item.name}
-      >
-        {addingItemName === item.name ? (
-          <ActivityIndicator size="small" color={COLORS.text.primary} />
-        ) : (
-          <Text style={styles.addButtonText}>+</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <Modal
       visible={visible}
@@ -137,21 +112,38 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
               </Text>
             </View>
           ) : (
-            <FlatList
-              data={frequentItems}
-              renderItem={renderItem}
-              keyExtractor={(item) => item.name}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              // Performance optimizations
-              getItemLayout={(data, index) => ({
-                length: 70, // Approximate item height
-                offset: 70 * index,
-                index,
-              })}
-              maxToRenderPerBatch={10}
-              initialNumToRender={15}
-            />
+            <AnimatedList
+              staggerDelay={60}
+              duration={400}
+              initialDelay={0}
+              style={styles.listContent}
+            >
+              {frequentItems.map((item) => (
+                <View key={item.name} style={styles.itemRow}>
+                  <View style={styles.itemLeft}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <View style={styles.itemStats}>
+                      <Text style={styles.itemCount}>Bought {item.purchaseCount} times</Text>
+                      <Text style={styles.itemPrice}>£{item.averagePrice.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.addButton,
+                      addingItemName === item.name && styles.addButtonDisabled,
+                    ]}
+                    onPress={() => handleAddItem(item.name)}
+                    disabled={addingItemName === item.name}
+                  >
+                    {addingItemName === item.name ? (
+                      <ActivityIndicator size="small" color={COLORS.text.primary} />
+                    ) : (
+                      <Text style={styles.addButtonText}>+</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </AnimatedList>
           )}
         </View>
       </View>
