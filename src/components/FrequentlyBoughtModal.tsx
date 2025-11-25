@@ -12,6 +12,7 @@ import {
 import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import AuthenticationModule from '../services/AuthenticationModule';
+import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
 interface FrequentlyBoughtModalProps {
   visible: boolean;
@@ -93,7 +94,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
         disabled={addingItemName === item.name}
       >
         {addingItemName === item.name ? (
-          <ActivityIndicator size="small" color="#ffffff" />
+          <ActivityIndicator size="small" color={COLORS.text.primary} />
         ) : (
           <Text style={styles.addButtonText}>+</Text>
         )}
@@ -124,7 +125,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={COLORS.accent.blue} />
               <Text style={styles.loadingText}>Loading frequent items...</Text>
             </View>
           ) : frequentItems.length === 0 ? (
@@ -165,12 +166,10 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay.dark,
   },
   modal: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    ...COMMON_STYLES.modal,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     maxHeight: '80%',
   },
@@ -178,21 +177,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: COLORS.border.medium,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
+    ...COMMON_STYLES.sectionHeader,
+    marginBottom: 0,
   },
   closeButton: {
-    padding: 4,
+    padding: SPACING.xs,
   },
   closeButtonText: {
     fontSize: 24,
-    color: '#6E6E73',
+    color: COLORS.text.tertiary,
     fontWeight: '300',
   },
   loadingContainer: {
@@ -200,9 +198,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#a0a0a0',
+    marginTop: SPACING.lg,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    color: COLORS.text.secondary,
   },
   emptyContainer: {
     paddingVertical: 60,
@@ -211,62 +209,62 @@ const styles = StyleSheet.create({
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#a0a0a0',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.secondary,
     textAlign: 'center',
   },
   listContent: {
-    padding: 20,
+    padding: SPACING.xl,
   },
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: COLORS.border.subtle,
   },
   itemLeft: {
     flex: 1,
-    marginRight: 12,
+    marginRight: SPACING.md,
   },
   itemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
     marginBottom: 6,
   },
   itemStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.md,
   },
   itemCount: {
-    fontSize: 13,
-    color: '#a0a0a0',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
   },
   itemPrice: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#30D158',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.accent.green,
   },
   addButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    borderRadius: RADIUS.pill,
+    backgroundColor: COLORS.accent.blueLight,
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    borderColor: COLORS.accent.blueDim,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -275,7 +273,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 24,
-    color: '#ffffff',
+    color: COLORS.text.primary,
     fontWeight: '300',
     lineHeight: 24,
   },

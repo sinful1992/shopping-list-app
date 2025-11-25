@@ -15,6 +15,7 @@ import { Item } from '../models/types';
 import CategoryPicker from './CategoryPicker';
 import { CategoryType } from '../services/CategoryService';
 import PriceHistoryModal from './PriceHistoryModal';
+import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
 interface ItemEditModalProps {
   visible: boolean;
@@ -128,7 +129,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 value={name}
                 onChangeText={setName}
                 placeholder="Item name"
-                placeholderTextColor="#6E6E73"
+                placeholderTextColor={COLORS.text.tertiary}
                 autoFocus
               />
             </View>
@@ -140,7 +141,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 value={price}
                 onChangeText={setPrice}
                 placeholder="£0.00"
-                placeholderTextColor="#6E6E73"
+                placeholderTextColor={COLORS.text.tertiary}
                 keyboardType="numeric"
               />
             </View>
@@ -204,130 +205,115 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: COLORS.overlay.dark,
   },
   modal: {
-    backgroundColor: '#1C1C1E',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    ...COMMON_STYLES.modal,
+    maxHeight: '90%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: COLORS.border.medium,
   },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
+    ...COMMON_STYLES.sectionHeader,
+    marginBottom: 0,
   },
   closeButton: {
-    padding: 4,
+    padding: SPACING.xs,
   },
   closeButtonText: {
     fontSize: 24,
-    color: '#6E6E73',
+    color: COLORS.text.tertiary,
     fontWeight: '300',
   },
   content: {
-    padding: 20,
+    padding: SPACING.xl,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#8E8E93',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.dim,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#ffffff',
-    fontSize: 17,
+    ...COMMON_STYLES.input,
+    fontSize: TYPOGRAPHY.fontSize.lg,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: COLORS.border.medium,
   },
   deleteButton: {
-    backgroundColor: 'rgba(255, 59, 48, 0.15)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: COLORS.accent.redSubtle,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
+    borderColor: COLORS.accent.redDim,
   },
   deleteButtonText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.accent.red,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   actionButtons: {
     flexDirection: 'row',
   },
   cancelButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    marginRight: 12,
+    ...COMMON_STYLES.button,
+    marginRight: SPACING.md,
   },
   cancelButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   saveButton: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    ...COMMON_STYLES.buttonActive,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.md,
   },
   saveButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   priceHistoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    backgroundColor: COLORS.accent.blueSubtle,
+    paddingVertical: SPACING.md + 2,
+    paddingHorizontal: SPACING.xl,
+    borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    marginTop: 8,
-    gap: 8,
+    borderColor: COLORS.accent.blueDim,
+    marginTop: SPACING.sm,
+    gap: SPACING.sm,
   },
   priceHistoryIcon: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.fontSize.xl,
   },
   priceHistoryText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.accent.blue,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
 });
 

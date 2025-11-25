@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import StoreHistoryService from '../services/StoreHistoryService';
+import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
 interface StoreNamePickerProps {
   visible: boolean;
@@ -97,7 +98,7 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
             <TextInput
               style={styles.input}
               placeholder="e.g., Tesco, Sainsbury's, Asda..."
-              placeholderTextColor="#6E6E73"
+              placeholderTextColor={COLORS.text.tertiary}
               value={inputValue}
               onChangeText={handleInputChange}
               onFocus={() => setShowSuggestions(true)}
@@ -157,7 +158,7 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: COLORS.overlay.darkest,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -166,43 +167,39 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modalContent: {
-    backgroundColor: '#1c1c1e',
-    borderRadius: 20,
-    padding: 24,
+    backgroundColor: COLORS.background.secondary,
+    borderRadius: RADIUS.xlarge,
+    padding: SPACING.xxl,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.strong,
+    ...SHADOWS.large,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
+    fontSize: TYPOGRAPHY.fontSize.xxl + 2,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
-    color: '#a0a0a0',
-    marginBottom: 20,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#ffffff',
-    marginBottom: 12,
+    ...COMMON_STYLES.input,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    marginBottom: SPACING.md,
   },
   suggestionsContainer: {
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   suggestionsTitle: {
-    fontSize: 13,
-    color: '#a0a0a0',
-    marginBottom: 8,
-    paddingLeft: 4,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.sm,
+    paddingLeft: SPACING.xs,
   },
   suggestionsList: {
     maxHeight: 150,
@@ -210,55 +207,53 @@ const styles = StyleSheet.create({
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    padding: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.glass.subtle,
+    padding: SPACING.md,
+    borderRadius: RADIUS.small,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: COLORS.border.subtle,
   },
   suggestionIcon: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.fontSize.xl,
     marginRight: 10,
   },
   suggestionText: {
-    fontSize: 15,
-    color: '#ffffff',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.md + 1,
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: SPACING.md,
+    marginTop: SPACING.md,
   },
   skipButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 16,
-    borderRadius: 12,
+    ...COMMON_STYLES.button,
+    padding: SPACING.lg,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   skipButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   confirmButton: {
     flex: 1,
-    backgroundColor: '#34C759',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.accent.green,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.medium,
     alignItems: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: 'rgba(52, 199, 89, 0.5)',
+    backgroundColor: COLORS.accent.greenDim,
+    opacity: 0.5,
   },
   confirmButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });
 

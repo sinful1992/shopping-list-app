@@ -79,9 +79,9 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
   };
 
   const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
-    if (trend === 'up') return '#FF453A';
-    if (trend === 'down') return '#30D158';
-    return '#FFD60A';
+    if (trend === 'up') return COLORS.accent.red;
+    if (trend === 'down') return COLORS.accent.green;
+    return COLORS.accent.yellow;
   };
 
   return (
@@ -103,7 +103,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={COLORS.accent.blue} />
               <Text style={styles.loadingText}>Loading price data...</Text>
             </View>
           ) : stats === null ? (
@@ -268,40 +268,37 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: COLORS.overlay.darker,
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: '#1c1c1e',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    ...COMMON_STYLES.modal,
     maxHeight: '85%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: COLORS.border.medium,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
+    ...COMMON_STYLES.sectionHeader,
+    marginBottom: 0,
   },
   closeButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: RADIUS.large,
+    backgroundColor: COLORS.glass.medium,
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 20,
-    color: '#ffffff',
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   loadingContainer: {
     padding: 40,
@@ -309,9 +306,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#a0a0a0',
+    marginTop: SPACING.lg,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    color: COLORS.text.secondary,
   },
   emptyContainer: {
     padding: 40,
@@ -319,91 +316,88 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
-    fontSize: 16,
-    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#a0a0a0',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.secondary,
     textAlign: 'center',
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: SPACING.xl,
   },
   itemNameContainer: {
-    marginBottom: 20,
+    marginBottom: SPACING.xl,
     alignItems: 'center',
   },
   itemNameText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSize.xxxl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   statsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    ...COMMON_STYLES.glassCard,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 12,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
   },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   statLabel: {
-    fontSize: 15,
-    color: '#a0a0a0',
+    fontSize: TYPOGRAPHY.fontSize.md + 1,
+    color: COLORS.text.secondary,
   },
   statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   statValueLarge: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   priceWithTrend: {
     alignItems: 'flex-end',
-    gap: 8,
+    gap: SPACING.sm,
   },
   trendBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xs,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.medium,
   },
   trendIcon: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
   trendText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   priceGreen: {
-    color: '#30D158',
+    color: COLORS.accent.green,
   },
   priceRed: {
-    color: '#FF453A',
+    color: COLORS.accent.red,
   },
   chartContainer: {
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
     paddingVertical: 10,
     alignItems: 'center',
   },
@@ -411,31 +405,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
+    marginBottom: SPACING.md,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: COLORS.border.subtle,
   },
   storeNameContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.sm,
   },
   storeName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: TYPOGRAPHY.fontSize.md + 1,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   bestDealBadge: {
     backgroundColor: COLORS.accent.greenDim,
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: RADIUS.small,
   },
   bestDealText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.accent.green,
     textTransform: 'uppercase',
   },
@@ -446,46 +440,46 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   storeAverage: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#007AFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.accent.blue,
   },
   storeRange: {
-    fontSize: 13,
-    color: '#a0a0a0',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   storeCount: {
-    fontSize: 12,
-    color: '#6E6E73',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     marginTop: 2,
   },
   historyRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
+    marginBottom: SPACING.md,
+    paddingBottom: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: COLORS.border.subtle,
   },
   historyLeft: {
     flex: 1,
   },
   historyDate: {
-    fontSize: 15,
-    color: '#ffffff',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.md + 1,
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   historyStore: {
-    fontSize: 13,
-    color: '#a0a0a0',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   historyPrice: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#30D158',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.accent.green,
   },
 });
 
