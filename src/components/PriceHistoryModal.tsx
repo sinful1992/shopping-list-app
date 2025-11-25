@@ -13,6 +13,7 @@ import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import AuthenticationModule from '../services/AuthenticationModule';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import AnimatedList from './AnimatedList';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -245,17 +246,19 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
               {/* Price History Timeline */}
               <View style={styles.statsCard}>
                 <Text style={styles.cardTitle}>Purchase History</Text>
-                {stats.priceHistory.map((point, index) => (
-                  <View key={`${point.listId}-${index}`} style={styles.historyRow}>
-                    <View style={styles.historyLeft}>
-                      <Text style={styles.historyDate}>{formatDate(point.date)}</Text>
-                      {point.storeName && (
-                        <Text style={styles.historyStore}>{point.storeName}</Text>
-                      )}
+                <AnimatedList staggerDelay={80} duration={350} initialDelay={0}>
+                  {stats.priceHistory.map((point, index) => (
+                    <View key={`${point.listId}-${index}`} style={styles.historyRow}>
+                      <View style={styles.historyLeft}>
+                        <Text style={styles.historyDate}>{formatDate(point.date)}</Text>
+                        {point.storeName && (
+                          <Text style={styles.historyStore}>{point.storeName}</Text>
+                        )}
+                      </View>
+                      <Text style={styles.historyPrice}>£{point.price.toFixed(2)}</Text>
                     </View>
-                    <Text style={styles.historyPrice}>£{point.price.toFixed(2)}</Text>
-                  </View>
-                ))}
+                  ))}
+                </AnimatedList>
               </View>
             </ScrollView>
           )}
