@@ -102,6 +102,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
+      - name: Clear Metro bundler cache
+        run: |
+          rm -rf $TMPDIR/metro-* || true
+          rm -rf $TMPDIR/haste-* || true
+          rm -rf node_modules/.cache || true
+
       - name: Clean build directory
         run: |
           cd android
