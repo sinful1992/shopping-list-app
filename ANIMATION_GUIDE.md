@@ -52,6 +52,7 @@ import AnimatedList from './components/AnimatedList';
 - Customizable colors and speed
 - Configurable border width and radius
 - Perfect for premium features
+- Uses `react-native-linear-gradient` (already installed)
 
 **Props:**
 ```typescript
@@ -240,7 +241,7 @@ colors={[COLORS.accent.red, COLORS.accent.orange, COLORS.accent.red]}
 
 Both components are ready to use! No additional dependencies needed beyond what's already in your app:
 - ✅ React Native Animated API (built-in)
-- ✅ expo-linear-gradient (already installed)
+- ✅ react-native-linear-gradient (already installed)
 - ✅ Theme system integration (COLORS, RADIUS)
 
 ---

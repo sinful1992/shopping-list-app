@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import LinearGradient from 'react-native-linear-gradient';
 import { COLORS, RADIUS } from '../styles/theme';
 
 interface StarBorderProps {
@@ -74,6 +74,8 @@ const StarBorder: React.FC<StarBorderProps> = ({
           colors={colors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          useAngle={true}
+          angle={45}
           style={[
             styles.gradient,
             {
