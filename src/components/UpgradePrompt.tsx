@@ -10,6 +10,7 @@ import {
 import { SubscriptionTier } from '../models/types';
 import { SUBSCRIPTION_PRICES, TIER_FEATURES } from '../models/SubscriptionConfig';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import StarBorder from './StarBorder';
 
 interface UpgradePromptProps {
   visible: boolean;
@@ -51,21 +52,62 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
 
             {/* Premium Tier */}
             {currentTier === 'free' && (
+              <StarBorder
+                colors={[COLORS.accent.blue, COLORS.accent.purple, COLORS.accent.blue]}
+                speed={4000}
+                borderRadius={RADIUS.medium}
+                style={styles.tierCardWrapper}
+              >
+                <TouchableOpacity
+                  style={styles.tierCard}
+                  onPress={() => onUpgrade('premium')}
+                >
+                  <View style={styles.tierHeader}>
+                    <Text style={styles.tierName}>Premium</Text>
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.price}>
+                        {SUBSCRIPTION_PRICES.premium.symbol}{SUBSCRIPTION_PRICES.premium.monthly}
+                      </Text>
+                      <Text style={styles.priceLabel}>/month</Text>
+                    </View>
+                  </View>
+                  <View style={styles.featuresContainer}>
+                    {TIER_FEATURES.premium.map((feature, index) => (
+                      <View key={index} style={styles.featureRow}>
+                        <Text style={styles.checkmark}>✓</Text>
+                        <Text style={styles.featureText}>{feature}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.upgradeButton}>
+                    <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+                  </View>
+                </TouchableOpacity>
+              </StarBorder>
+            )}
+
+            {/* Family Tier */}
+            <StarBorder
+              colors={['#FFD700', '#FFA500', '#FF4500']}
+              speed={3500}
+              borderRadius={RADIUS.medium}
+              style={styles.tierCardWrapper}
+            >
               <TouchableOpacity
                 style={styles.tierCard}
-                onPress={() => onUpgrade('premium')}
+                onPress={() => onUpgrade('family')}
               >
                 <View style={styles.tierHeader}>
-                  <Text style={styles.tierName}>Premium</Text>
+                  <Text style={styles.tierName}>Family</Text>
                   <View style={styles.priceContainer}>
                     <Text style={styles.price}>
-                      {SUBSCRIPTION_PRICES.premium.symbol}{SUBSCRIPTION_PRICES.premium.monthly}
+                      {SUBSCRIPTION_PRICES.family.symbol}{SUBSCRIPTION_PRICES.family.yearly}
                     </Text>
-                    <Text style={styles.priceLabel}>/month</Text>
+                    <Text style={styles.priceLabel}>/year</Text>
                   </View>
                 </View>
                 <View style={styles.featuresContainer}>
-                  {TIER_FEATURES.premium.map((feature, index) => (
+                  {TIER_FEATURES.family.map((feature, index) => (
                     <View key={index} style={styles.featureRow}>
                       <Text style={styles.checkmark}>✓</Text>
                       <Text style={styles.featureText}>{feature}</Text>
@@ -73,37 +115,10 @@ export const UpgradePrompt: React.FC<UpgradePromptProps> = ({
                   ))}
                 </View>
                 <View style={styles.upgradeButton}>
-                  <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
+                  <Text style={styles.upgradeButtonText}>Upgrade to Family</Text>
                 </View>
               </TouchableOpacity>
-            )}
-
-            {/* Family Tier */}
-            <TouchableOpacity
-              style={styles.tierCard}
-              onPress={() => onUpgrade('family')}
-            >
-              <View style={styles.tierHeader}>
-                <Text style={styles.tierName}>Family</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>
-                    {SUBSCRIPTION_PRICES.family.symbol}{SUBSCRIPTION_PRICES.family.yearly}
-                  </Text>
-                  <Text style={styles.priceLabel}>/year</Text>
-                </View>
-              </View>
-              <View style={styles.featuresContainer}>
-                {TIER_FEATURES.family.map((feature, index) => (
-                  <View key={index} style={styles.featureRow}>
-                    <Text style={styles.checkmark}>✓</Text>
-                    <Text style={styles.featureText}>{feature}</Text>
-                  </View>
-                ))}
-              </View>
-              <View style={styles.upgradeButton}>
-                <Text style={styles.upgradeButtonText}>Upgrade to Family</Text>
-              </View>
-            </TouchableOpacity>
+            </StarBorder>
 
             {/* Close Button */}
             <TouchableOpacity
@@ -157,13 +172,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: SPACING.xl,
   },
+  tierCardWrapper: {
+    marginBottom: SPACING.lg,
+  },
   tierCard: {
     backgroundColor: COLORS.background.tertiary,
     borderRadius: RADIUS.medium,
     padding: SPACING.xl,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderWidth: 0, // Remove border as StarBorder provides it
   },
   tierHeader: {
     flexDirection: 'row',
