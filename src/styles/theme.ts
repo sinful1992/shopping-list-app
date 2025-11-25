@@ -223,7 +223,7 @@ export const COMMON_STYLES = {
     borderRadius: RADIUS.medium,
     ...SHADOWS.medium,
   }),
-} as const;
+};
 
 // Budget alert color states
 export const BUDGET_ALERT_COLORS = {
