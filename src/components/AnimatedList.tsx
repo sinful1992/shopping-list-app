@@ -34,6 +34,9 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
   // Create animation values for each child
   const childrenArray = React.Children.toArray(children);
 
+  // Track if component has been mounted to prevent re-animation on updates
+  const hasMounted = useRef(false);
+
   // Initialize animation values with the same length as children
   const animatedValues = useRef<Array<{
     opacity: Animated.Value;
@@ -49,6 +52,19 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
   }
 
   useEffect(() => {
+    // Only animate on initial mount, not on updates
+    if (hasMounted.current) {
+      // If already mounted, just set values to final state for new items
+      animatedValues.current.forEach(values => {
+        values.opacity.setValue(1);
+        values.translateY.setValue(0);
+      });
+      return;
+    }
+
+    // Mark as mounted
+    hasMounted.current = true;
+
     // Reset all values before animating
     animatedValues.current.forEach(values => {
       values.opacity.setValue(0);

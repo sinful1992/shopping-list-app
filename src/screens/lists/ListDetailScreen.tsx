@@ -12,6 +12,7 @@ import {
   Vibration,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
+import StarBorder from '../../components/StarBorder';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -829,14 +830,20 @@ const ListDetailScreen = () => {
               const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
 
               return (
-                <View
+                <StarBorder
                   key={item.id || `item-${index}`}
-                  style={[
-                    styles.itemRow,
-                    item.checked === true && styles.itemRowChecked
-                  ]}
+                  colors={item.checked ? ['#4CAF50', '#81C784', '#4CAF50'] : ['#2196F3', '#64B5F6', '#2196F3']}
+                  speed={2500}
+                  borderRadius={8}
+                  borderWidth={1.5}
                 >
-                  <TouchableOpacity
+                  <View
+                    style={[
+                      styles.itemRow,
+                      item.checked === true && styles.itemRowChecked
+                    ]}
+                  >
+                    <TouchableOpacity
                     style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
                     onPress={() => !isListLocked && handleToggleItem(item.id)}
                     disabled={isListLocked}
@@ -880,7 +887,8 @@ const ListDetailScreen = () => {
                       )}
                     </View>
                   </TouchableOpacity>
-                </View>
+                  </View>
+                </StarBorder>
               );
             })}
           </AnimatedList>
@@ -908,14 +916,20 @@ const ListDetailScreen = () => {
             const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
 
             return (
-              <View
+              <StarBorder
                 key={item.id || `item-${index}`}
-                style={[
-                  styles.itemRow,
-                  item.checked === true && styles.itemRowChecked
-                ]}
+                colors={item.checked ? ['#4CAF50', '#81C784', '#4CAF50'] : ['#2196F3', '#64B5F6', '#2196F3']}
+                speed={2500}
+                borderRadius={8}
+                borderWidth={1.5}
               >
-                <TouchableOpacity
+                <View
+                  style={[
+                    styles.itemRow,
+                    item.checked === true && styles.itemRowChecked
+                  ]}
+                >
+                  <TouchableOpacity
                   style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
                   onPress={() => !isListLocked && handleToggleItem(item.id)}
                   disabled={isListLocked}
@@ -960,6 +974,7 @@ const ListDetailScreen = () => {
                   </View>
                 </TouchableOpacity>
               </View>
+            </StarBorder>
             );
           })
         )}

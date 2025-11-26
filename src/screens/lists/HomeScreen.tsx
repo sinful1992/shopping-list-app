@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
+import StarBorder from '../../components/StarBorder';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList, User } from '../../models/types';
@@ -388,13 +389,18 @@ const HomeScreen = () => {
                                '#FF453A'; // failed
 
               return (
-                <TouchableOpacity
+                <StarBorder
                   key={list.id}
-                  style={[styles.listCard, isCompleted && styles.completedCard]}
-                  onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                  colors={isCompleted ? ['#FFD700', '#FFA500', '#FF4500'] : ['#007AFF', '#AF52DE', '#007AFF']}
+                  speed={isCompleted ? 4000 : 3000}
+                  borderRadius={16}
                 >
-                  {/* Sync Status Indicator - Top Right */}
-                  <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
+                  <TouchableOpacity
+                    style={[styles.listCard, isCompleted && styles.completedCard]}
+                    onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                  >
+                    {/* Sync Status Indicator - Top Right */}
+                    <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
 
                   <View style={styles.listHeader}>
                     <View style={styles.listTitleRow}>
@@ -435,7 +441,8 @@ const HomeScreen = () => {
                       Created {formattedDate}
                     </Text>
                   )}
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </StarBorder>
               );
             })}
           </AnimatedList>
@@ -456,12 +463,17 @@ const HomeScreen = () => {
                              '#FF453A';
 
             return (
-              <TouchableOpacity
+              <StarBorder
                 key={list.id}
-                style={[styles.listCard, isCompleted && styles.completedCard]}
-                onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                colors={isCompleted ? ['#FFD700', '#FFA500', '#FF4500'] : ['#007AFF', '#AF52DE', '#007AFF']}
+                speed={isCompleted ? 4000 : 3000}
+                borderRadius={16}
               >
-                <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
+                <TouchableOpacity
+                  style={[styles.listCard, isCompleted && styles.completedCard]}
+                  onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                >
+                  <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
 
                 <View style={styles.listHeader}>
                   <View style={styles.listTitleRow}>
@@ -501,7 +513,8 @@ const HomeScreen = () => {
                     Created {formattedDate}
                   </Text>
                 )}
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </StarBorder>
             );
           })
         )}
