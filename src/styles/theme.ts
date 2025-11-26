@@ -158,7 +158,11 @@ export const COMMON_STYLES = {
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
     borderColor: COLORS.border.strong,
-    ...SHADOWS.large,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
 
   // Elevated glassmorphic card
@@ -167,7 +171,11 @@ export const COMMON_STYLES = {
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
     borderColor: COLORS.border.strong,
-    ...SHADOWS.large,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
 
   // Active/selected state for buttons
@@ -176,7 +184,11 @@ export const COMMON_STYLES = {
     borderWidth: 1,
     borderColor: COLORS.accent.blueDim,
     borderRadius: RADIUS.medium,
-    ...SHADOWS.blue,
+    shadowColor: COLORS.accent.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
   // Standard button
@@ -204,7 +216,11 @@ export const COMMON_STYLES = {
     backgroundColor: COLORS.background.secondary,
     borderTopLeftRadius: RADIUS.xlarge,
     borderTopRightRadius: RADIUS.xlarge,
-    ...SHADOWS.large,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
 
   // Section header
@@ -221,7 +237,11 @@ export const COMMON_STYLES = {
     borderWidth: 1,
     borderColor: dimColor,
     borderRadius: RADIUS.medium,
-    ...SHADOWS.medium,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   }),
 };
 
