@@ -1,6 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import React, { useEffect, useRef } from 'react';
+import { View, Animated, StyleSheet, ViewStyle, StyleProp, Easing } from 'react-native';
 
 interface ElectricBorderProps {
   children: React.ReactNode;
@@ -13,11 +12,11 @@ interface ElectricBorderProps {
 /**
  * ElectricBorder Component
  *
- * Multi-layer border effect with glow and background effects.
- * Creates an electric, premium border for highlighted content.
+ * Animated electric border effect with pulsing glow layers.
+ * Creates a bright, energetic border for premium content.
  *
  * @example
- * <ElectricBorder color="#007AFF" borderWidth={2}>
+ * <ElectricBorder color="#00D9FF" borderWidth={2}>
  *   <View style={styles.card}>
  *     <Text>Premium Card</Text>
  *   </View>
@@ -30,65 +29,83 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
   borderRadius = 16,
   style,
 }) => {
-  // Calculate lighter color for glow (increase lightness)
-  // Simple approximation: add alpha or use lighter variant
-  const lightColor = `${color}99`; // Add 60% opacity for lighter effect
+  // Animated pulse for glow effect
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Create pulsing animation for electric effect
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  // Interpolate glow intensity
+  const glowOpacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 1],
+  });
+
+  const glowRadius = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [8, 16],
+  });
 
   return (
     <View style={[styles.container, style]}>
-      {/* Layers container (absolute positioning) */}
-      <View style={[styles.layersContainer, { borderRadius }]}>
-        {/* 4. Background glow - scaled and blurred */}
-        <LinearGradient
-          colors={[lightColor, 'transparent', color]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          angle={-30}
-          useAngle
-          style={[
-            styles.backgroundGlow,
-            {
-              borderRadius,
-            },
-          ]}
-        />
+      {/* Background glow layer (outermost) */}
+      <Animated.View
+        style={[
+          styles.backgroundGlow,
+          {
+            borderRadius: borderRadius + 8,
+            shadowColor: color,
+            shadowOpacity: glowOpacity,
+            shadowRadius: glowRadius,
+          },
+        ]}
+      />
 
-        {/* 1. Solid stroke */}
-        <View
-          style={[
-            styles.stroke,
-            {
-              borderColor: color,
-              borderWidth,
-              borderRadius,
-            },
-          ]}
-        />
+      {/* Main border stroke */}
+      <View
+        style={[
+          styles.borderStroke,
+          {
+            borderColor: color,
+            borderWidth,
+            borderRadius,
+            shadowColor: color,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 6,
+          },
+        ]}
+      />
 
-        {/* 2. Glow layer 1 - slight blur */}
-        <View
-          style={[
-            styles.glow1,
-            {
-              borderColor: lightColor,
-              borderWidth,
-              borderRadius,
-            },
-          ]}
-        />
-
-        {/* 3. Glow layer 2 - more blur */}
-        <View
-          style={[
-            styles.glow2,
-            {
-              borderColor: lightColor,
-              borderWidth,
-              borderRadius,
-            },
-          ]}
-        />
-      </View>
+      {/* Inner glow layer */}
+      <Animated.View
+        style={[
+          styles.innerGlow,
+          {
+            borderColor: color,
+            borderWidth: borderWidth * 0.5,
+            borderRadius,
+            opacity: glowOpacity,
+          },
+        ]}
+      />
 
       {/* Content */}
       <View style={styles.content}>{children}</View>
@@ -100,63 +117,44 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
   },
-  layersContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none',
-  },
-  stroke: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none',
-  },
-  glow1: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.5,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 2,
-    elevation: 2,
-    pointerEvents: 'none',
-  },
-  glow2: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.5,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-    elevation: 4,
-    pointerEvents: 'none',
-  },
   backgroundGlow: {
     position: 'absolute',
-    top: -8,
-    left: -8,
-    right: -8,
-    bottom: -8,
-    opacity: 0.3,
-    // Scale approximation with negative inset
-    zIndex: -1,
+    top: -12,
+    left: -12,
+    right: -12,
+    bottom: -12,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+    pointerEvents: 'none',
+    zIndex: 0,
+  },
+  borderStroke: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    elevation: 4,
+    pointerEvents: 'none',
+    zIndex: 1,
+  },
+  innerGlow: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    right: 1,
+    bottom: 1,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 2,
+    pointerEvents: 'none',
+    zIndex: 2,
   },
   content: {
     position: 'relative',
-    zIndex: 1,
+    zIndex: 3,
   },
 });
 

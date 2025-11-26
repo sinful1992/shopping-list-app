@@ -391,8 +391,8 @@ const HomeScreen = () => {
               return (
                 <ElectricBorder
                   key={list.id}
-                  color={isCompleted ? '#FFD700' : '#007AFF'}
-                  borderWidth={2}
+                  color={isCompleted ? '#FFD700' : '#00D9FF'}
+                  borderWidth={3}
                   borderRadius={16}
                 >
                   <TouchableOpacity
@@ -465,8 +465,8 @@ const HomeScreen = () => {
             return (
               <ElectricBorder
                 key={list.id}
-                color={isCompleted ? '#FFD700' : '#007AFF'}
-                borderWidth={2}
+                color={isCompleted ? '#FFD700' : '#00D9FF'}
+                borderWidth={3}
                 borderRadius={16}
               >
                 <TouchableOpacity
