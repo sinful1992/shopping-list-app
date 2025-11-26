@@ -40,7 +40,7 @@ const StarBorder: React.FC<StarBorderProps> = ({
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: speed,
-        useNativeDriver: true,
+        useNativeDriver: false, // Rotation with interpolated strings requires JS thread
       })
     );
 
@@ -51,7 +51,7 @@ const StarBorder: React.FC<StarBorderProps> = ({
     };
   }, [rotateAnim, speed]);
 
-  // Interpolate rotation value
+  // Interpolate rotation value - requires useNativeDriver: false for string output
   const rotate = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],

@@ -55,8 +55,9 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
       values.translateY.setValue(20);
     });
 
-    // Create staggered animations
-    const animations = animatedValues.current.map((values, index) =>
+    // Start each animation with proper stagger delay
+    // Don't use Animated.stagger() with delays - it causes conflicts
+    animatedValues.current.forEach((values, index) => {
       Animated.parallel([
         Animated.timing(values.opacity, {
           toValue: 1,
@@ -70,11 +71,8 @@ const AnimatedList: React.FC<AnimatedListProps> = ({
           delay: initialDelay + index * staggerDelay,
           useNativeDriver: true,
         }),
-      ])
-    );
-
-    // Start all animations
-    Animated.stagger(0, animations).start();
+      ]).start();
+    });
 
     // Cleanup: Reset animations when component unmounts
     return () => {
