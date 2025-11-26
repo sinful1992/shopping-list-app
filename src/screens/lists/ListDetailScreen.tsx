@@ -833,7 +833,7 @@ const ListDetailScreen = () => {
                 <StarBorder
                   key={item.id || `item-${index}`}
                   colors={item.checked ? ['#4CAF50', '#81C784', '#4CAF50'] : ['#2196F3', '#64B5F6', '#2196F3']}
-                  speed={2500}
+                  speed={6000}
                   borderRadius={8}
                   borderWidth={1.5}
                 >
@@ -919,7 +919,7 @@ const ListDetailScreen = () => {
               <StarBorder
                 key={item.id || `item-${index}`}
                 colors={item.checked ? ['#4CAF50', '#81C784', '#4CAF50'] : ['#2196F3', '#64B5F6', '#2196F3']}
-                speed={2500}
+                speed={6000}
                 borderRadius={8}
                 borderWidth={1.5}
               >

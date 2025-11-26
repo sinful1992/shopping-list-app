@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
-import StarBorder from '../../components/StarBorder';
+import ElectricBorder from '../../components/ElectricBorder';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList, User } from '../../models/types';
@@ -389,10 +389,10 @@ const HomeScreen = () => {
                                '#FF453A'; // failed
 
               return (
-                <StarBorder
+                <ElectricBorder
                   key={list.id}
-                  colors={isCompleted ? ['#FFD700', '#FFA500', '#FF4500'] : ['#007AFF', '#AF52DE', '#007AFF']}
-                  speed={isCompleted ? 4000 : 3000}
+                  color={isCompleted ? '#FFD700' : '#007AFF'}
+                  borderWidth={2}
                   borderRadius={16}
                 >
                   <TouchableOpacity
@@ -442,7 +442,7 @@ const HomeScreen = () => {
                     </Text>
                   )}
                   </TouchableOpacity>
-                </StarBorder>
+                </ElectricBorder>
               );
             })}
           </AnimatedList>
@@ -463,10 +463,10 @@ const HomeScreen = () => {
                              '#FF453A';
 
             return (
-              <StarBorder
+              <ElectricBorder
                 key={list.id}
-                colors={isCompleted ? ['#FFD700', '#FFA500', '#FF4500'] : ['#007AFF', '#AF52DE', '#007AFF']}
-                speed={isCompleted ? 4000 : 3000}
+                color={isCompleted ? '#FFD700' : '#007AFF'}
+                borderWidth={2}
                 borderRadius={16}
               >
                 <TouchableOpacity
@@ -514,7 +514,7 @@ const HomeScreen = () => {
                   </Text>
                 )}
                 </TouchableOpacity>
-              </StarBorder>
+              </ElectricBorder>
             );
           })
         )}

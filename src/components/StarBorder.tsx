@@ -14,11 +14,11 @@ interface StarBorderProps {
 /**
  * StarBorder Component
  *
- * Two elliptical gradient spotlights that orbit continuously around the border.
- * Creates a dynamic, premium border effect for highlighted content.
+ * Two elliptical gradients that move horizontally with fade effect (ping-pong).
+ * Top gradient moves left-to-right, bottom moves right-to-left.
  *
  * @example
- * <StarBorder colors={['#FFD700', '#FFA500', '#FF4500']} speed={3000}>
+ * <StarBorder colors={['#FFD700', '#FFA500', '#FF4500']} speed={5000}>
  *   <View style={styles.premiumCard}>
  *     <Text>⭐ Premium Feature</Text>
  *   </View>
@@ -28,51 +28,119 @@ const StarBorder: React.FC<StarBorderProps> = ({
   children,
   borderWidth = 2,
   borderRadius = 16,
-  speed = 3000,
+  speed = 5000, // Slower default speed
   colors = ['#007AFF', '#AF52DE', '#007AFF'],
   style,
 }) => {
-  const rotation = useRef(new Animated.Value(0)).current;
+  // Four animated values: translation + opacity for each gradient
+  const translateTop = useRef(new Animated.Value(0)).current;
+  const opacityTop = useRef(new Animated.Value(1)).current;
+  const translateBottom = useRef(new Animated.Value(0)).current;
+  const opacityBottom = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Create infinite orbital rotation for gradient spotlights
-    const animation = Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: speed,
-        easing: Easing.linear,
-        useNativeDriver: false, // Required for degree string interpolation
-      })
-    );
+    // Top gradient: left to right with fade out, then ping-pong back
+    Animated.loop(
+      Animated.sequence([
+        // Move right and fade out
+        Animated.parallel([
+          Animated.timing(translateTop, {
+            toValue: 1,
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+          Animated.timing(opacityTop, {
+            toValue: 0, // Fade to 0
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+        ]),
+        // Move back left and fade in
+        Animated.parallel([
+          Animated.timing(translateTop, {
+            toValue: 0,
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+          Animated.timing(opacityTop, {
+            toValue: 1, // Fade back to 1
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+        ]),
+      ])
+    ).start();
 
-    animation.start();
+    // Bottom gradient: right to left with fade out, then ping-pong back
+    Animated.loop(
+      Animated.sequence([
+        // Move left and fade out
+        Animated.parallel([
+          Animated.timing(translateBottom, {
+            toValue: -1,
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+          Animated.timing(opacityBottom, {
+            toValue: 0, // Fade to 0
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+        ]),
+        // Move back right and fade in
+        Animated.parallel([
+          Animated.timing(translateBottom, {
+            toValue: 0,
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+          Animated.timing(opacityBottom, {
+            toValue: 1, // Fade back to 1
+            duration: speed,
+            easing: Easing.linear,
+            useNativeDriver: false,
+          }),
+        ]),
+      ])
+    ).start();
 
     return () => {
-      rotation.stopAnimation();
+      translateTop.stopAnimation();
+      translateBottom.stopAnimation();
+      opacityTop.stopAnimation();
+      opacityBottom.stopAnimation();
     };
-  }, [rotation, speed]);
+  }, [translateTop, opacityTop, translateBottom, opacityBottom, speed]);
 
-  // Two gradients at 180° offset for continuous coverage
-  const rotate1 = rotation.interpolate({
+  // Interpolate to percentage strings
+  const translateTopX = translateTop.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ['0%', '100%'],
   });
 
-  const rotate2 = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['180deg', '540deg'], // 180° offset
+  const translateBottomX = translateBottom.interpolate({
+    inputRange: [-1, 0],
+    outputRange: ['-100%', '0%'],
   });
 
   return (
     <View style={[styles.container, style]}>
       {/* Border container with overflow hidden */}
       <View style={[styles.borderContainer, { borderRadius, overflow: 'hidden' }]}>
-        {/* Gradient Spotlight 1 */}
+        {/* Top Gradient - moves left to right */}
         <Animated.View
           style={[
-            styles.gradientSpotlight,
+            styles.gradientTop,
             {
-              transform: [{ rotate: rotate1 }],
+              opacity: opacityTop,
+              transform: [{ translateX: translateTopX }],
             },
           ]}
         >
@@ -84,12 +152,13 @@ const StarBorder: React.FC<StarBorderProps> = ({
           />
         </Animated.View>
 
-        {/* Gradient Spotlight 2 (180° offset) */}
+        {/* Bottom Gradient - moves right to left */}
         <Animated.View
           style={[
-            styles.gradientSpotlight,
+            styles.gradientBottom,
             {
-              transform: [{ rotate: rotate2 }],
+              opacity: opacityBottom,
+              transform: [{ translateX: translateBottomX }],
             },
           ]}
         >
@@ -130,14 +199,23 @@ const styles = StyleSheet.create({
     bottom: 0,
     overflow: 'hidden',
   },
-  gradientSpotlight: {
+  gradientTop: {
     position: 'absolute',
     width: '300%', // Wide ellipse
     height: '50%', // Half height
-    top: '25%', // Center vertically
-    left: '-100%', // Center horizontally
-    borderRadius: 1000, // Large radius for ellipse effect
-    opacity: 0.7, // Match CSS opacity
+    top: -12, // Match CSS top: -12px
+    left: '-250%', // Match CSS left: -250%
+    borderRadius: 1000, // Large radius for ellipse effect (50%)
+    opacity: 0.7, // Base opacity
+  },
+  gradientBottom: {
+    position: 'absolute',
+    width: '300%', // Wide ellipse
+    height: '50%', // Half height
+    bottom: -12, // Match CSS bottom: -12px
+    right: '-250%', // Match CSS right: -250%
+    borderRadius: 1000, // Large radius for ellipse effect (50%)
+    opacity: 0.7, // Base opacity
   },
   gradient: {
     flex: 1,
