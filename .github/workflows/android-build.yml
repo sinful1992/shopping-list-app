@@ -21,6 +21,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get clean
+          docker rmi $(docker image ls -aq)
+          df -h
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -112,16 +122,25 @@ jobs:
         run: |
           cd android
           ./gradlew clean --no-daemon
+          df -h
 
       - name: Build Release APK
         run: |
           cd android
           ./gradlew assembleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
+          df -h
+
+      - name: Clean up before AAB build
+        run: |
+          cd android
+          rm -rf build/intermediates
+          df -h
 
       - name: Build Release AAB (App Bundle)
         run: |
           cd android
           ./gradlew bundleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
+          df -h
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
