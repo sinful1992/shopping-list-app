@@ -12,7 +12,7 @@ import {
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import AuthenticationModule from '../services/AuthenticationModule';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 import AnimatedList from './AnimatedList';
 
 const screenWidth = Dimensions.get('window').width;
