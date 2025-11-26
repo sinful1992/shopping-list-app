@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, ViewStyle, StyleProp, Easing } from 'react-native';
+import React from 'react';
+import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 
 interface ElectricBorderProps {
   children: React.ReactNode;
@@ -12,8 +13,8 @@ interface ElectricBorderProps {
 /**
  * ElectricBorder Component
  *
- * Animated electric border effect with pulsing glow layers.
- * Creates a bright, energetic border for premium content.
+ * Static multi-layer border effect with glow and background blur.
+ * Creates a constant electric border for premium content.
  *
  * @example
  * <ElectricBorder color="#00D9FF" borderWidth={2}>
@@ -24,88 +25,95 @@ interface ElectricBorderProps {
  */
 const ElectricBorder: React.FC<ElectricBorderProps> = ({
   children,
-  color = '#007AFF',
+  color = '#00D9FF',
   borderWidth = 2,
   borderRadius = 16,
   style,
 }) => {
-  // Animated pulse for glow effect
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Create pulsing animation for electric effect
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 0,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, [pulseAnim]);
-
-  // Interpolate glow intensity
-  const glowOpacity = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.6, 1],
-  });
-
-  const glowRadius = pulseAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [8, 16],
-  });
+  // Calculate lighter color variant (60% opacity)
+  const lightColor = `${color}99`;
 
   return (
     <View style={[styles.container, style]}>
-      {/* Background glow layer (outermost) */}
-      <Animated.View
+      {/* Background glow - heavily blurred gradient */}
+      <LinearGradient
+        colors={[lightColor, 'transparent', color]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        angle={-30}
+        useAngle
         style={[
           styles.backgroundGlow,
           {
-            borderRadius: borderRadius + 8,
-            shadowColor: color,
-            shadowOpacity: glowOpacity,
-            shadowRadius: glowRadius,
+            borderRadius: borderRadius * 1.5,
           },
         ]}
       />
 
-      {/* Main border stroke */}
-      <View
-        style={[
-          styles.borderStroke,
-          {
-            borderColor: color,
-            borderWidth,
-            borderRadius,
-            shadowColor: color,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.8,
-            shadowRadius: 6,
-          },
-        ]}
-      />
+      {/* Layers container */}
+      <View style={[styles.layers, { borderRadius }]}>
+        {/* Glow 2 - more blur */}
+        <View
+          style={[
+            styles.glow2,
+            {
+              borderColor: lightColor,
+              borderWidth,
+              borderRadius,
+              shadowColor: color,
+              shadowRadius: 2 + borderWidth * 0.5,
+            },
+          ]}
+        />
 
-      {/* Inner glow layer */}
-      <Animated.View
-        style={[
-          styles.innerGlow,
-          {
-            borderColor: color,
-            borderWidth: borderWidth * 0.5,
-            borderRadius,
-            opacity: glowOpacity,
-          },
-        ]}
-      />
+        {/* Glow 1 - slight blur */}
+        <View
+          style={[
+            styles.glow1,
+            {
+              borderColor: lightColor,
+              borderWidth,
+              borderRadius,
+              shadowColor: color,
+              shadowRadius: 0.5 + borderWidth * 0.25,
+            },
+          ]}
+        />
+
+        {/* Main stroke - solid border */}
+        <View
+          style={[
+            styles.stroke,
+            {
+              borderColor: color,
+              borderWidth,
+              borderRadius,
+            },
+          ]}
+        />
+
+        {/* Overlay 1 - additional glow inside */}
+        <View
+          style={[
+            styles.overlay1,
+            {
+              borderRadius: borderRadius - borderWidth,
+              shadowColor: color,
+            },
+          ]}
+        />
+
+        {/* Overlay 2 - softer inner glow */}
+        <View
+          style={[
+            styles.overlay2,
+            {
+              borderRadius: borderRadius - borderWidth,
+              shadowColor: lightColor,
+            },
+          ]}
+        />
+      </View>
 
       {/* Content */}
       <View style={styles.content}>{children}</View>
@@ -119,42 +127,87 @@ const styles = StyleSheet.create({
   },
   backgroundGlow: {
     position: 'absolute',
-    top: -12,
-    left: -12,
-    right: -12,
-    bottom: -12,
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    opacity: 0.3,
+    shadowColor: '#00D9FF',
     shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 32,
     elevation: 8,
+    zIndex: -1,
     pointerEvents: 'none',
-    zIndex: 0,
   },
-  borderStroke: {
+  layers: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    elevation: 4,
-    pointerEvents: 'none',
-    zIndex: 1,
-  },
-  innerGlow: {
-    position: 'absolute',
-    top: 1,
-    left: 1,
-    right: 1,
-    bottom: 1,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 3,
-    elevation: 2,
     pointerEvents: 'none',
     zIndex: 2,
   },
+  stroke: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'none',
+  },
+  glow1: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    elevation: 3,
+    pointerEvents: 'none',
+  },
+  glow2: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    elevation: 4,
+    pointerEvents: 'none',
+  },
+  overlay1: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    right: 2,
+    bottom: 2,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 2,
+    pointerEvents: 'none',
+  },
+  overlay2: {
+    position: 'absolute',
+    top: 3,
+    left: 3,
+    right: 3,
+    bottom: 3,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 1,
+    pointerEvents: 'none',
+  },
   content: {
     position: 'relative',
-    zIndex: 3,
+    zIndex: 1,
   },
 });
 
