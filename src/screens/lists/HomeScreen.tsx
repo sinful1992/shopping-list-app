@@ -3,6 +3,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
@@ -10,6 +11,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import AnimatedList from '../../components/AnimatedList';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList, User } from '../../models/types';
@@ -359,28 +361,151 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={lists}
-        keyExtractor={(item) => item.id}
-        renderItem={renderListItem}
+      <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        // Performance optimizations
-        getItemLayout={(data, index) => ({
-          length: 100, // Approximate list item height
-          offset: 100 * index,
-          index,
-        })}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        removeClippedSubviews={true}
-        initialNumToRender={15}
-        ListEmptyComponent={
+      >
+        {lists.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No shopping lists yet</Text>
             <Text style={styles.emptySubtext}>Tap + to create your first list</Text>
           </View>
-        }
-      />
+        ) : lists.length <= 50 ? (
+          <AnimatedList staggerDelay={80} duration={400} initialDelay={100}>
+            {lists.map((list) => {
+              const isCompleted = list.status === 'completed';
+              const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
+
+              // Format date for completed lists - UK format
+              const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
+              const day = String(date.getDate()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const year = date.getFullYear();
+              const formattedDate = `${day}/${month}/${year}`;
+
+              // Sync status indicator color
+              const syncColor = list.syncStatus === 'synced' ? '#30D158' :
+                               list.syncStatus === 'pending' ? '#FFD60A' :
+                               '#FF453A'; // failed
+
+              return (
+                <TouchableOpacity
+                  key={list.id}
+                  style={[styles.listCard, isCompleted && styles.completedCard]}
+                  onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                >
+                  {/* Sync Status Indicator - Top Right */}
+                  <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
+
+                  <View style={styles.listHeader}>
+                    <View style={styles.listTitleRow}>
+                      <Text style={[styles.listName, isCompleted && styles.completedText]}>
+                        {list.name}
+                      </Text>
+                    </View>
+                    <View style={styles.listBadges}>
+                      {list.isLocked && (
+                        <Text style={styles.shoppingBadge}>
+                          🛒 {list.lockedByRole || list.lockedByName || 'Shopping'}
+                        </Text>
+                      )}
+                      {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDeleteList(list.id, list.name);
+                        }}
+                        style={styles.deleteIconButton}
+                      >
+                        <Text style={styles.deleteIcon}>🗑</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Date and Store Display */}
+                  <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
+                    {formattedDate}
+                  </Text>
+                  {isCompleted && list.storeName && (
+                    <Text style={[styles.storeName, isCompleted && styles.completedText]}>
+                      {list.storeName}
+                    </Text>
+                  )}
+                  {!isCompleted && (
+                    <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
+                      Created {formattedDate}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </AnimatedList>
+        ) : (
+          // Render without animation for >50 lists (performance fallback)
+          lists.map((list) => {
+            const isCompleted = list.status === 'completed';
+            const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
+
+            const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const formattedDate = `${day}/${month}/${year}`;
+
+            const syncColor = list.syncStatus === 'synced' ? '#30D158' :
+                             list.syncStatus === 'pending' ? '#FFD60A' :
+                             '#FF453A';
+
+            return (
+              <TouchableOpacity
+                key={list.id}
+                style={[styles.listCard, isCompleted && styles.completedCard]}
+                onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+              >
+                <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
+
+                <View style={styles.listHeader}>
+                  <View style={styles.listTitleRow}>
+                    <Text style={[styles.listName, isCompleted && styles.completedText]}>
+                      {list.name}
+                    </Text>
+                  </View>
+                  <View style={styles.listBadges}>
+                    {list.isLocked && (
+                      <Text style={styles.shoppingBadge}>
+                        🛒 {list.lockedByRole || list.lockedByName || 'Shopping'}
+                      </Text>
+                    )}
+                    {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        handleDeleteList(list.id, list.name);
+                      }}
+                      style={styles.deleteIconButton}
+                    >
+                      <Text style={styles.deleteIcon}>🗑</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
+                  {formattedDate}
+                </Text>
+                {isCompleted && list.storeName && (
+                  <Text style={[styles.storeName, isCompleted && styles.completedText]}>
+                    {list.storeName}
+                  </Text>
+                )}
+                {!isCompleted && (
+                  <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
+                    Created {formattedDate}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </ScrollView>
 
       {/* Scan Receipt Button */}
       <TouchableOpacity

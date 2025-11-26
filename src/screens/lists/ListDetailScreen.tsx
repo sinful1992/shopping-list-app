@@ -4,12 +4,14 @@ import {
   Text,
   TextInput,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Alert,
   RefreshControl,
   Vibration,
 } from 'react-native';
+import AnimatedList from '../../components/AnimatedList';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -791,49 +793,191 @@ const ListDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={groupedItems}
-        keyExtractor={(row, index) => {
-          if (row.type === 'header') {
-            return `header-${row.category}`;
-          }
-          return row.item?.id || `item-${index}`;
-        }}
-        renderItem={renderItem}
+      <ScrollView
         contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-        // Performance optimizations
-        getItemLayout={(data, index) => ({
-          length: 66, // Approximate item height (padding + content)
-          offset: 66 * index,
-          index,
-        })}
-        maxToRenderPerBatch={15}
-        windowSize={10}
-        removeClippedSubviews={true}
-        initialNumToRender={20}
-        ListEmptyComponent={
+      >
+        {groupedItems.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No items yet</Text>
           </View>
-        }
-        ListFooterComponent={
-          !isListCompleted ? (
-            <View style={styles.listFooter}>
-              <TouchableOpacity
-                style={[styles.attachPhotoButton, isListLocked && styles.attachPhotoButtonDisabled]}
-                onPress={handleTakeReceiptPhoto}
-                disabled={isListLocked}
+        ) : groupedItems.length <= 100 ? (
+          <AnimatedList staggerDelay={60} duration={300} initialDelay={50}>
+            {groupedItems.map((row, index) => {
+              // Render category headers
+              if (row.type === 'header') {
+                const category = CategoryService.getCategory(row.category as any);
+                return (
+                  <View key={`header-${row.category}`} style={styles.categoryHeader}>
+                    <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
+                    <Text style={styles.categoryName}>{category?.name || row.category}</Text>
+                  </View>
+                );
+              }
+
+              // Render items
+              const item = row.item;
+              if (!item || !item.id) {
+                return null;
+              }
+
+              const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
+              const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
+              const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
+              const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+
+              return (
+                <View
+                  key={item.id || `item-${index}`}
+                  style={[
+                    styles.itemRow,
+                    item.checked === true && styles.itemRowChecked
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
+                    onPress={() => !isListLocked && handleToggleItem(item.id)}
+                    disabled={isListLocked}
+                  >
+                    <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.itemContentTouchable}
+                    onPress={() => handleItemTap(item)}
+                    disabled={isListLocked}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.itemContentColumn}>
+                      <View style={styles.itemContentRow}>
+                        <Text
+                          style={[
+                            styles.itemNameText,
+                            item.checked === true && styles.itemNameChecked
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.itemPriceText,
+                            isPredicted ? styles.itemPricePredicted : null,
+                            item.checked === true ? styles.itemPriceChecked : null
+                          ]}
+                        >
+                          {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
+                        </Text>
+                      </View>
+                      {showSuggestion && (
+                        <View style={styles.suggestionRow}>
+                          <Text style={styles.suggestionText}>
+                            💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </AnimatedList>
+        ) : (
+          // Render without animation for >100 items (performance fallback)
+          groupedItems.map((row, index) => {
+            if (row.type === 'header') {
+              const category = CategoryService.getCategory(row.category as any);
+              return (
+                <View key={`header-${row.category}`} style={styles.categoryHeader}>
+                  <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
+                  <Text style={styles.categoryName}>{category?.name || row.category}</Text>
+                </View>
+              );
+            }
+
+            const item = row.item;
+            if (!item || !item.id) {
+              return null;
+            }
+
+            const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
+            const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
+            const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
+            const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+
+            return (
+              <View
+                key={item.id || `item-${index}`}
+                style={[
+                  styles.itemRow,
+                  item.checked === true && styles.itemRowChecked
+                ]}
               >
-                <Text style={styles.attachPhotoIcon}>📷</Text>
-                <Text style={styles.attachPhotoText}>Attach Receipt Photo</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null
-        }
-      />
+                <TouchableOpacity
+                  style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
+                  onPress={() => !isListLocked && handleToggleItem(item.id)}
+                  disabled={isListLocked}
+                >
+                  <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.itemContentTouchable}
+                  onPress={() => handleItemTap(item)}
+                  disabled={isListLocked}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.itemContentColumn}>
+                    <View style={styles.itemContentRow}>
+                      <Text
+                        style={[
+                          styles.itemNameText,
+                          item.checked === true && styles.itemNameChecked
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.itemPriceText,
+                          isPredicted ? styles.itemPricePredicted : null,
+                          item.checked === true ? styles.itemPriceChecked : null
+                        ]}
+                      >
+                        {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
+                      </Text>
+                    </View>
+                    {showSuggestion && (
+                      <View style={styles.suggestionRow}>
+                        <Text style={styles.suggestionText}>
+                          💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            );
+          })
+        )}
+
+        {/* List Footer - Receipt Photo Button */}
+        {!isListCompleted && (
+          <View style={styles.listFooter}>
+            <TouchableOpacity
+              style={[styles.attachPhotoButton, isListLocked && styles.attachPhotoButtonDisabled]}
+              onPress={handleTakeReceiptPhoto}
+              disabled={isListLocked}
+            >
+              <Text style={styles.attachPhotoIcon}>📷</Text>
+              <Text style={styles.attachPhotoText}>Attach Receipt Photo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
 
       {/* Primary action - Start Shopping (FAB) */}
       {!isShoppingMode && !isListLocked && !isListCompleted && (
