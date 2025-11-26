@@ -94,11 +94,11 @@ const HomeScreen = () => {
         }
       }
 
-      // Get all lists (active and completed), sorted by creation date (newest first)
+      // Get all lists, sorted by creation date (newest first)
       const allLists = await ShoppingListManager.getAllLists(currentUser.familyGroupId);
-      // Filter out deleted lists
-      const visibleLists = allLists.filter(list => list.status !== 'deleted');
-      setLists(visibleLists);
+      // Filter out deleted and completed lists (completed lists shown in HistoryScreen)
+      const activeLists = allLists.filter(list => list.status !== 'deleted' && list.status !== 'completed');
+      setLists(activeLists);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
