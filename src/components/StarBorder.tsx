@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, RADIUS } from '../styles/theme';
 
 interface StarBorderProps {
   children: React.ReactNode;
@@ -28,9 +27,9 @@ interface StarBorderProps {
 const StarBorder: React.FC<StarBorderProps> = ({
   children,
   borderWidth = 2,
-  borderRadius = RADIUS.large,
+  borderRadius = 16,
   speed = 3000,
-  colors = [COLORS.accent.blue, COLORS.accent.purple, COLORS.accent.blue],
+  colors = ['#007AFF', '#AF52DE', '#007AFF'],
   style,
 }) => {
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -119,7 +118,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   content: {
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: '#1c1c1e',
     overflow: 'hidden',
   },
 });
