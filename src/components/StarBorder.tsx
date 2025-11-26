@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { View, Animated, StyleSheet, ViewStyle, StyleProp, Easing } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 interface StarBorderProps {
@@ -14,8 +14,8 @@ interface StarBorderProps {
 /**
  * StarBorder Component
  *
- * Animated rotating gradient border effect for premium/highlighted content.
- * Perfect for subscription tiers, premium features, or important cards.
+ * Two elliptical gradient spotlights that orbit continuously around the border.
+ * Creates a dynamic, premium border effect for highlighted content.
  *
  * @example
  * <StarBorder colors={['#FFD700', '#FFA500', '#FF4500']} speed={3000}>
@@ -32,57 +32,75 @@ const StarBorder: React.FC<StarBorderProps> = ({
   colors = ['#007AFF', '#AF52DE', '#007AFF'],
   style,
 }) => {
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Create infinite rotating animation
+    // Create infinite orbital rotation for gradient spotlights
     const animation = Animated.loop(
-      Animated.timing(rotateAnim, {
+      Animated.timing(rotation, {
         toValue: 1,
         duration: speed,
-        useNativeDriver: false, // Rotation with interpolated strings requires JS thread
+        easing: Easing.linear,
+        useNativeDriver: false, // Required for degree string interpolation
       })
     );
 
     animation.start();
 
     return () => {
-      animation.stop();
+      rotation.stopAnimation();
     };
-  }, [rotateAnim, speed]);
+  }, [rotation, speed]);
 
-  // Interpolate rotation value - requires useNativeDriver: false for string output
-  const rotate = rotateAnim.interpolate({
+  // Two gradients at 180° offset for continuous coverage
+  const rotate1 = rotation.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
 
+  const rotate2 = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['180deg', '540deg'], // 180° offset
+  });
+
   return (
     <View style={[styles.container, style]}>
-      {/* Animated gradient border */}
-      <Animated.View
-        style={[
-          styles.borderContainer,
-          {
-            borderRadius,
-            transform: [{ rotate }],
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={colors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          useAngle={true}
-          angle={45}
+      {/* Border container with overflow hidden */}
+      <View style={[styles.borderContainer, { borderRadius, overflow: 'hidden' }]}>
+        {/* Gradient Spotlight 1 */}
+        <Animated.View
           style={[
-            styles.gradient,
+            styles.gradientSpotlight,
             {
-              borderRadius,
+              transform: [{ rotate: rotate1 }],
             },
           ]}
-        />
-      </Animated.View>
+        >
+          <LinearGradient
+            colors={colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradient}
+          />
+        </Animated.View>
+
+        {/* Gradient Spotlight 2 (180° offset) */}
+        <Animated.View
+          style={[
+            styles.gradientSpotlight,
+            {
+              transform: [{ rotate: rotate2 }],
+            },
+          ]}
+        >
+          <LinearGradient
+            colors={colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.gradient}
+          />
+        </Animated.View>
+      </View>
 
       {/* Content container */}
       <View
@@ -112,10 +130,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     overflow: 'hidden',
   },
+  gradientSpotlight: {
+    position: 'absolute',
+    width: '300%', // Wide ellipse
+    height: '50%', // Half height
+    top: '25%', // Center vertically
+    left: '-100%', // Center horizontally
+    borderRadius: 1000, // Large radius for ellipse effect
+    opacity: 0.7, // Match CSS opacity
+  },
   gradient: {
     flex: 1,
     width: '100%',
     height: '100%',
+    borderRadius: 1000,
   },
   content: {
     backgroundColor: '#1c1c1e',
