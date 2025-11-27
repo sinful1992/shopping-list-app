@@ -33,22 +33,26 @@ const ColorShiftingCard: React.FC<ColorShiftingCardProps> = ({
 
   useEffect(() => {
     // Calculate staggered delay
-    const delay = index * 500; // 500ms offset per card
+    const staggerDelay = index * 500; // 500ms offset per card
 
-    // Start after delay
-    const animation = Animated.loop(
-      Animated.timing(colorAnimation, {
-        toValue: 1,
-        duration: 4000, // 4 second cycle
-        easing: Easing.linear,
-        useNativeDriver: false, // REQUIRED for color interpolation
-        delay, // Staggered start
-      })
-    );
+    // Delay the animation START, not the timing config
+    const timeoutId = setTimeout(() => {
+      const animation = Animated.loop(
+        Animated.timing(colorAnimation, {
+          toValue: 1,
+          duration: 4000, // 4 second cycle
+          easing: Easing.linear,
+          useNativeDriver: false, // REQUIRED for color interpolation
+        })
+      );
 
-    animation.start();
+      animation.start();
+    }, staggerDelay);
 
-    return () => animation.stop();
+    return () => {
+      clearTimeout(timeoutId);
+      colorAnimation.stopAnimation();
+    };
   }, [colorAnimation, index]);
 
   // Color interpolation: Cyan → Purple → Pink → Cyan
@@ -62,12 +66,6 @@ const ColorShiftingCard: React.FC<ColorShiftingCardProps> = ({
     ],
   });
 
-  // Matching shadow/glow color
-  const shadowColor = colorAnimation.interpolate({
-    inputRange: [0, 0.33, 0.66, 1],
-    outputRange: ['#00FFFF', '#8B5CF6', '#EC4899', '#00FFFF'],
-  });
-
   return (
     <Animated.View
       style={[
@@ -76,11 +74,6 @@ const ColorShiftingCard: React.FC<ColorShiftingCardProps> = ({
           borderColor,
           borderWidth,
           borderRadius,
-          shadowColor,
-          shadowRadius: 8,
-          shadowOpacity: 0.6,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 5, // Android shadow
         },
         style,
       ]}
