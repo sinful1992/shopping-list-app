@@ -12,7 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
-import ElectricBorder from '../../components/ElectricBorder';
+import ColorShiftingCard from '../../components/ColorShiftingCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList, User } from '../../models/types';
@@ -372,7 +372,7 @@ const HomeScreen = () => {
           </View>
         ) : lists.length <= 50 ? (
           <AnimatedList staggerDelay={80} duration={400} initialDelay={100}>
-            {lists.map((list) => {
+            {lists.map((list, index) => {
               const isCompleted = list.status === 'completed';
               const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
@@ -389,9 +389,9 @@ const HomeScreen = () => {
                                '#FF453A'; // failed
 
               return (
-                <ElectricBorder
+                <ColorShiftingCard
                   key={list.id}
-                  color={isCompleted ? '#FFD700' : '#00D9FF'}
+                  index={index}
                   borderWidth={3}
                   borderRadius={16}
                 >
@@ -442,13 +442,13 @@ const HomeScreen = () => {
                     </Text>
                   )}
                   </TouchableOpacity>
-                </ElectricBorder>
+                </ColorShiftingCard>
               );
             })}
           </AnimatedList>
         ) : (
           // Render without animation for >50 lists (performance fallback)
-          lists.map((list) => {
+          lists.map((list, index) => {
             const isCompleted = list.status === 'completed';
             const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
@@ -463,9 +463,9 @@ const HomeScreen = () => {
                              '#FF453A';
 
             return (
-              <ElectricBorder
+              <ColorShiftingCard
                 key={list.id}
-                color={isCompleted ? '#FFD700' : '#00D9FF'}
+                index={index}
                 borderWidth={3}
                 borderRadius={16}
               >
@@ -514,7 +514,7 @@ const HomeScreen = () => {
                   </Text>
                 )}
                 </TouchableOpacity>
-              </ElectricBorder>
+              </ColorShiftingCard>
             );
           })
         )}
