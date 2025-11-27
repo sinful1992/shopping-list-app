@@ -12,7 +12,7 @@ import {
   Vibration,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
-import StarBorder from '../../components/StarBorder';
+import AnimatedItemCard from '../../components/AnimatedItemCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -830,65 +830,33 @@ const ListDetailScreen = () => {
               const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
 
               return (
-                <StarBorder
+                <AnimatedItemCard
                   key={item.id || `item-${index}`}
-                  colors={item.checked ? ['#4CAF50', '#81C784', '#4CAF50'] : ['#2196F3', '#64B5F6', '#2196F3']}
-                  speed={6000}
-                  borderRadius={8}
-                  borderWidth={1.5}
-                >
-                  <View
-                    style={[
-                      styles.itemRow,
-                      item.checked === true && styles.itemRowChecked
-                    ]}
-                  >
-                    <TouchableOpacity
-                    style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
-                    onPress={() => !isListLocked && handleToggleItem(item.id)}
-                    disabled={isListLocked}
-                  >
-                    <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.itemContentTouchable}
-                    onPress={() => handleItemTap(item)}
-                    disabled={isListLocked}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.itemContentColumn}>
-                      <View style={styles.itemContentRow}>
-                        <Text
-                          style={[
-                            styles.itemNameText,
-                            item.checked === true && styles.itemNameChecked
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {item.name}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.itemPriceText,
-                            isPredicted ? styles.itemPricePredicted : null,
-                            item.checked === true ? styles.itemPriceChecked : null
-                          ]}
-                        >
-                          {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
-                        </Text>
-                      </View>
-                      {showSuggestion && (
-                        <View style={styles.suggestionRow}>
-                          <Text style={styles.suggestionText}>
-                            💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                  </View>
-                </StarBorder>
+                  index={index}
+                  item={item}
+                  itemPrice={itemPrice}
+                  isPredicted={isPredicted}
+                  showSuggestion={showSuggestion}
+                  suggestion={suggestion}
+                  isListLocked={isListLocked}
+                  onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                  onItemTap={() => handleItemTap(item)}
+                  itemRowStyle={styles.itemRow}
+                  itemRowCheckedStyle={styles.itemRowChecked}
+                  checkboxStyle={styles.checkbox}
+                  checkboxDisabledStyle={styles.checkboxDisabled}
+                  checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                  itemContentTouchableStyle={styles.itemContentTouchable}
+                  itemContentColumnStyle={styles.itemContentColumn}
+                  itemContentRowStyle={styles.itemContentRow}
+                  itemNameTextStyle={styles.itemNameText}
+                  itemNameCheckedStyle={styles.itemNameChecked}
+                  itemPriceTextStyle={styles.itemPriceText}
+                  itemPricePredictedStyle={styles.itemPricePredicted}
+                  itemPriceCheckedStyle={styles.itemPriceChecked}
+                  suggestionRowStyle={styles.suggestionRow}
+                  suggestionTextStyle={styles.suggestionText}
+                />
               );
             })}
           </AnimatedList>
@@ -916,65 +884,33 @@ const ListDetailScreen = () => {
             const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
 
             return (
-              <StarBorder
+              <AnimatedItemCard
                 key={item.id || `item-${index}`}
-                colors={item.checked ? ['#4CAF50', '#81C784', '#4CAF50'] : ['#2196F3', '#64B5F6', '#2196F3']}
-                speed={6000}
-                borderRadius={8}
-                borderWidth={1.5}
-              >
-                <View
-                  style={[
-                    styles.itemRow,
-                    item.checked === true && styles.itemRowChecked
-                  ]}
-                >
-                  <TouchableOpacity
-                  style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
-                  onPress={() => !isListLocked && handleToggleItem(item.id)}
-                  disabled={isListLocked}
-                >
-                  <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.itemContentTouchable}
-                  onPress={() => handleItemTap(item)}
-                  disabled={isListLocked}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.itemContentColumn}>
-                    <View style={styles.itemContentRow}>
-                      <Text
-                        style={[
-                          styles.itemNameText,
-                          item.checked === true && styles.itemNameChecked
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {item.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.itemPriceText,
-                          isPredicted ? styles.itemPricePredicted : null,
-                          item.checked === true ? styles.itemPriceChecked : null
-                        ]}
-                      >
-                        {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
-                      </Text>
-                    </View>
-                    {showSuggestion && (
-                      <View style={styles.suggestionRow}>
-                        <Text style={styles.suggestionText}>
-                          💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </StarBorder>
+                index={index}
+                item={item}
+                itemPrice={itemPrice}
+                isPredicted={isPredicted}
+                showSuggestion={showSuggestion}
+                suggestion={suggestion}
+                isListLocked={isListLocked}
+                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                onItemTap={() => handleItemTap(item)}
+                itemRowStyle={styles.itemRow}
+                itemRowCheckedStyle={styles.itemRowChecked}
+                checkboxStyle={styles.checkbox}
+                checkboxDisabledStyle={styles.checkboxDisabled}
+                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                itemContentTouchableStyle={styles.itemContentTouchable}
+                itemContentColumnStyle={styles.itemContentColumn}
+                itemContentRowStyle={styles.itemContentRow}
+                itemNameTextStyle={styles.itemNameText}
+                itemNameCheckedStyle={styles.itemNameChecked}
+                itemPriceTextStyle={styles.itemPriceText}
+                itemPricePredictedStyle={styles.itemPricePredicted}
+                itemPriceCheckedStyle={styles.itemPriceChecked}
+                suggestionRowStyle={styles.suggestionRow}
+                suggestionTextStyle={styles.suggestionText}
+              />
             );
           })
         )}
@@ -1136,14 +1072,13 @@ const styles = StyleSheet.create({
     padding: 15,
     marginHorizontal: 10,
     marginTop: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 8, // Match borderRadius from useColorShiftingBorder
+    // borderWidth and borderColor removed - now provided by animated border
   },
   itemRowChecked: {
-    opacity: 0.5,
+    // opacity removed - applied to entire Animated.View in AnimatedItemCard
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    // borderColor removed - animated border handles this
   },
   checkbox: {
     width: 24,
