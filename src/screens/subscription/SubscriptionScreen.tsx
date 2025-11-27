@@ -17,6 +17,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
 import PaymentService from '../../services/PaymentService';
 import { PurchasesOffering } from 'react-native-purchases';
+import database from '@react-native-firebase/database';
 
 type SubscriptionScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -48,6 +49,28 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     loadUserAndUsage();
     loadOfferings();
   }, []);
+
+  // Real-time listener for subscription tier changes
+  useEffect(() => {
+    if (!user?.familyGroupId) return;
+
+    const subscriptionRef = database().ref(`/familyGroups/${user.familyGroupId}/subscriptionTier`);
+
+    const onSubscriptionChange = (snapshot: any) => {
+      const newTier = snapshot.val() as SubscriptionTier;
+      if (newTier && newTier !== familyTier) {
+        setFamilyTier(newTier);
+        // Optionally reload usage limits when tier changes
+        loadUserAndUsage();
+      }
+    };
+
+    subscriptionRef.on('value', onSubscriptionChange);
+
+    return () => {
+      subscriptionRef.off('value', onSubscriptionChange);
+    };
+  }, [user?.familyGroupId]);
 
   const loadUserAndUsage = async () => {
     try {
