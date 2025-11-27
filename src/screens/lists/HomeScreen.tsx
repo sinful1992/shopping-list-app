@@ -12,6 +12,7 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import database from '@react-native-firebase/database';
 import AnimatedList from '../../components/AnimatedList';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -73,7 +74,27 @@ const HomeScreen = () => {
     try {
       const currentUser = await AuthenticationModule.getCurrentUser();
       if (!currentUser || !currentUser.familyGroupId) {
-        Alert.alert('Error', 'No family group found');
+        Alert.alert('Error', 'No family group found. Please create or join a group.');
+        return;
+      }
+
+      // Validate family group exists
+      const groupExists = await AuthenticationModule.validateFamilyGroupExists(
+        currentUser.familyGroupId
+      );
+
+      if (!groupExists) {
+        Alert.alert(
+          'Family Group Not Found',
+          'Your family group no longer exists. Please create or join a new group.',
+          [{ text: 'OK' }]
+        );
+
+        // Clear the invalid familyGroupId
+        await database().ref(`/users/${currentUser.uid}`).update({
+          familyGroupId: null,
+        });
+
         return;
       }
 

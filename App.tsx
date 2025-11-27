@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, Platform, TouchableOpacity } from 'react-native';
+import { StatusBar, Platform, TouchableOpacity, Alert } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import database from '@react-native-firebase/database';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import NotificationManager from './src/services/NotificationManager';
@@ -235,6 +236,46 @@ function App(): JSX.Element {
       };
     }
   }, [user?.familyGroupId]);
+
+  // Listen for family group deletion
+  useEffect(() => {
+    if (user?.familyGroupId) {
+      const familyGroupRef = database().ref(`/familyGroups/${user.familyGroupId}`);
+
+      const onFamilyGroupChange = async (snapshot: any) => {
+        if (!snapshot.exists()) {
+          // Family group was deleted
+          console.log('Family group no longer exists');
+
+          // Clear user's familyGroupId
+          await database().ref(`/users/${user.uid}`).update({
+            familyGroupId: null,
+          });
+
+          // Show alert and sign out user
+          Alert.alert(
+            'Family Group Deleted',
+            'Your family group was deleted. You will be signed out. Please sign in and create or join a new group.',
+            [
+              {
+                text: 'OK',
+                onPress: async () => {
+                  await AuthenticationModule.signOut();
+                },
+              },
+            ]
+          );
+        }
+      };
+
+      familyGroupRef.on('value', onFamilyGroupChange);
+
+      // Store cleanup function
+      return () => {
+        familyGroupRef.off('value', onFamilyGroupChange);
+      };
+    }
+  }, [user?.familyGroupId, user?.uid]);
 
   // Initialize RevenueCat on app launch
   useEffect(() => {

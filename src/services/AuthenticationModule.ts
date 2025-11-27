@@ -147,6 +147,21 @@ class AuthenticationModule {
   }
 
   /**
+   * Validate if a family group exists in Firebase
+   * Used to check if a family group was deleted
+   */
+  async validateFamilyGroupExists(groupId: string): Promise<boolean> {
+    try {
+      const groupSnapshot = await database()
+        .ref(`/familyGroups/${groupId}`)
+        .once('value');
+      return groupSnapshot.exists();
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Create new family group
    * Implements Req 1.5
    */
