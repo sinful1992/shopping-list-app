@@ -27,7 +27,7 @@ const FamilyGroupScreen = () => {
       // Update local user data with new familyGroupId
       await AuthenticationModule.refreshUserData();
 
-      Alert.alert('Success', `Family group created! Invitation code: ${group.invitationCode}`);
+      Alert.alert('Success', `Family group created! Invitation code: ${(group as any).invitationCode}`);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
