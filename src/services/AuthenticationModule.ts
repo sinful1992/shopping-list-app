@@ -231,43 +231,35 @@ class AuthenticationModule {
       const invitationData = invitationSnapshot.val();
       const groupId = invitationData.groupId;
 
-      // STEP 2: Verify family group still exists
-      const groupSnapshot = await database()
-        .ref(`/familyGroups/${groupId}`)
-        .once('value');
-
-      if (!groupSnapshot.exists()) {
-        throw new Error('Family group no longer exists');
-      }
-
-      const familyGroup: FamilyGroup = groupSnapshot.val();
-
-      // STEP 3: Check if user is already a member
-      if (familyGroup.memberIds && familyGroup.memberIds[userId]) {
-        return familyGroup; // Already a member - idempotent
-      }
-
-      // STEP 4: Add user to family group using atomic multi-path update
+      // STEP 2: Add user to family group first (so we can read it after)
       const updates: { [key: string]: any } = {};
       updates[`/familyGroups/${groupId}/memberIds/${userId}`] = true;
       updates[`/users/${userId}/familyGroupId`] = groupId;
 
       await database().ref().update(updates);
 
-      // STEP 5: Update cached user data
+      // STEP 3: Now we can read the group (we're a member now)
+      const groupSnapshot = await database()
+        .ref(`/familyGroups/${groupId}`)
+        .once('value');
+
+      if (!groupSnapshot.exists()) {
+        // Group was deleted - remove our membership
+        await database().ref(`/familyGroups/${groupId}/memberIds/${userId}`).remove();
+        await database().ref(`/users/${userId}/familyGroupId`).remove();
+        throw new Error('Family group no longer exists');
+      }
+
+      const familyGroup: FamilyGroup = groupSnapshot.val();
+
+      // STEP 4: Update cached user data
       const userSnapshot = await database().ref(`/users/${userId}`).once('value');
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
         await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
-      return {
-        ...familyGroup,
-        memberIds: {
-          ...familyGroup.memberIds,
-          [userId]: true,
-        },
-      };
+      return familyGroup;
     } catch (error: any) {
       // Provide specific error messages based on error type
       if (error.message.includes('Invalid invitation code')) {
