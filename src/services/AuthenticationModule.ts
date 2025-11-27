@@ -226,10 +226,11 @@ class AuthenticationModule {
       const groupId = Object.keys(groupData)[0];
       const familyGroup: FamilyGroup = groupData[groupId];
 
-      // Add user to family group
+      // Add user to family group using root-level multi-path update
       if (!familyGroup.memberIds[userId]) {
-        familyGroup.memberIds[userId] = true;
-        await database().ref(`/familyGroups/${groupId}/memberIds/${userId}`).set(true);
+        const updates: { [key: string]: any } = {};
+        updates[`familyGroups/${groupId}/memberIds/${userId}`] = true;
+        await database().ref().update(updates);
       }
 
       // Update user's familyGroupId
