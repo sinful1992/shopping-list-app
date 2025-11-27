@@ -2,6 +2,9 @@ import React from 'react';
 import { Animated, TouchableOpacity, View, Text, StyleProp, ViewStyle } from 'react-native';
 import { useColorShiftingBorder } from './ColorShiftingCard';
 
+// Create animated version of TouchableOpacity
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
 interface AnimatedListCardProps {
   index: number;
   listId: string;
@@ -39,7 +42,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   const borderStyles = useColorShiftingBorder(index, 3, 20);
 
   return (
-    <Animated.TouchableOpacity
+    <AnimatedTouchableOpacity
       key={listId}
       style={[listCardStyle, isCompleted && completedCardStyle, borderStyles]}
       onPress={onPress}
@@ -86,7 +89,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
           Created {formattedDate}
         </Text>
       )}
-    </Animated.TouchableOpacity>
+    </AnimatedTouchableOpacity>
   );
 };
 
