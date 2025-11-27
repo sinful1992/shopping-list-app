@@ -25,6 +25,12 @@
         ".read": "auth != null && data.child('memberIds').child(auth.uid).exists()",
         ".write": "auth != null && (data.child('memberIds').child(auth.uid).exists() || !data.exists())",
 
+        "memberIds": {
+          "$userId": {
+            ".write": "auth != null && (auth.uid == $userId || root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid))"
+          }
+        },
+
         "subscriptionTier": {
           ".write": "auth != null && auth.token.admin === true"
         },
