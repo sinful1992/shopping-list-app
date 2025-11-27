@@ -91,3 +91,30 @@ tmp/
 .LSOverride
 Thumbs.db
 nul
+
+# Build artifacts
+app-*.apk
+
+# Temporary files
+Untitled-*.txt
+
+# Local-only documentation (keep these out of git)
+CLAUDE.md
+ANIMATION_GUIDE.md
+INSTALLATION_GUIDE.md
+QUICK_SETUP.md
+BUILD_DEBUG_LOCAL.md
+GITHUB_ACTIONS_SETUP.md
+FIREBASE_V1_API_SETUP.md
+SUPABASE_SETUP_GUIDE.md
+supabase_edge_function_setup.md
+SUBSCRIPTION_SETUP.md
+URGENT_ITEMS_IMPLEMENTATION.md
+
+# Generated specification documents
+blueprint.md
+requirements.md
+design.md
+tasks.md
+validation.md
+research.md
