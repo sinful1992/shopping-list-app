@@ -10,9 +10,10 @@ import {
   Alert,
   Modal,
   Platform,
+  Animated,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
-import ColorShiftingCard from '../../components/ColorShiftingCard';
+import { useColorShiftingBorder } from '../../components/ColorShiftingCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList, User } from '../../models/types';
@@ -388,15 +389,13 @@ const HomeScreen = () => {
                                list.syncStatus === 'pending' ? '#FFD60A' :
                                '#FF453A'; // failed
 
+              // Get animated border styles
+              const borderStyles = useColorShiftingBorder(index, 3, 20);
+
               return (
-                <ColorShiftingCard
-                  key={list.id}
-                  index={index}
-                  borderWidth={3}
-                  borderRadius={16}
-                >
-                  <TouchableOpacity
-                    style={[styles.listCard, isCompleted && styles.completedCard]}
+                  <Animated.TouchableOpacity
+                    key={list.id}
+                    style={[styles.listCard, isCompleted && styles.completedCard, borderStyles]}
                     onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
                   >
                     {/* Sync Status Indicator - Top Right */}
@@ -441,8 +440,7 @@ const HomeScreen = () => {
                       Created {formattedDate}
                     </Text>
                   )}
-                  </TouchableOpacity>
-                </ColorShiftingCard>
+                  </Animated.TouchableOpacity>
               );
             })}
           </AnimatedList>
@@ -462,15 +460,13 @@ const HomeScreen = () => {
                              list.syncStatus === 'pending' ? '#FFD60A' :
                              '#FF453A';
 
+            // Get animated border styles
+            const borderStyles = useColorShiftingBorder(index, 3, 20);
+
             return (
-              <ColorShiftingCard
-                key={list.id}
-                index={index}
-                borderWidth={3}
-                borderRadius={16}
-              >
-                <TouchableOpacity
-                  style={[styles.listCard, isCompleted && styles.completedCard]}
+                <Animated.TouchableOpacity
+                  key={list.id}
+                  style={[styles.listCard, isCompleted && styles.completedCard, borderStyles]}
                   onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
                 >
                   <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
@@ -513,8 +509,7 @@ const HomeScreen = () => {
                     Created {formattedDate}
                   </Text>
                 )}
-                </TouchableOpacity>
-              </ColorShiftingCard>
+                </Animated.TouchableOpacity>
             );
           })
         )}
@@ -624,8 +619,6 @@ const styles = StyleSheet.create({
     margin: 10,
     padding: 18,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

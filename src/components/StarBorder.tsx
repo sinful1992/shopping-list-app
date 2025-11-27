@@ -120,14 +120,16 @@ const StarBorder: React.FC<StarBorderProps> = ({
   }, [translateTop, opacityTop, translateBottom, opacityBottom, speed]);
 
   // Interpolate to percentage strings
+  // Top gradient: moves from left (-250%) to right (0% and beyond)
   const translateTopX = translateTop.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
+    outputRange: ['-250%', '-150%'], // Moves 100% to the right
   });
 
+  // Bottom gradient: moves from right (-250%) to left
   const translateBottomX = translateBottom.interpolate({
     inputRange: [-1, 0],
-    outputRange: ['-100%', '0%'],
+    outputRange: ['-150%', '-250%'], // Moves 100% to the left (from -150% back to -250%)
   });
 
   return (
@@ -140,7 +142,7 @@ const StarBorder: React.FC<StarBorderProps> = ({
             styles.gradientTop,
             {
               opacity: opacityTop,
-              transform: [{ translateX: translateTopX }],
+              left: translateTopX,
             },
           ]}
         >
@@ -158,7 +160,7 @@ const StarBorder: React.FC<StarBorderProps> = ({
             styles.gradientBottom,
             {
               opacity: opacityBottom,
-              transform: [{ translateX: translateBottomX }],
+              right: translateBottomX,
             },
           ]}
         >
@@ -204,7 +206,6 @@ const styles = StyleSheet.create({
     width: '300%', // Wide ellipse
     height: '50%', // Half height
     top: -12, // Match CSS top: -12px
-    left: '-250%', // Match CSS left: -250%
     borderRadius: 1000, // Large radius for ellipse effect (50%)
     opacity: 0.7, // Base opacity
   },
@@ -213,7 +214,6 @@ const styles = StyleSheet.create({
     width: '300%', // Wide ellipse
     height: '50%', // Half height
     bottom: -12, // Match CSS bottom: -12px
-    right: '-250%', // Match CSS right: -250%
     borderRadius: 1000, // Large radius for ellipse effect (50%)
     opacity: 0.7, // Base opacity
   },

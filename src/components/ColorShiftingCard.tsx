@@ -1,41 +1,33 @@
-import React, { useRef, useEffect } from 'react';
-import { Animated, StyleSheet, ViewStyle, StyleProp, Easing } from 'react-native';
-
-interface ColorShiftingCardProps {
-  children: React.ReactNode;
-  index: number; // For staggered delay
-  borderWidth?: number;
-  borderRadius?: number;
-  style?: StyleProp<ViewStyle>;
-}
+import { useRef, useEffect } from 'react';
+import { Animated, Easing } from 'react-native';
 
 /**
- * ColorShiftingCard Component
+ * useColorShiftingBorder Hook
  *
- * Animated border that cycles through colors with staggered delays.
- * Creates a wave effect when multiple cards are displayed.
+ * Returns animated border styles that cycle through colors with staggered delays.
+ * Apply the returned styles directly to a component to create a color-shifting border effect.
+ *
+ * @param index - Card index for staggered animation delay
+ * @param borderWidth - Width of the border (default: 3)
+ * @param borderRadius - Radius of the border corners (default: 16)
+ * @returns Animated style object with borderColor, borderWidth, and borderRadius
  *
  * @example
- * <ColorShiftingCard index={0} borderWidth={3} borderRadius={16}>
- *   <View style={styles.card}>
- *     <Text>Card Content</Text>
- *   </View>
- * </ColorShiftingCard>
+ * const borderStyles = useColorShiftingBorder(0, 3, 20);
+ * <Animated.TouchableOpacity style={[styles.card, borderStyles]}>
+ *   <Text>Card Content</Text>
+ * </Animated.TouchableOpacity>
  */
-const ColorShiftingCard: React.FC<ColorShiftingCardProps> = ({
-  children,
-  index,
-  borderWidth = 2,
-  borderRadius = 16,
-  style,
-}) => {
+export const useColorShiftingBorder = (
+  index: number,
+  borderWidth: number = 3,
+  borderRadius: number = 16
+) => {
   const colorAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Calculate staggered delay
     const staggerDelay = index * 500; // 500ms offset per card
 
-    // Delay the animation START, not the timing config
     const timeoutId = setTimeout(() => {
       const animation = Animated.loop(
         Animated.timing(colorAnimation, {
@@ -66,27 +58,9 @@ const ColorShiftingCard: React.FC<ColorShiftingCardProps> = ({
     ],
   });
 
-  return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          borderColor,
-          borderWidth,
-          borderRadius,
-        },
-        style,
-      ]}
-    >
-      {children}
-    </Animated.View>
-  );
+  return {
+    borderColor,
+    borderWidth,
+    borderRadius,
+  };
 };
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'relative',
-  },
-});
-
-export default ColorShiftingCard;
