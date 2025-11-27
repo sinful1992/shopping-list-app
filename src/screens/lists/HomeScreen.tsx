@@ -13,7 +13,7 @@ import {
   Animated,
 } from 'react-native';
 import AnimatedList from '../../components/AnimatedList';
-import { useColorShiftingBorder } from '../../components/ColorShiftingCard';
+import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { ShoppingList, User } from '../../models/types';
@@ -389,58 +389,24 @@ const HomeScreen = () => {
                                list.syncStatus === 'pending' ? '#FFD60A' :
                                '#FF453A'; // failed
 
-              // Get animated border styles
-              const borderStyles = useColorShiftingBorder(index, 3, 20);
-
               return (
-                  <Animated.TouchableOpacity
-                    key={list.id}
-                    style={[styles.listCard, isCompleted && styles.completedCard, borderStyles]}
-                    onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
-                  >
-                    {/* Sync Status Indicator - Top Right */}
-                    <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
-
-                  <View style={styles.listHeader}>
-                    <View style={styles.listTitleRow}>
-                      <Text style={[styles.listName, isCompleted && styles.completedText]}>
-                        {list.name}
-                      </Text>
-                    </View>
-                    <View style={styles.listBadges}>
-                      {list.isLocked && (
-                        <Text style={styles.shoppingBadge}>
-                          🛒 {list.lockedByRole || list.lockedByName || 'Shopping'}
-                        </Text>
-                      )}
-                      {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
-                      <TouchableOpacity
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleDeleteList(list.id, list.name);
-                        }}
-                        style={styles.deleteIconButton}
-                      >
-                        <Text style={styles.deleteIcon}>🗑</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  {/* Date and Store Display */}
-                  <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
-                    {formattedDate}
-                  </Text>
-                  {isCompleted && list.storeName && (
-                    <Text style={[styles.storeName, isCompleted && styles.completedText]}>
-                      {list.storeName}
-                    </Text>
-                  )}
-                  {!isCompleted && (
-                    <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
-                      Created {formattedDate}
-                    </Text>
-                  )}
-                  </Animated.TouchableOpacity>
+                <AnimatedListCard
+                  key={list.id}
+                  index={index}
+                  listId={list.id}
+                  listName={list.name}
+                  isCompleted={isCompleted}
+                  isLocked={list.isLocked}
+                  lockedByRole={list.lockedByRole}
+                  lockedByName={list.lockedByName}
+                  storeName={list.storeName}
+                  formattedDate={formattedDate}
+                  syncColor={syncColor}
+                  onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                  onDelete={() => handleDeleteList(list.id, list.name)}
+                  listCardStyle={styles.listCard}
+                  completedCardStyle={styles.completedCard}
+                />
               );
             })}
           </AnimatedList>
@@ -460,56 +426,24 @@ const HomeScreen = () => {
                              list.syncStatus === 'pending' ? '#FFD60A' :
                              '#FF453A';
 
-            // Get animated border styles
-            const borderStyles = useColorShiftingBorder(index, 3, 20);
-
             return (
-                <Animated.TouchableOpacity
-                  key={list.id}
-                  style={[styles.listCard, isCompleted && styles.completedCard, borderStyles]}
-                  onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
-                >
-                  <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
-
-                <View style={styles.listHeader}>
-                  <View style={styles.listTitleRow}>
-                    <Text style={[styles.listName, isCompleted && styles.completedText]}>
-                      {list.name}
-                    </Text>
-                  </View>
-                  <View style={styles.listBadges}>
-                    {list.isLocked && (
-                      <Text style={styles.shoppingBadge}>
-                        🛒 {list.lockedByRole || list.lockedByName || 'Shopping'}
-                      </Text>
-                    )}
-                    {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleDeleteList(list.id, list.name);
-                      }}
-                      style={styles.deleteIconButton}
-                    >
-                      <Text style={styles.deleteIcon}>🗑</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
-                  {formattedDate}
-                </Text>
-                {isCompleted && list.storeName && (
-                  <Text style={[styles.storeName, isCompleted && styles.completedText]}>
-                    {list.storeName}
-                  </Text>
-                )}
-                {!isCompleted && (
-                  <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
-                    Created {formattedDate}
-                  </Text>
-                )}
-                </Animated.TouchableOpacity>
+              <AnimatedListCard
+                key={list.id}
+                index={index}
+                listId={list.id}
+                listName={list.name}
+                isCompleted={isCompleted}
+                isLocked={list.isLocked}
+                lockedByRole={list.lockedByRole}
+                lockedByName={list.lockedByName}
+                storeName={list.storeName}
+                formattedDate={formattedDate}
+                syncColor={syncColor}
+                onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                onDelete={() => handleDeleteList(list.id, list.name)}
+                listCardStyle={styles.listCard}
+                completedCardStyle={styles.completedCard}
+              />
             );
           })
         )}
