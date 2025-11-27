@@ -31,11 +31,16 @@ export interface User {
 export interface FamilyGroup {
   id: string;
   name: string;
-  invitationCode: string;
+  // invitationCode removed - now stored only in /invitations table
   createdBy: string;
   memberIds: { [userId: string]: boolean };
   createdAt: number;
   subscriptionTier: SubscriptionTier; // Subscription is at family level, not user level
+}
+
+export interface InvitationEntry {
+  groupId: string;
+  createdAt: number;
 }
 
 export interface UserCredential {

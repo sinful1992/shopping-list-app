@@ -43,6 +43,7 @@ const SettingsScreen = () => {
   const [user, setUser] = useState<User | null>(null);
   const [familyGroup, setFamilyGroup] = useState<FamilyGroup | null>(null);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
+  const [invitationCode, setInvitationCode] = useState<string | null>(null);
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -103,6 +104,11 @@ const SettingsScreen = () => {
         const group = await AuthenticationModule.getUserFamilyGroup(currentUser.uid);
         setFamilyGroup(group);
 
+        // Fetch invitation code from /invitations table
+        if (group) {
+          await fetchInvitationCode(currentUser.familyGroupId);
+        }
+
         // Get family members
         if (group && group.memberIds) {
           const memberIdsList = Object.keys(group.memberIds);
@@ -134,9 +140,28 @@ const SettingsScreen = () => {
     }
   };
 
+  const fetchInvitationCode = async (familyGroupId: string) => {
+    try {
+      // Query /invitations to find code for this groupId
+      const invitationsSnapshot = await database()
+        .ref('/invitations')
+        .orderByChild('groupId')
+        .equalTo(familyGroupId)
+        .once('value');
+
+      if (invitationsSnapshot.exists()) {
+        const invitations = invitationsSnapshot.val();
+        const code = Object.keys(invitations)[0]; // First key is the invitation code
+        setInvitationCode(code);
+      }
+    } catch (error) {
+      console.error('Failed to fetch invitation code:', error);
+    }
+  };
+
   const handleCopyInvitationCode = () => {
-    if (familyGroup?.invitationCode) {
-      Clipboard.setString(familyGroup.invitationCode);
+    if (invitationCode) {
+      Clipboard.setString(invitationCode);
       Alert.alert('Success', 'Invitation code copied to clipboard');
     }
   };
@@ -356,7 +381,7 @@ const SettingsScreen = () => {
             <View style={styles.infoRow}>
               <Text style={styles.label}>Invitation Code:</Text>
               <View style={styles.codeRow}>
-                <Text style={styles.invitationCode}>{familyGroup.invitationCode}</Text>
+                <Text style={styles.invitationCode}>{invitationCode || 'Loading...'}</Text>
                 <TouchableOpacity
                   style={styles.copyButton}
                   onPress={handleCopyInvitationCode}

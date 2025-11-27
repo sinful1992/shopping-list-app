@@ -39,18 +39,36 @@ const FamilyGroupScreen = () => {
       return;
     }
 
+    // Normalize code (remove spaces, uppercase)
+    const normalizedCode = invitationCode.trim().toUpperCase().replace(/\s/g, '');
+
+    if (normalizedCode.length !== 8) {
+      Alert.alert('Error', 'Invitation codes must be exactly 8 characters');
+      return;
+    }
+
     try {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) throw new Error('User not authenticated');
 
-      await AuthenticationModule.joinFamilyGroup(invitationCode.toUpperCase(), user.uid);
+      await AuthenticationModule.joinFamilyGroup(normalizedCode, user.uid);
 
       // Update local user data with new familyGroupId
       await AuthenticationModule.refreshUserData();
 
-      Alert.alert('Success', 'Joined family group!');
+      Alert.alert('Success', 'You have successfully joined the family group!');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      let userMessage = error.message;
+
+      if (error.message.includes('Invalid invitation code')) {
+        userMessage = 'Invalid invitation code. Please check the code and try again.';
+      } else if (error.message.includes('no longer exists')) {
+        userMessage = 'This family group has been deleted by the owner.';
+      } else if (error.message.includes('network')) {
+        userMessage = 'Network error. Please check your connection and try again.';
+      }
+
+      Alert.alert('Error', userMessage);
     }
   };
 

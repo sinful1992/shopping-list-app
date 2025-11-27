@@ -21,10 +21,9 @@
     },
 
     "familyGroups": {
-      ".indexOn": ["invitationCode"],
       "$groupId": {
-        ".read": "auth != null && (data.child('memberIds').child(auth.uid).exists() || (query.orderByChild == 'invitationCode' && query.equalTo != null))",
-        ".write": "auth != null && (data.child('memberIds').child(auth.uid).exists() || !data.exists() || newData.child('memberIds').exists())",
+        ".read": "auth != null && data.child('memberIds').child(auth.uid).exists()",
+        ".write": "auth != null && (data.child('memberIds').child(auth.uid).exists() || !data.exists())",
 
         "memberIds": {
           "$userId": {
@@ -70,9 +69,11 @@
     },
 
     "invitations": {
+      ".indexOn": ["groupId"],
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null"
+        ".write": "auth != null && (!data.exists() || root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid))",
+        ".validate": "newData.hasChildren(['groupId', 'createdAt']) && newData.child('groupId').isString()"
       }
     }
   }

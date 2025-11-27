@@ -173,24 +173,28 @@ class AuthenticationModule {
       }
 
       const invitationCode = this.generateInvitationCode();
+      const timestamp = Date.now();
 
+      // FamilyGroup no longer stores invitationCode
       const familyGroup: FamilyGroup = {
         id: groupId,
         name: groupName,
-        invitationCode,
         createdBy: userId,
         memberIds: { [userId]: true },
-        createdAt: Date.now(),
+        createdAt: timestamp,
         subscriptionTier: 'free', // New family groups start with free tier
       };
 
-      // Save family group
-      await database().ref(`/familyGroups/${groupId}`).set(familyGroup);
+      // Atomic multi-path update: create both family group AND invitation entry
+      const updates: { [key: string]: any } = {};
+      updates[`/familyGroups/${groupId}`] = familyGroup;
+      updates[`/invitations/${invitationCode}`] = {
+        groupId: groupId,
+        createdAt: timestamp,
+      };
+      updates[`/users/${userId}/familyGroupId`] = groupId;
 
-      // Update user's familyGroupId
-      await database().ref(`/users/${userId}`).update({
-        familyGroupId: groupId,
-      });
+      await database().ref().update(updates);
 
       // Update cached user data
       const userSnapshot = await database().ref(`/users/${userId}`).once('value');
@@ -199,7 +203,11 @@ class AuthenticationModule {
         await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
-      return familyGroup;
+      // Return family group with invitation code for display
+      return {
+        ...familyGroup,
+        invitationCode, // Include in return value for UI display
+      } as any; // Type assertion since invitationCode is not in FamilyGroup interface
     } catch (error: any) {
       throw new Error(`Failed to create family group: ${error.message}`);
     }
@@ -211,43 +219,66 @@ class AuthenticationModule {
    */
   async joinFamilyGroup(invitationCode: string, userId: string): Promise<FamilyGroup> {
     try {
-      // Find family group by invitation code
-      const groupsSnapshot = await database()
-        .ref('/familyGroups')
-        .orderByChild('invitationCode')
-        .equalTo(invitationCode)
+      // STEP 1: Lookup groupId from invitation table (O(1) operation)
+      const invitationSnapshot = await database()
+        .ref(`/invitations/${invitationCode}`)
         .once('value');
 
-      if (!groupsSnapshot.exists()) {
+      if (!invitationSnapshot.exists()) {
         throw new Error('Invalid invitation code');
       }
 
-      const groupData = groupsSnapshot.val();
-      const groupId = Object.keys(groupData)[0];
-      const familyGroup: FamilyGroup = groupData[groupId];
+      const invitationData = invitationSnapshot.val();
+      const groupId = invitationData.groupId;
 
-      // Add user to family group using root-level multi-path update
-      if (!familyGroup.memberIds[userId]) {
-        const updates: { [key: string]: any } = {};
-        updates[`familyGroups/${groupId}/memberIds/${userId}`] = true;
-        await database().ref().update(updates);
+      // STEP 2: Verify family group still exists
+      const groupSnapshot = await database()
+        .ref(`/familyGroups/${groupId}`)
+        .once('value');
+
+      if (!groupSnapshot.exists()) {
+        throw new Error('Family group no longer exists');
       }
 
-      // Update user's familyGroupId
-      await database().ref(`/users/${userId}`).update({
-        familyGroupId: groupId,
-      });
+      const familyGroup: FamilyGroup = groupSnapshot.val();
 
-      // Update cached user data
+      // STEP 3: Check if user is already a member
+      if (familyGroup.memberIds && familyGroup.memberIds[userId]) {
+        return familyGroup; // Already a member - idempotent
+      }
+
+      // STEP 4: Add user to family group using atomic multi-path update
+      const updates: { [key: string]: any } = {};
+      updates[`/familyGroups/${groupId}/memberIds/${userId}`] = true;
+      updates[`/users/${userId}/familyGroupId`] = groupId;
+
+      await database().ref().update(updates);
+
+      // STEP 5: Update cached user data
       const userSnapshot = await database().ref(`/users/${userId}`).once('value');
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
         await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
-      return familyGroup;
+      return {
+        ...familyGroup,
+        memberIds: {
+          ...familyGroup.memberIds,
+          [userId]: true,
+        },
+      };
     } catch (error: any) {
-      throw new Error(`Failed to join family group: ${error.message}`);
+      // Provide specific error messages based on error type
+      if (error.message.includes('Invalid invitation code')) {
+        throw new Error('Invalid invitation code. Please check and try again.');
+      } else if (error.message.includes('no longer exists')) {
+        throw new Error('This family group has been deleted.');
+      } else if (error.code === 'PERMISSION_DENIED') {
+        throw new Error('Permission denied. Please contact support.');
+      } else {
+        throw new Error(`Failed to join family group: ${error.message}`);
+      }
     }
   }
 
@@ -481,7 +512,25 @@ class AuthenticationModule {
 
           // If this was the last member, delete the entire family group
           if (remainingMembers.length === 0) {
-            await database().ref(`/familyGroups/${familyGroupId}`).remove();
+            // Find invitation code by querying /invitations for this groupId
+            const invitationsSnapshot = await database()
+              .ref('/invitations')
+              .orderByChild('groupId')
+              .equalTo(familyGroupId)
+              .once('value');
+
+            const deletions: { [key: string]: null } = {};
+            deletions[`/familyGroups/${familyGroupId}`] = null;
+
+            // Delete invitation entry if found
+            if (invitationsSnapshot.exists()) {
+              const invitations = invitationsSnapshot.val();
+              for (const code in invitations) {
+                deletions[`/invitations/${code}`] = null;
+              }
+            }
+
+            await database().ref().update(deletions);
           } else {
             await database().ref(`/familyGroups/${familyGroupId}/memberIds/${userId}`).remove();
           }
