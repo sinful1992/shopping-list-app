@@ -199,6 +199,8 @@ class FirebaseSyncListener {
         createdAt: firebaseData.createdAt || Date.now(),
         updatedAt: firebaseData.updatedAt || Date.now(),
         syncStatus: 'synced', // Mark as synced since it came from Firebase
+        category: firebaseData.category || null,
+        sortOrder: firebaseData.sortOrder || null,
       };
 
       // Save to local DB (will create or update)
