@@ -37,11 +37,13 @@ interface AnimatedItemCardProps {
   itemPriceCheckedStyle?: StyleProp<TextStyle>;
   suggestionRowStyle?: StyleProp<ViewStyle>;
   suggestionTextStyle?: StyleProp<TextStyle>;
+  totalItems: number;
 }
 
 const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   index,
   item,
+  totalItems,
   itemPrice,
   isPredicted,
   showSuggestion,
@@ -67,7 +69,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   suggestionTextStyle,
 }) => {
   // Apply color-shifting border with wave effect
-  const borderStyles = useColorShiftingBorder(index, 1.5, 8);
+  const borderStyles = useColorShiftingBorder(index, 1.5, 8, totalItems);
 
   const isChecked = item.checked === true;
 

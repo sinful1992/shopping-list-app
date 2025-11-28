@@ -855,6 +855,9 @@ const ListDetailScreen = () => {
           </View>
         ) : (
           groupedItems.map((row, index) => {
+            // Calculate unchecked items count for wave effect
+            const uncheckedCount = items.filter(item => !item.checked).length;
+
             if (row.type === 'header') {
               const category = CategoryService.getCategory(row.category as any);
               return (
@@ -903,6 +906,7 @@ const ListDetailScreen = () => {
                 itemPriceCheckedStyle={styles.itemPriceChecked}
                 suggestionRowStyle={styles.suggestionRow}
                 suggestionTextStyle={styles.suggestionText}
+                totalItems={uncheckedCount}
               />
             );
           })

@@ -20,6 +20,7 @@ interface AnimatedListCardProps {
   onDelete: () => void;
   completedCardStyle?: StyleProp<ViewStyle>;
   listCardStyle: StyleProp<ViewStyle>;
+  totalLists: number;
 }
 
 const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
@@ -37,9 +38,10 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   onDelete,
   completedCardStyle,
   listCardStyle,
+  totalLists,
 }) => {
   // Get animated border styles - called at component level (safe)
-  const borderStyles = useColorShiftingBorder(index, 3, 20);
+  const borderStyles = useColorShiftingBorder(index, 3, 20, totalLists);
 
   return (
     <AnimatedTouchableOpacity
