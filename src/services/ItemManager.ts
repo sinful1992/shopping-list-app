@@ -55,8 +55,10 @@ class ItemManager {
       syncStatus: 'pending',
     });
 
-    // Trigger sync
-    await SyncEngine.pushChange('item', itemId, 'update');
+    // Trigger sync in background (fire-and-forget for instant local updates)
+    SyncEngine.pushChange('item', itemId, 'update').catch(error => {
+      console.error('Background sync failed, will retry later:', error);
+    });
 
     return item;
   }
