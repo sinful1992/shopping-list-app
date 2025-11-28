@@ -92,8 +92,10 @@ class ShoppingListManager {
       syncStatus: 'pending',
     });
 
-    // Trigger sync
-    await SyncEngine.pushChange('list', listId, 'update');
+    // Trigger sync in background (fire-and-forget for instant local updates)
+    SyncEngine.pushChange('list', listId, 'update').catch(error => {
+      console.error('Background sync failed, will retry later:', error);
+    });
 
     return list;
   }
