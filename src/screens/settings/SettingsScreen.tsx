@@ -153,9 +153,22 @@ const SettingsScreen = () => {
         const invitations = invitationsSnapshot.val();
         const code = Object.keys(invitations)[0]; // First key is the invitation code
         setInvitationCode(code);
+      } else {
+        // No invitation found - this shouldn't happen but handle gracefully
+        console.warn('No invitation code found for family group:', familyGroupId);
+        setInvitationCode('NOT_FOUND');
+        Alert.alert(
+          'Invitation Code Not Found',
+          'Could not retrieve the invitation code. Please contact support if this persists.'
+        );
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch invitation code:', error);
+      setInvitationCode('ERROR');
+      Alert.alert(
+        'Error Loading Invitation Code',
+        `Failed to load invitation code: ${error.message || 'Unknown error'}. Please try again later.`
+      );
     }
   };
 
@@ -381,12 +394,28 @@ const SettingsScreen = () => {
             <View style={styles.infoRow}>
               <Text style={styles.label}>Invitation Code:</Text>
               <View style={styles.codeRow}>
-                <Text style={styles.invitationCode}>{invitationCode || 'Loading...'}</Text>
+                {!invitationCode ? (
+                  <Text style={styles.invitationCode}>Loading...</Text>
+                ) : invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? (
+                  <Text style={[styles.invitationCode, { color: '#FF453A' }]}>Error - Tap to retry</Text>
+                ) : (
+                  <Text style={styles.invitationCode}>{invitationCode}</Text>
+                )}
                 <TouchableOpacity
-                  style={styles.copyButton}
-                  onPress={handleCopyInvitationCode}
+                  style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && { opacity: 0.5 }]}
+                  onPress={() => {
+                    if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
+                      // Retry loading
+                      if (user?.familyGroupId) {
+                        fetchInvitationCode(user.familyGroupId);
+                      }
+                    } else {
+                      handleCopyInvitationCode();
+                    }
+                  }}
+                  disabled={!invitationCode}
                 >
-                  <Icon name="copy-outline" size={20} color="#007AFF" />
+                  <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color="#007AFF" />
                 </TouchableOpacity>
               </View>
             </View>
