@@ -11,7 +11,6 @@ import {
   RefreshControl,
   Vibration,
 } from 'react-native';
-import AnimatedList from '../../components/AnimatedList';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -854,65 +853,7 @@ const ListDetailScreen = () => {
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No items yet</Text>
           </View>
-        ) : groupedItems.length <= 100 ? (
-          <AnimatedList staggerDelay={60} duration={300} initialDelay={50}>
-            {groupedItems.map((row, index) => {
-              // Render category headers
-              if (row.type === 'header') {
-                const category = CategoryService.getCategory(row.category as any);
-                return (
-                  <View key={`header-${row.category}`} style={styles.categoryHeader}>
-                    <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
-                    <Text style={styles.categoryName}>{category?.name || row.category}</Text>
-                  </View>
-                );
-              }
-
-              // Render items
-              const item = row.item;
-              if (!item || !item.id) {
-                return null;
-              }
-
-              const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
-              const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
-              const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
-              const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-
-              return (
-                <AnimatedItemCard
-                  key={item.id || `item-${index}`}
-                  index={index}
-                  item={item}
-                  itemPrice={itemPrice}
-                  isPredicted={isPredicted}
-                  showSuggestion={showSuggestion}
-                  suggestion={suggestion}
-                  isListLocked={isListLocked}
-                  onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                  onItemTap={() => handleItemTap(item)}
-                  itemRowStyle={styles.itemRow}
-                  itemRowCheckedStyle={styles.itemRowChecked}
-                  checkboxStyle={styles.checkbox}
-                  checkboxDisabledStyle={styles.checkboxDisabled}
-                  checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                  checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                  itemContentTouchableStyle={styles.itemContentTouchable}
-                  itemContentColumnStyle={styles.itemContentColumn}
-                  itemContentRowStyle={styles.itemContentRow}
-                  itemNameTextStyle={styles.itemNameText}
-                  itemNameCheckedStyle={styles.itemNameChecked}
-                  itemPriceTextStyle={styles.itemPriceText}
-                  itemPricePredictedStyle={styles.itemPricePredicted}
-                  itemPriceCheckedStyle={styles.itemPriceChecked}
-                  suggestionRowStyle={styles.suggestionRow}
-                  suggestionTextStyle={styles.suggestionText}
-                />
-              );
-            })}
-          </AnimatedList>
         ) : (
-          // Render without animation for >100 items (performance fallback)
           groupedItems.map((row, index) => {
             if (row.type === 'header') {
               const category = CategoryService.getCategory(row.category as any);
@@ -951,6 +892,7 @@ const ListDetailScreen = () => {
                 checkboxStyle={styles.checkbox}
                 checkboxDisabledStyle={styles.checkboxDisabled}
                 checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                checkboxTextCheckedStyle={styles.checkboxTextChecked}
                 itemContentTouchableStyle={styles.itemContentTouchable}
                 itemContentColumnStyle={styles.itemContentColumn}
                 itemContentRowStyle={styles.itemContentRow}

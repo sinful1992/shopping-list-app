@@ -13,7 +13,6 @@ import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import AuthenticationModule from '../services/AuthenticationModule';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
-import AnimatedList from './AnimatedList';
 
 interface FrequentlyBoughtModalProps {
   visible: boolean;
@@ -112,12 +111,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
               </Text>
             </View>
           ) : (
-            <AnimatedList
-              staggerDelay={60}
-              duration={400}
-              initialDelay={0}
-              style={styles.listContent}
-            >
+            <View style={styles.listContent}>
               {frequentItems.map((item) => (
                 <View key={item.name} style={styles.itemRow}>
                   <View style={styles.itemLeft}>
@@ -143,7 +137,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
                   </TouchableOpacity>
                 </View>
               ))}
-            </AnimatedList>
+            </View>
           )}
         </View>
       </View>

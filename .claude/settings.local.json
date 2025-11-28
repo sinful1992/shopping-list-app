@@ -10,7 +10,14 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git tag:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(find:*)",
+      "Bash(findstr:*)",
+      "Bash(if [ ! -d \"C:\\Users\\barku\\.claude\\plans\" ])",
+      "Bash(then mkdir -p \"C:\\Users\\barku\\.claude\\plans\")",
+      "Bash(fi)"
     ],
     "deny": [],
     "ask": []

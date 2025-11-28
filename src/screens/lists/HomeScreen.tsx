@@ -13,7 +13,6 @@ import {
   Animated,
 } from 'react-native';
 import database from '@react-native-firebase/database';
-import AnimatedList from '../../components/AnimatedList';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -394,9 +393,8 @@ const HomeScreen = () => {
             <Text style={styles.emptyText}>No shopping lists yet</Text>
             <Text style={styles.emptySubtext}>Tap + to create your first list</Text>
           </View>
-        ) : lists.length <= 50 ? (
-          <AnimatedList staggerDelay={80} duration={400} initialDelay={100}>
-            {lists.map((list, index) => {
+        ) : (
+          lists.map((list, index) => {
               const isCompleted = list.status === 'completed';
               const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
@@ -431,44 +429,7 @@ const HomeScreen = () => {
                   completedCardStyle={styles.completedCard}
                 />
               );
-            })}
-          </AnimatedList>
-        ) : (
-          // Render without animation for >50 lists (performance fallback)
-          lists.map((list, index) => {
-            const isCompleted = list.status === 'completed';
-            const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
-
-            const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            const formattedDate = `${day}/${month}/${year}`;
-
-            const syncColor = list.syncStatus === 'synced' ? '#30D158' :
-                             list.syncStatus === 'pending' ? '#FFD60A' :
-                             '#FF453A';
-
-            return (
-              <AnimatedListCard
-                key={list.id}
-                index={index}
-                listId={list.id}
-                listName={list.name}
-                isCompleted={isCompleted}
-                isLocked={list.isLocked}
-                lockedByRole={list.lockedByRole}
-                lockedByName={list.lockedByName}
-                storeName={list.storeName}
-                formattedDate={formattedDate}
-                syncColor={syncColor}
-                onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
-                onDelete={() => handleDeleteList(list.id, list.name)}
-                listCardStyle={styles.listCard}
-                completedCardStyle={styles.completedCard}
-              />
-            );
-          })
+            })
         )}
       </ScrollView>
 
