@@ -25,10 +25,12 @@ import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import CategoryService from '../../services/CategoryService';
+import CategoryHistoryService from '../../services/CategoryHistoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
 import ItemEditModal from '../../components/ItemEditModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
+import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 
 /**
@@ -63,6 +65,11 @@ const ListDetailScreen = () => {
 
   // Frequent items modal state
   const [frequentItemsVisible, setFrequentItemsVisible] = useState(false);
+
+  // Category conflict modal state
+  const [conflictModalVisible, setConflictModalVisible] = useState(false);
+  const [pendingItemName, setPendingItemName] = useState('');
+  const [conflictCategories, setConflictCategories] = useState<Array<{ category: string; usageCount: number; lastUsedAt: number }>>([]);
 
   // Shopping mode UI state
   const [runningTotal, setRunningTotal] = useState(0);
@@ -291,14 +298,46 @@ const ListDetailScreen = () => {
   const handleAddItem = async () => {
     if (!newItemName.trim()) return;
     if (!currentUserId) return;
+    if (!list) return;
 
     try {
-      await ItemManager.addItem(listId, newItemName.trim(), currentUserId);
-      setNewItemName('');
-      // WatermelonDB observer will automatically update the UI
+      // Check for category conflicts
+      const categories = await CategoryHistoryService.getCategoriesForItem(
+        list.familyGroupId,
+        newItemName.trim()
+      );
+
+      if (categories.length >= 2) {
+        // Show conflict resolution modal
+        setPendingItemName(newItemName.trim());
+        setConflictCategories(categories);
+        setConflictModalVisible(true);
+      } else {
+        // No conflict - add item with suggested category (if any)
+        const suggestedCategory = categories.length === 1 ? categories[0].category : null;
+        await addItemWithCategory(newItemName.trim(), suggestedCategory);
+        setNewItemName('');
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message);
     }
+  };
+
+  const addItemWithCategory = async (name: string, category: string | null) => {
+    if (!currentUserId) return;
+
+    const item = await ItemManager.addItem(listId, name, currentUserId);
+
+    if (category) {
+      await ItemManager.updateItem(item.id, { category });
+    }
+  };
+
+  const handleConflictResolved = async (selectedCategory: string) => {
+    await addItemWithCategory(pendingItemName, selectedCategory);
+    setConflictModalVisible(false);
+    setPendingItemName('');
+    setNewItemName('');
   };
 
   const handleAddFrequentItem = async (itemName: string) => {
@@ -962,6 +1001,17 @@ const ListDetailScreen = () => {
         visible={frequentItemsVisible}
         onClose={() => setFrequentItemsVisible(false)}
         onAddItem={handleAddFrequentItem}
+      />
+
+      <CategoryConflictModal
+        visible={conflictModalVisible}
+        itemName={pendingItemName}
+        categories={conflictCategories}
+        onSelectCategory={handleConflictResolved}
+        onCancel={() => {
+          setConflictModalVisible(false);
+          setPendingItemName('');
+        }}
       />
     </View>
   );
