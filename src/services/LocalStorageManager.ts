@@ -1,12 +1,13 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory } from '../models/types';
 import { schema } from '../database/schema';
 import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
 import { ItemModel } from '../database/models/Item';
 import { SyncQueueModel } from '../database/models/SyncQueue';
 import { UrgentItemModel } from '../database/models/UrgentItem';
+import { CategoryHistoryModel } from '../database/models/CategoryHistory';
 
 /**
  * LocalStorageManager
@@ -28,7 +29,7 @@ class LocalStorageManager {
 
     this.database = new Database({
       adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel],
+      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel],
     });
   }
 
@@ -915,6 +916,118 @@ class LocalStorageManager {
       price: model.price,
       status: model.status as 'active' | 'resolved',
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+    };
+  }
+
+  // ===== CATEGORY HISTORY METHODS =====
+
+  /**
+   * Save category history (create or update)
+   */
+  async saveCategoryHistory(categoryHistory: CategoryHistory): Promise<CategoryHistory> {
+    try {
+      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
+
+      let historyRecord: CategoryHistoryModel | undefined;
+
+      await this.database.write(async () => {
+        try {
+          historyRecord = await categoryHistoryCollection.find(categoryHistory.id);
+          // Update existing
+          await historyRecord.update((record) => {
+            record.usageCount = categoryHistory.usageCount;
+            record.lastUsedAt = categoryHistory.lastUsedAt;
+          });
+        } catch {
+          // Create new
+          historyRecord = await categoryHistoryCollection.create((record) => {
+            record._raw.id = categoryHistory.id;
+            record.familyGroupId = categoryHistory.familyGroupId;
+            record.itemNameNormalized = categoryHistory.itemNameNormalized;
+            record.category = categoryHistory.category;
+            record.usageCount = categoryHistory.usageCount;
+            record.lastUsedAt = categoryHistory.lastUsedAt;
+          });
+        }
+      });
+
+      if (!historyRecord) {
+        throw new Error('Failed to create or update category history record');
+      }
+
+      return this.categoryHistoryModelToType(historyRecord);
+    } catch (error: any) {
+      throw new Error(`Failed to save category history: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get category history for an item name
+   */
+  async getCategoryHistoryForItem(
+    familyGroupId: string,
+    itemNameNormalized: string
+  ): Promise<CategoryHistory[]> {
+    try {
+      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
+      const records = await categoryHistoryCollection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('item_name_normalized', itemNameNormalized)
+        )
+        .fetch();
+
+      return records.map((record) => this.categoryHistoryModelToType(record));
+    } catch (error: any) {
+      throw new Error(`Failed to get category history: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update category history
+   */
+  async updateCategoryHistory(
+    id: string,
+    updates: Partial<Pick<CategoryHistory, 'usageCount' | 'lastUsedAt'>>
+  ): Promise<void> {
+    try {
+      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
+      const record = await categoryHistoryCollection.find(id);
+      await this.database.write(async () => {
+        await record.update((r) => {
+          if (updates.usageCount !== undefined) r.usageCount = updates.usageCount;
+          if (updates.lastUsedAt !== undefined) r.lastUsedAt = updates.lastUsedAt;
+        });
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to update category history: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete category history record
+   */
+  async deleteCategoryHistory(id: string): Promise<void> {
+    try {
+      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
+      const record = await categoryHistoryCollection.find(id);
+      await this.database.write(async () => {
+        await record.markAsDeleted();
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to delete category history: ${error.message}`);
+    }
+  }
+
+  private categoryHistoryModelToType(model: CategoryHistoryModel): CategoryHistory {
+    return {
+      id: model.id,
+      familyGroupId: model.familyGroupId,
+      itemNameNormalized: model.itemNameNormalized,
+      category: model.category,
+      usageCount: model.usageCount,
+      lastUsedAt: model.lastUsedAt,
+      createdAt: model.createdAt,
     };
   }
 
