@@ -298,28 +298,39 @@ const ListDetailScreen = () => {
   const handleAddItem = async () => {
     if (!newItemName.trim()) return;
     if (!currentUserId) return;
-    if (!list) return;
+
+    if (!list) {
+      Alert.alert('Error', 'List is still loading. Please wait a moment and try again.');
+      return;
+    }
 
     try {
-      // Check for category conflicts
-      const categories = await CategoryHistoryService.getCategoriesForItem(
-        list.familyGroupId,
-        newItemName.trim()
-      );
+      // Check for category conflicts only if familyGroupId is available
+      let suggestedCategory: string | null = null;
 
-      if (categories.length >= 2) {
-        // Show conflict resolution modal
-        setPendingItemName(newItemName.trim());
-        setConflictCategories(categories);
-        setConflictModalVisible(true);
-      } else {
-        // No conflict - add item with suggested category (if any)
-        const suggestedCategory = categories.length === 1 ? categories[0].category : null;
-        await addItemWithCategory(newItemName.trim(), suggestedCategory);
-        setNewItemName('');
+      if (list.familyGroupId) {
+        const categories = await CategoryHistoryService.getCategoriesForItem(
+          list.familyGroupId,
+          newItemName.trim()
+        );
+
+        if (categories.length >= 2) {
+          // Show conflict resolution modal
+          setPendingItemName(newItemName.trim());
+          setConflictCategories(categories);
+          setConflictModalVisible(true);
+          return; // Exit early - modal will handle adding the item
+        } else if (categories.length === 1) {
+          suggestedCategory = categories[0].category;
+        }
       }
+
+      // No conflict - add item with suggested category (if any)
+      await addItemWithCategory(newItemName.trim(), suggestedCategory);
+      setNewItemName('');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      console.error('Error adding item:', error);
+      Alert.alert('Error', error.message || 'Failed to add item. Please try again.');
     }
   };
 

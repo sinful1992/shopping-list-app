@@ -80,15 +80,20 @@ class ItemManager {
     });
 
     // Record category history when item is checked (purchased)
+    // Fire-and-forget to avoid blocking the UI
     if (newCheckedState && existingItem.category) {
-      const list = await LocalStorageManager.getList(existingItem.listId);
-      if (list) {
-        await CategoryHistoryService.recordCategoryUsage(
-          list.familyGroupId,
-          existingItem.name,
-          existingItem.category
-        );
-      }
+      LocalStorageManager.getList(existingItem.listId).then(list => {
+        if (list?.familyGroupId) {
+          CategoryHistoryService.recordCategoryUsage(
+            list.familyGroupId,
+            existingItem.name,
+            existingItem.category
+          );
+        }
+      }).catch(error => {
+        console.error('Failed to record category history:', error);
+        // Don't throw - this is a background operation
+      });
     }
 
     return updatedItem;
