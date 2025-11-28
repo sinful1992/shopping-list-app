@@ -26,6 +26,7 @@ interface AnimatedItemCardProps {
   checkboxStyle: StyleProp<ViewStyle>;
   checkboxDisabledStyle?: StyleProp<ViewStyle>;
   checkboxTextDisabledStyle?: StyleProp<TextStyle>;
+  checkboxTextCheckedStyle?: StyleProp<TextStyle>;
   itemContentTouchableStyle: StyleProp<ViewStyle>;
   itemContentColumnStyle: StyleProp<ViewStyle>;
   itemContentRowStyle: StyleProp<ViewStyle>;
@@ -53,6 +54,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   checkboxStyle,
   checkboxDisabledStyle,
   checkboxTextDisabledStyle,
+  checkboxTextCheckedStyle,
   itemContentTouchableStyle,
   itemContentColumnStyle,
   itemContentRowStyle,
@@ -85,7 +87,10 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         onPress={onToggleItem}
         disabled={isListLocked}
       >
-        <Text style={isListLocked ? checkboxTextDisabledStyle : undefined}>
+        <Text style={[
+          isListLocked && checkboxTextDisabledStyle,
+          isChecked && !isListLocked && checkboxTextCheckedStyle
+        ]}>
           {isChecked ? '✓' : ' '}
         </Text>
       </TouchableOpacity>

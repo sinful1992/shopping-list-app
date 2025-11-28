@@ -896,6 +896,7 @@ const ListDetailScreen = () => {
                   checkboxStyle={styles.checkbox}
                   checkboxDisabledStyle={styles.checkboxDisabled}
                   checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                  checkboxTextCheckedStyle={styles.checkboxTextChecked}
                   itemContentTouchableStyle={styles.itemContentTouchable}
                   itemContentColumnStyle={styles.itemContentColumn}
                   itemContentRowStyle={styles.itemContentRow}
@@ -1159,6 +1160,10 @@ const styles = StyleSheet.create({
   },
   checkboxTextDisabled: {
     color: '#6E6E73',
+  },
+  checkboxTextChecked: {
+    color: '#34C759',
+    fontWeight: 'bold',
   },
   itemContent: {
     flex: 1,
