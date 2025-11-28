@@ -53,7 +53,7 @@ function ListsStack() {
       <Stack.Screen
         name="Home"
         component={HomeScreen}
-        options={{ title: 'Shopping Lists' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="ListDetail"
@@ -111,7 +111,7 @@ function MainTabNavigator() {
         name="Lists"
         component={ListsStack}
         options={{
-          headerShown: false,
+          title: 'Shopping Lists',
           tabBarIcon: ({ color, size }) => (
             <Icon name="list-outline" size={size} color={color} />
           ),
