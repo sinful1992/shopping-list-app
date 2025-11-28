@@ -5,10 +5,11 @@
 
     "users": {
       "$uid": {
-        ".read": "auth != null && auth.uid == $uid",
+        ".read": "auth != null && (auth.uid == $uid || (root.child('users').child(auth.uid).child('familyGroupId').val() != null && root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()))",
         ".write": "auth != null && auth.uid == $uid",
 
         "usageCounters": {
+          ".read": "auth != null && auth.uid == $uid",
           ".write": "auth != null && auth.uid == $uid && (
             !newData.exists() ||
             (newData.child('listsCreated').val() >= data.child('listsCreated').val() &&
