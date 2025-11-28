@@ -330,6 +330,18 @@ export interface PaginatedHistory {
   hasMore: boolean;
 }
 
+// Category History Types
+
+export interface CategoryHistory {
+  id: string;
+  familyGroupId: string;
+  itemNameNormalized: string;
+  category: string;
+  usageCount: number;
+  lastUsedAt: number;
+  createdAt: number;
+}
+
 // Utility Types
 
 export type Unsubscribe = () => void;
