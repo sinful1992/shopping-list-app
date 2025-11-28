@@ -54,6 +54,7 @@ const HomeScreen = () => {
     // Step 1: Start listening to Firebase for remote changes
     // When Firebase data changes, it will update local WatermelonDB
     const unsubscribeFirebase = FirebaseSyncListener.startListeningToLists(familyGroupId);
+    const unsubscribeCategoryHistory = FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
 
     // Step 2: Subscribe to local WatermelonDB changes (triggered by Firebase or local edits)
     // This gives us instant UI updates without polling
@@ -66,6 +67,7 @@ const HomeScreen = () => {
 
     return () => {
       unsubscribeFirebase();
+      unsubscribeCategoryHistory();
       unsubscribeLocal();
     };
   }, [familyGroupId]);
