@@ -1,6 +1,7 @@
 import database from '@react-native-firebase/database';
-import { ShoppingList, Item, UrgentItem, Unsubscribe } from '../models/types';
+import { ShoppingList, Item, UrgentItem, CategoryHistory, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * FirebaseSyncListener
@@ -327,6 +328,126 @@ class FirebaseSyncListener {
    */
   stopListeningToUrgentItems(familyGroupId: string): void {
     const key = `urgent_items_${familyGroupId}`;
+    const unsubscribe = this.activeListeners.get(key);
+    if (unsubscribe) {
+      unsubscribe();
+    }
+  }
+
+  /**
+   * Start listening to category history for a family group
+   * Syncs Firebase category usage data to local WatermelonDB
+   */
+  startListeningToCategoryHistory(familyGroupId: string): Unsubscribe {
+    const key = `category_history_${familyGroupId}`;
+
+    // Don't create duplicate listeners
+    if (this.activeListeners.has(key)) {
+      return this.activeListeners.get(key)!;
+    }
+
+    const categoryHistoryRef = database().ref(`familyGroups/${familyGroupId}/categoryHistory`);
+
+    // Perform initial sync of all existing category history
+    categoryHistoryRef.once('value').then(async (snapshot) => {
+      if (snapshot.exists()) {
+        const historyData = snapshot.val();
+        for (const itemHash of Object.keys(historyData)) {
+          const categoriesForItem = historyData[itemHash];
+          for (const category of Object.keys(categoriesForItem)) {
+            const data = categoriesForItem[category];
+            await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
+          }
+        }
+      }
+    }).catch((error) => {
+      console.error('Error fetching initial category history:', error);
+    });
+
+    // Listen for new/updated category history
+    const onChildAdded = categoryHistoryRef.on('child_added', async (itemSnapshot) => {
+      const itemHash = itemSnapshot.key;
+      if (itemHash) {
+        const categoriesForItem = itemSnapshot.val();
+        for (const category of Object.keys(categoriesForItem)) {
+          const data = categoriesForItem[category];
+          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
+        }
+      }
+    });
+
+    const onChildChanged = categoryHistoryRef.on('child_changed', async (itemSnapshot) => {
+      const itemHash = itemSnapshot.key;
+      if (itemHash) {
+        const categoriesForItem = itemSnapshot.val();
+        for (const category of Object.keys(categoriesForItem)) {
+          const data = categoriesForItem[category];
+          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
+        }
+      }
+    });
+
+    // Create unsubscribe function
+    const unsubscribe = () => {
+      categoryHistoryRef.off('child_added', onChildAdded);
+      categoryHistoryRef.off('child_changed', onChildChanged);
+      this.activeListeners.delete(key);
+    };
+
+    this.activeListeners.set(key, unsubscribe);
+    return unsubscribe;
+  }
+
+  /**
+   * Sync category history data from Firebase to local WatermelonDB
+   */
+  private async syncCategoryHistoryToLocal(
+    familyGroupId: string,
+    itemHash: string,
+    firebaseData: any
+  ): Promise<void> {
+    try {
+      // Unhash the item name (reverse the hashing done in CategoryHistoryService)
+      const itemNameNormalized = itemHash.replace(/_/g, '.');
+
+      // Check if we already have this record
+      const existingRecords = await LocalStorageManager.getCategoryHistoryForItem(
+        familyGroupId,
+        itemNameNormalized
+      );
+
+      const existing = existingRecords.find((record) => record.category === firebaseData.category);
+
+      if (existing) {
+        // Update existing record with Firebase data
+        await LocalStorageManager.updateCategoryHistory(existing.id, {
+          usageCount: firebaseData.usageCount || 1,
+          lastUsedAt: firebaseData.lastUsedAt || Date.now(),
+        });
+      } else {
+        // Create new record from Firebase data
+        const categoryHistory: CategoryHistory = {
+          id: uuidv4(),
+          familyGroupId,
+          itemNameNormalized,
+          category: firebaseData.category,
+          usageCount: firebaseData.usageCount || 1,
+          lastUsedAt: firebaseData.lastUsedAt || Date.now(),
+          createdAt: firebaseData.createdAt || Date.now(),
+        };
+
+        await LocalStorageManager.saveCategoryHistory(categoryHistory);
+      }
+    } catch (error) {
+      console.error('Error syncing category history to local:', error);
+    }
+  }
+
+  /**
+   * Stop listening to category history for a family group
+   */
+  stopListeningToCategoryHistory(familyGroupId: string): void {
+    const key = `category_history_${familyGroupId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();
