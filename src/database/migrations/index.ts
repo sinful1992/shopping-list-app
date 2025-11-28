@@ -1,4 +1,4 @@
-import { schemaMigrations, addColumns } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/Schema/migrations';
 
 /**
  * Database Migrations
@@ -33,6 +33,23 @@ export default schemaMigrations({
           table: 'items',
           columns: [
             { name: 'sort_order', type: 'number', isOptional: true, isIndexed: true },
+          ],
+        }),
+      ],
+    },
+    // Migration from version 8 to 9: Add category history tracking
+    {
+      toVersion: 9,
+      steps: [
+        createTable({
+          name: 'category_history',
+          columns: [
+            { name: 'family_group_id', type: 'string', isIndexed: true },
+            { name: 'item_name_normalized', type: 'string', isIndexed: true },
+            { name: 'category', type: 'string', isIndexed: true },
+            { name: 'usage_count', type: 'number' },
+            { name: 'last_used_at', type: 'number', isIndexed: true },
+            { name: 'created_at', type: 'number', isIndexed: true },
           ],
         }),
       ],
