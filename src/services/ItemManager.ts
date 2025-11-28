@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Item, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
+import CategoryHistoryService from './CategoryHistoryService';
 
 /**
  * ItemManager
@@ -71,9 +72,26 @@ class ItemManager {
       throw new Error('Item not found');
     }
 
-    return await this.updateItem(itemId, {
-      checked: !existingItem.checked,
+    const newCheckedState = !existingItem.checked;
+
+    // Update item
+    const updatedItem = await this.updateItem(itemId, {
+      checked: newCheckedState,
     });
+
+    // Record category history when item is checked (purchased)
+    if (newCheckedState && existingItem.category) {
+      const list = await LocalStorageManager.getList(existingItem.listId);
+      if (list) {
+        await CategoryHistoryService.recordCategoryUsage(
+          list.familyGroupId,
+          existingItem.name,
+          existingItem.category
+        );
+      }
+    }
+
+    return updatedItem;
   }
 
   /**
