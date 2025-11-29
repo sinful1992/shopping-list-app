@@ -43,9 +43,12 @@ function generateColorGradient(count: number): string[] {
   const startColor = { h: 180, s: 100, l: 50 }; // Cyan (#00FFFF)
   const endColor = { h: 330, s: 81, l: 60 };    // Pink (#EC4899)
 
+  // CRITICAL FIX: Ensure minimum count of 1 to prevent empty array
+  const safeCount = Math.max(count, 1);
+
   const colors: string[] = [];
-  for (let i = 0; i < count; i++) {
-    const ratio = count === 1 ? 0 : i / (count - 1);
+  for (let i = 0; i < safeCount; i++) {
+    const ratio = safeCount === 1 ? 0 : i / (safeCount - 1);
     const h = startColor.h + (endColor.h - startColor.h) * ratio;
     const s = startColor.s + (endColor.s - startColor.s) * ratio;
     const l = startColor.l + (endColor.l - startColor.l) * ratio;
@@ -95,7 +98,7 @@ export const useColorShiftingBorder = (
   const colorAnimation = useRef(new Animated.Value(0)).current;
 
   // Use actual total items count (not calculated from screen size)
-  const itemCount = totalItems || 1; // Minimum 1 to avoid division by zero
+  const itemCount = Math.max(totalItems, 1); // Minimum 1 to avoid division by zero
 
   // Generate color gradient dynamically when item count changes
   const [colorGradient, setColorGradient] = useState(() =>
@@ -136,7 +139,7 @@ export const useColorShiftingBorder = (
   for (let i = 0; i <= itemCount; i++) {
     const position = i / itemCount;
     inputRange.push(position);
-    outputRange.push(colorGradient[i % itemCount]);
+    outputRange.push(colorGradient[i % itemCount] || '#00FFFF'); // Add fallback color
   }
 
   const borderColor = colorAnimation.interpolate({
