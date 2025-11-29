@@ -809,6 +809,7 @@ class LocalStorageManager {
     const itemsCollection = this.database.get<ItemModel>('items');
     const query = itemsCollection.query(
       Q.where('list_id', listId),
+      Q.sortBy('updated_at', Q.desc),
       Q.sortBy('created_at', Q.asc)
     );
 
