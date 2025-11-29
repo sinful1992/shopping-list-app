@@ -104,12 +104,12 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         Animated.timing(scaleAnimation, {
           toValue: 0.98,
           duration: 150,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(scaleAnimation, {
           toValue: 1.0,
           duration: 150,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
     } else {
