@@ -808,17 +808,17 @@ class LocalStorageManager {
   observeItemsForList(listId: string, callback: (items: Item[]) => void): () => void {
     const itemsCollection = this.database.get<ItemModel>('items');
 
-    // Single sort by updated_at to ensure observer fires on changes
+    // Query without sorting to ensure observer fires on all changes
+    // Sorting is done in JavaScript below for better observer reactivity
     const query = itemsCollection.query(
-      Q.where('list_id', listId),
-      Q.sortBy('updated_at', Q.desc)
+      Q.where('list_id', listId)
     );
 
     const subscription = query.observe().subscribe((itemModels) => {
       // Convert to Item types
       let items = itemModels.map((model) => this.itemModelToType(model));
 
-      // Apply secondary sort by created_at in JavaScript for consistent ordering
+      // Sort by created_at in JavaScript for consistent ordering
       items = items.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
 
       callback(items);
