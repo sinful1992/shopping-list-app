@@ -308,7 +308,14 @@ class PriceHistoryService {
 
       const suggestions = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
 
-      for (const itemName of itemNames) {
+      // Validate item names before processing
+      const validItemNames = itemNames.filter(name => name && typeof name === 'string' && name.trim().length > 0);
+
+      if (validItemNames.length === 0) {
+        return suggestions; // Return empty map if no valid names
+      }
+
+      for (const itemName of validItemNames) {
         const storeData = await this.getPriceByStore(familyGroupId, itemName);
         const stores = Object.entries(storeData);
 

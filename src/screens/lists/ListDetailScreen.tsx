@@ -274,9 +274,14 @@ const ListDetailScreen = () => {
       setPredictedPrices(predictions);
 
       // Get smart suggestions for items where there's a price difference across stores
-      const itemNames = itemsList.map(item => item.name);
-      const suggestions = await PriceHistoryService.getSmartSuggestions(familyGroupId, itemNames);
-      setSmartSuggestions(suggestions);
+      const itemNames = itemsList
+        .filter(item => item && item.name && typeof item.name === 'string')
+        .map(item => item.name);
+
+      if (itemNames.length > 0) {
+        const suggestions = await PriceHistoryService.getSmartSuggestions(familyGroupId, itemNames);
+        setSmartSuggestions(suggestions);
+      }
 
       // Recalculate stats after predictions are loaded
       calculateShoppingStats(itemsList);
