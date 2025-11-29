@@ -74,14 +74,19 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const isChecked = item.checked === true;
 
   // Animation refs for tick-off effects
-  const checkAnimation = useRef(new Animated.Value(0)).current;
+  const checkAnimation = useRef(new Animated.Value(1)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
   // Trigger animations when item is checked/unchecked
   useEffect(() => {
     if (isChecked) {
-      // Checkmark bounce animation
+      // Checkmark bounce animation: appear, bounce up, settle
       Animated.sequence([
+        Animated.timing(checkAnimation, {
+          toValue: 1.0,
+          duration: 50,
+          useNativeDriver: true,
+        }),
         Animated.timing(checkAnimation, {
           toValue: 1.2,
           duration: 150,
@@ -132,14 +137,14 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         onPress={onToggleItem}
         disabled={isListLocked}
       >
-        <Animated.Text style={[
-          isListLocked && checkboxTextDisabledStyle,
-          isChecked && !isListLocked && checkboxTextCheckedStyle,
-          // Apply bounce animation to checkmark
-          { transform: [{ scale: isChecked ? checkAnimation : 1 }] }
-        ]}>
-          {isChecked ? '✓' : ' '}
-        </Animated.Text>
+        <Animated.View style={{ transform: [{ scale: checkAnimation }] }}>
+          <Text style={[
+            isListLocked && checkboxTextDisabledStyle,
+            isChecked && !isListLocked && checkboxTextCheckedStyle
+          ]}>
+            {isChecked ? '✓' : ' '}
+          </Text>
+        </Animated.View>
       </TouchableOpacity>
 
       {/* Item content */}
