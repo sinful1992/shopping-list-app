@@ -814,7 +814,9 @@ class LocalStorageManager {
       Q.where('list_id', listId)
     );
 
-    const subscription = query.observe().subscribe((itemModels) => {
+    // Use observeWithColumns to trigger on field changes (category, checked, etc.)
+    // Without this, observer only fires on record add/delete, not field updates
+    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order']).subscribe((itemModels) => {
       // Convert to Item types
       let items = itemModels.map((model) => this.itemModelToType(model));
 
