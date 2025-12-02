@@ -271,8 +271,8 @@ const HomeScreen = () => {
       // Step 3: Process OCR from local file (no Firebase Storage upload needed)
       const ocrResult = await ReceiptOCRProcessor.processReceipt(captureResult.filePath, newList.id, user);
 
-      // Step 4: Create items from OCR lineItems (if OCR succeeded)
-      if (ocrResult.success && ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {
+      // Step 4: Create items from OCR lineItems (even if low confidence)
+      if (ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {
         // Use batch operation for better performance (90 ops → 2 ops for 30 items!)
         const itemsData = ocrResult.receiptData.lineItems.map(lineItem => ({
           name: lineItem.description,
@@ -296,14 +296,22 @@ const HomeScreen = () => {
         await ShoppingListManager.markListAsCompleted(newList.id);
 
         Alert.alert(
-          'Success',
-          `Created shopping list "${listName}" with ${ocrResult.receiptData.lineItems.length} items from receipt`
+          ocrResult.confidence < 70 ? 'Partial Success' : 'Success',
+          `Created shopping list "${listName}" with ${ocrResult.receiptData.lineItems.length} items from receipt${
+            ocrResult.confidence < 70 ? '. Low confidence - please verify items in receipt view.' : ''
+          }`
         );
-      } else {
-        // OCR failed or low confidence, but list and receipt are still saved
+      } else if (ocrResult.receiptData) {
+        // OCR extracted some data but no line items
         Alert.alert(
           'Partial Success',
-          'Receipt uploaded but could not extract items. You can view the receipt and add items manually.'
+          'Receipt uploaded but could not extract items. Merchant and total extracted. View receipt to add items manually.'
+        );
+      } else {
+        // Complete OCR failure (Vision API error)
+        Alert.alert(
+          'Receipt Saved',
+          'Receipt image saved but OCR failed. You can view the receipt and add items manually.'
         );
       }
 

@@ -109,28 +109,19 @@ class ReceiptOCRProcessor {
       const apiUsageCount = await this.getAPIUsageCount();
 
       // Check confidence threshold
-      if (receiptData.confidence < 70) {
-        // Low confidence - mark as failed
-        return {
-          success: false,
-          receiptData: null,
-          confidence: receiptData.confidence,
-          error: 'Low confidence OCR result',
-          apiUsageCount,
-        };
-      }
+      const isLowConfidence = receiptData.confidence < 70;
 
-      // Save receipt data
+      // Always save receipt data (even if low confidence)
       await LocalStorageManager.saveReceiptData(listId, receiptData);
 
       // Trigger sync
       await SyncEngine.pushChange('list', listId, 'update');
 
       return {
-        success: true,
-        receiptData,
+        success: !isLowConfidence,
+        receiptData, // Always include extracted data (not null)
         confidence: receiptData.confidence,
-        error: null,
+        error: isLowConfidence ? 'Low confidence OCR result - please verify data' : null,
         apiUsageCount,
       };
     } catch (error: any) {

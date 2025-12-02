@@ -920,6 +920,17 @@ const ListDetailScreen = () => {
         {/* List Footer - Receipt Photo Button */}
         {!isListCompleted && (
           <View style={styles.listFooter}>
+            {/* View Receipt Button (if receipt exists) */}
+            {list?.receiptUrl && (
+              <TouchableOpacity
+                style={styles.viewReceiptButton}
+                onPress={() => navigation.navigate('ReceiptView' as never, { listId } as never)}
+              >
+                <Text style={styles.viewReceiptIcon}>📄</Text>
+                <Text style={styles.viewReceiptText}>View Receipt</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={[styles.attachPhotoButton, isListLocked && styles.attachPhotoButtonDisabled]}
               onPress={handleTakeReceiptPhoto}
@@ -1266,6 +1277,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 20,
     paddingBottom: 20,
+  },
+  viewReceiptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+    gap: 10,
+    marginBottom: 10,
+  },
+  viewReceiptIcon: {
+    fontSize: 20,
+  },
+  viewReceiptText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   attachPhotoButton: {
     flexDirection: 'row',

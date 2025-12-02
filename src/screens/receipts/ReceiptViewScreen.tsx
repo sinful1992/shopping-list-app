@@ -48,8 +48,10 @@ const ReceiptViewScreen = () => {
         return;
       }
 
-      // Note: Receipt images are stored locally, not in cloud storage
-      // Image display removed - focusing on OCR data only
+      // Load receipt image URL (stored locally)
+      if (list.receiptUrl) {
+        setReceiptUrl(list.receiptUrl);
+      }
 
       // Get receipt data
       const data = await LocalStorageManager.getReceiptData(listId);
@@ -113,6 +115,21 @@ const ReceiptViewScreen = () => {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Receipt Image Section */}
+      {receiptUrl && (
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: receiptUrl }}
+            style={styles.receiptImage}
+            resizeMode="contain"
+            onError={() => {
+              Alert.alert('Error', 'Receipt image not found. It may have been deleted.');
+              setReceiptUrl(null);
+            }}
+          />
+        </View>
+      )}
+
       {/* OCR Data Section */}
       <View style={styles.dataContainer}>
         <View style={styles.headerRow}>
