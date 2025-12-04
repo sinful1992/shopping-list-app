@@ -27,14 +27,15 @@ jobs:
         run: |
           supabase link --project-ref $SUPABASE_PROJECT_ID
           supabase functions deploy notify-urgent-item --no-verify-jwt
-          supabase functions deploy process-ocr
-          supabase functions deploy create-list
-          supabase functions deploy create-urgent-item
+          supabase functions deploy process-ocr --no-verify-jwt
+          supabase functions deploy create-list --no-verify-jwt
+          supabase functions deploy create-urgent-item --no-verify-jwt
 
       - name: Set Edge Function Secrets
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_ID: cwpzfsfjrlxekghfyqub
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          supabase secrets set FIREBASE_SERVICE_ACCOUNT="$FIREBASE_SERVICE_ACCOUNT" --project-ref $SUPABASE_PROJECT_ID
+          supabase secrets set FIREBASE_SERVICE_ACCOUNT='${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' --project-ref $SUPABASE_PROJECT_ID
+          supabase secrets set FIREBASE_DATABASE_URL='${{ secrets.FIREBASE_DATABASE_URL }}' --project-ref $SUPABASE_PROJECT_ID
+          supabase secrets set VISION_API_KEY='${{ secrets.GOOGLE_CLOUD_VISION_API_KEY }}' --project-ref $SUPABASE_PROJECT_ID
