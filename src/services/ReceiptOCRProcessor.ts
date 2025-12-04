@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import RNFS from 'react-native-fs';
 import { supabase } from './SupabaseClient';
@@ -338,17 +337,43 @@ class ReceiptOCRProcessor {
 
   /**
    * Helper: Calculate receipt zones to filter header/footer
+   * Uses content-aware detection instead of fixed percentages
    */
-  private calculateReceiptZones(lineGroups: Array<Array<any>>): { headerEnd: number; footerStart: number } {
+  private calculateReceiptZones(
+    lineGroups: Array<Array<any>>,
+    plainLines: string[]
+  ): { headerEnd: number; footerStart: number } {
     if (lineGroups.length === 0) return { headerEnd: 0, footerStart: Infinity };
 
     const totalLines = lineGroups.length;
 
-    // Header zone: top 30% (store name, address, date)
-    const headerEnd = Math.floor(totalLines * 0.3);
+    // Find first line with a price pattern (start of items)
+    // Search only in first 40% to avoid false positives
+    let headerEnd = 0;
+    for (let i = 0; i < Math.min(totalLines, Math.floor(totalLines * 0.4)); i++) {
+      const line = lineGroups[i].map(w => w.text).join(' ');
+      // Look for price pattern but exclude date/time/phone lines
+      if (/[£$€]?\d+\.\d{2}/.test(line) && !/date|time|tel|phone/i.test(line)) {
+        headerEnd = i;
+        break;
+      }
+    }
 
-    // Footer zone: bottom 25% (totals, payment, VAT summary)
-    const footerStart = Math.floor(totalLines * 0.75);
+    // Find "TOTAL" or "TO PAY" line (start of footer)
+    // Search from bottom up, only in bottom 50%
+    let footerStart = totalLines;
+    for (let i = totalLines - 1; i >= Math.floor(totalLines * 0.5); i--) {
+      const line = plainLines[i] || '';
+      if (/\b(total|to\s*pay|subtotal)\b/i.test(line)) {
+        footerStart = i;
+        break;
+      }
+    }
+
+    // Fallback to percentage-based if content detection fails
+    // Use much smaller percentages than before (10% header, 10% footer)
+    if (headerEnd === 0) headerEnd = Math.floor(totalLines * 0.1);
+    if (footerStart === totalLines) footerStart = Math.floor(totalLines * 0.9);
 
     return { headerEnd, footerStart };
   }
@@ -379,8 +404,7 @@ class ReceiptOCRProcessor {
     // REJECT: VAT category pattern (e.g., "T1 2.33 Food 20%")
     if (/^[A-Z]\d+\s+[\d.]+\s+\w+\s+\d+%?$/.test(lineText)) return false;
 
-    // REJECT: Contains category words (Food, Beverage, etc)
-    if (/\b(food|beverage|soft\s*bev|alcohol|service)\b/i.test(description)) return false;
+    // NOTE: Removed category word rejection (food, beverage, etc) as these appear in product names
 
     // ACCEPT: Has at least some letters (allow numbers mixed with letters)
     if (/[A-Za-z]/.test(description)) return true;
@@ -531,10 +555,11 @@ class ReceiptOCRProcessor {
 
     // Extract line items using spatial data
     const lineItems: ReceiptLineItem[] = [];
-    const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|server|table|tbl|chk|check|guest|gst|cover|change|payment|date|time|tel|phone|address|street|road|lane|ave|avenue|www\.|http|store|manager|customer|food|soft\s*bev|beverage|alcohol|service|tender|cash|credit|debit|to\s*pay|amount|paid|payable)/i;
+    // Removed "food", "soft", "beverage", "alcohol", "service" - these appear in product names
+    const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|server|table|tbl|chk|check|guest|gst|cover|change|payment|date|time|tel|phone|address|street|road|lane|ave|avenue|www\.|http|store|manager|customer|tender|cash|credit|debit|to\s*pay|amount|paid|payable)/i;
 
-    // Calculate zones to skip header/footer
-    const { headerEnd, footerStart } = this.calculateReceiptZones(lineGroups);
+    // Calculate zones to skip header/footer (content-aware)
+    const { headerEnd, footerStart } = this.calculateReceiptZones(lineGroups, plainLines);
     const receiptWidth = Math.max(...words.map(w => w.x + w.width), 1);
 
     // Track multi-line items
@@ -583,10 +608,11 @@ class ReceiptOCRProcessor {
       }
 
       // Find price on this line (rightmost, right-aligned)
+      // Lowered threshold from 0.5 to 0.35 to catch more prices
       const priceWord = lineWords
         .filter(w => {
           const isPricePattern = /^[£$€]?\s*\d+\.?\d{0,2}$/.test(w.text);
-          const isRightAligned = (w.x / receiptWidth) > 0.5;
+          const isRightAligned = (w.x / receiptWidth) > 0.35;
           return isPricePattern && isRightAligned;
         })
         .sort((a, b) => b.x - a.x)[0];
@@ -664,6 +690,12 @@ class ReceiptOCRProcessor {
       }
     }
 
+    // Fallback: If spatial parsing yielded no items, try plain text parsing
+    if (lineItems.length === 0) {
+      const fallbackItems = this.fallbackPlainTextParsing(plainLines, store);
+      lineItems.push(...fallbackItems);
+    }
+
     // Calculate confidence with UK-specific bonuses
     let confidence = 50;
     if (merchantName) confidence += 15;
@@ -689,6 +721,75 @@ class ReceiptOCRProcessor {
       extractedAt: Date.now(),
       confidence: Math.min(confidence, 100),
     };
+  }
+
+  /**
+   * Fallback: Parse receipt using plain text when spatial parsing fails
+   * Simpler regex-based approach that works on raw text lines
+   */
+  private fallbackPlainTextParsing(
+    plainLines: string[],
+    store: 'lidl' | 'tesco' | 'sainsburys' | 'coop' | 'other'
+  ): ReceiptLineItem[] {
+    const items: ReceiptLineItem[] = [];
+    const skipKeywords = /^(VAT|total|subtotal|sub|tax|balance|due|card|visa|mastercard|amex|receipt|thank|cashier|change|payment|date|time|tel|phone|address|www\.|http|store|manager|customer|tender|cash|credit|debit|to\s*pay|amount|paid|payable)/i;
+
+    for (const line of plainLines) {
+      // Skip short lines and header/footer keywords
+      if (line.length < 5 || skipKeywords.test(line.trim())) continue;
+
+      // Skip VAT summary lines
+      if (/^[A-Z]\s+\d+\s*%\s+[\d.]+\s+[\d.]+$/.test(line)) continue;
+
+      // Look for pattern: description followed by price
+      // Tesco/Sainsbury's format: "PRODUCT NAME    1.99" or "PRODUCT NAME    1.99 *"
+      const priceMatch = line.match(/^(.+?)\s+([£$€]?\s*\d+\.\d{2})\s*\*?$/);
+      if (priceMatch) {
+        let description = priceMatch[1].trim();
+        const priceStr = priceMatch[2].replace(/[£$€\s]/g, '');
+        const price = parseFloat(priceStr);
+
+        // Validate price is reasonable
+        if (price <= 0 || price > 500) continue;
+
+        // Clean up description
+        description = description.replace(/^\d{6,}\s+/, ''); // Remove item codes
+        description = description.replace(/^SKU\d+\s+/i, ''); // Remove SKU
+
+        // Skip if description is too short after cleanup
+        if (description.length < 3) continue;
+
+        // Skip if it looks like a total/subtotal line
+        if (/\b(total|subtotal|balance|change)\b/i.test(description)) continue;
+
+        // Extract quantity if present (e.g., "2 x £1.99")
+        let quantity: number | null = null;
+        let unitPrice: number | null = null;
+        const qtyMatch = description.match(/^(\d+)\s*[x×]\s*[£$€]?([\d.]+)\s*/i);
+        if (qtyMatch) {
+          quantity = parseInt(qtyMatch[1]);
+          unitPrice = parseFloat(qtyMatch[2]);
+          description = description.replace(/^\d+\s*[x×]\s*[£$€]?[\d.]+\s*/i, '').trim();
+        }
+
+        // Extract VAT code if present
+        let vatCode: string | null = null;
+        if (/\s+[AB*]$/.test(description)) {
+          vatCode = description.slice(-1);
+          description = description.slice(0, -1).trim();
+        }
+
+        items.push({
+          description: description.trim(),
+          quantity,
+          unitPrice,
+          price,
+          vatCode,
+        });
+      }
+    }
+
+    return items;
   }
 
   /**
