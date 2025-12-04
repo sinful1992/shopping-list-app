@@ -309,16 +309,19 @@ const HomeScreen = () => {
         );
       } else {
         // Complete OCR failure (Vision API error)
+        const errorDetail = ocrResult.error ? `\n\nError: ${ocrResult.error}` : '';
         Alert.alert(
           'Receipt Saved',
-          'Receipt image saved but OCR failed. You can view the receipt and add items manually.'
+          `Receipt image saved but OCR failed. You can view the receipt and add items manually.${errorDetail}`
         );
       }
 
-      // Reload lists to show the new one
+      // Reload lists to show the new one (always reload, even on OCR failure)
       await loadLists();
     } catch (error: any) {
       Alert.alert('Error', error.message);
+      // Still reload lists in case a list was partially created
+      await loadLists();
     } finally {
       setScanningReceipt(false);
     }

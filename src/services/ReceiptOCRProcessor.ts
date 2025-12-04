@@ -252,11 +252,19 @@ class ReceiptOCRProcessor {
     });
 
     if (error) {
-      throw new Error(error.message || 'OCR processing failed');
+      throw new Error(`Vision API error: ${error.message || 'Unknown error'}`);
+    }
+
+    if (!data) {
+      throw new Error('Vision API returned empty response');
     }
 
     if (!data.success) {
-      throw new Error(data.error || 'OCR processing failed');
+      throw new Error(`Vision API failed: ${data.error || 'Unknown error'}`);
+    }
+
+    if (!data.result) {
+      throw new Error('Vision API returned no result data');
     }
 
     return data.result;
@@ -426,7 +434,10 @@ class ReceiptOCRProcessor {
     }
 
     // Get full text from first annotation
-    const text = textAnnotations[0].description;
+    const text = textAnnotations[0]?.description;
+    if (!text) {
+      throw new Error('No text content in OCR response');
+    }
     const plainLines = text.split('\n').filter((line) => line.trim());
 
     // Extract merchant name (typically first line)
