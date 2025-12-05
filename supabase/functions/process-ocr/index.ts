@@ -28,13 +28,19 @@ serve(async (req) => {
       )
     }
 
-    // Check subscription limit
-    const permission = await checkSubscriptionLimit(userId, familyGroupId, 'ocr')
-    if (!permission.allowed) {
-      return new Response(
-        JSON.stringify({ error: permission.reason, code: 'LIMIT_EXCEEDED' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    // Check subscription limit (with graceful fallback if Firebase is unavailable)
+    try {
+      const permission = await checkSubscriptionLimit(userId, familyGroupId, 'ocr')
+      if (!permission.allowed) {
+        return new Response(
+          JSON.stringify({ error: permission.reason, code: 'LIMIT_EXCEEDED' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    } catch (subscriptionError) {
+      // If subscription check fails, log but continue (allow OCR)
+      // This prevents Firebase config issues from blocking OCR entirely
+      console.warn('Subscription check failed, allowing OCR:', subscriptionError.message)
     }
 
     // Check if Vision API key is configured
@@ -72,8 +78,12 @@ serve(async (req) => {
       )
     }
 
-    // Increment usage counter
-    await incrementUsageCounter(userId, 'ocrProcessed')
+    // Increment usage counter (non-blocking, don't fail if this errors)
+    try {
+      await incrementUsageCounter(userId, 'ocrProcessed')
+    } catch (counterError) {
+      console.warn('Failed to increment usage counter:', counterError.message)
+    }
 
     return new Response(
       JSON.stringify({
