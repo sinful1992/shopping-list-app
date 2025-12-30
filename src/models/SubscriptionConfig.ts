@@ -64,13 +64,13 @@ export const SUBSCRIPTION_PRICES = {
 export const TIER_FEATURES = {
   free: [
     '4 Shopping Lists',
-    '1 Receipt Scan/month',
+    // OCR HIDDEN: '1 Receipt Scan/month',
     '1 Urgent Item/month',
     'Basic Features',
   ],
   premium: [
     'Unlimited Shopping Lists',
-    '20 Receipt Scans/month',
+    // OCR HIDDEN: '20 Receipt Scans/month',
     '3 Urgent Items/month',
     'Priority Support',
   ],
@@ -78,7 +78,7 @@ export const TIER_FEATURES = {
     'Unlimited Everything',
     'Up to 10 Family Members',
     'Shared Shopping Lists',
-    'Unlimited Receipt Scans',
+    // OCR HIDDEN: 'Unlimited Receipt Scans',
     'Unlimited Urgent Items',
     'Priority Support',
   ],

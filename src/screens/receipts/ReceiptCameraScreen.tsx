@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
-import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
+// OCR DISABLED - import removed
+// import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 
@@ -71,17 +72,8 @@ const ReceiptCameraScreen = () => {
         receiptUrl: capturedImage,
       });
 
-      // Process with OCR from local file
-      const ocrResult = await ReceiptOCRProcessor.processReceipt(capturedImage, listId, user);
-
-      if (ocrResult.success) {
-        Alert.alert('Success', 'Receipt processed successfully!');
-      } else {
-        Alert.alert(
-          'Partial Success',
-          'Receipt saved but OCR processing had low confidence. You can edit the data manually.'
-        );
-      }
+      // OCR DISABLED - just save photo for memory
+      Alert.alert('Success', 'Receipt photo saved!');
 
       navigation.goBack();
     } catch (error: any) {

@@ -148,7 +148,7 @@ const HistoryDetailScreen = () => {
         )}
       </View>
 
-      {/* Receipt Data Section */}
+      {/* OCR FEATURE HIDDEN - Receipt Data Section
       {receiptData && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -181,6 +181,7 @@ const HistoryDetailScreen = () => {
           </View>
         </View>
       )}
+      */}
 
       {/* Delete Button */}
       <View style={styles.section}>

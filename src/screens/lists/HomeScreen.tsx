@@ -445,7 +445,7 @@ const HomeScreen = () => {
         )}
       </ScrollView>
 
-      {/* Scan Receipt Button */}
+      {/* OCR FEATURE HIDDEN - uncomment to re-enable
       <TouchableOpacity
         style={[styles.scanButton, scanningReceipt && styles.scanButtonDisabled]}
         onPress={handleScanReceipt}
@@ -456,6 +456,7 @@ const HomeScreen = () => {
           {scanningReceipt ? 'Processing...' : 'Scan Receipt'}
         </Text>
       </TouchableOpacity>
+      */}
 
       {/* Create List Button (FAB) */}
       <TouchableOpacity style={styles.fab} onPress={handleCreateList}>

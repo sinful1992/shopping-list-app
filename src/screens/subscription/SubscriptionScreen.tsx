@@ -243,12 +243,14 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
             limit={usageSummary.lists.limit}
             tier={currentTier}
           />
+          {/* OCR FEATURE HIDDEN
           <UsageIndicator
             label="Receipt Scans"
             used={usageSummary.ocr.used}
             limit={usageSummary.ocr.limit}
             tier={currentTier}
           />
+          */}
           <UsageIndicator
             label="Urgent Items"
             used={usageSummary.urgentItems.used}
