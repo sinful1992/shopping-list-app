@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  FlatList,
+  ScrollView,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -111,7 +111,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
               </Text>
             </View>
           ) : (
-            <View style={styles.listContent}>
+            <ScrollView style={styles.listContent}>
               {frequentItems.map((item) => (
                 <View key={item.name} style={styles.itemRow}>
                   <View style={styles.itemLeft}>
@@ -137,7 +137,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
                   </TouchableOpacity>
                 </View>
               ))}
-            </View>
+            </ScrollView>
           )}
         </View>
       </View>

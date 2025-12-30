@@ -8,12 +8,14 @@ export type CategoryType =
   | 'Produce'
   | 'Dairy'
   | 'Meat'
+  | 'Fish'
   | 'Bakery'
   | 'Frozen'
   | 'Pantry'
   | 'Beverages'
   | 'Household'
   | 'Personal Care'
+  | 'Medicine'
   | 'Other';
 
 export interface Category {
@@ -31,13 +33,15 @@ class CategoryService {
     { id: 'Produce', name: 'Produce', icon: '🥬', color: '#4CAF50', sortOrder: 1 },
     { id: 'Dairy', name: 'Dairy', icon: '🥛', color: '#2196F3', sortOrder: 2 },
     { id: 'Meat', name: 'Meat', icon: '🥩', color: '#F44336', sortOrder: 3 },
-    { id: 'Bakery', name: 'Bakery', icon: '🍞', color: '#FF9800', sortOrder: 4 },
-    { id: 'Frozen', name: 'Frozen', icon: '❄️', color: '#00BCD4', sortOrder: 5 },
-    { id: 'Pantry', name: 'Pantry', icon: '🥫', color: '#795548', sortOrder: 6 },
-    { id: 'Beverages', name: 'Beverages', icon: '🧃', color: '#9C27B0', sortOrder: 7 },
-    { id: 'Household', name: 'Household', icon: '🧹', color: '#607D8B', sortOrder: 8 },
-    { id: 'Personal Care', name: 'Personal Care', icon: '🧴', color: '#E91E63', sortOrder: 9 },
-    { id: 'Other', name: 'Other', icon: '📦', color: '#9E9E9E', sortOrder: 10 },
+    { id: 'Fish', name: 'Fish', icon: '🐟', color: '#03A9F4', sortOrder: 4 },
+    { id: 'Bakery', name: 'Bakery', icon: '🍞', color: '#FF9800', sortOrder: 5 },
+    { id: 'Frozen', name: 'Frozen', icon: '❄️', color: '#00BCD4', sortOrder: 6 },
+    { id: 'Pantry', name: 'Pantry', icon: '🥫', color: '#795548', sortOrder: 7 },
+    { id: 'Beverages', name: 'Beverages', icon: '🧃', color: '#9C27B0', sortOrder: 8 },
+    { id: 'Household', name: 'Household', icon: '🧹', color: '#607D8B', sortOrder: 9 },
+    { id: 'Personal Care', name: 'Personal Care', icon: '🧴', color: '#E91E63', sortOrder: 10 },
+    { id: 'Medicine', name: 'Medicine', icon: '💊', color: '#FF5722', sortOrder: 11 },
+    { id: 'Other', name: 'Other', icon: '📦', color: '#9E9E9E', sortOrder: 12 },
   ];
 
   private constructor() {}

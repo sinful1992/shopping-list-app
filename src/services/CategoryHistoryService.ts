@@ -118,13 +118,21 @@ class CategoryHistoryService {
         normalized
       );
 
+      // Deduplicate by category, keeping highest usageCount for each
+      const uniqueCategories = new Map<string, { category: string; usageCount: number; lastUsedAt: number }>();
+      records.forEach((r) => {
+        const existing = uniqueCategories.get(r.category);
+        if (!existing || r.usageCount > existing.usageCount) {
+          uniqueCategories.set(r.category, {
+            category: r.category,
+            usageCount: r.usageCount,
+            lastUsedAt: r.lastUsedAt,
+          });
+        }
+      });
+
       // Sort by usage count (descending), then by recency
-      return records
-        .map((r) => ({
-          category: r.category,
-          usageCount: r.usageCount,
-          lastUsedAt: r.lastUsedAt,
-        }))
+      return Array.from(uniqueCategories.values())
         .sort((a, b) => {
           if (a.usageCount !== b.usageCount) {
             return b.usageCount - a.usageCount;
