@@ -382,7 +382,7 @@ class LocalStorageManager {
             record.price = item.price;
             record.checked = item.checked;
             record.createdBy = item.createdBy;
-            record.createdAt = item.createdAt;
+            // createdAt is @readonly and automatically set by WatermelonDB
             record.updatedAt = item.updatedAt;
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
