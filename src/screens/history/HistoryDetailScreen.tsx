@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,13 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  Image,
-  TextInput,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import ItemManager from '../../services/ItemManager';
 import { ListDetails } from '../../models/types';
 
 /**
@@ -28,8 +25,6 @@ const HistoryDetailScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
-  const [itemPrices, setItemPrices] = useState<{ [key: string]: string }>({});
-  const [itemNames, setItemNames] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadListDetails();
@@ -75,74 +70,11 @@ const HistoryDetailScreen = () => {
     navigation.navigate('ReceiptView' as never, { listId } as never);
   };
 
-  const handlePriceChange = (itemId: string, text: string) => {
-    setItemPrices(prev => ({ ...prev, [itemId]: text }));
-  };
-
-  const handleSavePrice = async (itemId: string) => {
-    const priceText = itemPrices[itemId];
-    const price = priceText ? parseFloat(priceText) : null;
-    if (priceText && (price === null || isNaN(price))) {
-      Alert.alert('Error', 'Please enter a valid number');
-      return;
-    }
-
-    // Optimistic update - update UI immediately
-    setListDetails(prev => prev ? {
-      ...prev,
-      items: prev.items?.map(item =>
-        item.id === itemId ? { ...item, price } : item
-      )
-    } : prev);
-
-    setItemPrices(prev => {
-      const newPrices = { ...prev };
-      delete newPrices[itemId];
-      return newPrices;
-    });
-
-    try {
-      await ItemManager.updateItem(itemId, { price });
-    } catch (error: any) {
-      // Rollback on error
-      await loadListDetails();
-      Alert.alert('Error', error.message);
-    }
-  };
-
-  const handleNameChange = (itemId: string, text: string) => {
-    setItemNames(prev => ({ ...prev, [itemId]: text }));
-  };
-
-  const handleSaveName = async (itemId: string) => {
-    const nameText = itemNames[itemId];
-    if (!nameText || !nameText.trim()) {
-      Alert.alert('Error', 'Item name cannot be empty');
-      return;
-    }
-
-    // Optimistic update - update UI immediately
-    setListDetails(prev => prev ? {
-      ...prev,
-      items: prev.items?.map(item =>
-        item.id === itemId ? { ...item, name: nameText.trim() } : item
-      )
-    } : prev);
-
-    setItemNames(prev => {
-      const newNames = { ...prev };
-      delete newNames[itemId];
-      return newNames;
-    });
-
-    try {
-      await ItemManager.updateItem(itemId, { name: nameText.trim() });
-    } catch (error: any) {
-      // Rollback on error
-      await loadListDetails();
-      Alert.alert('Error', error.message);
-    }
-  };
+  // Calculate total from item prices
+  const calculatedTotal = useMemo(() => {
+    if (!listDetails?.items) return 0;
+    return listDetails.items.reduce((sum, item) => sum + (item.price || 0), 0);
+  }, [listDetails?.items]);
 
   if (loading) {
     return (
@@ -176,11 +108,15 @@ const HistoryDetailScreen = () => {
           })}
           {list.storeName && ` / ${list.storeName}`}
         </Text>
-        {receiptData?.totalAmount !== null && receiptData?.totalAmount !== undefined && (
+        {receiptData?.totalAmount !== null && receiptData?.totalAmount !== undefined ? (
           <Text style={styles.totalAmount}>
             Total: {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
           </Text>
-        )}
+        ) : calculatedTotal > 0 ? (
+          <Text style={styles.totalAmount}>
+            Total: £{calculatedTotal.toFixed(2)}
+          </Text>
+        ) : null}
       </View>
 
       {/* Items Section */}
@@ -200,37 +136,14 @@ const HistoryDetailScreen = () => {
                   )}
                 </View>
                 <View style={styles.itemContent}>
-                  <TextInput
-                    style={[styles.nameInput, item.checked && styles.itemNameChecked]}
-                    placeholder="Item name"
-                    placeholderTextColor="#6E6E73"
-                    value={itemNames[item.id] !== undefined ? itemNames[item.id] : item.name}
-                    onChangeText={(text) => handleNameChange(item.id, text)}
-                  />
-                  <TextInput
-                    style={styles.priceInput}
-                    placeholder="£0.00"
-                    placeholderTextColor="#6E6E73"
-                    value={itemPrices[item.id] !== undefined ? itemPrices[item.id] : (item.price?.toString() || '')}
-                    onChangeText={(text) => handlePriceChange(item.id, text)}
-                    keyboardType="numeric"
-                  />
-                  {(itemNames[item.id] !== undefined && itemNames[item.id] !== item.name) ||
-                   (itemPrices[item.id] !== undefined) ? (
-                    <TouchableOpacity
-                      style={styles.saveButton}
-                      onPress={() => {
-                        if (itemNames[item.id] !== undefined && itemNames[item.id] !== item.name) {
-                          handleSaveName(item.id);
-                        }
-                        if (itemPrices[item.id] !== undefined) {
-                          handleSavePrice(item.id);
-                        }
-                      }}
-                    >
-                      <Text style={styles.saveButtonText}>✔️</Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  <Text style={[styles.itemName, item.checked && styles.itemNameChecked]}>
+                    {item.name}
+                  </Text>
+                  {item.price !== null && item.price !== undefined && (
+                    <Text style={styles.itemPrice}>
+                      £{item.price.toFixed(2)}
+                    </Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -405,40 +318,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  nameInput: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#ffffff',
-    fontSize: 16,
-  },
-  priceInput: {
-    width: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    color: '#ffffff',
-    fontSize: 16,
-    textAlign: 'right',
-  },
-  saveButton: {
-    backgroundColor: '#00E676',
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#00C853',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 36,
-  },
-  saveButtonText: {
-    fontSize: 16,
   },
   itemName: {
     fontSize: 16,
