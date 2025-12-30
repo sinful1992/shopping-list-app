@@ -112,11 +112,11 @@ const HistoryDetailScreen = () => {
           <Text style={styles.totalAmount}>
             Total: {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
           </Text>
-        ) : calculatedTotal > 0 ? (
+        ) : (
           <Text style={styles.totalAmount}>
             Total: £{calculatedTotal.toFixed(2)}
           </Text>
-        ) : null}
+        )}
       </View>
 
       {/* Items Section */}
