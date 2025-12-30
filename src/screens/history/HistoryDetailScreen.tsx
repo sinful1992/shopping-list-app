@@ -108,15 +108,12 @@ const HistoryDetailScreen = () => {
           })}
           {list.storeName && ` / ${list.storeName}`}
         </Text>
-        {receiptData?.totalAmount !== null && receiptData?.totalAmount !== undefined ? (
-          <Text style={styles.totalAmount}>
-            Total: {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
-          </Text>
-        ) : (
-          <Text style={styles.totalAmount}>
-            Total: £{calculatedTotal.toFixed(2)}
-          </Text>
-        )}
+        <Text style={styles.totalAmount}>
+          Total: £{(receiptData?.totalAmount && receiptData.totalAmount > 0
+            ? receiptData.totalAmount
+            : calculatedTotal
+          ).toFixed(2)}
+        </Text>
       </View>
 
       {/* Items Section */}
