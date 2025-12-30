@@ -40,7 +40,7 @@ const CategoryConflictModal: React.FC<CategoryConflictModalProps> = ({
 
           <ScrollView style={styles.categoriesContainer}>
             {categories.map((cat) => {
-              const categoryInfo = CategoryService.getInstance().getCategory(cat.category as any);
+              const categoryInfo = CategoryService.getCategory(cat.category as any);
               return (
                 <TouchableOpacity
                   key={cat.category}
