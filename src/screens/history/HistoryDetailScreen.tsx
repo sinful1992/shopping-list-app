@@ -315,11 +315,13 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
   },
   itemName: {
     fontSize: 16,
     color: '#ffffff',
+    flex: 1,
+    flexShrink: 1,
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
@@ -334,7 +336,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#30D158',
-    marginLeft: 10,
   },
   emptyText: {
     fontSize: 14,

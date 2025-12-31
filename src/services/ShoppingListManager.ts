@@ -1,10 +1,11 @@
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import { ShoppingList, Unsubscribe, User } from '../models/types';
+import { ShoppingList, Unsubscribe, User, ReceiptData } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
 import PricePredictionService from './PricePredictionService';
+import ItemManager from './ItemManager';
 
 /**
  * ShoppingListManager
@@ -162,6 +163,35 @@ class ShoppingListManager {
    * Unlock list and mark as completed
    */
   async completeShoppingAndUnlock(listId: string, userId: string): Promise<ShoppingList> {
+    // Get current list to check existing receiptData
+    const currentList = await this.getListById(listId);
+
+    // Calculate total from items if receiptData.totalAmount is not set
+    let receiptData = currentList?.receiptData || null;
+    if (!receiptData?.totalAmount || receiptData.totalAmount === 0) {
+      const items = await ItemManager.getItemsForList(listId);
+      const calculatedTotal = items.reduce((sum, item) => sum + (item.price || 0), 0);
+
+      if (calculatedTotal > 0) {
+        receiptData = {
+          ...(receiptData || {
+            merchantName: currentList?.storeName || null,
+            purchaseDate: null,
+            subtotal: null,
+            currency: '£',
+            lineItems: [],
+            discounts: [],
+            totalDiscount: null,
+            vatBreakdown: [],
+            store: null,
+            extractedAt: Date.now(),
+            confidence: 1,
+          }),
+          totalAmount: calculatedTotal,
+        } as ReceiptData;
+      }
+    }
+
     const updatedList = await this.updateList(listId, {
       status: 'completed',
       completedAt: Date.now(),
@@ -171,6 +201,7 @@ class ShoppingListManager {
       lockedByName: null,
       lockedByRole: null,
       lockedAt: null,
+      ...(receiptData && { receiptData }),
     });
 
     // Invalidate price prediction cache since we have new historical data

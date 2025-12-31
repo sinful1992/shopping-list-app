@@ -501,17 +501,20 @@ const ListDetailScreen = () => {
   };
 
 
-  const handleDoneShopping = async () => {
+  const handleDoneShopping = () => {
     if (!currentUserId) return;
 
-    try {
-      await ShoppingListManager.completeShoppingAndUnlock(listId, currentUserId);
-      setIsShoppingMode(false);
-      // WatermelonDB observer will automatically update the list state
-      Alert.alert('Shopping Complete!', 'Your shopping list has been completed and saved to history.');
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
-    }
+    // Immediate UI feedback
+    setIsShoppingMode(false);
+
+    // Run completion in background without blocking
+    ShoppingListManager.completeShoppingAndUnlock(listId, currentUserId)
+      .then(() => {
+        Alert.alert('Shopping Complete!', 'Your shopping list has been completed and saved to history.');
+      })
+      .catch((error: any) => {
+        Alert.alert('Error', error.message);
+      });
   };
 
   const renderItem = ({ item: row }: { item: { type: 'header' | 'item'; category?: string; item?: Item } }) => {
