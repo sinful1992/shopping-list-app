@@ -11,7 +11,11 @@ import {
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import { ListDetails } from '../../models/types';
+import ItemManager from '../../services/ItemManager';
+import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
+import AuthenticationModule from '../../services/AuthenticationModule';
+import { ListDetails, Item } from '../../models/types';
+import ItemEditModal from '../../components/ItemEditModal';
 
 /**
  * HistoryDetailScreen
@@ -25,6 +29,10 @@ const HistoryDetailScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [priceStats, setPriceStats] = useState<Map<string, PriceStats>>(new Map());
+  const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
 
   useEffect(() => {
     loadListDetails();
@@ -35,6 +43,29 @@ const HistoryDetailScreen = () => {
       setLoading(true);
       const details = await HistoryTracker.getListDetails(listId);
       setListDetails(details);
+
+      // Load price stats and suggestions for items
+      const user = await AuthenticationModule.getCurrentUser();
+      if (user?.familyGroupId && details?.items) {
+        const statsMap = new Map<string, PriceStats>();
+        const suggestionsMap = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
+
+        // Load stats for each unique item name
+        const uniqueNames = [...new Set(details.items.map(item => item.name.toLowerCase()))];
+
+        // Get smart suggestions for all items
+        const suggestions = await PriceHistoryService.getSmartSuggestions(user.familyGroupId, uniqueNames);
+
+        await Promise.all(uniqueNames.map(async (name) => {
+          const stats = await PriceHistoryService.getPriceStats(user.familyGroupId!, name);
+          if (stats) statsMap.set(name, stats);
+          const suggestion = suggestions.get(name);
+          if (suggestion) suggestionsMap.set(name, suggestion);
+        }));
+
+        setPriceStats(statsMap);
+        setSmartSuggestions(suggestionsMap);
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message);
       navigation.goBack();
@@ -68,6 +99,66 @@ const HistoryDetailScreen = () => {
 
   const handleViewReceipt = () => {
     navigation.navigate('ReceiptView' as never, { listId } as never);
+  };
+
+  const handleItemPress = (item: Item) => {
+    setSelectedItem(item);
+    setEditModalVisible(true);
+  };
+
+  const handleSaveItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => {
+    await ItemManager.updateItem(itemId, updates);
+
+    // Recalculate total if price changed
+    if (updates.price !== undefined && listDetails) {
+      const newItems = listDetails.items.map(item =>
+        item.id === itemId ? { ...item, ...updates } : item
+      );
+      const newTotal = newItems.reduce((sum, item) => sum + (item.price || 0), 0);
+
+      // Update receiptData with new total
+      if (newTotal > 0) {
+        const newReceiptData = {
+          ...(listDetails.receiptData || {
+            merchantName: listDetails.list.storeName || null,
+            purchaseDate: null,
+            subtotal: null,
+            currency: '£',
+            lineItems: [],
+            discounts: [],
+            totalDiscount: null,
+            vatBreakdown: [],
+            store: null,
+            extractedAt: Date.now(),
+            confidence: 1,
+          }),
+          totalAmount: newTotal,
+        };
+        await ShoppingListManager.updateList(listId, { receiptData: newReceiptData as any });
+      }
+
+      // Reload to show updated data
+      await loadListDetails();
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string) => {
+    // In history view, we only allow deleting if user confirms
+    Alert.alert(
+      'Delete Item',
+      'Are you sure? This will affect the historical record.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await ItemManager.deleteItem(itemId);
+            await loadListDetails();
+          },
+        },
+      ]
+    );
   };
 
   // Calculate total from item prices
@@ -123,65 +214,69 @@ const HistoryDetailScreen = () => {
           <Text style={styles.emptyText}>No items in this list</Text>
         ) : (
           <View style={styles.itemsContainer}>
-            {items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                <View style={styles.checkboxContainer}>
-                  {item.checked ? (
-                    <Text style={styles.checkboxChecked}>✓</Text>
-                  ) : (
-                    <View style={styles.checkboxUnchecked} />
-                  )}
-                </View>
-                <View style={styles.itemContent}>
-                  <Text style={[styles.itemName, item.checked && styles.itemNameChecked]}>
-                    {item.name}
-                  </Text>
-                  {item.price !== null && item.price !== undefined && (
-                    <Text style={styles.itemPrice}>
-                      £{item.price.toFixed(2)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            ))}
+            {items.map((item) => {
+              const stats = priceStats.get(item.name.toLowerCase());
+              const suggestion = smartSuggestions.get(item.name.toLowerCase());
+              const hasCheaperOption = suggestion && suggestion.bestStore !== list.storeName && suggestion.savings > 0.01;
+              const priceChange = stats && stats.priceHistory.length > 1 && item.price
+                ? item.price - stats.priceHistory[stats.priceHistory.length - 2]?.price
+                : null;
+
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.itemRow}
+                  onPress={() => handleItemPress(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.checkboxContainer}>
+                    {item.checked ? (
+                      <Text style={styles.checkboxChecked}>✓</Text>
+                    ) : (
+                      <View style={styles.checkboxUnchecked} />
+                    )}
+                  </View>
+                  <View style={styles.itemContent}>
+                    <View style={styles.itemNameRow}>
+                      <Text style={[styles.itemName, item.checked && styles.itemNameChecked]}>
+                        {item.name}
+                      </Text>
+                      {hasCheaperOption && (
+                        <Text style={styles.cheaperIcon}>⭐</Text>
+                      )}
+                    </View>
+                    <View style={styles.priceRow}>
+                      {item.price !== null && item.price !== undefined && (
+                        <Text style={styles.itemPrice}>
+                          £{item.price.toFixed(2)}
+                        </Text>
+                      )}
+                      {priceChange !== null && priceChange !== 0 && (
+                        <Text style={[
+                          styles.priceTrend,
+                          priceChange > 0 ? styles.priceUp : styles.priceDown
+                        ]}>
+                          {priceChange > 0 ? '↑' : '↓'}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
       </View>
 
-      {/* OCR FEATURE HIDDEN - Receipt Data Section
-      {receiptData && (
+      {/* Receipt Photo Button */}
+      {receiptUrl && (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Receipt Data</Text>
-            <TouchableOpacity onPress={handleViewReceipt}>
-              <Text style={styles.editLink}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.receiptDataContainer}>
-            {receiptData.merchantName && (
-              <View style={styles.receiptField}>
-                <Text style={styles.receiptLabel}>Merchant:</Text>
-                <Text style={styles.receiptValue}>{receiptData.merchantName}</Text>
-              </View>
-            )}
-            {receiptData.purchaseDate && (
-              <View style={styles.receiptField}>
-                <Text style={styles.receiptLabel}>Date:</Text>
-                <Text style={styles.receiptValue}>{receiptData.purchaseDate}</Text>
-              </View>
-            )}
-            {receiptData.totalAmount !== null && (
-              <View style={styles.receiptField}>
-                <Text style={styles.receiptLabel}>Total:</Text>
-                <Text style={styles.receiptValue}>
-                  {receiptData.currency || '£'}{receiptData.totalAmount.toFixed(2)}
-                </Text>
-              </View>
-            )}
-          </View>
+          <TouchableOpacity style={styles.receiptButton} onPress={handleViewReceipt}>
+            <Text style={styles.receiptButtonIcon}>📷</Text>
+            <Text style={styles.receiptButtonText}>View Receipt Photo</Text>
+          </TouchableOpacity>
         </View>
       )}
-      */}
 
       {/* Delete Button */}
       <View style={styles.section}>
@@ -189,6 +284,19 @@ const HistoryDetailScreen = () => {
           <Text style={styles.deleteButtonText}>Delete Shopping Trip</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Item Edit Modal */}
+      <ItemEditModal
+        visible={editModalVisible}
+        item={selectedItem}
+        onClose={() => {
+          setEditModalVisible(false);
+          setSelectedItem(null);
+        }}
+        onSave={handleSaveItem}
+        onDelete={handleDeleteItem}
+        focusField="price"
+      />
     </ScrollView>
   );
 };
@@ -336,6 +444,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#30D158',
+  },
+  itemNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    flexShrink: 1,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  cheaperIcon: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  priceTrend: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  priceUp: {
+    color: '#FF3B30',
+  },
+  priceDown: {
+    color: '#30D158',
+  },
+  receiptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 15,
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  receiptButtonIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  receiptButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   emptyText: {
     fontSize: 14,

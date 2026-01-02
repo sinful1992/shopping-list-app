@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ interface ItemEditModalProps {
   onClose: () => void;
   onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
   onDelete: (itemId: string) => Promise<void>;
+  focusField?: 'name' | 'price';
 }
 
 const ItemEditModal: React.FC<ItemEditModalProps> = ({
@@ -31,11 +32,13 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   onClose,
   onSave,
   onDelete,
+  focusField = 'name',
 }) => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
   const [priceHistoryVisible, setPriceHistoryVisible] = useState(false);
+  const priceInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (item) {
@@ -44,6 +47,13 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
       setCategory((item.category as CategoryType) || null);
     }
   }, [item]);
+
+  // Focus the correct field when modal opens
+  useEffect(() => {
+    if (visible && focusField === 'price') {
+      setTimeout(() => priceInputRef.current?.focus(), 100);
+    }
+  }, [visible, focusField]);
 
   const handleSave = async () => {
     if (!item) return;
@@ -130,13 +140,14 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 onChangeText={setName}
                 placeholder="Item name"
                 placeholderTextColor={COLORS.text.tertiary}
-                autoFocus
+                autoFocus={focusField === 'name'}
               />
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Price</Text>
               <TextInput
+                ref={priceInputRef}
                 style={styles.input}
                 value={price}
                 onChangeText={setPrice}

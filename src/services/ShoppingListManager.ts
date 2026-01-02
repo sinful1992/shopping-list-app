@@ -4,7 +4,6 @@ import { ShoppingList, Unsubscribe, User, ReceiptData } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
-import PricePredictionService from './PricePredictionService';
 import ItemManager from './ItemManager';
 
 /**
@@ -203,11 +202,6 @@ class ShoppingListManager {
       lockedAt: null,
       ...(receiptData && { receiptData }),
     });
-
-    // Invalidate price prediction cache since we have new historical data
-    if (updatedList.familyGroupId) {
-      PricePredictionService.invalidateCache(updatedList.familyGroupId);
-    }
 
     return updatedList;
   }
