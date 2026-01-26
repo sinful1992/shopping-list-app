@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import 'react-native-get-random-values';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +13,7 @@ import {
   Platform,
   Animated,
 } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
 import database from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -41,6 +43,7 @@ const HomeScreen = () => {
   const [showIOSPicker, setShowIOSPicker] = useState(false);
   const [scanningReceipt, setScanningReceipt] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [pendingLists, setPendingLists] = useState<ShoppingList[]>([]);
 
   useEffect(() => {
     loadLists();
@@ -70,6 +73,18 @@ const HomeScreen = () => {
       unsubscribeLocal();
     };
   }, [familyGroupId]);
+
+  // Coordinate pending list removal - only remove when list appears in observer
+  useEffect(() => {
+    if (pendingLists.length === 0) return;
+
+    const listIds = new Set(lists.map((l) => l.id));
+    const stillPending = pendingLists.filter((pending) => !listIds.has(pending.id));
+
+    if (stillPending.length !== pendingLists.length) {
+      setPendingLists(stillPending);
+    }
+  }, [lists, pendingLists]);
 
   const loadLists = async () => {
     try {
@@ -105,12 +120,9 @@ const HomeScreen = () => {
       // Check if migration is needed and run it automatically
       const needsMigration = await DatabaseMigration.needsMigration(currentUser.familyGroupId);
       if (needsMigration) {
-        console.log('Migration needed, running automatic migration...');
         try {
           await DatabaseMigration.runAllMigrations(currentUser.familyGroupId);
-          console.log('Migration completed successfully');
         } catch (migrationError: any) {
-          console.error('Migration failed:', migrationError);
           Alert.alert(
             'Migration Notice',
             'Database migration in progress. Please restart the app if lists do not appear.'
@@ -189,14 +201,40 @@ const HomeScreen = () => {
       year: 'numeric',
     });
 
-    // Close modal immediately so user doesn't wait
+    // Generate real UUID upfront - same ID used for optimistic UI and database
+    const listId = uuidv4();
+    const optimisticList: ShoppingList = {
+      id: listId,
+      name: listName,
+      familyGroupId: user.familyGroupId,
+      createdBy: user.uid,
+      createdAt: Date.now(),
+      status: 'active',
+      completedAt: null,
+      completedBy: null,
+      receiptUrl: null,
+      receiptData: null,
+      syncStatus: 'pending',
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
+      budget: null,
+    };
+
+    // Close modal and add optimistic list immediately (instant UI)
     setShowCreateModal(false);
+    setPendingLists((prev) => [optimisticList, ...prev]);
     setCreating(true);
 
     try {
-      await ShoppingListManager.createList(listName, user.uid, user.familyGroupId, user);
-      // WatermelonDB observer will automatically update the UI
+      // Pass the same ID to createListOptimistic - ensures consistency
+      await ShoppingListManager.createListOptimistic(listName, user.uid, user.familyGroupId, user, listId);
+      // useEffect will remove from pendingLists when WatermelonDB observer fires with this ID
     } catch (error: any) {
+      // Remove optimistic list on failure
+      setPendingLists((prev) => prev.filter((l) => l.id !== listId));
       Alert.alert('Error', error.message);
     } finally {
       setCreating(false);
@@ -327,85 +365,25 @@ const HomeScreen = () => {
     }
   };
 
-  const renderListItem = ({ item }: { item: ShoppingList }) => {
-    const isCompleted = item.status === 'completed';
-    const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
-
-    // Format date for completed lists - UK format
-    const date = isCompleted ? new Date(item.completedAt || 0) : new Date(item.createdAt);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    const formattedDate = `${day}/${month}/${year}`;
-
-    // Sync status indicator color
-    const syncColor = item.syncStatus === 'synced' ? '#30D158' :
-                     item.syncStatus === 'pending' ? '#FFD60A' :
-                     '#FF453A'; // failed
-
-    return (
-      <TouchableOpacity
-        style={[styles.listCard, isCompleted && styles.completedCard]}
-        onPress={() => navigation.navigate(targetScreen as never, { listId: item.id } as never)}
-      >
-        {/* Sync Status Indicator - Top Right */}
-        <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
-
-        <View style={styles.listHeader}>
-          <View style={styles.listTitleRow}>
-            <Text style={[styles.listName, isCompleted && styles.completedText]}>
-              {item.name}
-            </Text>
-          </View>
-          <View style={styles.listBadges}>
-            {item.isLocked && (
-              <Text style={styles.shoppingBadge}>
-                🛒 {item.lockedByRole || item.lockedByName || 'Shopping'}
-              </Text>
-            )}
-            {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                handleDeleteList(item.id, item.name);
-              }}
-              style={styles.deleteIconButton}
-            >
-              <Text style={styles.deleteIcon}>🗑</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Date and Store Display */}
-        <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
-          {formattedDate}
-        </Text>
-        {isCompleted && item.storeName && (
-          <Text style={[styles.storeName, isCompleted && styles.completedText]}>
-            {item.storeName}
-          </Text>
-        )}
-        {!isCompleted && (
-          <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
-            Created {formattedDate}
-          </Text>
-        )}
-      </TouchableOpacity>
-    );
-  };
+  // Combine pending and observer lists, avoiding duplicates
+  const combinedLists = useMemo(() => {
+    const realListIds = new Set(lists.map((l) => l.id));
+    const uniquePending = pendingLists.filter((p) => !realListIds.has(p.id));
+    return [...uniquePending, ...lists];
+  }, [pendingLists, lists]);
 
   return (
     <View style={styles.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {lists.length === 0 ? (
+        {lists.length === 0 && pendingLists.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No shopping lists yet</Text>
             <Text style={styles.emptySubtext}>Tap + to create your first list</Text>
           </View>
         ) : (
-          lists.map((list, index) => {
+          combinedLists.map((list, index) => {
               const isCompleted = list.status === 'completed';
               const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
@@ -438,7 +416,7 @@ const HomeScreen = () => {
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
                   completedCardStyle={styles.completedCard}
-                  totalLists={lists.length}
+                  totalLists={combinedLists.length}
                 />
               );
             })
