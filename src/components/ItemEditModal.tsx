@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,11 +14,14 @@ import { Item } from '../models/types';
 import CategoryPicker from './CategoryPicker';
 import { CategoryType } from '../services/CategoryService';
 import PriceHistoryModal from './PriceHistoryModal';
+import { useAlert } from '../contexts/AlertContext';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
 interface ItemEditModalProps {
   visible: boolean;
   item: Item | null;
+  storeName?: string | null;
+  onRequestStoreSelection?: () => void;
   onClose: () => void;
   onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
   onDelete: (itemId: string) => Promise<void>;
@@ -29,11 +31,14 @@ interface ItemEditModalProps {
 const ItemEditModal: React.FC<ItemEditModalProps> = ({
   visible,
   item,
+  storeName,
+  onRequestStoreSelection,
   onClose,
   onSave,
   onDelete,
   focusField = 'name',
 }) => {
+  const { showAlert } = useAlert();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
@@ -51,24 +56,13 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   // Focus the correct field when modal opens
   useEffect(() => {
     if (visible && focusField === 'price') {
-      setTimeout(() => priceInputRef.current?.focus(), 100);
+      const timeoutId = setTimeout(() => priceInputRef.current?.focus(), 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [visible, focusField]);
 
-  const handleSave = async () => {
+  const performSave = async (priceValue: number | null) => {
     if (!item) return;
-
-    if (!name.trim()) {
-      Alert.alert('Error', 'Item name cannot be empty');
-      return;
-    }
-
-    const priceValue = price.trim() ? parseFloat(price) : null;
-    if (price.trim() && (priceValue === null || isNaN(priceValue))) {
-      Alert.alert('Error', 'Please enter a valid price');
-      return;
-    }
-
     try {
       await onSave(item.id, {
         name: name.trim(),
@@ -77,14 +71,56 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
       });
       onClose();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save item');
+      showAlert('Error', error.message || 'Failed to save item', undefined, { icon: 'error' });
     }
+  };
+
+  const handleSave = async () => {
+    if (!item) return;
+
+    if (!name.trim()) {
+      showAlert('Error', 'Item name cannot be empty', undefined, { icon: 'error' });
+      return;
+    }
+
+    const priceValue = price.trim() ? parseFloat(price) : null;
+    if (price.trim() && (priceValue === null || isNaN(priceValue))) {
+      showAlert('Error', 'Please enter a valid price', undefined, { icon: 'error' });
+      return;
+    }
+
+    // Check if entering price without store selected
+    if (priceValue && priceValue > 0 && !storeName) {
+      showAlert(
+        'Store Required',
+        'Please select a store before entering prices. This helps track price history accurately.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Select Store',
+            onPress: () => {
+              onClose();
+              onRequestStoreSelection?.();
+            },
+          },
+          {
+            text: 'Save Anyway',
+            style: 'destructive',
+            onPress: () => performSave(priceValue),
+          },
+        ],
+        { icon: 'warning' }
+      );
+      return;
+    }
+
+    await performSave(priceValue);
   };
 
   const handleDelete = () => {
     if (!item) return;
 
-    Alert.alert(
+    showAlert(
       'Delete Item',
       `Are you sure you want to delete "${item.name}"?`,
       [
@@ -97,11 +133,12 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
               await onDelete(item.id);
               onClose();
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete item');
+              showAlert('Error', error.message || 'Failed to delete item', undefined, { icon: 'error' });
             }
           },
         },
-      ]
+      ],
+      { icon: 'confirm' }
     );
   };
 
@@ -132,6 +169,25 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {!storeName && (
+              <View style={styles.storeWarningBanner}>
+                <Text style={styles.storeWarningText}>
+                  No store selected. Prices won't be tracked in history.
+                </Text>
+                {onRequestStoreSelection && (
+                  <TouchableOpacity
+                    style={styles.selectStoreLink}
+                    onPress={() => {
+                      onClose();
+                      onRequestStoreSelection();
+                    }}
+                  >
+                    <Text style={styles.selectStoreLinkText}>Select Store</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Name</Text>
               <TextInput
@@ -325,6 +381,31 @@ const styles = StyleSheet.create({
     color: COLORS.accent.blue,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  storeWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accent.yellowSubtle,
+    padding: SPACING.md,
+    borderRadius: RADIUS.small,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.accent.yellowDim,
+  },
+  storeWarningText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.accent.yellow,
+  },
+  selectStoreLink: {
+    padding: SPACING.xs,
+    marginLeft: SPACING.sm,
+  },
+  selectStoreLinkText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.accent.blue,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    textDecorationLine: 'underline',
   },
 });
 

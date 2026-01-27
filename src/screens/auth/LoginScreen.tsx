@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import { useAlert } from '../../contexts/AlertContext';
 
 /**
  * LoginScreen
@@ -18,13 +18,14 @@ import AuthenticationModule from '../../services/AuthenticationModule';
  */
 const LoginScreen = () => {
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      showAlert('Error', 'Please enter email and password', undefined, { icon: 'error' });
       return;
     }
 
@@ -33,14 +34,14 @@ const LoginScreen = () => {
       await AuthenticationModule.signIn(email, password);
       // Navigation handled by App.tsx based on auth state
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      showAlert('Login Failed', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    Alert.alert('Coming Soon', 'Google Sign-In will be available soon');
+    showAlert('Coming Soon', 'Google Sign-In will be available soon', undefined, { icon: 'info' });
   };
 
   return (

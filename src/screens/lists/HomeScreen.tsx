@@ -8,11 +8,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Alert,
   Modal,
   Platform,
   Animated,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { v4 as uuidv4 } from 'uuid';
 import database from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
@@ -34,6 +34,7 @@ import DatabaseMigration from '../../services/DatabaseMigration';
  */
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -90,7 +91,7 @@ const HomeScreen = () => {
     try {
       const currentUser = await AuthenticationModule.getCurrentUser();
       if (!currentUser || !currentUser.familyGroupId) {
-        Alert.alert('Error', 'No family group found. Please create or join a group.');
+        showAlert('Error', 'No family group found. Please create or join a group.', undefined, { icon: 'error' });
         return;
       }
 
@@ -100,10 +101,11 @@ const HomeScreen = () => {
       );
 
       if (!groupExists) {
-        Alert.alert(
+        showAlert(
           'Family Group Not Found',
           'Your family group no longer exists. Please create or join a new group.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
+          { icon: 'warning' }
         );
 
         // Clear the invalid familyGroupId
@@ -123,9 +125,11 @@ const HomeScreen = () => {
         try {
           await DatabaseMigration.runAllMigrations(currentUser.familyGroupId);
         } catch (migrationError: any) {
-          Alert.alert(
+          showAlert(
             'Migration Notice',
-            'Database migration in progress. Please restart the app if lists do not appear.'
+            'Database migration in progress. Please restart the app if lists do not appear.',
+            undefined,
+            { icon: 'info' }
           );
         }
       }
@@ -136,7 +140,7 @@ const HomeScreen = () => {
       const activeLists = allLists.filter(list => list.status !== 'deleted' && list.status !== 'completed');
       setLists(activeLists);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -172,7 +176,7 @@ const HomeScreen = () => {
           maximumDate: maxDate,
         });
       } catch (error: any) {
-        Alert.alert('Error', `Failed to open date picker: ${error.message}`);
+        showAlert('Error', `Failed to open date picker: ${error.message}`, undefined, { icon: 'error' });
       }
     } else {
       // Use component for iOS
@@ -184,12 +188,12 @@ const HomeScreen = () => {
     if (creating) return; // Prevent double-tap
 
     if (!user) {
-      Alert.alert('Error', 'User not authenticated');
+      showAlert('Error', 'User not authenticated', undefined, { icon: 'error' });
       return;
     }
 
     if (!user.familyGroupId) {
-      Alert.alert('Error', 'No family group found. Please create or join a family group first.');
+      showAlert('Error', 'No family group found. Please create or join a family group first.', undefined, { icon: 'error' });
       return;
     }
 
@@ -235,14 +239,14 @@ const HomeScreen = () => {
     } catch (error: any) {
       // Remove optimistic list on failure
       setPendingLists((prev) => prev.filter((l) => l.id !== listId));
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setCreating(false);
     }
   };
 
   const handleDeleteList = async (listId: string, listName: string) => {
-    Alert.alert(
+    showAlert(
       'Delete Shopping List',
       `Are you sure you want to delete "${listName}"? This cannot be undone.`,
       [
@@ -255,11 +259,12 @@ const HomeScreen = () => {
               await ShoppingListManager.deleteList(listId);
               // WatermelonDB observer will automatically update the UI
             } catch (error: any) {
-              Alert.alert('Error', error.message);
+              showAlert('Error', error.message, undefined, { icon: 'error' });
             }
           },
         },
-      ]
+      ],
+      { icon: 'confirm' }
     );
   };
 
@@ -271,7 +276,7 @@ const HomeScreen = () => {
 
       // Use cached user state
       if (!user || !user.familyGroupId) {
-        Alert.alert('Error', 'User not authenticated or no family group found');
+        showAlert('Error', 'User not authenticated or no family group found', undefined, { icon: 'error' });
         return;
       }
 
@@ -283,7 +288,7 @@ const HomeScreen = () => {
       }
 
       if (!captureResult.success || !captureResult.filePath) {
-        Alert.alert('Error', captureResult.error || 'Failed to capture receipt');
+        showAlert('Error', captureResult.error || 'Failed to capture receipt', undefined, { icon: 'error' });
         return;
       }
 
@@ -333,31 +338,37 @@ const HomeScreen = () => {
         // Step 5: Mark list as completed
         await ShoppingListManager.markListAsCompleted(newList.id);
 
-        Alert.alert(
+        showAlert(
           ocrResult.confidence < 70 ? 'Partial Success' : 'Success',
           `Created shopping list "${listName}" with ${ocrResult.receiptData.lineItems.length} items from receipt${
             ocrResult.confidence < 70 ? '. Low confidence - please verify items in receipt view.' : ''
-          }`
+          }`,
+          undefined,
+          { icon: ocrResult.confidence < 70 ? 'warning' : 'success' }
         );
       } else if (ocrResult.receiptData) {
         // OCR extracted some data but no line items
-        Alert.alert(
+        showAlert(
           'Partial Success',
-          'Receipt uploaded but could not extract items. Merchant and total extracted. View receipt to add items manually.'
+          'Receipt uploaded but could not extract items. Merchant and total extracted. View receipt to add items manually.',
+          undefined,
+          { icon: 'warning' }
         );
       } else {
         // Complete OCR failure (Vision API error)
         const errorDetail = ocrResult.error ? `\n\nError: ${ocrResult.error}` : '';
-        Alert.alert(
+        showAlert(
           'Receipt Saved',
-          `Receipt image saved but OCR failed. You can view the receipt and add items manually.${errorDetail}`
+          `Receipt image saved but OCR failed. You can view the receipt and add items manually.${errorDetail}`,
+          undefined,
+          { icon: 'info' }
         );
       }
 
       // Reload lists to show the new one (always reload, even on OCR failure)
       await loadLists();
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
       // Still reload lists in case a list was partially created
       await loadLists();
     } finally {

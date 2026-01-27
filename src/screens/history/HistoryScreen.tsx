@@ -7,9 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   TextInput,
-  Alert,
   RefreshControl,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -25,6 +25,7 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme
  */
 const HistoryScreen = () => {
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lists, setLists] = useState<ShoppingList[]>([]);
@@ -101,7 +102,7 @@ const HistoryScreen = () => {
         const stores = [...new Set(lists.map(l => l.storeName).filter(Boolean))] as string[];
         setAvailableStores(stores);
       } catch (error) {
-        console.error('Failed to load stores:', error);
+        // Failed to load stores - filter will be unavailable
       }
     };
     loadStores();
@@ -111,12 +112,9 @@ const HistoryScreen = () => {
     if (!user?.familyGroupId) return;
 
     try {
-      const archivedCount = await HistoryTracker.autoArchiveOldLists(user.familyGroupId);
-      if (archivedCount > 0) {
-        console.log(`Auto-archived ${archivedCount} old lists`);
-      }
+      await HistoryTracker.autoArchiveOldLists(user.familyGroupId);
     } catch (error) {
-      console.error('Auto-archive failed:', error);
+      // Auto-archive failed - not critical
     }
   };
 
@@ -125,7 +123,7 @@ const HistoryScreen = () => {
       const currentUser = await AuthenticationModule.getCurrentUser();
       setUser(currentUser);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -243,7 +241,7 @@ const HistoryScreen = () => {
       setHasMore(currentOffset + pageSize < filteredLists.length);
       setOffset(currentOffset + pageSize);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);

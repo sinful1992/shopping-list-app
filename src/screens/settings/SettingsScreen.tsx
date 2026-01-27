@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Clipboard,
   TextInput,
@@ -16,7 +15,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import database from '@react-native-firebase/database';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import { useAlert } from '../../contexts/AlertContext';
 import { User, FamilyGroup, FamilyRole } from '../../models/types';
+import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../legal';
+import { Linking } from 'react-native';
 
 // Role to avatar mapping
 const getRoleAvatar = (role: FamilyRole): string => {
@@ -39,6 +41,7 @@ const getRoleAvatar = (role: FamilyRole): string => {
  * Implements family group management and user settings
  */
 const SettingsScreen = () => {
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [familyGroup, setFamilyGroup] = useState<FamilyGroup | null>(null);
@@ -73,7 +76,7 @@ const SettingsScreen = () => {
         setHapticFeedbackEnabled(value === 'true');
       }
     } catch (error) {
-      console.error('Failed to load haptic feedback setting:', error);
+      // Failed to load setting - use default
     }
   };
 
@@ -82,8 +85,7 @@ const SettingsScreen = () => {
       await AsyncStorage.setItem('hapticFeedbackEnabled', value.toString());
       setHapticFeedbackEnabled(value);
     } catch (error) {
-      console.error('Failed to save haptic feedback setting:', error);
-      Alert.alert('Error', 'Failed to save setting');
+      showAlert('Error', 'Failed to save setting', undefined, { icon: 'error' });
     }
   };
 
@@ -94,7 +96,7 @@ const SettingsScreen = () => {
       // Get current user
       const currentUser = await AuthenticationModule.getCurrentUser();
       if (!currentUser) {
-        Alert.alert('Error', 'User not authenticated');
+        showAlert('Error', 'User not authenticated', undefined, { icon: 'error' });
         return;
       }
       setUser(currentUser);
@@ -117,7 +119,7 @@ const SettingsScreen = () => {
         }
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
@@ -155,19 +157,21 @@ const SettingsScreen = () => {
         setInvitationCode(code);
       } else {
         // No invitation found - this shouldn't happen but handle gracefully
-        console.warn('No invitation code found for family group:', familyGroupId);
         setInvitationCode('NOT_FOUND');
-        Alert.alert(
+        showAlert(
           'Invitation Code Not Found',
-          'Could not retrieve the invitation code. Please contact support if this persists.'
+          'Could not retrieve the invitation code. Please contact support if this persists.',
+          undefined,
+          { icon: 'warning' }
         );
       }
     } catch (error: any) {
-      console.error('Failed to fetch invitation code:', error);
       setInvitationCode('ERROR');
-      Alert.alert(
+      showAlert(
         'Error Loading Invitation Code',
-        `Failed to load invitation code: ${error.message || 'Unknown error'}. Please try again later.`
+        `Failed to load invitation code: ${error.message || 'Unknown error'}. Please try again later.`,
+        undefined,
+        { icon: 'error' }
       );
     }
   };
@@ -175,7 +179,7 @@ const SettingsScreen = () => {
   const handleCopyInvitationCode = () => {
     if (invitationCode) {
       Clipboard.setString(invitationCode);
-      Alert.alert('Success', 'Invitation code copied to clipboard');
+      showAlert('Success', 'Invitation code copied to clipboard', undefined, { icon: 'success' });
     }
   };
 
@@ -186,7 +190,7 @@ const SettingsScreen = () => {
 
   const handleSaveName = async () => {
     if (!newName.trim()) {
-      Alert.alert('Error', 'Please enter a name');
+      showAlert('Error', 'Please enter a name', undefined, { icon: 'error' });
       return;
     }
 
@@ -206,10 +210,10 @@ const SettingsScreen = () => {
       setUser({ ...user, displayName: newName.trim() });
       setShowEditNameModal(false);
 
-      Alert.alert('Success', 'Name updated successfully');
+      showAlert('Success', 'Name updated successfully', undefined, { icon: 'success' });
       // No reload needed - local state already updated
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -220,7 +224,7 @@ const SettingsScreen = () => {
 
   const handleSaveRole = async () => {
     if (!selectedRole) {
-      Alert.alert('Error', 'Please select a role');
+      showAlert('Error', 'Please select a role', undefined, { icon: 'error' });
       return;
     }
 
@@ -239,15 +243,15 @@ const SettingsScreen = () => {
       setUser({ ...user, role: selectedRole, avatar });
       setShowRoleModal(false);
 
-      Alert.alert('Success', 'Role updated successfully');
+      showAlert('Success', 'Role updated successfully', undefined, { icon: 'success' });
       // No reload needed - local state already updated
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
+    showAlert(
       'Logout',
       'Are you sure you want to logout?',
       [
@@ -259,18 +263,19 @@ const SettingsScreen = () => {
             try {
               await AuthenticationModule.signOut();
             } catch (error: any) {
-              Alert.alert('Error', error.message);
+              showAlert('Error', error.message, undefined, { icon: 'error' });
             }
           },
         },
-      ]
+      ],
+      { icon: 'confirm' }
     );
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
+    showAlert(
       'Delete Account',
-      '⚠️ WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All urgent items\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
+      'WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All urgent items\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -278,9 +283,9 @@ const SettingsScreen = () => {
           style: 'destructive',
           onPress: () => {
             // Second confirmation
-            Alert.alert(
+            showAlert(
               'Final Confirmation',
-              'Are you absolutely sure? Type DELETE to confirm:',
+              'Are you absolutely sure? This will permanently delete all your data.',
               [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -291,18 +296,20 @@ const SettingsScreen = () => {
                       setLoading(true);
                       await AuthenticationModule.deleteUserAccount();
                       // User is automatically signed out after deletion
-                      Alert.alert('Success', 'Account deleted successfully');
+                      showAlert('Success', 'Account deleted successfully', undefined, { icon: 'success' });
                     } catch (error: any) {
                       setLoading(false);
-                      Alert.alert('Error', `Failed to delete account: ${error.message}`);
+                      showAlert('Error', `Failed to delete account: ${error.message}`, undefined, { icon: 'error' });
                     }
                   },
                 },
-              ]
+              ],
+              { icon: 'warning' }
             );
           },
         },
-      ]
+      ],
+      { icon: 'warning' }
     );
   };
 
@@ -474,6 +481,30 @@ const SettingsScreen = () => {
         </>
       )}
 
+      {/* Legal Section */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Icon name="document-text-outline" size={24} color="#007AFF" />
+          <Text style={styles.sectionTitle}>Legal</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.legalButton}
+          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+        >
+          <Icon name="shield-checkmark-outline" size={20} color="#007AFF" />
+          <Text style={styles.legalButtonText}>Privacy Policy</Text>
+          <Icon name="open-outline" size={16} color="#6E6E73" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.legalButton}
+          onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+        >
+          <Icon name="document-outline" size={20} color="#007AFF" />
+          <Text style={styles.legalButtonText}>Terms of Service</Text>
+          <Icon name="open-outline" size={16} color="#6E6E73" />
+        </TouchableOpacity>
+      </View>
+
       {/* Logout Section */}
       <View style={styles.section}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -499,7 +530,7 @@ const SettingsScreen = () => {
 
       {/* App Info */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Shopping List App v1.0</Text>
+        <Text style={styles.footerText}>Family Shopping List v0.10.10</Text>
         <Text style={styles.footerText}>Family Collaboration Made Easy</Text>
       </View>
 
@@ -952,6 +983,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginLeft: 10,
+  },
+  legalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  legalButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#ffffff',
+    marginLeft: 12,
+    fontWeight: '500',
   },
 });
 

@@ -1,16 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, Platform, TouchableOpacity, Alert } from 'react-native';
+import { StatusBar, TouchableOpacity } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import database from '@react-native-firebase/database';
+import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import NotificationManager from './src/services/NotificationManager';
 import PaymentService from './src/services/PaymentService';
+import CrashReporting from './src/services/CrashReporting';
+import FirebaseAnalytics from './src/services/FirebaseAnalytics';
+import { AlertProvider, useAlert } from './src/contexts/AlertContext';
 import { User } from './src/models/types';
+
+// Deep linking configuration
+const linking = {
+  prefixes: ['familyshoppinglist://', 'https://familyshoppinglist.app'],
+  config: {
+    screens: {
+      MainTabs: {
+        screens: {
+          Lists: {
+            screens: {
+              Home: 'home',
+              ListDetail: 'list/:listId',
+            },
+          },
+          Urgent: 'urgent',
+          History: 'history',
+          Analytics: 'analytics',
+          Budget: 'budget',
+          Subscription: 'subscription',
+        },
+      },
+      Settings: 'settings',
+    },
+  },
+};
 
 // Dark theme for navigation
 const DarkNavigationTheme = {
@@ -198,7 +227,6 @@ function App(): JSX.Element {
       const unsubscribe = SyncEngine.subscribeToRemoteChanges(
         user.familyGroupId,
         async (change) => {
-          console.log('Remote change detected:', change);
 
           // Persist remote changes to local database
           try {
@@ -224,9 +252,9 @@ function App(): JSX.Element {
               await LocalStorageManager.saveItem(dataToSave);
             }
 
-            console.log('Remote change synced to local DB:', change.entityType, change.entityId);
+            // Remote change synced successfully
           } catch (error) {
-            console.error('Failed to sync remote change to local DB:', error);
+            CrashReporting.recordError(error as Error, 'App remote change sync');
           }
         }
       );
@@ -237,6 +265,9 @@ function App(): JSX.Element {
     }
   }, [user?.familyGroupId]);
 
+  // Get showAlert from context
+  const { showAlert } = useAlert();
+
   // Listen for family group deletion
   useEffect(() => {
     if (user?.familyGroupId) {
@@ -245,7 +276,6 @@ function App(): JSX.Element {
       const onFamilyGroupChange = async (snapshot: any) => {
         if (!snapshot.exists()) {
           // Family group was deleted
-          console.log('Family group no longer exists');
 
           // Clear user's familyGroupId
           await database().ref(`/users/${user.uid}`).update({
@@ -253,7 +283,7 @@ function App(): JSX.Element {
           });
 
           // Show alert and sign out user
-          Alert.alert(
+          showAlert(
             'Family Group Deleted',
             'Your family group was deleted. You will be signed out. Please sign in and create or join a new group.',
             [
@@ -263,7 +293,8 @@ function App(): JSX.Element {
                   await AuthenticationModule.signOut();
                 },
               },
-            ]
+            ],
+            { icon: 'warning' }
           );
         }
       };
@@ -275,7 +306,7 @@ function App(): JSX.Element {
         familyGroupRef.off('value', onFamilyGroupChange);
       };
     }
-  }, [user?.familyGroupId, user?.uid]);
+  }, [user?.familyGroupId, user?.uid, showAlert]);
 
   // Initialize RevenueCat on app launch
   useEffect(() => {
@@ -283,12 +314,42 @@ function App(): JSX.Element {
       try {
         await PaymentService.initialize();
       } catch (error) {
-        console.error('Failed to initialize payments:', error);
+        CrashReporting.recordError(error as Error, 'PaymentService.initialize');
       }
     };
 
     initializePayments();
   }, []);
+
+  // Initialize Crashlytics and Analytics on app launch
+  useEffect(() => {
+    const initializeServices = async () => {
+      try {
+        await CrashReporting.initialize();
+        await FirebaseAnalytics.initialize();
+      } catch (error) {
+        // Can't report to Crashlytics if it failed to initialize
+      }
+    };
+
+    initializeServices();
+  }, []);
+
+  // Set user ID for Crashlytics and Analytics when user logs in
+  useEffect(() => {
+    if (user) {
+      CrashReporting.setUserId(user.uid);
+      CrashReporting.setAttributes({
+        familyGroupId: user.familyGroupId || 'none',
+        role: user.role || 'none',
+      });
+      FirebaseAnalytics.setUserId(user.uid);
+      FirebaseAnalytics.setUserProperties({
+        family_group_id: user.familyGroupId || null,
+        user_role: user.role || null,
+      });
+    }
+  }, [user]);
 
   // Initialize FCM notifications when user logs in
   useEffect(() => {
@@ -304,8 +365,15 @@ function App(): JSX.Element {
     }
   }, [user]);
 
+  // Hide splash screen when app is ready
+  useEffect(() => {
+    if (!loading) {
+      SplashScreen.hide();
+    }
+  }, [loading]);
+
   if (loading) {
-    return null; // Or show loading screen
+    return null; // Splash screen is still showing
   }
 
   return (
@@ -315,7 +383,7 @@ function App(): JSX.Element {
         backgroundColor="#0a0a0a"
         translucent={false}
       />
-      <NavigationContainer theme={DarkNavigationTheme}>
+      <NavigationContainer theme={DarkNavigationTheme} linking={linking}>
         {!user ? (
           // Authentication Stack
           <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -352,4 +420,13 @@ function App(): JSX.Element {
   );
 }
 
-export default App;
+// Wrap App with AlertProvider
+function AppWithProvider(): JSX.Element {
+  return (
+    <AlertProvider>
+      <App />
+    </AlertProvider>
+  );
+}
+
+export default AppWithProvider;

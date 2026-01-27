@@ -7,7 +7,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   RefreshControl,
   Vibration,
 } from 'react-native';
@@ -31,6 +30,7 @@ import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
+import { useAlert } from '../../contexts/AlertContext';
 
 /**
  * ListDetailScreen
@@ -40,6 +40,7 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 const ListDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -112,7 +113,6 @@ const ListDetailScreen = () => {
       setUncheckedCount(unchecked);
       setRunningTotal(total);
     } catch (error) {
-      console.error('Error in calculateShoppingStats:', error);
       // Set safe defaults on error
       setCheckedCount(0);
       setUncheckedCount(0);
@@ -177,7 +177,7 @@ const ListDetailScreen = () => {
       try {
         calculateShoppingStats(updatedItems);
       } catch (error) {
-        console.error('Error calculating shopping stats:', error);
+        // Silently handle error
       }
     });
 
@@ -261,7 +261,7 @@ const ListDetailScreen = () => {
 
       calculateShoppingStats(listItems);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -286,7 +286,6 @@ const ListDetailScreen = () => {
       // Recalculate stats after predictions are loaded
       calculateShoppingStats(itemsList);
     } catch (error) {
-      console.error('Failed to predict prices:', error);
       // Don't crash - just continue without predictions
       setPredictedPrices({});
       setSmartSuggestions(new Map());
@@ -304,7 +303,7 @@ const ListDetailScreen = () => {
     if (!currentUserId) return;
 
     if (!list) {
-      Alert.alert('Error', 'List is still loading. Please wait a moment and try again.');
+      showAlert('Error', 'List is still loading. Please wait a moment and try again.', undefined, { icon: 'error' });
       return;
     }
 
@@ -333,8 +332,7 @@ const ListDetailScreen = () => {
       await addItemWithCategory(newItemName.trim(), suggestedCategory);
       setNewItemName('');
     } catch (error: any) {
-      console.error('Error adding item:', error);
-      Alert.alert('Error', error.message || 'Failed to add item. Please try again.');
+      showAlert('Error', error.message || 'Failed to add item. Please try again.', undefined, { icon: 'error' });
     }
   };
 
@@ -360,10 +358,10 @@ const ListDetailScreen = () => {
 
     try {
       await ItemManager.addItem(listId, itemName, currentUserId);
-      Alert.alert('Added', `${itemName} added to list`);
+      showAlert('Added', `${itemName} added to list`, undefined, { icon: 'success' });
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
       throw error;
     }
   };
@@ -384,7 +382,7 @@ const ListDetailScreen = () => {
         try {
           Vibration.vibrate(50); // Short vibration (50ms)
         } catch (vibrationError) {
-          console.log('Vibration not supported:', vibrationError);
+          // Vibration not supported - silently ignore
         }
       }
 
@@ -393,8 +391,7 @@ const ListDetailScreen = () => {
       // Don't reload - let WatermelonDB observer handle the update
       // await loadListAndItems();
     } catch (error: any) {
-      console.error('Toggle error:', error.message);
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       // Always clear the in-progress flag
       toggleInProgressRef.current.delete(itemId);
@@ -406,7 +403,7 @@ const ListDetailScreen = () => {
       await ItemManager.deleteItem(itemId);
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -415,7 +412,7 @@ const ListDetailScreen = () => {
       await ItemManager.updateItem(itemId, updates);
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
       throw error;
     }
   };
@@ -434,7 +431,7 @@ const ListDetailScreen = () => {
 
   const handleSaveListName = async () => {
     if (!editedListName.trim()) {
-      Alert.alert('Error', 'List name cannot be empty');
+      showAlert('Error', 'List name cannot be empty', undefined, { icon: 'error' });
       return;
     }
     try {
@@ -442,7 +439,7 @@ const ListDetailScreen = () => {
       setListName(editedListName.trim());
       setIsEditingListName(false);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -454,9 +451,9 @@ const ListDetailScreen = () => {
   const handleCompleteList = async () => {
     try {
       await ShoppingListManager.markListAsCompleted(listId);
-      Alert.alert('Success', 'Shopping list completed!');
+      showAlert('Success', 'Shopping list completed!', undefined, { icon: 'success' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -494,9 +491,9 @@ const ListDetailScreen = () => {
       setIsShoppingMode(true);
       setIsListLocked(false); // Not locked for current user
       // WatermelonDB observer will automatically update the list state
-      Alert.alert('Shopping Mode', 'You are now shopping. Other family members can only view this list.');
+      showAlert('Shopping Mode', 'You are now shopping. Other family members can only view this list.', undefined, { icon: 'info' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -504,17 +501,22 @@ const ListDetailScreen = () => {
   const handleDoneShopping = () => {
     if (!currentUserId) return;
 
+    // Capture pre-calculated values before UI change
+    const finalTotal = runningTotal;
+    const storeName = list?.storeName || null;
+
     // Immediate UI feedback
     setIsShoppingMode(false);
 
-    // Run completion in background without blocking
-    ShoppingListManager.completeShoppingAndUnlock(listId, currentUserId)
-      .then(() => {
-        Alert.alert('Shopping Complete!', 'Your shopping list has been completed and saved to history.');
-      })
-      .catch((error: any) => {
-        Alert.alert('Error', error.message);
-      });
+    // Show success immediately (don't wait for completion)
+    showAlert('Shopping Complete!', 'Your shopping list has been saved to history.', undefined, { icon: 'success' });
+
+    // Run completion in background with pre-calculated data (no item re-fetch)
+    ShoppingListManager.completeShoppingFast(listId, currentUserId, finalTotal, storeName).catch(
+      (error: any) => {
+        // Silently handle error - user already notified of success
+      }
+    );
   };
 
   const renderItem = ({ item: row }: { item: { type: 'header' | 'item'; category?: string; item?: Item } }) => {
@@ -959,6 +961,12 @@ const ListDetailScreen = () => {
       <ItemEditModal
         visible={editModalVisible}
         item={selectedItem}
+        storeName={list?.storeName || null}
+        onRequestStoreSelection={() => {
+          setEditModalVisible(false);
+          setSelectedItem(null);
+          setStorePickerVisible(true);
+        }}
         onClose={() => {
           setEditModalVisible(false);
           setSelectedItem(null);

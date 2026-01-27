@@ -7,8 +7,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Dimensions,
-  Alert,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -30,8 +30,8 @@ class ErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Analytics Error Boundary caught error:', error, errorInfo);
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo) {
+    // Error caught by boundary - handled in render
   }
 
   render() {
@@ -63,6 +63,7 @@ class ErrorBoundary extends Component<
  * Implements Sprint 7: Analytics dashboard
  */
 const AnalyticsScreen = () => {
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [timePeriod, setTimePeriod] = useState<30 | 90 | 365>(30);
@@ -73,7 +74,6 @@ const AnalyticsScreen = () => {
     try {
       loadAnalytics();
     } catch (err: any) {
-      console.error('useEffect error:', err);
       setError(err?.message || 'Failed to initialize');
       setLoading(false);
     }
@@ -98,9 +98,8 @@ const AnalyticsScreen = () => {
 
       setAnalytics(data);
     } catch (error: any) {
-      console.error('Failed to load analytics:', error);
       setError(error?.message || 'Failed to load analytics');
-      Alert.alert('Error', error?.message || 'Failed to load analytics');
+      showAlert('Error', error?.message || 'Failed to load analytics', undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
@@ -205,7 +204,7 @@ const AnalyticsScreen = () => {
       }));
     }
   } catch (err: any) {
-    console.error('Error preparing chart data:', err);
+    // Chart data preparation failed - will show empty charts
   }
 
   return (

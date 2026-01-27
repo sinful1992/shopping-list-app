@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import { useAlert } from '../../contexts/AlertContext';
 
 /**
  * FamilyGroupScreen
@@ -8,13 +9,14 @@ import AuthenticationModule from '../../services/AuthenticationModule';
  * Implements Req 1.4, 1.5
  */
 const FamilyGroupScreen = () => {
+  const { showAlert } = useAlert();
   const [groupName, setGroupName] = useState('');
   const [invitationCode, setInvitationCode] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
 
   const handleCreateGroup = async () => {
     if (!groupName) {
-      Alert.alert('Error', 'Please enter a group name');
+      showAlert('Error', 'Please enter a group name', undefined, { icon: 'error' });
       return;
     }
 
@@ -27,15 +29,15 @@ const FamilyGroupScreen = () => {
       // Update local user data with new familyGroupId
       await AuthenticationModule.refreshUserData();
 
-      Alert.alert('Success', `Family group created! Invitation code: ${(group as any).invitationCode}`);
+      showAlert('Success', `Family group created! Invitation code: ${(group as any).invitationCode}`, undefined, { icon: 'success' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
   const handleJoinGroup = async () => {
     if (!invitationCode) {
-      Alert.alert('Error', 'Please enter an invitation code');
+      showAlert('Error', 'Please enter an invitation code', undefined, { icon: 'error' });
       return;
     }
 
@@ -43,7 +45,7 @@ const FamilyGroupScreen = () => {
     const normalizedCode = invitationCode.trim().toUpperCase().replace(/\s/g, '');
 
     if (normalizedCode.length !== 8) {
-      Alert.alert('Error', 'Invitation codes must be exactly 8 characters');
+      showAlert('Error', 'Invitation codes must be exactly 8 characters', undefined, { icon: 'error' });
       return;
     }
 
@@ -56,7 +58,7 @@ const FamilyGroupScreen = () => {
       // Update local user data with new familyGroupId
       await AuthenticationModule.refreshUserData();
 
-      Alert.alert('Success', 'You have successfully joined the family group!');
+      showAlert('Success', 'You have successfully joined the family group!', undefined, { icon: 'success' });
     } catch (error: any) {
       let userMessage = error.message;
 
@@ -68,7 +70,7 @@ const FamilyGroupScreen = () => {
         userMessage = 'Network error. Please check your connection and try again.';
       }
 
-      Alert.alert('Error', userMessage);
+      showAlert('Error', userMessage, undefined, { icon: 'error' });
     }
   };
 

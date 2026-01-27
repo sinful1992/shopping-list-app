@@ -4,10 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 // OCR DISABLED - import removed
@@ -23,6 +23,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 const ReceiptCameraScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const { listId } = route.params as { listId: string };
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -44,14 +45,14 @@ const ReceiptCameraScreen = () => {
       }
 
       if (!result.success || !result.filePath) {
-        Alert.alert('Error', result.error || 'Failed to capture receipt');
+        showAlert('Error', result.error || 'Failed to capture receipt', undefined, { icon: 'error' });
         navigation.goBack();
         return;
       }
 
       setCapturedImage(result.filePath);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
       navigation.goBack();
     }
   };
@@ -73,11 +74,11 @@ const ReceiptCameraScreen = () => {
       });
 
       // OCR DISABLED - just save photo for memory
-      Alert.alert('Success', 'Receipt photo saved!');
+      showAlert('Success', 'Receipt photo saved!', undefined, { icon: 'success' });
 
       navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setUploading(false);
     }

@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  Alert,
   Modal,
   ActivityIndicator,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UrgentItemManager from '../../services/UrgentItemManager';
@@ -22,6 +22,7 @@ import { UrgentItem, User } from '../../models/types';
  */
 const UrgentItemsScreen = () => {
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [user, setUser] = useState<User | null>(null);
   const [activeItems, setActiveItems] = useState<UrgentItem[]>([]);
   const [resolvedItems, setResolvedItems] = useState<UrgentItem[]>([]);
@@ -88,7 +89,7 @@ const UrgentItemsScreen = () => {
       setActiveItems(active);
       setResolvedItems(resolved);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
@@ -96,12 +97,12 @@ const UrgentItemsScreen = () => {
 
   const handleCreateItem = async () => {
     if (!newItemName.trim()) {
-      Alert.alert('Error', 'Please enter an item name');
+      showAlert('Error', 'Please enter an item name', undefined, { icon: 'error' });
       return;
     }
 
     if (!user || !user.familyGroupId) {
-      Alert.alert('Error', 'User not authenticated');
+      showAlert('Error', 'User not authenticated', undefined, { icon: 'error' });
       return;
     }
 
@@ -117,9 +118,9 @@ const UrgentItemsScreen = () => {
       setNewItemName('');
       setShowCreateModal(false);
       // WatermelonDB observer will automatically update the UI
-      Alert.alert('Success', 'Urgent item created and family notified!');
+      showAlert('Success', 'Urgent item created and family notified!', undefined, { icon: 'success' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -138,7 +139,7 @@ const UrgentItemsScreen = () => {
       const price = resolvePrice.trim() ? parseFloat(resolvePrice) : undefined;
 
       if (resolvePrice.trim() && (price === undefined || isNaN(price) || price < 0)) {
-        Alert.alert('Error', 'Please enter a valid price');
+        showAlert('Error', 'Please enter a valid price', undefined, { icon: 'error' });
         return;
       }
 
@@ -153,9 +154,9 @@ const UrgentItemsScreen = () => {
       setSelectedItem(null);
       setResolvePrice('');
       // WatermelonDB observer will automatically update the UI
-      Alert.alert('Success', 'Urgent item marked as resolved!');
+      showAlert('Success', 'Urgent item marked as resolved!', undefined, { icon: 'success' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 

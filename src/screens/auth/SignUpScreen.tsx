@@ -5,11 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import { useAlert } from '../../contexts/AlertContext';
 
 /**
  * SignUpScreen
@@ -18,6 +18,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
  */
 const SignUpScreen = () => {
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,17 +27,17 @@ const SignUpScreen = () => {
 
   const handleSignUp = async () => {
     if (!name || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields', undefined, { icon: 'error' });
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      showAlert('Error', 'Passwords do not match', undefined, { icon: 'error' });
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+      showAlert('Error', 'Password must be at least 6 characters', undefined, { icon: 'error' });
       return;
     }
 
@@ -45,7 +46,7 @@ const SignUpScreen = () => {
       await AuthenticationModule.signUp(email, password, name);
       // Navigation handled by App.tsx
     } catch (error: any) {
-      Alert.alert('Sign Up Failed', error.message);
+      showAlert('Sign Up Failed', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }

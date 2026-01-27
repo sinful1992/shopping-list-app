@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { SubscriptionTier, User } from '../../models/types';
@@ -33,6 +33,7 @@ interface Props {
  * Sprint 2: Manages subscription tier and displays usage statistics
  */
 export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
+  const { showAlert } = useAlert();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [familyTier, setFamilyTier] = useState<SubscriptionTier>('free');
@@ -83,7 +84,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
         setFamilyTier(tier);
       }
     } catch (error) {
-      console.error('Error loading user and usage:', error);
+      // Failed to load user/usage
     } finally {
       setLoading(false);
     }
@@ -107,7 +108,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
         }
       }
     } catch (error) {
-      console.error('Error loading offerings:', error);
+      // Failed to load offerings
     }
   };
 
@@ -126,14 +127,15 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
 
         const tier = PaymentService.getSubscriptionTierFromCustomerInfo(result.customerInfo);
 
-        Alert.alert(
+        showAlert(
           'Welcome to Pro!',
           `Your family group has been upgraded! Everyone in your family group now has full access.`,
-          [{ text: 'OK', onPress: loadUserAndUsage }]
+          [{ text: 'OK', onPress: loadUserAndUsage }],
+          { icon: 'success' }
         );
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to process purchase');
+      showAlert('Error', error.message || 'Failed to process purchase', undefined, { icon: 'error' });
     } finally {
       setPurchasing(false);
     }
@@ -145,10 +147,10 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
       if (canPresent) {
         await PaymentService.presentCustomerCenter();
       } else {
-        Alert.alert('No Active Subscription', 'You need an active subscription to access Customer Center.');
+        showAlert('No Active Subscription', 'You need an active subscription to access Customer Center.', undefined, { icon: 'info' });
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to open Customer Center');
+      showAlert('Error', error.message || 'Failed to open Customer Center', undefined, { icon: 'error' });
     }
   };
 
@@ -167,19 +169,20 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
         const tier = PaymentService.getSubscriptionTierFromCustomerInfo(result.customerInfo);
 
         if (tier !== 'free') {
-          Alert.alert(
+          showAlert(
             'Restored!',
             `Your ${tier} subscription has been restored!`,
-            [{ text: 'OK', onPress: loadUserAndUsage }]
+            [{ text: 'OK', onPress: loadUserAndUsage }],
+            { icon: 'success' }
           );
         } else {
-          Alert.alert('No Active Subscription', 'No active subscriptions were found to restore.');
+          showAlert('No Active Subscription', 'No active subscriptions were found to restore.', undefined, { icon: 'info' });
         }
       } else {
-        Alert.alert('Restore Failed', result.error || 'Failed to restore purchases');
+        showAlert('Restore Failed', result.error || 'Failed to restore purchases', undefined, { icon: 'error' });
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to restore purchases');
+      showAlert('Error', error.message || 'Failed to restore purchases', undefined, { icon: 'error' });
     } finally {
       setPurchasing(false);
     }

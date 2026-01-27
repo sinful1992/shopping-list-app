@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -25,6 +25,7 @@ import ItemEditModal from '../../components/ItemEditModal';
 const HistoryDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const { listId } = route.params as { listId: string };
 
   const [loading, setLoading] = useState(true);
@@ -67,7 +68,7 @@ const HistoryDetailScreen = () => {
         setSmartSuggestions(suggestionsMap);
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -75,7 +76,7 @@ const HistoryDetailScreen = () => {
   };
 
   const handleDeleteList = () => {
-    Alert.alert(
+    showAlert(
       'Delete Shopping Trip',
       'Are you sure you want to delete this shopping trip? This action cannot be undone.',
       [
@@ -86,14 +87,15 @@ const HistoryDetailScreen = () => {
           onPress: async () => {
             try {
               await ShoppingListManager.deleteList(listId);
-              Alert.alert('Success', 'Shopping trip deleted');
+              showAlert('Success', 'Shopping trip deleted', undefined, { icon: 'success' });
               navigation.goBack();
             } catch (error: any) {
-              Alert.alert('Error', error.message);
+              showAlert('Error', error.message, undefined, { icon: 'error' });
             }
           },
         },
-      ]
+      ],
+      { icon: 'confirm' }
     );
   };
 
@@ -144,7 +146,7 @@ const HistoryDetailScreen = () => {
 
   const handleDeleteItem = async (itemId: string) => {
     // In history view, we only allow deleting if user confirms
-    Alert.alert(
+    showAlert(
       'Delete Item',
       'Are you sure? This will affect the historical record.',
       [
@@ -157,7 +159,8 @@ const HistoryDetailScreen = () => {
             await loadListDetails();
           },
         },
-      ]
+      ],
+      { icon: 'confirm' }
     );
   };
 

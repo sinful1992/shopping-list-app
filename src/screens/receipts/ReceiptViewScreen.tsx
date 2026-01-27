@@ -6,10 +6,10 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
@@ -24,6 +24,7 @@ import { ReceiptData, ReceiptLineItem } from '../../models/types';
 const ReceiptViewScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
+  const { showAlert } = useAlert();
   const { listId } = route.params as { listId: string };
 
   const [loading, setLoading] = useState(true);
@@ -43,7 +44,7 @@ const ReceiptViewScreen = () => {
 
       const list = await LocalStorageManager.getList(listId);
       if (!list) {
-        Alert.alert('Error', 'List not found');
+        showAlert('Error', 'List not found', undefined, { icon: 'error' });
         navigation.goBack();
         return;
       }
@@ -58,7 +59,7 @@ const ReceiptViewScreen = () => {
       setReceiptData(data);
       setEditedData(data);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
@@ -70,17 +71,19 @@ const ReceiptViewScreen = () => {
       const result = await ReceiptOCRProcessor.retryFailedOCR(listId);
 
       if (result.success) {
-        Alert.alert('Success', 'Receipt processed successfully!');
+        showAlert('Success', 'Receipt processed successfully!', undefined, { icon: 'success' });
         await loadReceiptData();
       } else {
-        Alert.alert(
+        showAlert(
           'Low Confidence',
-          `OCR processing completed with ${result.confidence}% confidence. You can edit the data manually.`
+          `OCR processing completed with ${result.confidence}% confidence. You can edit the data manually.`,
+          undefined,
+          { icon: 'warning' }
         );
         await loadReceiptData();
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setRetrying(false);
     }
@@ -93,9 +96,9 @@ const ReceiptViewScreen = () => {
       await LocalStorageManager.saveReceiptData(listId, editedData);
       setReceiptData(editedData);
       setEditing(false);
-      Alert.alert('Success', 'Receipt data updated');
+      showAlert('Success', 'Receipt data updated', undefined, { icon: 'success' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -123,7 +126,7 @@ const ReceiptViewScreen = () => {
             style={styles.receiptImage}
             resizeMode="contain"
             onError={() => {
-              Alert.alert('Error', 'Receipt image not found. It may have been deleted.');
+              showAlert('Error', 'Receipt image not found. It may have been deleted.', undefined, { icon: 'error' });
               setReceiptUrl(null);
             }}
           />

@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   TextInput,
 } from 'react-native';
+import { useAlert } from '../../contexts/AlertContext';
 import BudgetTracker from '../../services/BudgetTracker';
 import BudgetAlertService, { BudgetAlert, BudgetSettings } from '../../services/BudgetAlertService';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -25,6 +25,7 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme
  * Implements Req 7.1, 7.2, 7.3, 7.4, 7.6, 7.7
  */
 const BudgetScreen = () => {
+  const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<ExpenditureSummary | null>(null);
   const [breakdown, setBreakdown] = useState<ExpenditureBreakdownItem[]>([]);
@@ -66,7 +67,7 @@ const BudgetScreen = () => {
         await loadBudgetSettings(currentUser.familyGroupId);
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -85,7 +86,7 @@ const BudgetScreen = () => {
       setMonthlyAlert(monthly);
       setWeeklyAlert(weekly);
     } catch (error) {
-      console.error('Error loading budget settings:', error);
+      // Failed to load budget settings
     }
   };
 
@@ -111,9 +112,9 @@ const BudgetScreen = () => {
       setMonthlyAlert(monthly);
       setWeeklyAlert(weekly);
 
-      Alert.alert('Success', 'Budget limits saved');
+      showAlert('Success', 'Budget limits saved', undefined, { icon: 'success' });
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
@@ -165,7 +166,7 @@ const BudgetScreen = () => {
 
       setBreakdown(filteredBreakdown);
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
