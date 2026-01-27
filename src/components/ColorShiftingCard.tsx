@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Animated, Easing, Dimensions } from 'react-native';
 
 /**
@@ -100,15 +100,13 @@ export const useColorShiftingBorder = (
   // Use actual total items count (not calculated from screen size)
   const itemCount = Math.max(totalItems, 1); // Minimum 1 to avoid division by zero
 
-  // Generate color gradient dynamically when item count changes
-  const [colorGradient, setColorGradient] = useState(() =>
-    generateColorGradient(itemCount)
+  // Generate color gradient synchronously when item count changes
+  // Using useMemo instead of useState+useEffect to prevent state sync bugs
+  // that caused "undefined is not a function" errors during list creation
+  const colorGradient = useMemo(() =>
+    generateColorGradient(itemCount),
+    [itemCount]
   );
-
-  // Regenerate gradient when total items changes
-  useEffect(() => {
-    setColorGradient(generateColorGradient(itemCount));
-  }, [itemCount]);
 
   useEffect(() => {
     // Each item starts at a different position in the gradient
@@ -130,7 +128,7 @@ export const useColorShiftingBorder = (
     return () => {
       colorAnimation.stopAnimation();
     };
-  }, [colorAnimation, index, itemCount, colorGradient]);
+  }, [colorAnimation, index, itemCount]);
 
   // Create input/output ranges for all colors in gradient
   const inputRange: number[] = [];
