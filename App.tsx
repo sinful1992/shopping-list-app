@@ -222,46 +222,6 @@ function App(): JSX.Element {
   useEffect(() => {
     if (user?.familyGroupId) {
       SyncEngine.setFamilyGroupId(user.familyGroupId);
-
-      // Subscribe to remote changes from Firebase
-      const unsubscribe = SyncEngine.subscribeToRemoteChanges(
-        user.familyGroupId,
-        async (change) => {
-
-          // Persist remote changes to local database
-          try {
-            const LocalStorageManager = (await import('./src/services/LocalStorageManager')).default;
-
-            if (change.entityType === 'list') {
-              // Get current local list to preserve syncStatus
-              const existingList = await LocalStorageManager.getList(change.entityId);
-              const dataToSave = {
-                ...change.data,
-                // Preserve local syncStatus (don't overwrite with remote data that doesn't have it)
-                syncStatus: existingList?.syncStatus || 'synced',
-              };
-              await LocalStorageManager.saveList(dataToSave);
-            } else if (change.entityType === 'item') {
-              // Get current local item to preserve syncStatus
-              const existingItem = await LocalStorageManager.getItem(change.entityId);
-              const dataToSave = {
-                ...change.data,
-                // Preserve local syncStatus (don't overwrite with remote data that doesn't have it)
-                syncStatus: existingItem?.syncStatus || 'synced',
-              };
-              await LocalStorageManager.saveItem(dataToSave);
-            }
-
-            // Remote change synced successfully
-          } catch (error) {
-            CrashReporting.recordError(error as Error, 'App remote change sync');
-          }
-        }
-      );
-
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
     }
   }, [user?.familyGroupId]);
 
