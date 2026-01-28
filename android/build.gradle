@@ -42,4 +42,11 @@ allprojects {
         google()
         maven { url 'https://www.jitpack.io' }
     }
+
+    // Exclude old Android Support Library to prevent duplicate class errors with AndroidX
+    configurations.all {
+        exclude group: 'com.android.support', module: 'support-compat'
+        exclude group: 'com.android.support', module: 'support-core-utils'
+        exclude group: 'com.android.support', module: 'support-annotations'
+    }
 }
