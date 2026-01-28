@@ -65,31 +65,6 @@ class HistoryTracker {
   }
 
   /**
-   * Search lists by name
-   * Implements Req 8.7
-   * @deprecated Use searchLists() for enhanced search
-   */
-  async searchListsByName(
-    familyGroupId: string,
-    searchQuery: string
-  ): Promise<ShoppingList[]> {
-    try {
-      const allLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
-      if (!searchQuery.trim()) {
-        return allLists;
-      }
-
-      const query = searchQuery.toLowerCase();
-      return allLists.filter((list) =>
-        list.name.toLowerCase().includes(query)
-      );
-    } catch (error: any) {
-      throw new Error(`Failed to search lists: ${error.message}`);
-    }
-  }
-
-  /**
    * Enhanced search across list names, item names, and store names
    * Implements Sprint 7: Enhanced search functionality
    */
