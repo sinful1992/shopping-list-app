@@ -152,10 +152,14 @@ class FirebaseSyncListener {
 
   /**
    * Sync a list from Firebase to local WatermelonDB
+   * Skips the write if the list already exists locally with identical data,
+   * preventing observer flicker from echo-back writes.
    */
   private async syncListToLocal(listId: string, firebaseData: any): Promise<void> {
     try {
-      const list: ShoppingList = {
+      const existingList = await LocalStorageManager.getList(listId);
+
+      const incomingList: ShoppingList = {
         id: listId,
         name: firebaseData.name || '',
         familyGroupId: firebaseData.familyGroupId || '',
@@ -166,7 +170,7 @@ class FirebaseSyncListener {
         completedBy: firebaseData.completedBy || null,
         receiptUrl: firebaseData.receiptUrl || null,
         receiptData: firebaseData.receiptData || null,
-        syncStatus: 'synced', // Mark as synced since it came from Firebase
+        syncStatus: 'synced',
         isLocked: firebaseData.isLocked || false,
         lockedBy: firebaseData.lockedBy || null,
         lockedByName: firebaseData.lockedByName || null,
@@ -177,11 +181,33 @@ class FirebaseSyncListener {
         archived: firebaseData.archived || false,
       };
 
-      // Save to local DB (will create or update)
-      await LocalStorageManager.saveList(list);
+      if (existingList && !this.hasListChanged(existingList, incomingList)) {
+        return;
+      }
+
+      await LocalStorageManager.saveList(incomingList);
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncListToLocal');
     }
+  }
+
+  /**
+   * Compare local and incoming list data to detect meaningful changes.
+   * Returns true if any user-visible field differs.
+   */
+  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
+    return (
+      local.name !== incoming.name ||
+      local.status !== incoming.status ||
+      local.isLocked !== incoming.isLocked ||
+      local.lockedBy !== incoming.lockedBy ||
+      local.completedAt !== incoming.completedAt ||
+      local.completedBy !== incoming.completedBy ||
+      local.budget !== incoming.budget ||
+      local.storeName !== incoming.storeName ||
+      local.archived !== incoming.archived ||
+      local.receiptUrl !== incoming.receiptUrl
+    );
   }
 
   /**
