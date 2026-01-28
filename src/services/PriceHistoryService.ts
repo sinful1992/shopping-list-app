@@ -90,8 +90,7 @@ class PriceHistoryService {
 
       // Sort by date (oldest first)
       return pricePoints.sort((a, b) => a.date - b.date);
-    } catch (error) {
-      console.error('Failed to get price history:', error);
+    } catch {
       return [];
     }
   }
@@ -141,8 +140,7 @@ class PriceHistoryService {
         trend,
         percentageChange,
       };
-    } catch (error) {
-      console.error('Failed to get price stats:', error);
+    } catch {
       return null;
     }
   }
@@ -180,8 +178,7 @@ class PriceHistoryService {
       });
 
       return result;
-    } catch (error) {
-      console.error('Failed to get price by store:', error);
+    } catch {
       return {};
     }
   }
@@ -237,8 +234,7 @@ class PriceHistoryService {
       return volatilityData
         .sort((a, b) => b.volatility - a.volatility)
         .slice(0, limit);
-    } catch (error) {
-      console.error('Failed to get volatile items:', error);
+    } catch {
       return [];
     }
   }
@@ -284,8 +280,7 @@ class PriceHistoryService {
         cheapest: sortedByPrice.slice(0, 5),
         mostExpensive: sortedByPrice.slice(-5).reverse(),
       };
-    } catch (error) {
-      console.error('Failed to get price extremes:', error);
+    } catch {
       return { cheapest: [], mostExpensive: [] };
     }
   }
@@ -353,8 +348,7 @@ class PriceHistoryService {
       });
 
       return suggestions;
-    } catch (error) {
-      console.error('Failed to get smart suggestions:', error);
+    } catch {
       return new Map();
     }
   }

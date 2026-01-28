@@ -56,8 +56,7 @@ class BudgetAlertService {
         weeklyLimit: null,
         enableAlerts: true,
       };
-    } catch (error) {
-      console.error('Error getting budget settings:', error);
+    } catch {
       return {
         monthlyLimit: null,
         weeklyLimit: null,
@@ -77,7 +76,6 @@ class BudgetAlertService {
       const key = `budget_settings_${familyGroupId}`;
       await AsyncStorage.setItem(key, JSON.stringify(settings));
     } catch (error) {
-      console.error('Error saving budget settings:', error);
       throw error;
     }
   }
@@ -157,8 +155,7 @@ class BudgetAlertService {
         message,
         exceeded,
       };
-    } catch (error) {
-      console.error('Error checking budget:', error);
+    } catch {
       return null;
     }
   }
@@ -246,7 +243,6 @@ class BudgetAlertService {
       const key = `budget_settings_${familyGroupId}`;
       await AsyncStorage.removeItem(key);
     } catch (error) {
-      console.error('Error clearing budget settings:', error);
       throw error;
     }
   }

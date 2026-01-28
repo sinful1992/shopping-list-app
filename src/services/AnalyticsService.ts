@@ -174,7 +174,6 @@ class AnalyticsService {
         categoryBreakdown,
       };
     } catch (error) {
-      console.error('Failed to get analytics summary:', error);
       throw error;
     }
   }
@@ -249,8 +248,7 @@ class AnalyticsService {
       }
 
       return { withinBudget, overBudget, noBudget };
-    } catch (error) {
-      console.error('Failed to get budget performance:', error);
+    } catch {
       return { withinBudget: 0, overBudget: 0, noBudget: 0 };
     }
   }
@@ -292,8 +290,7 @@ class AnalyticsService {
       });
 
       return { dayOfWeek, timeOfDay };
-    } catch (error) {
-      console.error('Failed to get shopping patterns:', error);
+    } catch {
       return { dayOfWeek: {}, timeOfDay: {} };
     }
   }

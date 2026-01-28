@@ -27,10 +27,6 @@ class PaymentService {
   private getApiKey(): string {
     const apiKey = REVENUECAT_ANDROID_API_KEY;
 
-    if (__DEV__) {
-      console.log(`🔑 RevenueCat API Key: ${apiKey ? 'SET' : 'NOT SET'}`);
-    }
-
     if (!apiKey) {
       throw new Error('REVENUECAT_ANDROID_API_KEY is not set in environment variables. Please configure it in .env file or GitHub Secrets.');
     }
@@ -65,9 +61,7 @@ class PaymentService {
       }
 
       this.initialized = true;
-      console.log('✅ RevenueCat initialized successfully');
     } catch (error) {
-      console.error('❌ Failed to initialize RevenueCat:', error);
       throw error;
     }
   }
@@ -80,7 +74,6 @@ class PaymentService {
       const offerings = await Purchases.getOfferings();
       return offerings.current;
     } catch (error) {
-      console.error('Failed to get offerings:', error);
       return null;
     }
   }
@@ -100,7 +93,6 @@ class PaymentService {
       if (error.userCancelled) {
         return { success: false, error: 'Purchase cancelled by user' };
       }
-      console.error('Purchase failed:', error);
       return { success: false, error: error.message || 'Purchase failed' };
     }
   }
@@ -117,7 +109,6 @@ class PaymentService {
       const customerInfo = await Purchases.restorePurchases();
       return { success: true, customerInfo };
     } catch (error: any) {
-      console.error('Restore purchases failed:', error);
       return { success: false, error: error.message || 'Restore failed' };
     }
   }
@@ -129,7 +120,6 @@ class PaymentService {
     try {
       return await Purchases.getCustomerInfo();
     } catch (error) {
-      console.error('Failed to get customer info:', error);
       return null;
     }
   }
@@ -180,9 +170,7 @@ class PaymentService {
     try {
       const tier = this.getSubscriptionTierFromCustomerInfo(customerInfo);
       await AuthenticationModule.upgradeSubscription(familyGroupId, tier as 'premium' | 'family');
-      console.log(`Synced subscription tier to Firebase: ${tier}`);
     } catch (error) {
-      console.error('Failed to sync subscription to Firebase:', error);
       throw error;
     }
   }
@@ -220,9 +208,8 @@ class PaymentService {
   async setUserID(userId: string): Promise<void> {
     try {
       await Purchases.logIn(userId);
-      console.log(`RevenueCat user ID set: ${userId}`);
     } catch (error) {
-      console.error('Failed to set RevenueCat user ID:', error);
+      // User ID setting failed - not critical
     }
   }
 
@@ -233,9 +220,8 @@ class PaymentService {
   async logout(): Promise<void> {
     try {
       await Purchases.logOut();
-      console.log('RevenueCat user logged out');
     } catch (error) {
-      console.error('Failed to logout from RevenueCat:', error);
+      // Logout failed - not critical
     }
   }
 
@@ -266,7 +252,6 @@ class PaymentService {
       // User cancelled or closed paywall
       return { success: false };
     } catch (error) {
-      console.error('Failed to present paywall:', error);
       return { success: false };
     }
   }
@@ -279,7 +264,6 @@ class PaymentService {
     try {
       await RevenueCatUI.presentCustomerCenter();
     } catch (error) {
-      console.error('Failed to present customer center:', error);
       throw error;
     }
   }

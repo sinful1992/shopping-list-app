@@ -30,8 +30,7 @@ class ReceiptCaptureModule {
         // iOS permissions are handled via Info.plist
         return true;
       }
-    } catch (error) {
-      console.error('Permission request error:', error);
+    } catch {
       return false;
     }
   }
@@ -50,8 +49,7 @@ class ReceiptCaptureModule {
         // For iOS, assume permission is granted if app is running
         return true;
       }
-    } catch (error) {
-      console.error('Permission check error:', error);
+    } catch {
       return false;
     }
   }

@@ -158,8 +158,8 @@ class HistoryTracker {
       if (list.receiptUrl) {
         try {
           receiptUrl = await ImageStorageManager.getReceiptDownloadUrl(list.receiptUrl);
-        } catch (error) {
-          console.error('Failed to get receipt URL:', error);
+        } catch {
+          // Receipt URL retrieval failed silently
         }
       }
 

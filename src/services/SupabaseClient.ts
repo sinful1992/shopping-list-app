@@ -5,9 +5,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
 const supabaseUrl = SUPABASE_URL || '';
 const supabaseAnonKey = SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase credentials not configured. Edge Functions will not work.');
-}
+// Supabase credentials validation happens at runtime
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 

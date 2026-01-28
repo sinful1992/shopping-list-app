@@ -57,7 +57,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
       setStats(priceStats);
       setPriceByStore(storeComparison);
     } catch (error) {
-      console.error('Failed to load price data:', error);
+      // Failed to load price data
     } finally {
       setLoading(false);
     }

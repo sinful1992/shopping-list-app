@@ -49,8 +49,8 @@ class PricePredictionService {
           return predictions;
         }
       }
-    } catch (error) {
-      console.error('Error reading price prediction cache:', error);
+    } catch {
+      // Cache read error, will recalculate
     }
 
     // Calculate fresh predictions
@@ -91,8 +91,7 @@ class PricePredictionService {
           if (items && Array.isArray(items)) {
             historicalItems.push(...items);
           }
-        } catch (error) {
-          console.error(`Error fetching items for list ${completedList.id}:`, error);
+        } catch {
           // Continue with other lists
         }
       }
@@ -127,8 +126,7 @@ class PricePredictionService {
       }
 
       return predictions;
-    } catch (error) {
-      console.error('Error calculating price predictions:', error);
+    } catch {
       return {}; // Return empty predictions on error
     }
   }
@@ -144,8 +142,7 @@ class PricePredictionService {
     try {
       const data = JSON.stringify({ predictions, timestamp });
       await AsyncStorage.setItem(this.STORAGE_KEY_PREFIX + familyGroupId, data);
-    } catch (error) {
-      console.error('Error persisting price predictions:', error);
+    } catch {
       // Non-critical error - predictions still work from memory
     }
   }
@@ -159,8 +156,8 @@ class PricePredictionService {
     this.cacheTimestamps.delete(familyGroupId);
 
     // Remove from AsyncStorage (non-blocking)
-    AsyncStorage.removeItem(this.STORAGE_KEY_PREFIX + familyGroupId).catch(error => {
-      console.error('Error removing price prediction cache:', error);
+    AsyncStorage.removeItem(this.STORAGE_KEY_PREFIX + familyGroupId).catch(() => {
+      // Silently handle cache removal error
     });
   }
 
@@ -189,8 +186,8 @@ class PricePredictionService {
    */
   async prefetchPredictions(familyGroupId: string): Promise<void> {
     // This triggers calculation and caching without blocking
-    this.getPredictionsForFamilyGroup(familyGroupId).catch(error => {
-      console.error('Error prefetching predictions:', error);
+    this.getPredictionsForFamilyGroup(familyGroupId).catch(() => {
+      // Prefetch error handled silently
     });
   }
 }

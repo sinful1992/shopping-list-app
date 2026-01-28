@@ -12,6 +12,7 @@ import {
   Unsubscribe,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import CrashReporting from './CrashReporting';
 
 /**
  * SyncEngine
@@ -34,7 +35,9 @@ class SyncEngine {
 
       // Auto-sync when coming back online
       if (wasOffline && this.isOnline) {
-        this.processOperationQueue().catch(console.error);
+        this.processOperationQueue().catch(error => {
+          CrashReporting.recordError(error as Error, 'SyncEngine auto-sync');
+        });
       }
     });
 
@@ -52,7 +55,9 @@ class SyncEngine {
 
     this.retryIntervalId = setInterval(() => {
       if (this.isOnline && !this.syncInProgress) {
-        this.processOperationQueue().catch(console.error);
+        this.processOperationQueue().catch(error => {
+          CrashReporting.recordError(error as Error, 'SyncEngine periodic retry');
+        });
       }
     }, this.RETRY_INTERVAL_MS);
   }
@@ -123,7 +128,7 @@ class SyncEngine {
           await LocalStorageManager.updateItem(entityId, { syncStatus: 'synced' });
         }
       } catch (error) {
-        console.error('Sync error:', error);
+        CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
         // Queue for later
         await this.queueOperation(entityType, entityId, operation, data);
       }
@@ -312,7 +317,6 @@ class SyncEngine {
       for (const operation of queue) {
         // Skip operations that are not ready to retry yet
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
-          console.log(`Skipping operation ${operation.id}, next retry at ${new Date(operation.nextRetryAt).toISOString()}`);
           continue;
         }
 
@@ -337,13 +341,13 @@ class SyncEngine {
             await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'synced' });
           }
         } catch (error) {
-          console.error('Failed to sync operation:', error);
+          CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);
 
           const maxRetries = 5;
           const newRetryCount = operation.retryCount + 1;
 
           if (newRetryCount >= maxRetries) {
-            console.error(`Max retries (${maxRetries}) reached for operation ${operation.id}, marking as failed`);
+            CrashReporting.log(`Max retries reached for sync operation ${operation.id}`);
             // Update sync status to 'failed'
             if (operation.entityType === 'list') {
               await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'failed' });
@@ -358,8 +362,6 @@ class SyncEngine {
             const exponentialDelay = baseDelay * Math.pow(2, newRetryCount - 1);
             const jitter = Math.random() * 1000; // 0-1000ms
             const nextRetryAt = now + exponentialDelay + jitter;
-
-            console.log(`Retry ${newRetryCount}/${maxRetries} for operation ${operation.id}, next retry in ${Math.round((exponentialDelay + jitter) / 1000)}s`);
 
             // Update retry count and next retry time
             await LocalStorageManager.updateSyncQueueOperation(operation.id, {

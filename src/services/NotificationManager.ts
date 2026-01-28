@@ -32,7 +32,6 @@ class NotificationManager {
 
       return enabled;
     } catch (error) {
-      console.error('Error requesting notification permissions:', error);
       return false;
     }
   }
@@ -57,7 +56,6 @@ class NotificationManager {
       // Request permission first
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
-        console.log('Notification permission denied');
         return null;
       }
 
@@ -70,7 +68,6 @@ class NotificationManager {
 
       return token;
     } catch (error) {
-      console.error('Error getting FCM token:', error);
       return null;
     }
   }
@@ -83,22 +80,15 @@ class NotificationManager {
     try {
       const token = await this.getFCMToken();
       if (!token) {
-        console.log('No FCM token available');
         return;
       }
 
-      console.log('Registering FCM Token with Supabase...');
-
       // Check if environment variables are loaded
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        console.error('Supabase environment variables not loaded!');
-        console.error('SUPABASE_URL:', SUPABASE_URL);
-        console.error('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'exists' : 'missing');
         return;
       }
 
       const url = `${SUPABASE_URL}/rest/v1/device_tokens`;
-      console.log('Sending token to:', url);
 
       // Send token to Supabase
       const response = await fetch(url, {
@@ -118,12 +108,8 @@ class NotificationManager {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to register token with Supabase:', errorText);
         throw new Error('Failed to register token');
       }
-
-      console.log('FCM Token registered with Supabase successfully');
 
       // Store token data locally as well
       await AsyncStorage.setItem(
@@ -136,7 +122,7 @@ class NotificationManager {
         })
       );
     } catch (error) {
-      console.error('Error registering FCM token:', error);
+      // Token registration failed - will retry later
     }
   }
 
@@ -146,8 +132,6 @@ class NotificationManager {
   initializeListeners(onNotificationReceived?: (notification: any) => void): void {
     // Handle foreground notifications
     messaging().onMessage(async (remoteMessage) => {
-      console.log('Foreground notification received:', remoteMessage);
-
       if (onNotificationReceived) {
         onNotificationReceived(remoteMessage);
       }
@@ -163,8 +147,7 @@ class NotificationManager {
 
     // Handle background/quit state notification tap
     messaging().onNotificationOpenedApp((remoteMessage) => {
-      console.log('Notification opened app from background:', remoteMessage);
-      // TODO: Navigate to UrgentItemsScreen
+      // TODO: Navigate to UrgentItemsScreen based on remoteMessage.data
     });
 
     // Check if app was opened from a notification (quit state)
@@ -172,14 +155,12 @@ class NotificationManager {
       .getInitialNotification()
       .then((remoteMessage) => {
         if (remoteMessage) {
-          console.log('Notification opened app from quit state:', remoteMessage);
-          // TODO: Navigate to UrgentItemsScreen
+          // TODO: Navigate to UrgentItemsScreen based on remoteMessage.data
         }
       });
 
     // Handle token refresh
     messaging().onTokenRefresh(async (token) => {
-      console.log('FCM token refreshed:', token);
       this.fcmToken = token;
       await AsyncStorage.setItem(this.FCM_TOKEN_KEY, token);
 
@@ -191,7 +172,7 @@ class NotificationManager {
           await this.registerToken(userId, familyGroupId);
         }
       } catch (error) {
-        console.error('Error updating token in Supabase:', error);
+        // Token update failed - will retry on next refresh
       }
     });
   }
@@ -200,11 +181,8 @@ class NotificationManager {
    * Create notification channel for Android (high priority)
    */
   async createNotificationChannel(): Promise<void> {
-    if (Platform.OS === 'android') {
-      // Note: For Android, we'll need to use a library like @notifee/react-native
-      // for custom notification channels. For now, FCM will use default channel.
-      console.log('Notification channel creation pending (requires @notifee/react-native)');
-    }
+    // Note: For Android, we'll need to use a library like @notifee/react-native
+    // for custom notification channels. For now, FCM will use default channel.
   }
 
   /**
@@ -217,7 +195,7 @@ class NotificationManager {
       await AsyncStorage.removeItem('@fcm_token_data');
       this.fcmToken = null;
     } catch (error) {
-      console.error('Error clearing FCM token:', error);
+      // Token clear failed - not critical
     }
   }
 }

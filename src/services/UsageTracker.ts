@@ -24,8 +24,7 @@ class UsageTracker {
 
       const idTokenResult = await currentUser.getIdTokenResult();
       return idTokenResult.claims.admin === true;
-    } catch (error) {
-      console.error('Error checking admin status:', error);
+    } catch {
       return false;
     }
   }
@@ -43,8 +42,7 @@ class UsageTracker {
       const groupSnapshot = await database().ref(`/familyGroups/${familyGroupId}`).once('value');
       const familyGroup: FamilyGroup | null = groupSnapshot.val();
       return familyGroup?.subscriptionTier || 'free';
-    } catch (error) {
-      console.error('Error fetching family subscription tier:', error);
+    } catch {
       return 'free';
     }
   }

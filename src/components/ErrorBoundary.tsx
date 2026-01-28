@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import CrashReporting from '../services/CrashReporting';
 
 interface Props {
   children: ReactNode;
@@ -27,8 +28,8 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    // TODO: Send to error reporting service (Sentry, etc.)
+    // Report to Firebase Crashlytics
+    CrashReporting.recordJSError(error, errorInfo.componentStack || undefined);
   }
 
   handleRetry = () => {

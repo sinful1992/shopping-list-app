@@ -127,8 +127,6 @@ class ImageStorageManager {
         // Remove from queue on success
         await this.removeFromQueue(upload.id);
       } catch (error: any) {
-        console.error('Upload failed:', error);
-
         if (upload.retryCount >= 5) {
           // Max retries reached, remove from queue
           errors.push({

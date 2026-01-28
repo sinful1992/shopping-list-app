@@ -57,7 +57,6 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
 
       setFrequentItems(sortedItems);
     } catch (error) {
-      console.error('Error loading frequent items:', error);
       setFrequentItems([]);
     } finally {
       setLoading(false);
@@ -70,7 +69,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
       await onAddItem(itemName);
       // Don't close modal - allow multiple additions
     } catch (error) {
-      console.error('Error adding item:', error);
+      // Failed to add item
     } finally {
       setAddingItemName(null);
     }

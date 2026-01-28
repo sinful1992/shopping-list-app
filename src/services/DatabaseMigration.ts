@@ -34,8 +34,8 @@ class DatabaseMigration {
    * Run all migrations for a family group
    * Currently no migrations required - fresh start
    */
-  async runAllMigrations(familyGroupId: string): Promise<void> {
-    console.log(`No migrations needed for family group: ${familyGroupId}`);
+  async runAllMigrations(_familyGroupId: string): Promise<void> {
+    // No migrations needed
   }
 }
 

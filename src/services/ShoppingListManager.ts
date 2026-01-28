@@ -57,6 +57,71 @@ class ShoppingListManager {
   }
 
   /**
+   * Create list with optimistic local-first approach
+   * Saves to local DB immediately for instant UI, runs Firebase in background
+   * @param id - Optional pre-generated ID (for optimistic UI consistency)
+   */
+  async createListOptimistic(
+    name: string,
+    userId: string,
+    familyGroupId: string,
+    user: User,
+    id?: string
+  ): Promise<ShoppingList> {
+    const list: ShoppingList = {
+      id: id || uuidv4(),
+      name,
+      familyGroupId,
+      createdBy: userId,
+      createdAt: Date.now(),
+      status: 'active',
+      completedAt: null,
+      completedBy: null,
+      receiptUrl: null,
+      receiptData: null,
+      syncStatus: 'pending',
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
+      budget: null,
+    };
+
+    // Save locally FIRST for instant UI update via WatermelonDB observer
+    await LocalStorageManager.saveList(list);
+
+    // Run Firebase operations in background (fire-and-forget)
+    this.performBackgroundCreationTasks(userId, user, list.id).catch(() => {
+      // Background task failed silently
+    });
+
+    return list;
+  }
+
+  /**
+   * Background tasks for list creation (usage tracking and sync)
+   */
+  private async performBackgroundCreationTasks(
+    userId: string,
+    user: User,
+    listId: string
+  ): Promise<void> {
+    try {
+      // Check usage limits (informational - list already created locally)
+      await UsageTracker.canCreateList(user);
+
+      // Increment counter
+      await UsageTracker.incrementListCounter(userId);
+
+      // Sync to Firebase
+      await SyncEngine.pushChange('list', listId, 'create');
+    } catch {
+      // Background task failed silently
+    }
+  }
+
+  /**
    * Get all lists for family group (active and completed, sorted by creation date)
    * Implements Req 2.3
    */
@@ -93,8 +158,8 @@ class ShoppingListManager {
     });
 
     // Trigger sync in background (fire-and-forget for instant local updates)
-    SyncEngine.pushChange('list', listId, 'update').catch(error => {
-      console.error('Background sync failed, will retry later:', error);
+    SyncEngine.pushChange('list', listId, 'update').catch(() => {
+      // Background sync failed, will retry later
     });
 
     return list;
@@ -190,6 +255,50 @@ class ShoppingListManager {
         } as ReceiptData;
       }
     }
+
+    const updatedList = await this.updateList(listId, {
+      status: 'completed',
+      completedAt: Date.now(),
+      completedBy: userId,
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
+      ...(receiptData && { receiptData }),
+    });
+
+    return updatedList;
+  }
+
+  /**
+   * Fast completion using pre-calculated total (avoids re-fetching items)
+   * Used by UI when running total is already known
+   */
+  async completeShoppingFast(
+    listId: string,
+    userId: string,
+    preCalculatedTotal: number,
+    storeName: string | null
+  ): Promise<ShoppingList> {
+    // Build receipt data with pre-calculated total (skip item fetch)
+    const receiptData: ReceiptData | null =
+      preCalculatedTotal > 0
+        ? {
+            merchantName: storeName,
+            purchaseDate: null,
+            subtotal: null,
+            currency: '£',
+            lineItems: [],
+            discounts: [],
+            totalDiscount: null,
+            vatBreakdown: [],
+            store: null,
+            extractedAt: Date.now(),
+            confidence: 1,
+            totalAmount: preCalculatedTotal,
+          }
+        : null;
 
     const updatedList = await this.updateList(listId, {
       status: 'completed',

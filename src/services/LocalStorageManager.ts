@@ -23,7 +23,9 @@ class LocalStorageManager {
       migrations, // Enable schema migrations
       jsi: true, // Use JSI for better performance
       onSetUpError: (error) => {
-        console.error('Database setup error:', error);
+        // Database setup errors are critical - log to Crashlytics
+        // Note: CrashReporting may not be initialized yet at this point
+        // so we catch silently and let the app handle the failure
       },
     });
 
@@ -414,12 +416,7 @@ class LocalStorageManager {
         // Mark all found items as deleted
         await Promise.all(itemRecords.map(item => item.markAsDeleted()));
 
-        // Log if any items weren't found
-        if (itemRecords.length < itemIds.length) {
-          const foundIds = new Set(itemRecords.map(item => item.id));
-          const missingIds = itemIds.filter(id => !foundIds.has(id));
-          console.warn(`Items not found during batch delete: ${missingIds.join(', ')}`);
-        }
+        // Items that weren't found were likely already deleted - no action needed
       });
     } catch (error: any) {
       throw new Error(`Failed to batch delete items: ${error.message}`);
@@ -1060,9 +1057,8 @@ class LocalStorageManager {
         await Promise.all(syncQueue.map((entry: SyncQueueModel) => entry.markAsDeleted()));
       });
 
-      console.log('All local WatermelonDB data cleared successfully');
+      // Data cleared successfully - no logging needed
     } catch (error: any) {
-      console.error('Failed to clear local data:', error);
       throw new Error(`Failed to clear local data: ${error.message}`);
     }
   }

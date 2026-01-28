@@ -44,8 +44,7 @@ class ArchiveService {
       }
 
       return listsToArchive.length;
-    } catch (error) {
-      console.error('Auto-archive failed:', error);
+    } catch {
       return 0;
     }
   }
@@ -64,8 +63,7 @@ class ArchiveService {
           const dateB = b.completedAt || 0;
           return dateB - dateA; // Most recent first
         });
-    } catch (error) {
-      console.error('Failed to get archived lists:', error);
+    } catch {
       return [];
     }
   }
@@ -84,8 +82,7 @@ class ArchiveService {
           const dateB = b.completedAt || 0;
           return dateB - dateA; // Most recent first
         });
-    } catch (error) {
-      console.error('Failed to get non-archived lists:', error);
+    } catch {
       return [];
     }
   }

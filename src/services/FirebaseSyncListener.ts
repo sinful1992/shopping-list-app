@@ -1,6 +1,7 @@
 import database from '@react-native-firebase/database';
 import { ShoppingList, Item, UrgentItem, CategoryHistory, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import CrashReporting from './CrashReporting';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -35,7 +36,7 @@ class FirebaseSyncListener {
         }
       }
     }).catch((error) => {
-      console.error('Error fetching initial lists:', error);
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener.startListeningToLists initial');
     });
 
     // Listen for new lists
@@ -70,7 +71,7 @@ class FirebaseSyncListener {
             syncStatus: 'synced',
           });
         } catch (error) {
-          console.error('Error syncing list deletion:', error);
+          CrashReporting.recordError(error as Error, 'FirebaseSyncListener list deletion');
         }
       }
     });
@@ -132,7 +133,7 @@ class FirebaseSyncListener {
         try {
           await LocalStorageManager.deleteItem(itemId);
         } catch (error) {
-          console.error('Error syncing item deletion:', error);
+          CrashReporting.recordError(error as Error, 'FirebaseSyncListener item deletion');
         }
       }
     });
@@ -179,7 +180,7 @@ class FirebaseSyncListener {
       // Save to local DB (will create or update)
       await LocalStorageManager.saveList(list);
     } catch (error) {
-      console.error('Error syncing list to local:', error);
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncListToLocal');
     }
   }
 
@@ -206,7 +207,7 @@ class FirebaseSyncListener {
       // Save to local DB (will create or update)
       await LocalStorageManager.saveItem(item);
     } catch (error) {
-      console.error('Error syncing item to local:', error);
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncItemToLocal');
     }
   }
 
@@ -281,7 +282,7 @@ class FirebaseSyncListener {
         try {
           await LocalStorageManager.deleteUrgentItem(itemId);
         } catch (error) {
-          console.error('Error syncing urgent item deletion:', error);
+          CrashReporting.recordError(error as Error, 'FirebaseSyncListener urgent item deletion');
         }
       }
     });
@@ -321,7 +322,7 @@ class FirebaseSyncListener {
       // Save to local DB (will create or update)
       await LocalStorageManager.saveUrgentItem(urgentItem);
     } catch (error) {
-      console.error('Error syncing urgent item to local:', error);
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncUrgentItemToLocal');
     }
   }
 
@@ -363,7 +364,7 @@ class FirebaseSyncListener {
         }
       }
     }).catch((error) => {
-      console.error('Error fetching initial category history:', error);
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener categoryHistory initial');
     });
 
     // Listen for new/updated category history
@@ -441,7 +442,7 @@ class FirebaseSyncListener {
         await LocalStorageManager.saveCategoryHistory(categoryHistory);
       }
     } catch (error) {
-      console.error('Error syncing category history to local:', error);
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncCategoryHistoryToLocal');
     }
   }
 

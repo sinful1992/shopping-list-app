@@ -41,8 +41,7 @@ class StoreHistoryService {
       });
 
       return sorted.map(entry => entry.name);
-    } catch (error) {
-      console.error('Failed to get store history:', error);
+    } catch {
       return [];
     }
   }
@@ -92,8 +91,8 @@ class StoreHistoryService {
       }
 
       await AsyncStorage.setItem(this.STORAGE_KEY, JSON.stringify(history));
-    } catch (error) {
-      console.error('Failed to add store to history:', error);
+    } catch {
+      // Silently handle store history update error
     }
   }
 
@@ -113,8 +112,7 @@ class StoreHistoryService {
       return allStores.filter(store =>
         store.toLowerCase().includes(lowerQuery)
       );
-    } catch (error) {
-      console.error('Failed to search stores:', error);
+    } catch {
       return [];
     }
   }
@@ -125,8 +123,8 @@ class StoreHistoryService {
   async clearHistory(): Promise<void> {
     try {
       await AsyncStorage.removeItem(this.STORAGE_KEY);
-    } catch (error) {
-      console.error('Failed to clear store history:', error);
+    } catch {
+      // Silently handle clear history error
     }
   }
 }

@@ -80,8 +80,7 @@ class SearchService {
         const dateB = b.completedAt || 0;
         return dateB - dateA;
       });
-    } catch (error) {
-      console.error('Search failed:', error);
+    } catch {
       return [];
     }
   }

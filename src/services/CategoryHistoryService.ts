@@ -51,8 +51,7 @@ class CategoryHistoryService {
 
       // Sync to Firebase
       await this.syncCategoryToFirebase(familyGroupId, normalized, category);
-    } catch (error: any) {
-      console.error('Failed to record category usage:', error);
+    } catch {
       // Don't throw - this is a background operation that shouldn't break the main flow
     }
   }
@@ -88,8 +87,7 @@ class CategoryHistoryService {
           lastUsedAt: Date.now(),
         };
       });
-    } catch (error: any) {
-      console.error('Failed to sync category to Firebase:', error);
+    } catch {
       // Don't throw - offline changes will be synced when connection is restored
     }
   }
@@ -139,8 +137,7 @@ class CategoryHistoryService {
           }
           return b.lastUsedAt - a.lastUsedAt;
         });
-    } catch (error: any) {
-      console.error('Failed to get categories for item:', error);
+    } catch {
       return [];
     }
   }
@@ -180,7 +177,6 @@ class CategoryHistoryService {
         await LocalStorageManager.deleteCategoryHistory(record.id);
       }
     } catch (error: any) {
-      console.error('Failed to clear history for item:', error);
       throw error;
     }
   }

@@ -34,10 +34,7 @@ class UrgentItemManager {
         price: urgentItem.price,
         status: urgentItem.status,
       });
-
-      console.log('Urgent item synced to Firebase successfully');
     } catch (error) {
-      console.error('Error syncing urgent item to Firebase:', error);
       throw error;
     }
   }
@@ -49,9 +46,8 @@ class UrgentItemManager {
     try {
       const urgentItemRef = database().ref(`urgentItems/${familyGroupId}/${urgentItemId}`);
       await urgentItemRef.remove();
-      console.log('Urgent item removed from Firebase successfully');
-    } catch (error) {
-      console.error('Error removing urgent item from Firebase:', error);
+    } catch {
+      // Silently handle removal error
     }
   }
 
@@ -62,14 +58,10 @@ class UrgentItemManager {
     try {
       // Check if environment variables are loaded
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        console.error('Supabase environment variables not loaded!');
-        console.error('SUPABASE_URL:', SUPABASE_URL);
-        console.error('SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? 'exists' : 'missing');
         throw new Error('Supabase configuration missing');
       }
 
       const url = `${SUPABASE_URL}/rest/v1/urgent_items`;
-      console.log('Syncing urgent item to Supabase:', url);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -95,11 +87,7 @@ class UrgentItemManager {
         })
       });
 
-      console.log('Supabase response status:', response.status);
-
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to sync urgent item to Supabase:', errorText);
         throw new Error('Failed to sync urgent item');
       }
 
@@ -107,10 +95,7 @@ class UrgentItemManager {
       await LocalStorageManager.updateUrgentItem(urgentItem.id, {
         syncStatus: 'synced'
       });
-
-      console.log('Urgent item synced to Supabase successfully');
     } catch (error) {
-      console.error('Error syncing urgent item to Supabase:', error);
       // Update local sync status to failed
       await LocalStorageManager.updateUrgentItem(urgentItem.id, {
         syncStatus: 'failed'
@@ -161,15 +146,14 @@ class UrgentItemManager {
     // 1. Sync to Firebase (for real-time sync)
     try {
       await this.syncToFirebase(urgentItem);
-    } catch (error) {
-      console.error('Failed to sync urgent item to Firebase:', error);
+    } catch {
+      // Firebase sync failed silently
     }
 
     // 2. Sync to Supabase (for push notifications via Edge Function)
     try {
       await this.syncToSupabase(urgentItem);
-    } catch (error) {
-      console.error('Failed to sync urgent item to Supabase, will retry later:', error);
+    } catch {
       // Item is still saved locally, can retry later
     }
 
@@ -235,15 +219,15 @@ class UrgentItemManager {
     // 1. Sync to Firebase (for real-time sync)
     try {
       await this.syncToFirebase(urgentItem);
-    } catch (error) {
-      console.error('Failed to sync resolved urgent item to Firebase:', error);
+    } catch {
+      // Firebase sync failed silently
     }
 
     // 2. Sync to Supabase (for push notifications)
     try {
       await this.syncToSupabase(urgentItem);
-    } catch (error) {
-      console.error('Failed to sync resolved urgent item to Supabase, will retry later:', error);
+    } catch {
+      // Supabase sync failed, will retry later
     }
 
     return urgentItem;
@@ -273,8 +257,8 @@ class UrgentItemManager {
     // Delete from Firebase
     try {
       await this.deleteFromFirebase(itemId, familyGroupId);
-    } catch (error) {
-      console.error('Failed to delete urgent item from Firebase:', error);
+    } catch {
+      // Firebase deletion failed silently
     }
 
     // Trigger sync for delete operation (for Supabase)

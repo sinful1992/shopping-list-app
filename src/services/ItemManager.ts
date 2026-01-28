@@ -3,6 +3,7 @@ import { Item, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
+import CrashReporting from './CrashReporting';
 
 /**
  * ItemManager
@@ -57,7 +58,7 @@ class ItemManager {
 
     // Trigger sync in background (fire-and-forget for instant local updates)
     SyncEngine.pushChange('item', itemId, 'update').catch(error => {
-      console.error('Background sync failed, will retry later:', error);
+      CrashReporting.recordError(error as Error, 'ItemManager.updateItem sync');
     });
 
     return item;
@@ -93,7 +94,7 @@ class ItemManager {
           );
         }
       }).catch(error => {
-        console.error('Failed to record category history:', error);
+        CrashReporting.recordError(error as Error, 'ItemManager.toggleItemChecked categoryHistory');
         // Don't throw - this is a background operation
       });
     }

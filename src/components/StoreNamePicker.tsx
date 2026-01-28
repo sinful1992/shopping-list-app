@@ -48,7 +48,7 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
       setSuggestions(stores);
       setShowSuggestions(true);
     } catch (error) {
-      console.error('Failed to load suggestions:', error);
+      // Failed to load suggestions
     }
   };
 
