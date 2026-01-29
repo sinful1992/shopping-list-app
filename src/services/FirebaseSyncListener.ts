@@ -212,9 +212,13 @@ class FirebaseSyncListener {
 
   /**
    * Sync an item from Firebase to local WatermelonDB
+   * Skips the write if the item already exists locally with identical data,
+   * preventing observer flicker from echo-back writes.
    */
   private async syncItemToLocal(listId: string, itemId: string, firebaseData: any): Promise<void> {
     try {
+      const existingItem = await LocalStorageManager.getItem(itemId);
+
       const item: Item = {
         id: itemId,
         listId: listId,
@@ -225,16 +229,34 @@ class FirebaseSyncListener {
         createdBy: firebaseData.createdBy || '',
         createdAt: firebaseData.createdAt || Date.now(),
         updatedAt: firebaseData.updatedAt || Date.now(),
-        syncStatus: 'synced', // Mark as synced since it came from Firebase
+        syncStatus: 'synced',
         category: firebaseData.category || null,
         sortOrder: firebaseData.sortOrder || null,
       };
 
-      // Save to local DB (will create or update)
+      if (existingItem && !this.hasItemChanged(existingItem, item)) {
+        return;
+      }
+
       await LocalStorageManager.saveItem(item);
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncItemToLocal');
     }
+  }
+
+  /**
+   * Compare local and incoming item data to detect meaningful changes.
+   * Returns true if any user-visible field differs.
+   */
+  private hasItemChanged(local: Item, incoming: Item): boolean {
+    return (
+      local.name !== incoming.name ||
+      local.quantity !== incoming.quantity ||
+      local.price !== incoming.price ||
+      local.checked !== incoming.checked ||
+      local.category !== incoming.category ||
+      local.sortOrder !== incoming.sortOrder
+    );
   }
 
   /**
@@ -327,9 +349,13 @@ class FirebaseSyncListener {
 
   /**
    * Sync an urgent item from Firebase to local WatermelonDB
+   * Skips the write if the item already exists locally with identical data,
+   * preventing observer flicker from echo-back writes.
    */
   private async syncUrgentItemToLocal(familyGroupId: string, itemId: string, firebaseData: any): Promise<void> {
     try {
+      const existingItem = await LocalStorageManager.getUrgentItem(itemId);
+
       const urgentItem: UrgentItem = {
         id: itemId,
         name: firebaseData.name || '',
@@ -342,14 +368,32 @@ class FirebaseSyncListener {
         resolvedAt: firebaseData.resolvedAt || null,
         price: firebaseData.price || null,
         status: firebaseData.status || 'active',
-        syncStatus: 'synced', // Mark as synced since it came from Firebase
+        syncStatus: 'synced',
       };
 
-      // Save to local DB (will create or update)
+      if (existingItem && !this.hasUrgentItemChanged(existingItem, urgentItem)) {
+        return;
+      }
+
       await LocalStorageManager.saveUrgentItem(urgentItem);
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncUrgentItemToLocal');
     }
+  }
+
+  /**
+   * Compare local and incoming urgent item data to detect meaningful changes.
+   * Returns true if any user-visible field differs.
+   */
+  private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
+    return (
+      local.name !== incoming.name ||
+      local.status !== incoming.status ||
+      local.resolvedBy !== incoming.resolvedBy ||
+      local.resolvedByName !== incoming.resolvedByName ||
+      local.resolvedAt !== incoming.resolvedAt ||
+      local.price !== incoming.price
+    );
   }
 
   /**
