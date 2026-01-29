@@ -161,13 +161,6 @@ class UrgentItemManager {
   }
 
   /**
-   * Get urgent item by ID
-   */
-  async getUrgentItemById(itemId: string): Promise<UrgentItem | null> {
-    return await LocalStorageManager.getUrgentItem(itemId);
-  }
-
-  /**
    * Get active urgent items for family group
    */
   async getActiveUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
@@ -183,13 +176,6 @@ class UrgentItemManager {
     endDate?: number
   ): Promise<UrgentItem[]> {
     return await LocalStorageManager.getResolvedUrgentItems(familyGroupId, startDate, endDate);
-  }
-
-  /**
-   * Get all urgent items (active and resolved)
-   */
-  async getAllUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
-    return await LocalStorageManager.getAllUrgentItems(familyGroupId);
   }
 
   /**
