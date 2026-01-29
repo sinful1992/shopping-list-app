@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,90 +10,25 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
-import { useNavigation } from '@react-navigation/native';
-import AuthenticationModule from '../../services/AuthenticationModule';
-import UrgentItemManager from '../../services/UrgentItemManager';
-import FirebaseSyncListener from '../../services/FirebaseSyncListener';
-import { UrgentItem, User } from '../../models/types';
+import { UrgentItem } from '../../models/types';
+import { useUrgentItems } from '../../hooks';
 
 /**
  * UrgentItemsScreen
  * Display and manage standalone urgent items
  */
 const UrgentItemsScreen = () => {
-  const navigation = useNavigation();
   const { showAlert } = useAlert();
-  const [user, setUser] = useState<User | null>(null);
-  const [activeItems, setActiveItems] = useState<UrgentItem[]>([]);
-  const [resolvedItems, setResolvedItems] = useState<UrgentItem[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Use custom hook for urgent items management
+  const { activeItems, resolvedItems, loading, createItem, resolveItem, formatTimeAgo } = useUrgentItems();
+
+  // UI state only
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState<UrgentItem | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [resolvePrice, setResolvePrice] = useState('');
-
-  useEffect(() => {
-    const unsubscribeAuth = AuthenticationModule.onAuthStateChanged((currentUser) => {
-      setUser(currentUser);
-      if (currentUser?.familyGroupId) {
-        loadUrgentItems(currentUser.familyGroupId);
-      }
-    });
-
-    return unsubscribeAuth;
-  }, []);
-
-  // Subscribe to real-time urgent items updates using Firebase
-  useEffect(() => {
-    if (!user?.familyGroupId) return;
-
-    // Step 1: Start listening to Firebase for remote changes
-    // When Firebase data changes, it will update local WatermelonDB
-    const unsubscribeFirebase = FirebaseSyncListener.startListeningToUrgentItems(
-      user.familyGroupId
-    );
-
-    // Step 2: Subscribe to local WatermelonDB changes (triggered by Firebase or local edits)
-    // This gives us instant UI updates without polling
-    const unsubscribeActiveItems = UrgentItemManager.subscribeToUrgentItems(
-      user.familyGroupId,
-      (updatedItems) => {
-        setActiveItems(updatedItems);
-      }
-    );
-
-    // Step 3: Subscribe to resolved items changes
-    // This ensures resolved items appear instantly when an item is completed
-    const unsubscribeResolvedItems = UrgentItemManager.subscribeToResolvedUrgentItems(
-      user.familyGroupId,
-      (updatedItems) => {
-        setResolvedItems(updatedItems);
-      }
-    );
-
-    return () => {
-      unsubscribeFirebase();
-      unsubscribeActiveItems();
-      unsubscribeResolvedItems();
-    };
-  }, [user?.familyGroupId]);
-
-  const loadUrgentItems = async (familyGroupId: string) => {
-    try {
-      setLoading(true);
-      const [active, resolved] = await Promise.all([
-        UrgentItemManager.getActiveUrgentItems(familyGroupId),
-        UrgentItemManager.getResolvedUrgentItems(familyGroupId),
-      ]);
-      setActiveItems(active);
-      setResolvedItems(resolved);
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateItem = async () => {
     if (!newItemName.trim()) {
@@ -101,23 +36,10 @@ const UrgentItemsScreen = () => {
       return;
     }
 
-    if (!user || !user.familyGroupId) {
-      showAlert('Error', 'User not authenticated', undefined, { icon: 'error' });
-      return;
-    }
-
     try {
-      await UrgentItemManager.createUrgentItem(
-        newItemName.trim(),
-        user.uid,
-        user.displayName || 'Unknown',
-        user.familyGroupId,
-        user
-      );
-
+      await createItem(newItemName.trim());
       setNewItemName('');
       setShowCreateModal(false);
-      // WatermelonDB observer will automatically update the UI
       showAlert('Success', 'Urgent item created and family notified!', undefined, { icon: 'success' });
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
@@ -131,7 +53,7 @@ const UrgentItemsScreen = () => {
   };
 
   const confirmResolveItem = async () => {
-    if (!selectedItem || !user) {
+    if (!selectedItem) {
       return;
     }
 
@@ -143,34 +65,14 @@ const UrgentItemsScreen = () => {
         return;
       }
 
-      await UrgentItemManager.resolveUrgentItem(
-        selectedItem.id,
-        user.uid,
-        user.displayName || 'Unknown',
-        price
-      );
-
+      await resolveItem(selectedItem.id, price);
       setShowResolveModal(false);
       setSelectedItem(null);
       setResolvePrice('');
-      // WatermelonDB observer will automatically update the UI
       showAlert('Success', 'Urgent item marked as resolved!', undefined, { icon: 'success' });
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     }
-  };
-
-  const formatTimeAgo = (timestamp: number): string => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
   };
 
   if (loading) {

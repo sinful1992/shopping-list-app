@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,30 +10,13 @@ import {
   TextInput,
   Modal,
   Switch,
+  Linking,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import database from '@react-native-firebase/database';
 import Icon from 'react-native-vector-icons/Ionicons';
-import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
-import { User, FamilyGroup, FamilyRole } from '../../models/types';
+import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../legal';
-import { Linking } from 'react-native';
-
-// Role to avatar mapping
-const getRoleAvatar = (role: FamilyRole): string => {
-  const avatars: Record<FamilyRole, string> = {
-    'Dad': '👨',
-    'Mom': '👩',
-    'Son': '👦',
-    'Daughter': '👧',
-    'Older Son': '🧑',
-    'Older Daughter': '👩‍🦰',
-    'Younger Son': '👶',
-    'Younger Daughter': '👧🏻',
-  };
-  return avatars[role] || '👤';
-};
+import { useSettings } from '../../hooks';
 
 /**
  * SettingsScreen
@@ -42,142 +25,41 @@ const getRoleAvatar = (role: FamilyRole): string => {
  */
 const SettingsScreen = () => {
   const { showAlert } = useAlert();
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [familyGroup, setFamilyGroup] = useState<FamilyGroup | null>(null);
-  const [familyMembers, setFamilyMembers] = useState<User[]>([]);
-  const [invitationCode, setInvitationCode] = useState<string | null>(null);
+
+  // Use custom hook for settings management
+  const {
+    loading,
+    user,
+    familyGroup,
+    familyMembers,
+    invitationCode,
+    hapticFeedbackEnabled,
+    availableRoles,
+    getRoleAvatar,
+    toggleHapticFeedback: toggleHapticFeedbackHook,
+    updateName,
+    updateRole,
+    logout,
+    deleteAccount,
+    retryLoadInvitationCode,
+  } = useSettings();
+
+  // UI state only
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<FamilyRole | null>(null);
-  const [hapticFeedbackEnabled, setHapticFeedbackEnabled] = useState(false);
 
-  const availableRoles: FamilyRole[] = [
-    'Dad',
-    'Mom',
-    'Son',
-    'Daughter',
-    'Older Son',
-    'Older Daughter',
-    'Younger Son',
-    'Younger Daughter',
-  ];
-
-  useEffect(() => {
-    loadSettingsData();
-    loadHapticFeedbackSetting();
-  }, []);
-
-  const loadHapticFeedbackSetting = async () => {
+  const handleToggleHapticFeedback = async (value: boolean) => {
     try {
-      const value = await AsyncStorage.getItem('hapticFeedbackEnabled');
-      if (value !== null) {
-        setHapticFeedbackEnabled(value === 'true');
-      }
-    } catch (error) {
-      // Failed to load setting - use default
-    }
-  };
-
-  const toggleHapticFeedback = async (value: boolean) => {
-    try {
-      await AsyncStorage.setItem('hapticFeedbackEnabled', value.toString());
-      setHapticFeedbackEnabled(value);
-    } catch (error) {
+      await toggleHapticFeedbackHook(value);
+    } catch {
       showAlert('Error', 'Failed to save setting', undefined, { icon: 'error' });
     }
   };
 
-  const loadSettingsData = async () => {
-    try {
-      setLoading(true);
-
-      // Get current user
-      const currentUser = await AuthenticationModule.getCurrentUser();
-      if (!currentUser) {
-        showAlert('Error', 'User not authenticated', undefined, { icon: 'error' });
-        return;
-      }
-      setUser(currentUser);
-
-      // Get family group
-      if (currentUser.familyGroupId) {
-        const group = await AuthenticationModule.getUserFamilyGroup(currentUser.uid);
-        setFamilyGroup(group);
-
-        // Fetch invitation code from /invitations table
-        if (group) {
-          await fetchInvitationCode(currentUser.familyGroupId);
-        }
-
-        // Get family members
-        if (group && group.memberIds) {
-          const memberIdsList = Object.keys(group.memberIds);
-          const members = await loadFamilyMembers(memberIdsList);
-          setFamilyMembers(members);
-        }
-      }
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadFamilyMembers = async (memberIds: string[]): Promise<User[]> => {
-    try {
-      if (memberIds.length === 0) return [];
-
-      // Parallel fetch all users instead of sequential N+1 queries
-      const snapshots = await Promise.all(
-        memberIds.map(id => database().ref(`/users/${id}`).once('value'))
-      );
-
-      return snapshots
-        .map(snap => snap.val())
-        .filter(Boolean);
-    } catch (error: any) {
-      throw new Error(`Failed to load family members: ${error.message}`);
-    }
-  };
-
-  const fetchInvitationCode = async (familyGroupId: string) => {
-    try {
-      // Query /invitations to find code for this groupId
-      const invitationsSnapshot = await database()
-        .ref('/invitations')
-        .orderByChild('groupId')
-        .equalTo(familyGroupId)
-        .once('value');
-
-      if (invitationsSnapshot.exists()) {
-        const invitations = invitationsSnapshot.val();
-        const code = Object.keys(invitations)[0]; // First key is the invitation code
-        setInvitationCode(code);
-      } else {
-        // No invitation found - this shouldn't happen but handle gracefully
-        setInvitationCode('NOT_FOUND');
-        showAlert(
-          'Invitation Code Not Found',
-          'Could not retrieve the invitation code. Please contact support if this persists.',
-          undefined,
-          { icon: 'warning' }
-        );
-      }
-    } catch (error: any) {
-      setInvitationCode('ERROR');
-      showAlert(
-        'Error Loading Invitation Code',
-        `Failed to load invitation code: ${error.message || 'Unknown error'}. Please try again later.`,
-        undefined,
-        { icon: 'error' }
-      );
-    }
-  };
-
   const handleCopyInvitationCode = () => {
-    if (invitationCode) {
+    if (invitationCode && invitationCode !== 'ERROR' && invitationCode !== 'NOT_FOUND') {
       Clipboard.setString(invitationCode);
       showAlert('Success', 'Invitation code copied to clipboard', undefined, { icon: 'success' });
     }
@@ -194,24 +76,10 @@ const SettingsScreen = () => {
       return;
     }
 
-    if (!user) return;
-
     try {
-      // Update in Firebase Auth
-      const firebaseUser = await AuthenticationModule.getCurrentFirebaseUser();
-      if (firebaseUser) {
-        await firebaseUser.updateProfile({ displayName: newName.trim() });
-      }
-
-      // Update in Realtime Database
-      await database().ref(`/users/${user.uid}`).update({ displayName: newName.trim() });
-
-      // Update local state
-      setUser({ ...user, displayName: newName.trim() });
+      await updateName(newName.trim());
       setShowEditNameModal(false);
-
       showAlert('Success', 'Name updated successfully', undefined, { icon: 'success' });
-      // No reload needed - local state already updated
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     }
@@ -228,23 +96,10 @@ const SettingsScreen = () => {
       return;
     }
 
-    if (!user) return;
-
     try {
-      const avatar = getRoleAvatar(selectedRole);
-
-      // Update in Realtime Database
-      await database().ref(`/users/${user.uid}`).update({
-        role: selectedRole,
-        avatar: avatar,
-      });
-
-      // Update local state
-      setUser({ ...user, role: selectedRole, avatar });
+      await updateRole(selectedRole);
       setShowRoleModal(false);
-
       showAlert('Success', 'Role updated successfully', undefined, { icon: 'success' });
-      // No reload needed - local state already updated
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     }
@@ -261,7 +116,7 @@ const SettingsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AuthenticationModule.signOut();
+              await logout();
             } catch (error: any) {
               showAlert('Error', error.message, undefined, { icon: 'error' });
             }
@@ -293,12 +148,9 @@ const SettingsScreen = () => {
                   style: 'destructive',
                   onPress: async () => {
                     try {
-                      setLoading(true);
-                      await AuthenticationModule.deleteUserAccount();
-                      // User is automatically signed out after deletion
+                      await deleteAccount();
                       showAlert('Success', 'Account deleted successfully', undefined, { icon: 'success' });
                     } catch (error: any) {
-                      setLoading(false);
                       showAlert('Error', `Failed to delete account: ${error.message}`, undefined, { icon: 'error' });
                     }
                   },
@@ -378,7 +230,7 @@ const SettingsScreen = () => {
           </View>
           <Switch
             value={hapticFeedbackEnabled}
-            onValueChange={toggleHapticFeedback}
+            onValueChange={handleToggleHapticFeedback}
             trackColor={{ false: '#3A3A3C', true: '#34C759' }}
             thumbColor={hapticFeedbackEnabled ? '#ffffff' : '#f4f3f4'}
             ios_backgroundColor="#3A3A3C"
@@ -413,9 +265,7 @@ const SettingsScreen = () => {
                   onPress={() => {
                     if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
                       // Retry loading
-                      if (user?.familyGroupId) {
-                        fetchInvitationCode(user.familyGroupId);
-                      }
+                      retryLoadInvitationCode();
                     } else {
                       handleCopyInvitationCode();
                     }

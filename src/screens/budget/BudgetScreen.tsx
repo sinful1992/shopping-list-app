@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,10 @@ import {
   TextInput,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
-import BudgetTracker from '../../services/BudgetTracker';
-import BudgetAlertService, { BudgetAlert, BudgetSettings } from '../../services/BudgetAlertService';
-import AuthenticationModule from '../../services/AuthenticationModule';
-import {
-  ExpenditureSummary,
-  ExpenditureBreakdownItem,
-  User,
-} from '../../models/types';
+import BudgetAlertService from '../../services/BudgetAlertService';
+import { ExpenditureBreakdownItem } from '../../models/types';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import { useBudgetData } from '../../hooks';
 
 /**
  * BudgetScreen
@@ -26,197 +21,46 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme
  */
 const BudgetScreen = () => {
   const { showAlert } = useAlert();
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState<ExpenditureSummary | null>(null);
-  const [breakdown, setBreakdown] = useState<ExpenditureBreakdownItem[]>([]);
-  const [user, setUser] = useState<User | null>(null);
 
-  // Date range state (default: last 30 days)
-  const [dateRange, setDateRange] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
-  const [filterUserId, setFilterUserId] = useState<string | null>(null);
+  // Use custom hook for budget data management
+  const {
+    loading,
+    summary,
+    breakdown,
+    dateRange,
+    setDateRange,
+    filterUserId,
+    toggleFilter,
+    budgetSettings,
+    saveBudgetSettings: saveBudgetSettingsHook,
+    monthlyAlert,
+    weeklyAlert,
+    getDateRangeLabel,
+    getBudgetProgress,
+  } = useBudgetData();
 
-  // Budget settings state
-  const [budgetSettings, setBudgetSettings] = useState<BudgetSettings>({
-    monthlyLimit: null,
-    weeklyLimit: null,
-    enableAlerts: true,
-  });
-  const [monthlyLimitInput, setMonthlyLimitInput] = useState('');
-  const [weeklyLimitInput, setWeeklyLimitInput] = useState('');
+  // UI state only
+  const [monthlyLimitInput, setMonthlyLimitInput] = useState(budgetSettings.monthlyLimit?.toString() || '');
+  const [weeklyLimitInput, setWeeklyLimitInput] = useState(budgetSettings.weeklyLimit?.toString() || '');
   const [showBudgetConfig, setShowBudgetConfig] = useState(false);
 
-  // Budget alert state
-  const [monthlyAlert, setMonthlyAlert] = useState<BudgetAlert | null>(null);
-  const [weeklyAlert, setWeeklyAlert] = useState<BudgetAlert | null>(null);
-
-  useEffect(() => {
-    loadUser();
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      loadBudgetData();
-    }
-  }, [user, dateRange, filterUserId]);
-
-  const loadUser = async () => {
+  const handleSaveBudgetSettings = async () => {
     try {
-      const currentUser = await AuthenticationModule.getCurrentUser();
-      setUser(currentUser);
-      if (currentUser?.familyGroupId) {
-        await loadBudgetSettings(currentUser.familyGroupId);
-      }
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
-    }
-  };
-
-  const loadBudgetSettings = async (familyGroupId: string) => {
-    try {
-      const settings = await BudgetAlertService.getBudgetSettings(familyGroupId);
-      setBudgetSettings(settings);
-      setMonthlyLimitInput(settings.monthlyLimit?.toString() || '');
-      setWeeklyLimitInput(settings.weeklyLimit?.toString() || '');
-
-      // Check budget alerts
-      const [monthly, weekly] = await Promise.all([
-        BudgetAlertService.checkBudget(familyGroupId, 'monthly'),
-        BudgetAlertService.checkBudget(familyGroupId, 'weekly'),
-      ]);
-      setMonthlyAlert(monthly);
-      setWeeklyAlert(weekly);
-    } catch (error) {
-      // Failed to load budget settings
-    }
-  };
-
-  const saveBudgetSettings = async () => {
-    if (!user?.familyGroupId) return;
-
-    try {
-      const settings: BudgetSettings = {
+      await saveBudgetSettingsHook({
         monthlyLimit: monthlyLimitInput ? parseFloat(monthlyLimitInput) : null,
         weeklyLimit: weeklyLimitInput ? parseFloat(weeklyLimitInput) : null,
         enableAlerts: budgetSettings.enableAlerts,
-      };
-
-      await BudgetAlertService.saveBudgetSettings(user.familyGroupId, settings);
-      setBudgetSettings(settings);
+      });
       setShowBudgetConfig(false);
-
-      // Refresh alerts
-      const [monthly, weekly] = await Promise.all([
-        BudgetAlertService.checkBudget(user.familyGroupId, 'monthly'),
-        BudgetAlertService.checkBudget(user.familyGroupId, 'weekly'),
-      ]);
-      setMonthlyAlert(monthly);
-      setWeeklyAlert(weekly);
-
       showAlert('Success', 'Budget limits saved', undefined, { icon: 'success' });
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     }
   };
 
-  const getBudgetProgress = (spent: number, limit: number): number => {
-    if (limit <= 0) return 0;
-    return Math.min((spent / limit) * 100, 100);
-  };
-
-  const getAlertColor = (alert: BudgetAlert | null): string => {
+  const getAlertColor = (alert: { level: string } | null): string => {
     if (!alert) return COLORS.accent.green;
     return BudgetAlertService.getAlertColor(alert.level);
-  };
-
-  const loadBudgetData = async () => {
-    if (!user?.familyGroupId) return;
-
-    try {
-      setLoading(true);
-
-      const { startDate, endDate } = getDateRangeTimestamps(dateRange);
-
-      // Get summary
-      const summaryData = filterUserId
-        ? await BudgetTracker.getExpenditureByMember(
-            user.familyGroupId,
-            startDate,
-            endDate,
-            filterUserId
-          )
-        : await BudgetTracker.calculateExpenditureForDateRange(
-            user.familyGroupId,
-            startDate,
-            endDate
-          );
-
-      setSummary(summaryData);
-
-      // Get breakdown
-      const breakdownData = await BudgetTracker.getExpenditureBreakdown(
-        user.familyGroupId,
-        startDate,
-        endDate
-      );
-
-      // Filter by user if selected
-      const filteredBreakdown = filterUserId
-        ? breakdownData.filter((item) => item.createdBy === filterUserId)
-        : breakdownData;
-
-      setBreakdown(filteredBreakdown);
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getDateRangeTimestamps = (range: 'week' | 'month' | 'quarter' | 'year') => {
-    const endDate = Date.now();
-    let startDate: number;
-
-    switch (range) {
-      case 'week':
-        startDate = endDate - 7 * 24 * 60 * 60 * 1000;
-        break;
-      case 'month':
-        startDate = endDate - 30 * 24 * 60 * 60 * 1000;
-        break;
-      case 'quarter':
-        startDate = endDate - 90 * 24 * 60 * 60 * 1000;
-        break;
-      case 'year':
-        startDate = endDate - 365 * 24 * 60 * 60 * 1000;
-        break;
-      default:
-        startDate = endDate - 30 * 24 * 60 * 60 * 1000;
-    }
-
-    return { startDate, endDate };
-  };
-
-  const getDateRangeLabel = () => {
-    switch (dateRange) {
-      case 'week':
-        return 'Last 7 Days';
-      case 'month':
-        return 'Last 30 Days';
-      case 'quarter':
-        return 'Last 90 Days';
-      case 'year':
-        return 'Last Year';
-      default:
-        return 'Last 30 Days';
-    }
-  };
-
-  const handleToggleFilter = () => {
-    if (filterUserId === user?.uid) {
-      setFilterUserId(null); // Show all
-    } else {
-      setFilterUserId(user?.uid || null); // Show only mine
-    }
   };
 
   const renderBreakdownItem = ({ item }: { item: ExpenditureBreakdownItem }) => (
@@ -350,7 +194,7 @@ const BudgetScreen = () => {
           {/* Filter Toggle */}
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={handleToggleFilter}
+            onPress={toggleFilter}
           >
             <Text style={styles.filterButtonText}>
               {filterUserId ? 'Show All Family' : 'Show Only Mine'}
@@ -441,7 +285,7 @@ const BudgetScreen = () => {
                 keyboardType="numeric"
               />
             </View>
-            <TouchableOpacity style={styles.saveButton} onPress={saveBudgetSettings}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveBudgetSettings}>
               <Text style={styles.saveButtonText}>Save Budget Limits</Text>
             </TouchableOpacity>
           </View>

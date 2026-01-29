@@ -1,31 +1,23 @@
 import 'react-native-get-random-values';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  FlatList,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
   Modal,
   Platform,
-  Animated,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
-import { v4 as uuidv4 } from 'uuid';
 import database from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
-import { ShoppingList, User } from '../../models/types';
-import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
-import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
-import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
-import ItemManager from '../../services/ItemManager';
-import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import DatabaseMigration from '../../services/DatabaseMigration';
+import { useAuth, useShoppingLists } from '../../hooks';
 
 /**
  * HomeScreen
@@ -35,70 +27,30 @@ import DatabaseMigration from '../../services/DatabaseMigration';
 const HomeScreen = () => {
   const navigation = useNavigation();
   const { showAlert } = useAlert();
-  const [lists, setLists] = useState<ShoppingList[]>([]);
+
+  // Use custom hooks for auth and list management
+  const { user, familyGroupId, loading: authLoading } = useAuth();
+  const { lists, loading: listsLoading, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
+
+  // UI state only - not business logic
   const [refreshing, setRefreshing] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showIOSPicker, setShowIOSPicker] = useState(false);
-  const [scanningReceipt, setScanningReceipt] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [pendingLists, setPendingLists] = useState<ShoppingList[]>([]);
 
+  // Run initial setup when user is available
   useEffect(() => {
-    loadLists();
-  }, []);
-
-  // Subscribe to real-time list changes using WatermelonDB observers (no polling!)
-  useEffect(() => {
-    if (!familyGroupId) return;
-
-    // Step 1: Start listening to Firebase for remote changes
-    // When Firebase data changes, it will update local WatermelonDB
-    const unsubscribeFirebase = FirebaseSyncListener.startListeningToLists(familyGroupId);
-    const unsubscribeCategoryHistory = FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
-
-    // Step 2: Subscribe to local WatermelonDB changes (triggered by Firebase or local edits)
-    // This gives us instant UI updates without polling
-    const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
-      familyGroupId,
-      (updatedLists) => {
-        setLists(updatedLists);
-      }
-    );
-
-    return () => {
-      unsubscribeFirebase();
-      unsubscribeCategoryHistory();
-      unsubscribeLocal();
-    };
-  }, [familyGroupId]);
-
-  // Coordinate pending list removal - only remove when list appears in observer
-  useEffect(() => {
-    if (pendingLists.length === 0) return;
-
-    const listIds = new Set(lists.map((l) => l.id));
-    const stillPending = pendingLists.filter((pending) => !listIds.has(pending.id));
-
-    if (stillPending.length !== pendingLists.length) {
-      setPendingLists(stillPending);
+    if (user && familyGroupId) {
+      loadInitialData();
     }
-  }, [lists, pendingLists]);
+  }, [user, familyGroupId]);
 
-  const loadLists = async () => {
+  const loadInitialData = async () => {
     try {
-      const currentUser = await AuthenticationModule.getCurrentUser();
-      if (!currentUser || !currentUser.familyGroupId) {
-        showAlert('Error', 'No family group found. Please create or join a group.', undefined, { icon: 'error' });
-        return;
-      }
+      if (!user || !familyGroupId) return;
 
       // Validate family group exists
-      const groupExists = await AuthenticationModule.validateFamilyGroupExists(
-        currentUser.familyGroupId
-      );
+      const groupExists = await AuthenticationModule.validateFamilyGroupExists(familyGroupId);
 
       if (!groupExists) {
         showAlert(
@@ -109,22 +61,19 @@ const HomeScreen = () => {
         );
 
         // Clear the invalid familyGroupId
-        await database().ref(`/users/${currentUser.uid}`).update({
+        await database().ref(`/users/${user.uid}`).update({
           familyGroupId: null,
         });
 
         return;
       }
 
-      setUser(currentUser);
-      setFamilyGroupId(currentUser.familyGroupId);
-
       // Check if migration is needed and run it automatically
-      const needsMigration = await DatabaseMigration.needsMigration(currentUser.familyGroupId);
+      const needsMigration = await DatabaseMigration.needsMigration(familyGroupId);
       if (needsMigration) {
         try {
-          await DatabaseMigration.runAllMigrations(currentUser.familyGroupId);
-        } catch (migrationError: any) {
+          await DatabaseMigration.runAllMigrations(familyGroupId);
+        } catch {
           showAlert(
             'Migration Notice',
             'Database migration in progress. Please restart the app if lists do not appear.',
@@ -133,12 +82,6 @@ const HomeScreen = () => {
           );
         }
       }
-
-      // Get all lists, sorted by creation date (newest first)
-      const allLists = await ShoppingListManager.getAllLists(currentUser.familyGroupId);
-      // Filter out deleted and completed lists (completed lists shown in HistoryScreen)
-      const activeLists = allLists.filter(list => list.status !== 'deleted' && list.status !== 'completed');
-      setLists(activeLists);
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     }
@@ -146,7 +89,7 @@ const HomeScreen = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadLists();
+    await refresh();
     setRefreshing(false);
   };
 
@@ -192,7 +135,7 @@ const HomeScreen = () => {
       return;
     }
 
-    if (!user.familyGroupId) {
+    if (!familyGroupId) {
       showAlert('Error', 'No family group found. Please create or join a family group first.', undefined, { icon: 'error' });
       return;
     }
@@ -205,43 +148,12 @@ const HomeScreen = () => {
       year: 'numeric',
     });
 
-    // Generate real UUID upfront - same ID used for optimistic UI and database
-    const listId = uuidv4();
-    const optimisticList: ShoppingList = {
-      id: listId,
-      name: listName,
-      familyGroupId: user.familyGroupId,
-      createdBy: user.uid,
-      createdAt: Date.now(),
-      status: 'active',
-      completedAt: null,
-      completedBy: null,
-      receiptUrl: null,
-      receiptData: null,
-      syncStatus: 'pending',
-      isLocked: false,
-      lockedBy: null,
-      lockedByName: null,
-      lockedByRole: null,
-      lockedAt: null,
-      budget: null,
-    };
-
-    // Close modal and add optimistic list immediately (instant UI)
     setShowCreateModal(false);
-    setPendingLists((prev) => [optimisticList, ...prev]);
-    setCreating(true);
 
     try {
-      // Pass the same ID to createListOptimistic - ensures consistency
-      await ShoppingListManager.createListOptimistic(listName, user.uid, user.familyGroupId, user, listId);
-      // useEffect will remove from pendingLists when WatermelonDB observer fires with this ID
+      await createList(listName);
     } catch (error: any) {
-      // Remove optimistic list on failure
-      setPendingLists((prev) => prev.filter((l) => l.id !== listId));
       showAlert('Error', error.message, undefined, { icon: 'error' });
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -256,8 +168,7 @@ const HomeScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await ShoppingListManager.deleteList(listId);
-              // WatermelonDB observer will automatically update the UI
+              await deleteList(listId);
             } catch (error: any) {
               showAlert('Error', error.message, undefined, { icon: 'error' });
             }
@@ -268,133 +179,20 @@ const HomeScreen = () => {
     );
   };
 
-  const handleScanReceipt = async () => {
-    if (scanningReceipt) return;
-
-    try {
-      setScanningReceipt(true);
-
-      // Use cached user state
-      if (!user || !user.familyGroupId) {
-        showAlert('Error', 'User not authenticated or no family group found', undefined, { icon: 'error' });
-        return;
-      }
-
-      // Step 1: Capture receipt
-      const captureResult = await ReceiptCaptureModule.captureReceipt();
-
-      if (captureResult.cancelled) {
-        return;
-      }
-
-      if (!captureResult.success || !captureResult.filePath) {
-        showAlert('Error', captureResult.error || 'Failed to capture receipt', undefined, { icon: 'error' });
-        return;
-      }
-
-      // Step 2: Create a new shopping list
-      const listName = 'Receipt - ' + new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-
-      const newList = await ShoppingListManager.createList(
-        listName,
-        user.uid,
-        user.familyGroupId,
-        user
-      );
-
-      // Save receipt image path to list
-      await ShoppingListManager.updateList(newList.id, {
-        receiptUrl: captureResult.filePath,
-      });
-
-      // Step 3: Process OCR from local file (no Firebase Storage upload needed)
-      const ocrResult = await ReceiptOCRProcessor.processReceipt(captureResult.filePath, newList.id, user);
-
-      // Step 4: Create items from OCR lineItems (even if low confidence)
-      if (ocrResult.receiptData && ocrResult.receiptData.lineItems.length > 0) {
-        // Use batch operation for better performance (90 ops → 2 ops for 30 items!)
-        const itemsData = ocrResult.receiptData.lineItems.map(lineItem => ({
-          name: lineItem.description,
-          quantity: lineItem.quantity?.toString() || undefined,
-          price: lineItem.price || undefined,
-          // Items are already checked since this is a completed receipt
-        }));
-
-        await ItemManager.addItemsBatch(newList.id, itemsData, user.uid);
-
-        // Mark all items as checked in a single batch update
-        const items = await ItemManager.getItemsForList(newList.id);
-        await ItemManager.updateItemsBatch(
-          items.map(item => ({
-            id: item.id,
-            updates: { checked: true }
-          }))
-        );
-
-        // Step 5: Mark list as completed
-        await ShoppingListManager.markListAsCompleted(newList.id);
-
-        showAlert(
-          ocrResult.confidence < 70 ? 'Partial Success' : 'Success',
-          `Created shopping list "${listName}" with ${ocrResult.receiptData.lineItems.length} items from receipt${
-            ocrResult.confidence < 70 ? '. Low confidence - please verify items in receipt view.' : ''
-          }`,
-          undefined,
-          { icon: ocrResult.confidence < 70 ? 'warning' : 'success' }
-        );
-      } else if (ocrResult.receiptData) {
-        // OCR extracted some data but no line items
-        showAlert(
-          'Partial Success',
-          'Receipt uploaded but could not extract items. Merchant and total extracted. View receipt to add items manually.',
-          undefined,
-          { icon: 'warning' }
-        );
-      } else {
-        // Complete OCR failure (Vision API error)
-        const errorDetail = ocrResult.error ? `\n\nError: ${ocrResult.error}` : '';
-        showAlert(
-          'Receipt Saved',
-          `Receipt image saved but OCR failed. You can view the receipt and add items manually.${errorDetail}`,
-          undefined,
-          { icon: 'info' }
-        );
-      }
-
-      // Reload lists to show the new one (always reload, even on OCR failure)
-      await loadLists();
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
-      // Still reload lists in case a list was partially created
-      await loadLists();
-    } finally {
-      setScanningReceipt(false);
-    }
-  };
-
-  // Combine pending and observer lists, avoiding duplicates
-  const combinedLists = useMemo(() => {
-    const realListIds = new Set(lists.map((l) => l.id));
-    const uniquePending = pendingLists.filter((p) => !realListIds.has(p.id));
-    return [...uniquePending, ...lists];
-  }, [pendingLists, lists]);
+  // Note: OCR scan receipt feature is disabled - remove handleScanReceipt if re-enabling
 
   return (
     <View style={styles.container}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {lists.length === 0 && pendingLists.length === 0 ? (
+        {lists.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No shopping lists yet</Text>
             <Text style={styles.emptySubtext}>Tap + to create your first list</Text>
           </View>
         ) : (
-          combinedLists.map((list, index) => {
+          lists.map((list, index) => {
               const isCompleted = list.status === 'completed';
               const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
@@ -427,7 +225,7 @@ const HomeScreen = () => {
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
                   completedCardStyle={styles.completedCard}
-                  totalLists={combinedLists.length}
+                  totalLists={lists.length}
                 />
               );
             })
