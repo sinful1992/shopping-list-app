@@ -5,11 +5,9 @@ import {
   EntityType,
   Operation,
   QueuedOperation,
-  RemoteChange,
   SyncResult,
   SyncStatus,
   SyncEngineStatus,
-  Unsubscribe,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
@@ -136,98 +134,6 @@ class SyncEngine {
       // Offline: queue the operation
       await this.queueOperation(entityType, entityId, operation, data);
     }
-  }
-
-  /**
-   * Subscribe to remote changes from Firebase
-   * Implements Req 4.4
-   */
-  subscribeToRemoteChanges(familyGroupId: string, callback: (change: RemoteChange) => void): Unsubscribe {
-    if (!familyGroupId) {
-      throw new Error('Family group ID required');
-    }
-
-    // Subscribe to lists
-    const listsRef = database().ref(`/familyGroups/${familyGroupId}/lists`);
-
-    // Listen for new lists created by other users
-    const listsAddedListener = listsRef.on('child_added', (snapshot) => {
-      callback({
-        entityType: 'list',
-        entityId: snapshot.key!,
-        operation: 'create',
-        data: snapshot.val(),
-        timestamp: Date.now(),
-      });
-    });
-
-    // Listen for list updates
-    const listsChangedListener = listsRef.on('child_changed', (snapshot) => {
-      callback({
-        entityType: 'list',
-        entityId: snapshot.key!,
-        operation: 'update',
-        data: snapshot.val(),
-        timestamp: Date.now(),
-      });
-    });
-
-    // Listen for list deletions
-    const listsRemovedListener = listsRef.on('child_removed', (snapshot) => {
-      callback({
-        entityType: 'list',
-        entityId: snapshot.key!,
-        operation: 'delete',
-        data: snapshot.val(),
-        timestamp: Date.now(),
-      });
-    });
-
-    // Subscribe to items
-    const itemsRef = database().ref(`/familyGroups/${familyGroupId}/items`);
-
-    // Listen for new items
-    const itemsAddedListener = itemsRef.on('child_added', (snapshot) => {
-      callback({
-        entityType: 'item',
-        entityId: snapshot.key!,
-        operation: 'create',
-        data: snapshot.val(),
-        timestamp: Date.now(),
-      });
-    });
-
-    // Listen for item updates
-    const itemsChangedListener = itemsRef.on('child_changed', (snapshot) => {
-      callback({
-        entityType: 'item',
-        entityId: snapshot.key!,
-        operation: 'update',
-        data: snapshot.val(),
-        timestamp: Date.now(),
-      });
-    });
-
-    // Listen for item deletions
-    const itemsRemovedListener = itemsRef.on('child_removed', (snapshot) => {
-      callback({
-        entityType: 'item',
-        entityId: snapshot.key!,
-        operation: 'delete',
-        data: snapshot.val(),
-        timestamp: Date.now(),
-      });
-    });
-
-    // Return unsubscribe function that removes all listeners
-    return () => {
-      listsRef.off('child_added', listsAddedListener);
-      listsRef.off('child_changed', listsChangedListener);
-      listsRef.off('child_removed', listsRemovedListener);
-      itemsRef.off('child_added', itemsAddedListener);
-      itemsRef.off('child_changed', itemsChangedListener);
-      itemsRef.off('child_removed', itemsRemovedListener);
-    };
   }
 
   /**
