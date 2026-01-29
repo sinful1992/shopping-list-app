@@ -5,6 +5,7 @@ import { UrgentItem, Unsubscribe, User } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
+import { sanitizeUrgentItemName, sanitizePrice } from '../utils/sanitize';
 // @ts-ignore
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
 
@@ -115,6 +116,11 @@ class UrgentItemManager {
     familyGroupId: string,
     user: User
   ): Promise<UrgentItem> {
+    const sanitizedName = sanitizeUrgentItemName(name);
+    if (!sanitizedName) {
+      throw new Error('Urgent item name is required');
+    }
+
     // Check if user can create an urgent item based on their subscription tier
     const permission = await UsageTracker.canCreateUrgentItem(user);
     if (!permission.allowed) {
@@ -123,7 +129,7 @@ class UrgentItemManager {
 
     const urgentItem: UrgentItem = {
       id: uuidv4(),
-      name,
+      name: sanitizedName,
       familyGroupId,
       createdBy: userId,
       createdByName: userName,
@@ -196,7 +202,7 @@ class UrgentItemManager {
     };
 
     if (price !== undefined) {
-      updates.price = price;
+      updates.price = sanitizePrice(price);
     }
 
     const urgentItem = await LocalStorageManager.updateUrgentItem(itemId, updates);

@@ -4,6 +4,7 @@ import { ShoppingList, Unsubscribe, User, ReceiptData } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
+import { sanitizeListName, sanitizeStoreName } from '../utils/sanitize';
 
 /**
  * ShoppingListManager
@@ -23,9 +24,14 @@ class ShoppingListManager {
       throw new Error(permission.reason || 'Cannot create list');
     }
 
+    const sanitizedName = sanitizeListName(name);
+    if (!sanitizedName) {
+      throw new Error('List name is required');
+    }
+
     const list: ShoppingList = {
       id: uuidv4(),
-      name,
+      name: sanitizedName,
       familyGroupId,
       createdBy: userId,
       createdAt: Date.now(),
@@ -67,9 +73,14 @@ class ShoppingListManager {
     user: User,
     id?: string
   ): Promise<ShoppingList> {
+    const sanitizedName = sanitizeListName(name);
+    if (!sanitizedName) {
+      throw new Error('List name is required');
+    }
+
     const list: ShoppingList = {
       id: id || uuidv4(),
-      name,
+      name: sanitizedName,
       familyGroupId,
       createdBy: userId,
       createdAt: Date.now(),
@@ -169,7 +180,11 @@ class ShoppingListManager {
    * Implements Req 2.5, 2.2
    */
   async updateListName(listId: string, newName: string): Promise<ShoppingList> {
-    return this.updateList(listId, { name: newName });
+    const sanitizedName = sanitizeListName(newName);
+    if (!sanitizedName) {
+      throw new Error('List name is required');
+    }
+    return this.updateList(listId, { name: sanitizedName });
   }
 
   /**
@@ -177,7 +192,8 @@ class ShoppingListManager {
    * Implements Sprint 6: Store tracking
    */
   async updateListStoreName(listId: string, storeName: string): Promise<ShoppingList> {
-    return this.updateList(listId, { storeName });
+    const sanitizedStoreName = sanitizeStoreName(storeName);
+    return this.updateList(listId, { storeName: sanitizedStoreName || null });
   }
 
   /**

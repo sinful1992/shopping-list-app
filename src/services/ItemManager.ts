@@ -4,6 +4,7 @@ import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
 import CrashReporting from './CrashReporting';
+import { sanitizeItemName, sanitizeQuantity, sanitizePrice, sanitizeCategory } from '../utils/sanitize';
 
 /**
  * ItemManager
@@ -16,6 +17,11 @@ class ItemManager {
    * Implements Req 3.1, 3.2
    */
   async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number): Promise<Item> {
+    const sanitizedName = sanitizeItemName(name);
+    if (!sanitizedName) {
+      throw new Error('Item name is required');
+    }
+
     // Get current items to determine next sort order
     const existingItems = await LocalStorageManager.getItemsForList(listId);
     const maxSortOrder = existingItems.reduce((max, item) => {
@@ -25,9 +31,9 @@ class ItemManager {
     const item: Item = {
       id: uuidv4(),
       listId,
-      name,
-      quantity: quantity || null,
-      price: price || null,
+      name: sanitizedName,
+      quantity: sanitizeQuantity(quantity),
+      price: sanitizePrice(price),
       checked: false,
       createdBy: userId,
       createdAt: Date.now(),
@@ -50,8 +56,27 @@ class ItemManager {
    * Implements Req 3.5, 3.2
    */
   async updateItem(itemId: string, updates: Partial<Item>): Promise<Item> {
+    // Sanitize any name, quantity, price, or category updates
+    const sanitizedUpdates: Partial<Item> = { ...updates };
+    if (updates.name !== undefined) {
+      const sanitizedName = sanitizeItemName(updates.name);
+      if (!sanitizedName) {
+        throw new Error('Item name is required');
+      }
+      sanitizedUpdates.name = sanitizedName;
+    }
+    if (updates.quantity !== undefined) {
+      sanitizedUpdates.quantity = sanitizeQuantity(updates.quantity);
+    }
+    if (updates.price !== undefined) {
+      sanitizedUpdates.price = sanitizePrice(updates.price);
+    }
+    if (updates.category !== undefined) {
+      sanitizedUpdates.category = sanitizeCategory(updates.category);
+    }
+
     const item = await LocalStorageManager.updateItem(itemId, {
-      ...updates,
+      ...sanitizedUpdates,
       updatedAt: Date.now(),
       syncStatus: 'pending',
     });
@@ -130,18 +155,24 @@ class ItemManager {
     itemsData: Array<{ name: string; quantity?: string; price?: number }>,
     userId: string
   ): Promise<Item[]> {
-    const items: Item[] = itemsData.map(itemData => ({
-      id: uuidv4(),
-      listId,
-      name: itemData.name,
-      quantity: itemData.quantity || null,
-      price: itemData.price || null,
-      checked: false,
-      createdBy: userId,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      syncStatus: 'pending',
-    }));
+    const items: Item[] = itemsData
+      .map(itemData => {
+        const sanitizedName = sanitizeItemName(itemData.name);
+        if (!sanitizedName) return null; // Skip items with empty names
+        return {
+          id: uuidv4(),
+          listId,
+          name: sanitizedName,
+          quantity: sanitizeQuantity(itemData.quantity),
+          price: sanitizePrice(itemData.price),
+          checked: false,
+          createdBy: userId,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          syncStatus: 'pending' as const,
+        };
+      })
+      .filter((item): item is Item => item !== null);
 
     // Save all items in a single batch transaction
     await LocalStorageManager.saveItemsBatch(items);
