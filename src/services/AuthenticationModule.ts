@@ -343,16 +343,24 @@ class AuthenticationModule {
    */
   onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe {
     let userDataUnsubscribe: (() => void) | null = null;
+    let claimsUnsubscribe: (() => void) | null = null;
+    let lastClaimsUpdatedAt: number | null = null;
 
     const authUnsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
-      // Clean up previous user data listener
+      // Clean up previous listeners
       if (userDataUnsubscribe) {
         userDataUnsubscribe();
         userDataUnsubscribe = null;
       }
+      if (claimsUnsubscribe) {
+        claimsUnsubscribe();
+        claimsUnsubscribe = null;
+      }
+      lastClaimsUpdatedAt = null;
 
       if (firebaseUser) {
         const userRef = database().ref(`/users/${firebaseUser.uid}`);
+        const claimsRef = database().ref(`/users/${firebaseUser.uid}/claimsUpdatedAt`);
 
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
@@ -364,11 +372,30 @@ class AuthenticationModule {
           }
         };
 
-        userRef.on('value', onUserDataChanged);
+        // Listen for custom claims updates (set by Cloud Function)
+        // When claimsUpdatedAt changes, force a token refresh to get new claims
+        const onClaimsUpdated = async (snapshot: any) => {
+          const claimsUpdatedAt = snapshot.val();
+          if (claimsUpdatedAt && lastClaimsUpdatedAt !== null && claimsUpdatedAt !== lastClaimsUpdatedAt) {
+            // Claims have been updated by Cloud Function, refresh the token
+            try {
+              await firebaseUser.getIdToken(true);
+            } catch {
+              // Token refresh failed, ignore - next API call will retry
+            }
+          }
+          lastClaimsUpdatedAt = claimsUpdatedAt;
+        };
 
-        // Store unsubscribe function for user data listener
+        userRef.on('value', onUserDataChanged);
+        claimsRef.on('value', onClaimsUpdated);
+
+        // Store unsubscribe functions
         userDataUnsubscribe = () => {
           userRef.off('value', onUserDataChanged);
+        };
+        claimsUnsubscribe = () => {
+          claimsRef.off('value', onClaimsUpdated);
         };
       } else {
         callback(null);
@@ -380,6 +407,9 @@ class AuthenticationModule {
       authUnsubscribe();
       if (userDataUnsubscribe) {
         userDataUnsubscribe();
+      }
+      if (claimsUnsubscribe) {
+        claimsUnsubscribe();
       }
     };
   }

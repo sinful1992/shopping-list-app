@@ -8,6 +8,10 @@
         ".read": "auth != null && (auth.uid == $uid || (root.child('users').child(auth.uid).child('familyGroupId').val() != null && root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()))",
         ".write": "auth != null && auth.uid == $uid",
 
+        "claimsUpdatedAt": {
+          ".write": false
+        },
+
         "usageCounters": {
           ".read": "auth != null && auth.uid == $uid",
           ".write": "auth != null && auth.uid == $uid && (
@@ -75,6 +79,16 @@
       "$code": {
         ".write": "auth != null && (!data.exists() || root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid))",
         ".validate": "newData.hasChildren(['groupId', 'createdAt']) && newData.child('groupId').isString()"
+      }
+    },
+
+    "urgentItems": {
+      "$familyGroupId": {
+        ".read": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
+        ".write": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
+        "$itemId": {
+          ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId'])"
+        }
       }
     }
   }
