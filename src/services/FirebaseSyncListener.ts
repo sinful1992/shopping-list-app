@@ -159,6 +159,12 @@ class FirebaseSyncListener {
     try {
       const existingList = await LocalStorageManager.getList(listId);
 
+      // Don't overwrite local pending lists with stale Firebase data
+      // Local pending data takes priority until sync completes
+      if (existingList && existingList.syncStatus === 'pending') {
+        return;
+      }
+
       const incomingList: ShoppingList = {
         id: listId,
         name: firebaseData.name || '',

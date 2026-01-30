@@ -13,7 +13,7 @@ export class ShoppingListModel extends Model {
   @field('completed_by') completedBy!: string | null;
   @field('receipt_url') receiptUrl!: string | null;
   @field('receipt_data') receiptData!: string | null;
-  // syncStatus is inherited from Model base class
+  @field('sync_status') syncStatus!: string;
   @field('is_locked') isLocked!: boolean;
   @field('locked_by') lockedBy!: string | null;
   @field('locked_by_name') lockedByName!: string | null;

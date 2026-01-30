@@ -57,7 +57,7 @@ class LocalStorageManager {
             record.completedBy = list.completedBy;
             record.receiptUrl = list.receiptUrl;
             record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            // syncStatus is managed by WatermelonDB sync system
+            record.syncStatus = list.syncStatus || 'pending';
             record.isLocked = list.isLocked;
             record.lockedBy = list.lockedBy;
             record.lockedByName = list.lockedByName;
@@ -80,7 +80,7 @@ class LocalStorageManager {
             record.completedBy = list.completedBy;
             record.receiptUrl = list.receiptUrl;
             record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            // syncStatus is managed by WatermelonDB sync system
+            record.syncStatus = list.syncStatus || 'pending';
             record.isLocked = list.isLocked;
             record.lockedBy = list.lockedBy;
             record.lockedByName = list.lockedByName;
