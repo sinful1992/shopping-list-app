@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useState, useEffect, useCallback } from 'react';
 import { ShoppingList, User } from '../models/types';
 import ShoppingListManager from '../services/ShoppingListManager';
 import FirebaseSyncListener from '../services/FirebaseSyncListener';
@@ -8,14 +7,13 @@ import FirebaseSyncListener from '../services/FirebaseSyncListener';
  * useShoppingLists Hook
  *
  * Manages shopping list state, subscriptions, and CRUD operations.
- * Handles optimistic updates for instant UI feedback.
+ * Uses WatermelonDB as single source of truth with syncStatus marker.
  *
  * Usage:
- *   const { lists, pendingLists, loading, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
+ *   const { lists, loading, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
  */
 export function useShoppingLists(familyGroupId: string | null, user: User | null) {
   const [lists, setLists] = useState<ShoppingList[]>([]);
-  const [pendingLists, setPendingLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -30,7 +28,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     const unsubscribeFirebase = FirebaseSyncListener.startListeningToLists(familyGroupId);
     const unsubscribeCategoryHistory = FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
 
-    // Subscribe to local WatermelonDB changes
+    // Subscribe to local WatermelonDB changes - single source of truth
     const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
       familyGroupId,
       (updatedLists) => {
@@ -46,61 +44,22 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     };
   }, [familyGroupId]);
 
-  // Coordinate pending list removal when list appears in observer
-  useEffect(() => {
-    if (pendingLists.length === 0) return;
-
-    const listIds = new Set(lists.map((l) => l.id));
-    const stillPending = pendingLists.filter((pending) => !listIds.has(pending.id));
-
-    if (stillPending.length !== pendingLists.length) {
-      setPendingLists(stillPending);
-    }
-  }, [lists, pendingLists]);
-
-  // Combine pending and observer lists, avoiding duplicates
-  const combinedLists = useMemo(() => {
-    const realListIds = new Set(lists.map((l) => l.id));
-    const uniquePending = pendingLists.filter((p) => !realListIds.has(p.id));
-    return [...uniquePending, ...lists];
-  }, [pendingLists, lists]);
-
-  // Create list with optimistic update
+  // Create list - save to DB, observer will pick it up
   const createList = useCallback(async (listName: string): Promise<ShoppingList | null> => {
     if (creating) return null;
     if (!user || !user.familyGroupId) return null;
 
-    const listId = uuidv4();
-    const optimisticList: ShoppingList = {
-      id: listId,
-      name: listName,
-      familyGroupId: user.familyGroupId,
-      createdBy: user.uid,
-      createdAt: Date.now(),
-      status: 'active',
-      completedAt: null,
-      completedBy: null,
-      receiptUrl: null,
-      receiptData: null,
-      syncStatus: 'pending',
-      isLocked: false,
-      lockedBy: null,
-      lockedByName: null,
-      lockedByRole: null,
-      lockedAt: null,
-      budget: null,
-    };
-
-    setPendingLists((prev) => [optimisticList, ...prev]);
     setCreating(true);
 
     try {
-      await ShoppingListManager.createListOptimistic(listName, user.uid, user.familyGroupId, user, listId);
-      return optimisticList;
-    } catch (error) {
-      // Remove optimistic list on failure
-      setPendingLists((prev) => prev.filter((l) => l.id !== listId));
-      throw error;
+      const list = await ShoppingListManager.createListOptimistic(
+        listName,
+        user.uid,
+        user.familyGroupId,
+        user
+      );
+      // Observer will automatically show the list with syncStatus: 'pending'
+      return list;
     } finally {
       setCreating(false);
     }
@@ -127,8 +86,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   }, [familyGroupId]);
 
   return {
-    lists: combinedLists,
-    pendingLists,
+    lists,
     loading,
     creating,
     createList,
