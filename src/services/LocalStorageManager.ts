@@ -773,7 +773,7 @@ class LocalStorageManager {
     const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
     const query = listsCollection.query(Q.where('family_group_id', familyGroupId));
 
-    const subscription = query.observeWithColumns(['status', 'sync_status']).subscribe((listModels) => {
+    const subscription = query.observe().subscribe((listModels) => {
       const lists = listModels.map((model) => this.listModelToType(model));
       callback(lists);
     });
