@@ -72,17 +72,16 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   }, []);
 
   // Refresh lists manually
+  // Note: Observer already provides real-time updates from WatermelonDB.
+  // We don't call getAllLists here because it could return stale data
+  // and overwrite the observer's up-to-date data, causing lists to disappear.
   const refresh = useCallback(async (): Promise<void> => {
     if (!familyGroupId) return;
 
     setLoading(true);
-    try {
-      const allLists = await ShoppingListManager.getAllLists(familyGroupId);
-      const activeLists = allLists.filter(list => list.status !== 'deleted' && list.status !== 'completed');
-      setLists(activeLists);
-    } finally {
-      setLoading(false);
-    }
+    // Brief delay to show loading indicator for user feedback
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setLoading(false);
   }, [familyGroupId]);
 
   return {

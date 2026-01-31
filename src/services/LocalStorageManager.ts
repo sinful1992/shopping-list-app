@@ -205,7 +205,7 @@ class LocalStorageManager {
           if (updates.receiptData !== undefined) {
             record.receiptData = updates.receiptData ? JSON.stringify(updates.receiptData) : null;
           }
-          // syncStatus is managed by WatermelonDB sync system
+          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
           if (updates.isLocked !== undefined) record.isLocked = updates.isLocked;
           if (updates.lockedBy !== undefined) record.lockedBy = updates.lockedBy;
           if (updates.lockedByName !== undefined) record.lockedByName = updates.lockedByName;
@@ -340,7 +340,7 @@ class LocalStorageManager {
           if (updates.price !== undefined) record.price = updates.price;
           if (updates.checked !== undefined) record.checked = updates.checked;
           if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
-          // syncStatus is managed by WatermelonDB sync system
+          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
           if (updates.category !== undefined) record.category = updates.category;
           if (updates.sortOrder !== undefined) record.sortOrder = updates.sortOrder;
         });
