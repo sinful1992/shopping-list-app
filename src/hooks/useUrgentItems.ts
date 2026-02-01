@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { UrgentItem, User } from '../models/types';
 import AuthenticationModule from '../services/AuthenticationModule';
 import UrgentItemManager from '../services/UrgentItemManager';
@@ -17,6 +18,7 @@ export function useUrgentItems() {
   const [activeItems, setActiveItems] = useState<UrgentItem[]>([]);
   const [resolvedItems, setResolvedItems] = useState<UrgentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Subscribe to auth state
   useEffect(() => {
@@ -34,14 +36,20 @@ export function useUrgentItems() {
   useEffect(() => {
     if (!user?.familyGroupId) return;
 
+    const familyGroupId = user.familyGroupId;
+
+    // Helper to start Firebase listener
+    const startFirebaseListener = () => {
+      FirebaseSyncListener.stopListeningToUrgentItems(familyGroupId);
+      FirebaseSyncListener.startListeningToUrgentItems(familyGroupId);
+    };
+
     // Start listening to Firebase for remote changes
-    const unsubscribeFirebase = FirebaseSyncListener.startListeningToUrgentItems(
-      user.familyGroupId
-    );
+    startFirebaseListener();
 
     // Subscribe to active items
     const unsubscribeActiveItems = UrgentItemManager.subscribeToUrgentItems(
-      user.familyGroupId,
+      familyGroupId,
       (updatedItems) => {
         setActiveItems(updatedItems);
       }
@@ -49,16 +57,30 @@ export function useUrgentItems() {
 
     // Subscribe to resolved items
     const unsubscribeResolvedItems = UrgentItemManager.subscribeToResolvedUrgentItems(
-      user.familyGroupId,
+      familyGroupId,
       (updatedItems) => {
         setResolvedItems(updatedItems);
       }
     );
 
+    // Restart Firebase listener when app returns to foreground
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        startFirebaseListener();
+      }
+      appStateRef.current = nextAppState;
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
-      unsubscribeFirebase();
+      FirebaseSyncListener.stopListeningToUrgentItems(familyGroupId);
       unsubscribeActiveItems();
       unsubscribeResolvedItems();
+      appStateSubscription.remove();
     };
   }, [user?.familyGroupId]);
 

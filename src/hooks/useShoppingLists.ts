@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { ShoppingList, User } from '../models/types';
 import ShoppingListManager from '../services/ShoppingListManager';
 import FirebaseSyncListener from '../services/FirebaseSyncListener';
@@ -16,6 +17,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   // Subscribe to real-time list changes
   useEffect(() => {
@@ -24,9 +26,16 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       return;
     }
 
+    // Helper to start Firebase listeners
+    const startFirebaseListeners = () => {
+      FirebaseSyncListener.stopListeningToLists(familyGroupId);
+      FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
+      FirebaseSyncListener.startListeningToLists(familyGroupId);
+      FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
+    };
+
     // Start listening to Firebase for remote changes
-    const unsubscribeFirebase = FirebaseSyncListener.startListeningToLists(familyGroupId);
-    const unsubscribeCategoryHistory = FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
+    startFirebaseListeners();
 
     // Subscribe to local WatermelonDB changes - single source of truth
     const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
@@ -37,10 +46,24 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       }
     );
 
+    // Restart Firebase listeners when app returns to foreground
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        startFirebaseListeners();
+      }
+      appStateRef.current = nextAppState;
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
-      unsubscribeFirebase();
-      unsubscribeCategoryHistory();
+      FirebaseSyncListener.stopListeningToLists(familyGroupId);
+      FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
       unsubscribeLocal();
+      appStateSubscription.remove();
     };
   }, [familyGroupId]);
 
