@@ -102,13 +102,11 @@ class ItemManager {
 
     const newCheckedState = !existingItem.checked;
 
-    // Update item
     const updatedItem = await this.updateItem(itemId, {
       checked: newCheckedState,
     });
 
-    // Record category history when item is checked (purchased)
-    // Fire-and-forget to avoid blocking the UI
+    // Fire-and-forget: category history for autocomplete suggestions
     if (newCheckedState && existingItem.category) {
       LocalStorageManager.getList(existingItem.listId).then(list => {
         if (list?.familyGroupId) {
@@ -120,7 +118,6 @@ class ItemManager {
         }
       }).catch(error => {
         CrashReporting.recordError(error as Error, 'ItemManager.toggleItemChecked categoryHistory');
-        // Don't throw - this is a background operation
       });
     }
 

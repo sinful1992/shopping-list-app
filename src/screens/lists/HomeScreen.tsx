@@ -28,17 +28,14 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const { showAlert } = useAlert();
 
-  // Use custom hooks for auth and list management
   const { user, familyGroupId, loading: authLoading } = useAuth();
   const { lists, loading: listsLoading, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
 
-  // UI state only - not business logic
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showIOSPicker, setShowIOSPicker] = useState(false);
 
-  // Run initial setup when user is available
   useEffect(() => {
     if (user && familyGroupId) {
       loadInitialData();
@@ -49,7 +46,6 @@ const HomeScreen = () => {
     try {
       if (!user || !familyGroupId) return;
 
-      // Validate family group exists
       const groupExists = await AuthenticationModule.validateFamilyGroupExists(familyGroupId);
 
       if (!groupExists) {
@@ -60,7 +56,6 @@ const HomeScreen = () => {
           { icon: 'warning' }
         );
 
-        // Clear the invalid familyGroupId
         await database().ref(`/users/${user.uid}`).update({
           familyGroupId: null,
         });
@@ -68,7 +63,6 @@ const HomeScreen = () => {
         return;
       }
 
-      // Check if migration is needed and run it automatically
       const needsMigration = await DatabaseMigration.needsMigration(familyGroupId);
       if (needsMigration) {
         try {
@@ -100,8 +94,7 @@ const HomeScreen = () => {
 
   const handleOpenDatePicker = () => {
     if (Platform.OS === 'android') {
-      // Use imperative API for Android (recommended approach)
-      // Set safe date range to avoid Android crashes (1900-2038 limitation)
+      // Android DateTimePickerAndroid crashes outside 1900-2037 range
       const minDate = new Date(1900, 0, 1);
       const maxDate = new Date(2037, 11, 31);
 
@@ -122,13 +115,12 @@ const HomeScreen = () => {
         showAlert('Error', `Failed to open date picker: ${error.message}`, undefined, { icon: 'error' });
       }
     } else {
-      // Use component for iOS
       setShowIOSPicker(true);
     }
   };
 
   const handleConfirmCreate = async () => {
-    if (creating) return; // Prevent double-tap
+    if (creating) return;
 
     if (!user) {
       showAlert('Error', 'User not authenticated', undefined, { icon: 'error' });
@@ -140,7 +132,6 @@ const HomeScreen = () => {
       return;
     }
 
-    // Format date as list name (e.g., "Mon, Jan 15, 2025")
     const listName = selectedDate.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
@@ -179,8 +170,6 @@ const HomeScreen = () => {
     );
   };
 
-  // Note: OCR scan receipt feature is disabled - remove handleScanReceipt if re-enabling
-
   return (
     <View style={styles.container}>
       <ScrollView
@@ -196,14 +185,12 @@ const HomeScreen = () => {
               const isCompleted = list.status === 'completed';
               const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
-              // Format date for completed lists - UK format
               const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
               const day = String(date.getDate()).padStart(2, '0');
               const month = String(date.getMonth() + 1).padStart(2, '0');
               const year = date.getFullYear();
               const formattedDate = `${day}/${month}/${year}`;
 
-              // Sync status indicator color
               const syncColor = list.syncStatus === 'synced' ? '#30D158' :
                                list.syncStatus === 'pending' ? '#FFD60A' :
                                '#FF453A'; // failed
@@ -232,20 +219,6 @@ const HomeScreen = () => {
         )}
       </ScrollView>
 
-      {/* OCR FEATURE HIDDEN - uncomment to re-enable
-      <TouchableOpacity
-        style={[styles.scanButton, scanningReceipt && styles.scanButtonDisabled]}
-        onPress={handleScanReceipt}
-        disabled={scanningReceipt}
-      >
-        <Text style={styles.scanButtonIcon}>📷</Text>
-        <Text style={styles.scanButtonText}>
-          {scanningReceipt ? 'Processing...' : 'Scan Receipt'}
-        </Text>
-      </TouchableOpacity>
-      */}
-
-      {/* Create List Button (FAB) */}
       <TouchableOpacity style={styles.fab} onPress={handleCreateList}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
@@ -298,7 +271,6 @@ const HomeScreen = () => {
         </View>
       </Modal>
 
-      {/* iOS Date Picker */}
       {showIOSPicker && Platform.OS === 'ios' && (
         <Modal visible={true} transparent animationType="slide">
           <View style={styles.iosPickerContainer}>

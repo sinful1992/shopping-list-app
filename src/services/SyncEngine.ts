@@ -26,12 +26,10 @@ class SyncEngine {
   private readonly RETRY_INTERVAL_MS = 60000; // Retry pending operations every 60 seconds
 
   constructor() {
-    // Monitor network connectivity
     NetInfo.addEventListener((state) => {
       const wasOffline = !this.isOnline;
       this.isOnline = state.isConnected ?? false;
 
-      // Auto-sync when coming back online
       if (wasOffline && this.isOnline) {
         this.processOperationQueue().catch(error => {
           CrashReporting.recordError(error as Error, 'SyncEngine auto-sync');
@@ -39,7 +37,6 @@ class SyncEngine {
       }
     });
 
-    // Start periodic retry for queued operations
     this.startPeriodicRetry();
   }
 
@@ -107,7 +104,6 @@ class SyncEngine {
       throw new Error('Family group ID not set');
     }
 
-    // Get entity data
     let data: any;
     if (entityType === 'list') {
       data = await LocalStorageManager.getList(entityId);
@@ -117,9 +113,7 @@ class SyncEngine {
 
     if (this.isOnline) {
       try {
-        // Wrap with timeout to prevent hanging
         await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, data));
-        // Update sync status to 'synced'
         if (entityType === 'list') {
           await LocalStorageManager.updateList(entityId, { syncStatus: 'synced' });
         } else {
@@ -127,11 +121,9 @@ class SyncEngine {
         }
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
-        // Queue for later
         await this.queueOperation(entityType, entityId, operation, data);
       }
     } else {
-      // Offline: queue the operation
       await this.queueOperation(entityType, entityId, operation, data);
     }
   }
@@ -162,10 +154,10 @@ class SyncEngine {
         return remoteEntity;
       }
 
-      // Rule 3: If neither is checked, merge updates
+      // Rule 3: Neither checked - merge user-editable fields only (name, quantity, price)
+      // Excludes category/sortOrder since those are system-managed
       const merged = { ...remoteEntity };
       if (localEntity.updatedAt > remoteEntity.updatedAt) {
-        // Local is newer, use local values for changed fields
         if (localEntity.name !== remoteEntity.name) merged.name = localEntity.name;
         if (localEntity.quantity !== remoteEntity.quantity) merged.quantity = localEntity.quantity;
         if (localEntity.price !== remoteEntity.price) merged.price = localEntity.price;
@@ -221,13 +213,11 @@ class SyncEngine {
       const now = Date.now();
 
       for (const operation of queue) {
-        // Skip operations that are not ready to retry yet
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
           continue;
         }
 
         try {
-          // Wrap with timeout to prevent hanging
           await this.withTimeout(
             this.syncToFirebase(
               operation.entityType,
@@ -237,10 +227,8 @@ class SyncEngine {
             )
           );
 
-          // Remove from queue on success
           await LocalStorageManager.removeFromSyncQueue(operation.id);
 
-          // Update sync status
           if (operation.entityType === 'list') {
             await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'synced' });
           } else if (operation.entityType === 'item') {
@@ -254,22 +242,19 @@ class SyncEngine {
 
           if (newRetryCount >= maxRetries) {
             CrashReporting.log(`Max retries reached for sync operation ${operation.id}`);
-            // Update sync status to 'failed'
             if (operation.entityType === 'list') {
               await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'failed' });
             } else if (operation.entityType === 'item') {
               await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'failed' });
             }
-            // Remove from queue
             await LocalStorageManager.removeFromSyncQueue(operation.id);
           } else {
-            // Calculate next retry time with exponential backoff + jitter
-            const baseDelay = 1000; // 1 second
+            // Exponential backoff with jitter prevents thundering herd on server recovery
+            const baseDelay = 1000;
             const exponentialDelay = baseDelay * Math.pow(2, newRetryCount - 1);
-            const jitter = Math.random() * 1000; // 0-1000ms
+            const jitter = Math.random() * 1000;
             const nextRetryAt = now + exponentialDelay + jitter;
 
-            // Update retry count and next retry time
             await LocalStorageManager.updateSyncQueueOperation(operation.id, {
               retryCount: newRetryCount,
               nextRetryAt,
