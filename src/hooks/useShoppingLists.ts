@@ -10,6 +10,11 @@ import FirebaseSyncListener from '../services/FirebaseSyncListener';
  * Manages shopping list state, subscriptions, and CRUD operations.
  * Uses WatermelonDB as single source of truth with syncStatus marker.
  *
+ * Data loading strategy:
+ * - Fetches lists directly from database on mount, foreground return, and manual refresh
+ * - Observer subscription handles real-time updates between fetches
+ * - Direct fetches ensure lists display immediately (observer can be unreliable on remount)
+ *
  * Usage:
  *   const { lists, loading, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
  */
