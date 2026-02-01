@@ -324,6 +324,14 @@ The Family Shopping List app foundation has been successfully implemented with *
 - ✅ Proper data flow
 - ✅ Conflict resolution strategy
 - ✅ Queue-based offline support
+- ✅ UI data loading: direct fetch + observer pattern (see below)
+
+### **UI Data Loading Pattern** ✅
+Hooks like `useShoppingLists` use a dual approach for reliability:
+1. **Direct database fetch** on mount, foreground return, and manual refresh
+2. **Observer subscription** for real-time updates between fetches
+
+This ensures lists display immediately regardless of observer reliability on component remount. WatermelonDB observers can be unreliable when components remount (due to navigation or app backgrounding), so direct fetches provide a safety net.
 
 ### **Documentation** ✅
 - ✅ Inline code comments

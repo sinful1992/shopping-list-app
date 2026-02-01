@@ -40,7 +40,7 @@ Short goal: help contributors implement features and fixes quickly while preserv
   - Preserve `syncStatus` and local-only metadata when applying remote changes. `App.tsx` demonstrates preserving `syncStatus` and is the canonical example.
   - Prefer high-level service APIs (`ShoppingListManager`, `ItemManager`) for business logic. Avoid duplicating sync/queue logic across components.
   - When adding Firebase paths, follow existing structure: lists and items are namespaced under a family group; urgent items use `urgentItems/{familyGroupId}` in `FirebaseSyncListener`.
-  - Use WatermelonDB observers for UI subscriptions (see `ShoppingListManager.subscribeToListChanges`). Avoid polling.
+  - Use WatermelonDB observers for real-time UI updates, but also fetch directly from database on mount/foreground (observers can be unreliable on component remount). See `useShoppingLists` for the pattern: direct fetch + observer subscription.
 
 - Quick examples
   - Create a list (pattern):
