@@ -26,6 +26,18 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       return;
     }
 
+    // Immediately load lists from database (don't rely solely on observer)
+    // This ensures lists show immediately when component mounts/remounts
+    ShoppingListManager.getAllLists(familyGroupId).then((allLists) => {
+      const visibleLists = allLists
+        .filter(list => list.status !== 'deleted' && list.status !== 'completed')
+        .sort((a, b) => b.createdAt - a.createdAt);
+      setLists(visibleLists);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+    });
+
     // Helper to start Firebase listeners
     const startFirebaseListeners = () => {
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
@@ -46,13 +58,21 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       }
     );
 
-    // Restart Firebase listeners when app returns to foreground
+    // Restart Firebase listeners and refresh lists when app returns to foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
         startFirebaseListeners();
+
+        // Refresh lists from database to ensure UI is current
+        ShoppingListManager.getAllLists(familyGroupId).then((allLists) => {
+          const visibleLists = allLists
+            .filter(list => list.status !== 'deleted' && list.status !== 'completed')
+            .sort((a, b) => b.createdAt - a.createdAt);
+          setLists(visibleLists);
+        }).catch(() => {});
       }
       appStateRef.current = nextAppState;
     };
