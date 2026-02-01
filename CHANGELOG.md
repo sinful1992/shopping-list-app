@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Babel decorators plugin support for WatermelonDB models
 
 ### Fixed
+- **Critical**: Fixed lists disappearing when app returns from background - `useShoppingLists` now fetches lists directly from database on mount, foreground return, and manual refresh instead of relying solely on WatermelonDB observer (which can be unreliable on component remount)
 - **Critical**: Fixed family group navigation issue - App now automatically navigates to main screen after creating/joining a family group
 - **Critical**: Fixed Android build failure due to incorrect NetInfo import path (`@react-native-netinfo/netinfo` → `@react-native-community/netinfo`)
 - **Critical**: Fixed Android build failure due to missing Babel decorators configuration for WatermelonDB
