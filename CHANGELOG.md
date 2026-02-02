@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Critical**: Fixed lists disappearing after pull-refresh - added SQLite write verification in `saveList` to ensure database persistence before returning
+
+## [0.13.8] - 2026-02-02
+
 ### Added
 - Real-time user data synchronization - App now automatically updates when user data changes in Firebase
 - `refreshUserData()` method in AuthenticationModule to fetch latest user data

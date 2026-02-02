@@ -93,11 +93,15 @@ class LocalStorageManager {
         }
       });
 
-      if (!listRecord) {
-        throw new Error('Failed to create or update list record');
+      // Force a fresh read from SQLite to ensure write is persisted
+      // This prevents the race condition where observer sees the in-memory cache
+      // but fetch() reads stale SQLite data before the write is fully visible
+      const verifiedRecord = await listsCollection.find(list.id);
+      if (!verifiedRecord) {
+        throw new Error('Failed to persist list to database');
       }
 
-      return this.listModelToType(listRecord);
+      return this.listModelToType(verifiedRecord);
     } catch (error: any) {
       throw new Error(`Failed to save list: ${error.message}`);
     }
