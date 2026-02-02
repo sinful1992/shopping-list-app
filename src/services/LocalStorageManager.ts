@@ -779,6 +779,7 @@ class LocalStorageManager {
 
     // Observe key fields so status/sync changes update the UI without a manual refresh.
     const subscription = query.observeWithColumns([
+      'family_group_id',
       'name',
       'status',
       'completed_at',

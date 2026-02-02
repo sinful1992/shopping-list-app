@@ -158,11 +158,14 @@ class FirebaseSyncListener {
   private async syncListToLocal(listId: string, firebaseData: any): Promise<void> {
     try {
       const existingList = await LocalStorageManager.getList(listId);
+      const resolvedFamilyGroupId = firebaseData.familyGroupId
+        ? firebaseData.familyGroupId
+        : existingList?.familyGroupId || '';
 
       const incomingList: ShoppingList = {
         id: listId,
         name: firebaseData.name || '',
-        familyGroupId: firebaseData.familyGroupId || '',
+        familyGroupId: resolvedFamilyGroupId,
         createdBy: firebaseData.createdBy || '',
         createdAt: firebaseData.createdAt || Date.now(),
         status: firebaseData.status || 'active',
