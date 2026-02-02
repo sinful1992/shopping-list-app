@@ -32,7 +32,7 @@ class FirebaseSyncListener {
       if (snapshot.exists()) {
         const listsData = snapshot.val();
         for (const listId of Object.keys(listsData)) {
-          await this.syncListToLocal(listId, listsData[listId]);
+          await this.syncListToLocal(listId, listsData[listId], familyGroupId);
         }
       }
     }).catch((error) => {
@@ -45,7 +45,7 @@ class FirebaseSyncListener {
       const listData = snapshot.val();
 
       if (listId && listData) {
-        await this.syncListToLocal(listId, listData);
+        await this.syncListToLocal(listId, listData, familyGroupId);
       }
     });
 
@@ -55,7 +55,7 @@ class FirebaseSyncListener {
       const listData = snapshot.val();
 
       if (listId && listData) {
-        await this.syncListToLocal(listId, listData);
+        await this.syncListToLocal(listId, listData, familyGroupId);
       }
     });
 
@@ -155,12 +155,16 @@ class FirebaseSyncListener {
    * Skips the write if the list already exists locally with identical data,
    * preventing observer flicker from echo-back writes.
    */
-  private async syncListToLocal(listId: string, firebaseData: any): Promise<void> {
+  private async syncListToLocal(
+    listId: string,
+    firebaseData: any,
+    familyGroupId: string
+  ): Promise<void> {
     try {
       const existingList = await LocalStorageManager.getList(listId);
       const resolvedFamilyGroupId = firebaseData.familyGroupId
-        ? firebaseData.familyGroupId
-        : existingList?.familyGroupId || '';
+        || existingList?.familyGroupId
+        || familyGroupId;
 
       const incomingList: ShoppingList = {
         id: listId,
