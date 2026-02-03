@@ -23,6 +23,22 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const pendingListsRef = useRef<Map<string, ShoppingList>>(new Map());
+
+  const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
+    const mergedLists = [...updatedLists];
+    const existingIds = new Set(updatedLists.map(list => list.id));
+
+    for (const [listId, pendingList] of pendingListsRef.current.entries()) {
+      if (existingIds.has(listId)) {
+        pendingListsRef.current.delete(listId);
+        continue;
+      }
+      mergedLists.push(pendingList);
+    }
+
+    return mergedLists.sort((a, b) => b.createdAt - a.createdAt);
+  }, []);
 
   // Subscribe to real-time list changes
   useEffect(() => {
@@ -31,13 +47,15 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       return;
     }
 
+    pendingListsRef.current.clear();
+
     // Immediately load lists from database (don't rely solely on observer)
     // This ensures lists show immediately when component mounts/remounts
     ShoppingListManager.getAllLists(familyGroupId).then((allLists) => {
       const visibleLists = allLists
         .filter(list => list.status !== 'deleted' && list.status !== 'completed')
         .sort((a, b) => b.createdAt - a.createdAt);
-      setLists(visibleLists);
+      setLists(mergeWithPendingLists(visibleLists));
       setLoading(false);
     }).catch(() => {
       setLoading(false);
@@ -58,7 +76,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
       familyGroupId,
       (updatedLists) => {
-        setLists(updatedLists);
+        setLists(mergeWithPendingLists(updatedLists));
         setLoading(false);
       }
     );
@@ -76,7 +94,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
           const visibleLists = allLists
             .filter(list => list.status !== 'deleted' && list.status !== 'completed')
             .sort((a, b) => b.createdAt - a.createdAt);
-          setLists(visibleLists);
+          setLists(mergeWithPendingLists(visibleLists));
         }).catch(() => {});
       }
       appStateRef.current = nextAppState;
@@ -90,7 +108,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       unsubscribeLocal();
       appStateSubscription.remove();
     };
-  }, [familyGroupId]);
+  }, [familyGroupId, mergeWithPendingLists]);
 
   // Create list - save to DB, observer will pick it up
   const createList = useCallback(async (listName: string): Promise<ShoppingList | null> => {
@@ -106,12 +124,14 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
         user.familyGroupId,
         user
       );
+      pendingListsRef.current.set(list.id, list);
+      setLists((currentLists) => mergeWithPendingLists(currentLists));
       // Observer will automatically show the list with syncStatus: 'pending'
       return list;
     } finally {
       setCreating(false);
     }
-  }, [user, creating]);
+  }, [user, creating, mergeWithPendingLists]);
 
   // Delete list
   const deleteList = useCallback(async (listId: string): Promise<void> => {
@@ -129,11 +149,11 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       const visibleLists = allLists
         .filter(list => list.status !== 'deleted' && list.status !== 'completed')
         .sort((a, b) => b.createdAt - a.createdAt);
-      setLists(visibleLists);
+      setLists(mergeWithPendingLists(visibleLists));
     } finally {
       setLoading(false);
     }
-  }, [familyGroupId]);
+  }, [familyGroupId, mergeWithPendingLists]);
 
   return {
     lists,
