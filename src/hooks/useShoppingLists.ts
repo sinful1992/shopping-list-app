@@ -113,7 +113,17 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   // Create list - save to DB, observer will pick it up
   const createList = useCallback(async (listName: string): Promise<ShoppingList | null> => {
     if (creating) return null;
-    if (!user || !user.familyGroupId) return null;
+    if (!user) return null;
+    if (!familyGroupId) {
+      if (user.familyGroupId) {
+        console.warn('useShoppingLists.createList called without familyGroupId while user has one.', {
+          userFamilyGroupId: user.familyGroupId,
+        });
+      } else {
+        console.warn('useShoppingLists.createList called without familyGroupId.');
+      }
+      return null;
+    }
 
     setCreating(true);
 
@@ -121,7 +131,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       const list = await ShoppingListManager.createListOptimistic(
         listName,
         user.uid,
-        user.familyGroupId,
+        familyGroupId,
         user
       );
       pendingListsRef.current.set(list.id, list);
@@ -131,7 +141,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     } finally {
       setCreating(false);
     }
-  }, [user, creating, mergeWithPendingLists]);
+  }, [user, familyGroupId, creating, mergeWithPendingLists]);
 
   // Delete list
   const deleteList = useCallback(async (listId: string): Promise<void> => {
