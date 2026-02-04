@@ -24,6 +24,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   const [creating, setCreating] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const pendingListsRef = useRef<Map<string, ShoppingList>>(new Map());
+  const lastFamilyGroupIdRef = useRef<string | null>(null);
 
   const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
     const mergedLists = [...updatedLists];
@@ -50,7 +51,12 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       return;
     }
 
-    pendingListsRef.current.clear();
+    // Only clear pending lists when familyGroupId actually changes
+    // (switching to a different family group)
+    if (lastFamilyGroupIdRef.current !== familyGroupId) {
+      pendingListsRef.current.clear();
+      lastFamilyGroupIdRef.current = familyGroupId;
+    }
 
     // Immediately load lists from database (don't rely solely on observer)
     // This ensures lists show immediately when component mounts/remounts
