@@ -27,11 +27,14 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
     const mergedLists = [...updatedLists];
-    const existingIds = new Set(updatedLists.map(list => list.id));
 
     for (const [listId, pendingList] of pendingListsRef.current.entries()) {
-      if (existingIds.has(listId)) {
-        pendingListsRef.current.delete(listId);
+      const foundList = updatedLists.find(l => l.id === listId);
+      if (foundList) {
+        // Only remove from pending backup when confirmed synced
+        if (foundList.syncStatus === 'synced') {
+          pendingListsRef.current.delete(listId);
+        }
         continue;
       }
       mergedLists.push(pendingList);
