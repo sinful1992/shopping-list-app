@@ -161,9 +161,7 @@ class FirebaseSyncListener {
     familyGroupId: string
   ): Promise<void> {
     try {
-      console.log(`[SYNC] syncListToLocal: ${listId.slice(-6)}, status: ${firebaseData.status}`);
       const existingList = await LocalStorageManager.getList(listId);
-      console.log(`[SYNC] existingList: ${existingList ? 'found' : 'NOT FOUND'}, familyGroupId: ${existingList?.familyGroupId?.slice(-6) || 'none'}`);
       const resolvedFamilyGroupId = firebaseData.familyGroupId
         || existingList?.familyGroupId
         || familyGroupId;
@@ -191,13 +189,10 @@ class FirebaseSyncListener {
       };
 
       if (existingList && !this.hasListChanged(existingList, incomingList)) {
-        console.log(`[SYNC] No changes for ${listId.slice(-6)}, skipping save`);
         return;
       }
 
-      console.log(`[SYNC] Saving ${listId.slice(-6)} with status: ${incomingList.status}, familyGroupId: ${incomingList.familyGroupId?.slice(-6)}`);
       await LocalStorageManager.saveList(incomingList);
-      console.log(`[SYNC] Saved ${listId.slice(-6)} successfully`);
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncListToLocal');
     }
