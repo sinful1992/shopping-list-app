@@ -28,19 +28,27 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
     const mergedLists = [...updatedLists];
+    const pendingCount = pendingListsRef.current.size;
+    const updatedIds = updatedLists.map(l => l.id.slice(-6)).join(',');
+
+    console.log(`[MERGE] updatedLists: ${updatedLists.length}, pending: ${pendingCount}, ids: [${updatedIds}]`);
 
     for (const [listId, pendingList] of pendingListsRef.current.entries()) {
       const foundList = updatedLists.find(l => l.id === listId);
       if (foundList) {
+        console.log(`[MERGE] Found ${listId.slice(-6)} in updated, syncStatus: ${foundList.syncStatus}`);
         // Only remove from pending backup when confirmed synced
         if (foundList.syncStatus === 'synced') {
+          console.log(`[MERGE] Removing ${listId.slice(-6)} from pending (synced)`);
           pendingListsRef.current.delete(listId);
         }
         continue;
       }
+      console.log(`[MERGE] Adding ${listId.slice(-6)} from pending (not in updated)`);
       mergedLists.push(pendingList);
     }
 
+    console.log(`[MERGE] Final count: ${mergedLists.length}`);
     return mergedLists.sort((a, b) => b.createdAt - a.createdAt);
   }, []);
 
@@ -54,8 +62,11 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     // Only clear pending lists when familyGroupId actually changes
     // (switching to a different family group)
     if (lastFamilyGroupIdRef.current !== familyGroupId) {
+      console.log(`[EFFECT] familyGroupId changed: ${lastFamilyGroupIdRef.current} -> ${familyGroupId}, clearing pending`);
       pendingListsRef.current.clear();
       lastFamilyGroupIdRef.current = familyGroupId;
+    } else {
+      console.log(`[EFFECT] familyGroupId unchanged: ${familyGroupId}, keeping ${pendingListsRef.current.size} pending`);
     }
 
     // Immediately load lists from database (don't rely solely on observer)
@@ -85,6 +96,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
       familyGroupId,
       (updatedLists) => {
+        console.log(`[OBSERVER] Received ${updatedLists.length} lists, pending: ${pendingListsRef.current.size}`);
         setLists(mergeWithPendingLists(updatedLists));
         setLoading(false);
       }
@@ -137,13 +149,16 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     setCreating(true);
 
     try {
+      console.log(`[CREATE] Starting createListOptimistic for "${listName}"`);
       const list = await ShoppingListManager.createListOptimistic(
         listName,
         user.uid,
         familyGroupId,
         user
       );
+      console.log(`[CREATE] List created: ${list.id.slice(-6)}, adding to pending`);
       pendingListsRef.current.set(list.id, list);
+      console.log(`[CREATE] pendingListsRef now has ${pendingListsRef.current.size} items`);
       setLists((currentLists) => mergeWithPendingLists(currentLists));
       // Observer will automatically show the list with syncStatus: 'pending'
       return list;
