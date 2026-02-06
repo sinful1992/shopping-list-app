@@ -226,11 +226,7 @@ export function useListDetail(listId: string, currentUserId: string | null) {
   const addItem = useCallback(async (name: string, category?: string | null) => {
     if (!currentUserId) return;
 
-    const item = await ItemManager.addItem(listId, name, currentUserId);
-    if (category) {
-      await ItemManager.updateItem(item.id, { category });
-    }
-    return item;
+    return await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category);
   }, [listId, currentUserId]);
 
   // Delete item

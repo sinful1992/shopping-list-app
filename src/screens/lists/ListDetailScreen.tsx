@@ -339,11 +339,7 @@ const ListDetailScreen = () => {
   const addItemWithCategory = async (name: string, category: string | null) => {
     if (!currentUserId) return;
 
-    const item = await ItemManager.addItem(listId, name, currentUserId);
-
-    if (category) {
-      await ItemManager.updateItem(item.id, { category });
-    }
+    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category);
   };
 
   const handleConflictResolved = async (selectedCategory: string) => {
