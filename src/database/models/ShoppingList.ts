@@ -7,7 +7,7 @@ export class ShoppingListModel extends Model {
   @field('name') name!: string;
   @field('family_group_id') familyGroupId!: string;
   @field('created_by') createdBy!: string;
-  @readonly @date('created_at') createdAt!: number;
+  @readonly @date('created_at') createdAt!: Date;
   @field('status') status!: string;
   @field('completed_at') completedAt!: number | null;
   @field('completed_by') completedBy!: string | null;

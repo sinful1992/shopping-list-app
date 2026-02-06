@@ -8,7 +8,7 @@ export class UrgentItemModel extends Model {
   @field('family_group_id') familyGroupId!: string;
   @field('created_by') createdBy!: string;
   @field('created_by_name') createdByName!: string;
-  @readonly @date('created_at') createdAt!: number;
+  @readonly @date('created_at') createdAt!: Date;
   @field('resolved_by') resolvedBy!: string | null;
   @field('resolved_by_name') resolvedByName!: string | null;
   @field('resolved_at') resolvedAt!: number | null;

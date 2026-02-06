@@ -10,7 +10,7 @@ export class ItemModel extends Model {
   @field('price') price!: number | null;
   @field('checked') checked!: boolean;
   @field('created_by') createdBy!: string;
-  @readonly @date('created_at') createdAt!: number;
+  @readonly @date('created_at') createdAt!: Date;
   @field('updated_at') updatedAt!: number;
   @field('sync_status') syncStatus!: string;
   @field('category') category!: string | null; // Sprint 6: Category organization
