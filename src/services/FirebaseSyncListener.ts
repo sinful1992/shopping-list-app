@@ -27,19 +27,7 @@ class FirebaseSyncListener {
 
     const listsRef = database().ref(`familyGroups/${familyGroupId}/lists`);
 
-    // Perform initial sync of all existing lists
-    listsRef.once('value').then(async (snapshot) => {
-      if (snapshot.exists()) {
-        const listsData = snapshot.val();
-        for (const listId of Object.keys(listsData)) {
-          await this.syncListToLocal(listId, listsData[listId], familyGroupId);
-        }
-      }
-    }).catch((error) => {
-      CrashReporting.recordError(error as Error, 'FirebaseSyncListener.startListeningToLists initial');
-    });
-
-    // Listen for new lists
+    // Listen for new lists (child_added fires for existing children on attach)
     const onChildAdded = listsRef.on('child_added', async (snapshot) => {
       const listId = snapshot.key;
       const listData = snapshot.val();
@@ -428,23 +416,7 @@ class FirebaseSyncListener {
 
     const categoryHistoryRef = database().ref(`familyGroups/${familyGroupId}/categoryHistory`);
 
-    // Perform initial sync of all existing category history
-    categoryHistoryRef.once('value').then(async (snapshot) => {
-      if (snapshot.exists()) {
-        const historyData = snapshot.val();
-        for (const itemHash of Object.keys(historyData)) {
-          const categoriesForItem = historyData[itemHash];
-          for (const category of Object.keys(categoriesForItem)) {
-            const data = categoriesForItem[category];
-            await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
-          }
-        }
-      }
-    }).catch((error) => {
-      CrashReporting.recordError(error as Error, 'FirebaseSyncListener categoryHistory initial');
-    });
-
-    // Listen for new/updated category history
+    // Listen for new/updated category history (child_added fires for existing children on attach)
     const onChildAdded = categoryHistoryRef.on('child_added', async (itemSnapshot) => {
       const itemHash = itemSnapshot.key;
       if (itemHash) {
