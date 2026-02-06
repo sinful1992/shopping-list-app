@@ -18,34 +18,32 @@ import FirebaseSyncListener from '../services/FirebaseSyncListener';
  * Usage:
  *   const { lists, loading, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
  */
+const MIN_PENDING_AGE_MS = 2000;
+
 export function useShoppingLists(familyGroupId: string | null, user: User | null) {
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const pendingListsRef = useRef<Map<string, ShoppingList>>(new Map());
+  const pendingListsRef = useRef<Map<string, { list: ShoppingList; addedAt: number }>>(new Map());
   const lastFamilyGroupIdRef = useRef<string | null>(null);
 
   const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
-    // ALWAYS include pending lists, regardless of what observer returns
-    // This ensures newly created lists never disappear during sync
-    const pendingArray = Array.from(pendingListsRef.current.values());
+    const pendingEntries = Array.from(pendingListsRef.current.values());
     const updatedIds = new Set(updatedLists.map(l => l.id));
 
-    // Start with all updated lists
     const mergedLists = [...updatedLists];
 
-    // Add any pending lists not already in updated
-    for (const pendingList of pendingArray) {
-      if (!updatedIds.has(pendingList.id)) {
-        mergedLists.push(pendingList);
+    for (const entry of pendingEntries) {
+      if (!updatedIds.has(entry.list.id)) {
+        mergedLists.push(entry.list);
       }
     }
 
-    // Clean up: only remove from pending when list is synced in updatedLists
-    for (const [listId] of pendingListsRef.current.entries()) {
+    const now = Date.now();
+    for (const [listId, entry] of pendingListsRef.current.entries()) {
       const foundList = updatedLists.find(l => l.id === listId);
-      if (foundList && foundList.syncStatus === 'synced') {
+      if (foundList && foundList.syncStatus === 'synced' && now - entry.addedAt >= MIN_PENDING_AGE_MS) {
         pendingListsRef.current.delete(listId);
       }
     }
@@ -152,7 +150,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
         familyGroupId,
         user
       );
-      pendingListsRef.current.set(list.id, list);
+      pendingListsRef.current.set(list.id, { list, addedAt: Date.now() });
       setLists((currentLists) => mergeWithPendingLists(currentLists));
       return list;
     } finally {

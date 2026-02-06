@@ -779,22 +779,14 @@ class LocalStorageManager {
 
     // Observe key fields so status/sync changes update the UI without a manual refresh.
     const subscription = query.observeWithColumns([
-      'family_group_id',
       'name',
       'status',
       'completed_at',
-      'completed_by',
-      'receipt_url',
-      'receipt_data',
       'sync_status',
       'is_locked',
-      'locked_by',
       'locked_by_name',
       'locked_by_role',
-      'locked_at',
-      'budget',
       'store_name',
-      'archived',
     ]).subscribe((listModels) => {
       const lists = listModels.map((model) => this.listModelToType(model));
       callback(lists);
