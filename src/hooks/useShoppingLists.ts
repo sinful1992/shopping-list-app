@@ -24,6 +24,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const pendingListsRef = useRef<Map<string, { list: ShoppingList; addedAt: number }>>(new Map());
   const lastFamilyGroupIdRef = useRef<string | null>(null);
@@ -119,7 +120,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   // Create list - save to DB, observer will pick it up
   const createList = useCallback(async (listName: string): Promise<ShoppingList | null> => {
-    if (creating) return null;
+    if (creatingRef.current) return null;
     if (!user) return null;
     if (!familyGroupId) {
       if (user.familyGroupId) {
@@ -132,6 +133,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       return null;
     }
 
+    creatingRef.current = true;
     setCreating(true);
 
     try {
@@ -145,9 +147,10 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       setLists((currentLists) => mergeWithPendingLists(currentLists));
       return list;
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
-  }, [user, familyGroupId, creating, mergeWithPendingLists]);
+  }, [user, familyGroupId, mergeWithPendingLists]);
 
   // Delete list
   const deleteList = useCallback(async (listId: string): Promise<void> => {
