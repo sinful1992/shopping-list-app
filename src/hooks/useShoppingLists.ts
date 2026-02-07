@@ -30,19 +30,19 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
     const pendingEntries = Array.from(pendingListsRef.current.values());
-    const updatedIds = new Set(updatedLists.map(l => l.id));
+    const updatedMap = new Map(updatedLists.map(l => [l.id, l]));
 
     const mergedLists = [...updatedLists];
 
     for (const entry of pendingEntries) {
-      if (!updatedIds.has(entry.list.id)) {
+      if (!updatedMap.has(entry.list.id)) {
         mergedLists.push(entry.list);
       }
     }
 
     const now = Date.now();
     for (const [listId, entry] of pendingListsRef.current.entries()) {
-      const foundList = updatedLists.find(l => l.id === listId);
+      const foundList = updatedMap.get(listId);
       if (foundList && foundList.syncStatus === 'synced' && now - entry.addedAt >= MIN_PENDING_AGE_MS) {
         pendingListsRef.current.delete(listId);
       }
