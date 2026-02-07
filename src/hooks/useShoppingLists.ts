@@ -165,13 +165,14 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
     try {
       await ShoppingListManager.deleteList(listId);
-    } catch {
+    } catch (error) {
       if (deletedPending) {
         pendingListsRef.current.set(listId, deletedPending);
       }
       if (deletedItem) {
         setLists((cur) => [...cur, deletedItem!].sort((a, b) => b.createdAt - a.createdAt));
       }
+      throw error;
     }
   }, []);
 
