@@ -380,7 +380,7 @@ const SettingsScreen = () => {
 
       {/* App Info */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Family Shopping List v0.10.10</Text>
+        <Text style={styles.footerText}>Family Shopping List v0.13.11</Text>
         <Text style={styles.footerText}>Family Collaboration Made Easy</Text>
       </View>
 
