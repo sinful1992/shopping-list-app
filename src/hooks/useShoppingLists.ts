@@ -65,17 +65,14 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       lastFamilyGroupIdRef.current = familyGroupId;
     }
 
-    // Immediately load lists from database (don't rely solely on observer)
-    // This ensures lists show immediately when component mounts/remounts
-    ShoppingListManager.getAllLists(familyGroupId).then((allLists) => {
-      const visibleLists = allLists
-        .filter(list => list.status !== 'deleted' && list.status !== 'completed')
-        .sort((a, b) => b.createdAt - a.createdAt);
-      setLists(mergeWithPendingLists(visibleLists));
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    const fetchLists = () =>
+      ShoppingListManager.getAllActiveLists(familyGroupId).then((activeLists) => {
+        setLists(mergeWithPendingLists(activeLists));
+      });
+
+    fetchLists()
+      .then(() => setLoading(false))
+      .catch(() => setLoading(false));
 
     // Helper to start Firebase listeners
     const startFirebaseListeners = () => {
@@ -105,13 +102,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       ) {
         startFirebaseListeners();
 
-        // Refresh lists from database to ensure UI is current
-        ShoppingListManager.getAllLists(familyGroupId).then((allLists) => {
-          const visibleLists = allLists
-            .filter(list => list.status !== 'deleted' && list.status !== 'completed')
-            .sort((a, b) => b.createdAt - a.createdAt);
-          setLists(mergeWithPendingLists(visibleLists));
-        }).catch(() => {});
+        fetchLists().catch(() => {});
       }
       appStateRef.current = nextAppState;
     };
@@ -187,11 +178,8 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
     setLoading(true);
     try {
-      const allLists = await ShoppingListManager.getAllLists(familyGroupId);
-      const visibleLists = allLists
-        .filter(list => list.status !== 'deleted' && list.status !== 'completed')
-        .sort((a, b) => b.createdAt - a.createdAt);
-      setLists(mergeWithPendingLists(visibleLists));
+      const activeLists = await ShoppingListManager.getAllActiveLists(familyGroupId);
+      setLists(mergeWithPendingLists(activeLists));
     } finally {
       setLoading(false);
     }
