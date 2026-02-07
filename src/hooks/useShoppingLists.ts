@@ -160,8 +160,25 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   // Delete list
   const deleteList = useCallback(async (listId: string): Promise<void> => {
-    await ShoppingListManager.deleteList(listId);
-    // WatermelonDB observer will automatically update the UI
+    let deletedItem: ShoppingList | undefined;
+    const deletedPending = pendingListsRef.current.get(listId);
+
+    pendingListsRef.current.delete(listId);
+    setLists((cur) => {
+      deletedItem = cur.find(l => l.id === listId);
+      return cur.filter(list => list.id !== listId);
+    });
+
+    try {
+      await ShoppingListManager.deleteList(listId);
+    } catch {
+      if (deletedPending) {
+        pendingListsRef.current.set(listId, deletedPending);
+      }
+      if (deletedItem) {
+        setLists((cur) => [...cur, deletedItem!].sort((a, b) => b.createdAt - a.createdAt));
+      }
+    }
   }, []);
 
   // Refresh lists manually (pull-to-refresh)
