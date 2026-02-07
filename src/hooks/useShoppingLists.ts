@@ -160,9 +160,9 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   // Delete list
   const deleteList = useCallback(async (listId: string): Promise<void> => {
+    await ShoppingListManager.deleteList(listId);
     pendingListsRef.current.delete(listId);
     setLists((currentLists) => currentLists.filter(list => list.id !== listId));
-    await ShoppingListManager.deleteList(listId);
     // WatermelonDB observer will automatically update the UI
   }, []);
 
