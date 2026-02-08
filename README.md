@@ -13,6 +13,9 @@ A React Native mobile application for collaborative family shopping list managem
 - **Offline Support** - Full functionality when offline with automatic sync *(WatermelonDB config fixed Nov 2025)*
 - **Cross-Platform** - iOS and Android support
 - **CI/CD Pipeline** - Automated Android builds via GitHub Actions *(Fully functional Nov 2025)*
+- **In-App Legal Viewer** - Privacy Policy and Terms of Service rendered in-app with markdown
+- **Terms Acceptance** - Versioned terms acceptance flow with decline/logout option
+- **Subscription Management** - RevenueCat integration with free/premium/family tiers
 
 ### 🚧 To Be Implemented
 - **Receipt Capture** - Photo capture with automatic boundary detection
@@ -148,11 +151,21 @@ shoping/
 │   │   ├── SyncEngine.ts            # Real-time sync
 │   │   ├── ShoppingListManager.ts   # List management
 │   │   └── ItemManager.ts           # Item management
+│   ├── components/
+│   │   └── SimpleMarkdown.tsx       # Lightweight markdown renderer
+│   ├── legal/
+│   │   ├── index.ts                 # Legal exports & CURRENT_TERMS_VERSION
+│   │   ├── PrivacyPolicy.ts         # Privacy policy content
+│   │   └── TermsOfService.ts        # Terms of service content
 │   └── screens/
 │       ├── auth/
 │       │   ├── LoginScreen.tsx
 │       │   ├── SignUpScreen.tsx
-│       │   └── FamilyGroupScreen.tsx
+│       │   ├── FamilyGroupScreen.tsx
+│       │   └── TermsAcceptanceScreen.tsx  # Terms acceptance flow
+│       ├── settings/
+│       │   ├── SettingsScreen.tsx
+│       │   └── LegalDocumentScreen.tsx    # In-app legal viewer
 │       ├── lists/
 │       │   ├── HomeScreen.tsx       # Main list view
 │       │   └── ListDetailScreen.tsx # Item management
@@ -243,4 +256,4 @@ For issues or questions, please refer to the specification documents or create a
 ---
 
 **Generated with**: Specification Architect AI
-**Last Updated**: January 2025
+**Last Updated**: February 2026

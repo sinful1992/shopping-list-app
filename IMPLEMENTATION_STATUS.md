@@ -90,6 +90,7 @@ The Family Shopping List app foundation has been successfully implemented with *
 - ✅ `LoginScreen.tsx` - Email/password + Google Sign-In UI
 - ✅ `SignUpScreen.tsx` - New user registration
 - ✅ `FamilyGroupScreen.tsx` - Create/join family groups
+- ✅ `TermsAcceptanceScreen.tsx` - Versioned terms acceptance with decline/logout
 - **Implements**: Requirements 1.1, 1.2, 1.4, 1.5
 
 #### **Main App Screens** ✅
@@ -106,10 +107,16 @@ The Family Shopping List app foundation has been successfully implemented with *
 - ✅ `HistoryScreen.tsx` - Placeholder (structure ready)
 - **Implements**: Requirements 2.3, 2.4, 3.1, 3.3, 3.4, 3.5, 3.6, 9.1
 
+#### **Settings & Legal Screens** ✅
+- ✅ `SettingsScreen.tsx` - Account, family group, and app settings
+- ✅ `LegalDocumentScreen.tsx` - In-app legal document viewer with SimpleMarkdown
+- ✅ `SimpleMarkdown.tsx` - Lightweight markdown renderer (headers, bold, bullets)
+
 #### **Navigation & App Structure** ✅
 - ✅ `App.tsx` - Main entry point with navigation
   - Auth state management
   - Stack navigation for auth flow
+  - Terms acceptance gate (versioned)
   - Tab navigation for main app
   - Conditional rendering based on auth status
 
@@ -240,8 +247,15 @@ The Family Shopping List app foundation has been successfully implemented with *
 
 ---
 
-### **Phase 8: Deployment** 🚧
+### **Phase 8: Deployment** 🚧 (Partially Complete)
 **Estimated: 1-2 weeks**
+
+**Completed:**
+- ✅ Version synced across `package.json`, `build.gradle`, and Settings UI
+- ✅ In-app Privacy Policy and Terms of Service viewer
+- ✅ Terms acceptance flow with versioning
+- ✅ Hosted legal pages (GitHub Pages: `familyshoppinglist-legal` repo)
+- ✅ Data Safety form reference (`docs/DATA_SAFETY.md`)
 
 **To Implement:**
 1. **iOS App Store**
@@ -406,4 +420,4 @@ This ensures lists display immediately regardless of observer reliability on com
 
 **Next Milestone**: Receipt Capture & OCR Implementation
 
-**Generated**: January 2025
+**Generated**: January 2025 | **Last Updated**: February 2026

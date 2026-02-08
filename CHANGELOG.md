@@ -10,6 +10,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Critical**: Fixed lists disappearing after pull-refresh - added SQLite write verification in `saveList` to ensure database persistence before returning
 
+## [0.13.12] - 2026-02-08
+
+### Added
+- **Play Store Readiness**: In-app legal document viewer with `SimpleMarkdown` renderer
+- **Terms Acceptance Flow**: New `TermsAcceptanceScreen` with Accept / Decline & Log Out, versioned via `CURRENT_TERMS_VERSION`
+- **License Grant**: Added License Grant clause to Terms of Service
+- **Hosted Legal Pages**: Separate `familyshoppinglist-legal` repo with GitHub Pages for Play Console privacy policy URL
+- **Data Safety Reference**: `docs/DATA_SAFETY.md` for Play Console Data Safety form
+
+### Changed
+- Synced `build.gradle` versionCode (1312) and versionName ("0.13.12") to match `package.json`
+- Settings footer now reads version dynamically from `package.json` (no more version drift)
+- Privacy Policy and Terms of Service open in-app instead of external browser
+- Strengthened RevenueCat data-sharing disclosure in Privacy Policy (purchase history explicitly mentioned)
+- Legal section icons changed from `open-outline` to `chevron-forward-outline`
+- Bumped Privacy Policy and Terms of Service "Last Updated" to February 2026
+
+### Added (Types)
+- `termsAcceptedVersion` and `termsAcceptedAt` fields on `User` interface
+
 ## [0.13.8] - 2026-02-02
 
 ### Added
