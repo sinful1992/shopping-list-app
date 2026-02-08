@@ -68,9 +68,12 @@ import HistoryDetailScreen from './src/screens/history/HistoryDetailScreen';
 import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
+import LegalDocumentScreen from './src/screens/settings/LegalDocumentScreen';
 import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
 import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
+import TermsAcceptanceScreen from './src/screens/auth/TermsAcceptanceScreen';
+import { CURRENT_TERMS_VERSION } from './src/legal';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -351,6 +354,11 @@ function App(): JSX.Element {
             <Stack.Screen name="SignUp" component={SignUpScreen} />
             <Stack.Screen name="FamilyGroup" component={FamilyGroupScreen} />
           </Stack.Navigator>
+        ) : (user.termsAcceptedVersion ?? 0) < CURRENT_TERMS_VERSION ? (
+          // Terms Acceptance
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="TermsAcceptance" component={TermsAcceptanceScreen} />
+          </Stack.Navigator>
         ) : !user.familyGroupId ? (
           // Family Group Setup
           <Stack.Navigator>
@@ -372,6 +380,11 @@ function App(): JSX.Element {
               name="Settings"
               component={SettingsScreen}
               options={{ title: 'Settings' }}
+            />
+            <Stack.Screen
+              name="LegalDocument"
+              component={LegalDocumentScreen}
+              options={({ route }: any) => ({ title: route.params?.title || 'Legal' })}
             />
           </Stack.Navigator>
         )}
