@@ -1,14 +1,14 @@
 /**
  * Terms of Service for Family Shopping List
- * Last updated: January 2026
+ * Last updated: February 2026
  */
 
-export const TERMS_OF_SERVICE_URL = 'https://familyshoppinglist.app/terms';
+export const TERMS_OF_SERVICE_URL = 'https://sinful1992.github.io/familyshoppinglist-legal/terms.html';
 
 export const TERMS_OF_SERVICE_CONTENT = `
 # Terms of Service for Family Shopping List
 
-**Last Updated: January 2026**
+**Last Updated: February 2026**
 
 ## Agreement to Terms
 
@@ -22,6 +22,18 @@ Family Shopping List is a collaborative shopping list application that allows fa
 - Capture and store receipt images
 - Receive notifications about urgent items
 - Access premium features through subscription
+
+## License Grant
+
+We grant you a limited, non-exclusive, non-transferable, revocable license to use Family Shopping List on your personal device for personal, non-commercial purposes, subject to these Terms.
+
+This license does not allow you to:
+- Copy, modify, or distribute the App or any part of it
+- Reverse engineer, decompile, or disassemble the App
+- Rent, lease, lend, sell, or sublicense the App
+- Use the App for any commercial purpose without our written consent
+
+We may revoke this license at any time if you violate these Terms.
 
 ## Account Registration
 

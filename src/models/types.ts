@@ -26,6 +26,8 @@ export interface User {
   avatar?: string | null;
   createdAt: number;
   usageCounters: UsageCounters;
+  termsAcceptedVersion?: number;
+  termsAcceptedAt?: number;
 }
 
 export interface FamilyGroup {

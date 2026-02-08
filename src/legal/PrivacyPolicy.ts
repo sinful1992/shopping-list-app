@@ -1,14 +1,14 @@
 /**
  * Privacy Policy for Family Shopping List
- * Last updated: January 2026
+ * Last updated: February 2026
  */
 
-export const PRIVACY_POLICY_URL = 'https://familyshoppinglist.app/privacy';
+export const PRIVACY_POLICY_URL = 'https://sinful1992.github.io/familyshoppinglist-legal/privacy.html';
 
 export const PRIVACY_POLICY_CONTENT = `
 # Privacy Policy for Family Shopping List
 
-**Last Updated: January 2026**
+**Last Updated: February 2026**
 
 ## Introduction
 
@@ -59,7 +59,8 @@ Supabase Privacy Policy: https://supabase.com/privacy
 
 ### RevenueCat
 - **Subscription Management**: Processing in-app purchases and subscriptions
-- We do not store your payment details; all payment processing is handled by Google Play
+- Your purchase history (subscription status, purchase dates, product identifiers) is shared with RevenueCat to manage your subscription
+- We do not store your payment card details; payment processing is handled by Google Play
 
 RevenueCat Privacy Policy: https://www.revenuecat.com/privacy
 

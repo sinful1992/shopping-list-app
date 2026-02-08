@@ -10,13 +10,14 @@ import {
   TextInput,
   Modal,
   Switch,
-  Linking,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 import { useAlert } from '../../contexts/AlertContext';
 import { FamilyRole } from '../../models/types';
-import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from '../../legal';
+import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
 import { useSettings } from '../../hooks';
+import { version } from '../../../package.json';
 
 /**
  * SettingsScreen
@@ -24,6 +25,7 @@ import { useSettings } from '../../hooks';
  * Implements family group management and user settings
  */
 const SettingsScreen = () => {
+  const navigation = useNavigation<any>();
   const { showAlert } = useAlert();
 
   // Use custom hook for settings management
@@ -339,19 +341,19 @@ const SettingsScreen = () => {
         </View>
         <TouchableOpacity
           style={styles.legalButton}
-          onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
+          onPress={() => navigation.navigate('LegalDocument', { title: 'Privacy Policy', content: PRIVACY_POLICY_CONTENT })}
         >
           <Icon name="shield-checkmark-outline" size={20} color="#007AFF" />
           <Text style={styles.legalButtonText}>Privacy Policy</Text>
-          <Icon name="open-outline" size={16} color="#6E6E73" />
+          <Icon name="chevron-forward-outline" size={16} color="#6E6E73" />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.legalButton}
-          onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
+          onPress={() => navigation.navigate('LegalDocument', { title: 'Terms of Service', content: TERMS_OF_SERVICE_CONTENT })}
         >
           <Icon name="document-outline" size={20} color="#007AFF" />
           <Text style={styles.legalButtonText}>Terms of Service</Text>
-          <Icon name="open-outline" size={16} color="#6E6E73" />
+          <Icon name="chevron-forward-outline" size={16} color="#6E6E73" />
         </TouchableOpacity>
       </View>
 
@@ -380,7 +382,7 @@ const SettingsScreen = () => {
 
       {/* App Info */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Family Shopping List v0.13.11</Text>
+        <Text style={styles.footerText}>Family Shopping List v{version}</Text>
         <Text style={styles.footerText}>Family Collaboration Made Easy</Text>
       </View>
 
