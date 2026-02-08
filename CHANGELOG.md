@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Critical**: Fixed lists disappearing after pull-refresh - added SQLite write verification in `saveList` to ensure database persistence before returning
 
-## [0.13.12] - 2026-02-08
+## [0.14.0] - 2026-02-08
 
 ### Added
 - **Play Store Readiness**: In-app legal document viewer with `SimpleMarkdown` renderer
