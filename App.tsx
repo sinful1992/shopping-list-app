@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar, TouchableOpacity } from 'react-native';
-import { NavigationContainer, DefaultTheme, useNavigation } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,7 +90,7 @@ function ListsStack() {
       <Stack.Screen
         name="ListDetail"
         component={ListDetailScreen}
-        options={{ title: 'List Details' }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="HistoryDetail"
@@ -142,11 +142,15 @@ function MainTabNavigator() {
       <Tab.Screen
         name="Lists"
         component={ListsStack}
-        options={{
-          title: 'Shopping Lists',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="list-outline" size={size} color={color} />
-          ),
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'Home';
+          return {
+            title: 'Shopping Lists',
+            headerShown: routeName === 'Home',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="list-outline" size={size} color={color} />
+            ),
+          };
         }}
       />
       <Tab.Screen
