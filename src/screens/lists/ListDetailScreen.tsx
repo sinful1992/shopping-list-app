@@ -8,6 +8,7 @@ import {
   StyleSheet,
   RefreshControl,
   Vibration,
+  InteractionManager,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -129,8 +130,16 @@ const ListDetailScreen = () => {
     // Reset mounted flag
     isMountedRef.current = true;
 
-    loadListAndItems();
+    // Eager: fast local DB reads needed immediately
+    loadListMetadata();
     loadCurrentUser();
+
+    // Deferred: expensive predictions after navigation animation completes
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      if (isMountedRef.current) {
+        loadPredictions();
+      }
+    });
 
     // Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
     const unsubscribeList = ShoppingListManager.subscribeToSingleList(
@@ -196,6 +205,7 @@ const ListDetailScreen = () => {
 
     return () => {
       isMountedRef.current = false;
+      interactionHandle.cancel();
       unsubscribeList();
       unsubscribeItems();
       unsubscribeNetInfo();
@@ -228,7 +238,7 @@ const ListDetailScreen = () => {
     }
   };
 
-  const loadListAndItems = async () => {
+  const loadListMetadata = async (): Promise<ShoppingList | null> => {
     try {
       const fetchedList = await ShoppingListManager.getListById(listId);
       if (fetchedList) {
@@ -255,21 +265,18 @@ const ListDetailScreen = () => {
             setCanAddItems(!locked);
           }
         }
+        return fetchedList;
       }
-
-      const listItems = await ItemManager.getItemsForList(listId);
-      itemsRef.current = listItems;
-      setItems(listItems);
-
-      // Predict prices from history when loading items
-      if (fetchedList && fetchedList.familyGroupId) {
-        await predictPricesFromHistory(listItems, fetchedList.familyGroupId);
-      }
-
-      calculateShoppingStats(listItems);
+      return null;
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
+      return null;
     }
+  };
+
+  const loadPredictions = async () => {
+    if (!list?.familyGroupId || itemsRef.current.length === 0) return;
+    await predictPricesFromHistory(itemsRef.current, list.familyGroupId);
   };
 
   const predictPricesFromHistory = useCallback(async (itemsList: Item[], familyGroupId: string) => {
@@ -301,7 +308,10 @@ const ListDetailScreen = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadListAndItems();
+    const freshList = await loadListMetadata();
+    if (freshList?.familyGroupId) {
+      await predictPricesFromHistory(itemsRef.current, freshList.familyGroupId);
+    }
     setRefreshing(false);
   };
 
@@ -392,7 +402,6 @@ const ListDetailScreen = () => {
       await ItemManager.toggleItemChecked(itemId);
 
       // Don't reload - let WatermelonDB observer handle the update
-      // await loadListAndItems();
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     } finally {
