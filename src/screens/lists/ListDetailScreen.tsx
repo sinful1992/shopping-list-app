@@ -63,8 +63,8 @@ const ListDetailScreen = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
-  // Store picker modal state
-  const [storePickerVisible, setStorePickerVisible] = useState(false);
+  // Store picker modal state: null=closed, 'banner'=store warning, 'shopping'=start shopping
+  const [storePickerMode, setStorePickerMode] = useState<null | 'banner' | 'shopping'>(null);
 
   // Frequent items modal state
   const [frequentItemsVisible, setFrequentItemsVisible] = useState(false);
@@ -507,8 +507,7 @@ const ListDetailScreen = () => {
   };
 
   const handleStartShopping = () => {
-    // Show store picker modal
-    setStorePickerVisible(true);
+    setStorePickerMode('shopping');
   };
 
   const handleStoreSelected = async (storeName: string) => {
@@ -542,6 +541,11 @@ const ListDetailScreen = () => {
     }
   };
 
+  const handleBannerStoreSelected = async (storeName: string) => {
+    if (!storeName) return;
+    await ShoppingListManager.updateListStoreName(listId, storeName);
+    await StoreHistoryService.addStore(storeName);
+  };
 
   const handleDoneShopping = () => {
     if (!currentUserId) return;
@@ -562,6 +566,22 @@ const ListDetailScreen = () => {
         // Silently handle error - user already notified of success
       }
     );
+  };
+
+  const handleCancelShopping = async () => {
+    if (!currentUserId) return;
+    setIsShoppingMode(false);
+    try {
+      await ShoppingListManager.updateList(listId, {
+        isLocked: false,
+        lockedBy: null,
+        lockedByName: null,
+        lockedByRole: null,
+        lockedAt: null,
+      });
+    } catch {
+      setIsShoppingMode(true);
+    }
   };
 
   // Group items by category and sort by sortOrder
@@ -770,9 +790,14 @@ const ListDetailScreen = () => {
                   </View>
                 )}
               </View>
-              <TouchableOpacity style={styles.doneButtonExpanded} onPress={handleDoneShopping}>
-                <Text style={styles.doneButtonText}>Done Shopping</Text>
-              </TouchableOpacity>
+              <View style={styles.expandedButtons}>
+                <TouchableOpacity style={styles.cancelButtonExpanded} onPress={handleCancelShopping}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.doneButtonExpanded} onPress={handleDoneShopping}>
+                  <Text style={styles.doneButtonText}>Done Shopping</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -835,7 +860,7 @@ const ListDetailScreen = () => {
           <Text style={styles.storeWarningText}>
             No store selected — prices won't be saved to history
           </Text>
-          <TouchableOpacity onPress={() => setStorePickerVisible(true)}>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
             <Text style={styles.storeWarningLink}>Select Store</Text>
           </TouchableOpacity>
         </View>
@@ -960,9 +985,9 @@ const ListDetailScreen = () => {
       />
 
       <StoreNamePicker
-        visible={storePickerVisible}
-        onClose={() => setStorePickerVisible(false)}
-        onSelect={handleStoreSelected}
+        visible={storePickerMode !== null}
+        onClose={() => setStorePickerMode(null)}
+        onSelect={storePickerMode === 'banner' ? handleBannerStoreSelected : handleStoreSelected}
         initialValue={list?.storeName || ''}
       />
 
@@ -1478,7 +1503,24 @@ const styles = StyleSheet.create({
   textOver: {
     color: '#FF3B30',
   },
+  expandedButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelButtonExpanded: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
   doneButtonExpanded: {
+    flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
     padding: 12,
     borderRadius: 8,
