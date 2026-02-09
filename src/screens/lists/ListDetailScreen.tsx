@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
 import {
   View,
   Text,
@@ -85,6 +85,9 @@ const ListDetailScreen = () => {
   // Debounce map to prevent multiple rapid toggles on same item
   const toggleInProgressRef = React.useRef<Set<string>>(new Set());
 
+  // Ref for optimistic quantity updates (always has latest state for rapid taps)
+  const itemsRef = useRef<Item[]>([]);
+
   // Define calculateShoppingStats before useEffect
   const calculateShoppingStats = useCallback((itemsList: Item[]) => {
     try {
@@ -170,6 +173,7 @@ const ListDetailScreen = () => {
         return;
       }
 
+      itemsRef.current = updatedItems;
       setItems(updatedItems);
 
       // Calculate shopping mode stats - wrap in try-catch to prevent observer crashes
@@ -251,6 +255,7 @@ const ListDetailScreen = () => {
       }
 
       const listItems = await ItemManager.getItemsForList(listId);
+      itemsRef.current = listItems;
       setItems(listItems);
 
       // Predict prices from history when loading items
@@ -402,7 +407,40 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null; unitQty?: number | null }) => {
+  const handleIncrement = useCallback((itemId: string) => {
+    const currentItem = itemsRef.current.find(i => i.id === itemId);
+    if (!currentItem) return;
+    const currentQty = currentItem.unitQty ?? 1;
+    const newQty = currentQty + 1;
+    const dbQty = newQty > 1 ? newQty : null;
+
+    const updatedItems = itemsRef.current.map(i =>
+      i.id === itemId ? { ...i, unitQty: dbQty } : i
+    );
+    itemsRef.current = updatedItems;
+    setItems(updatedItems);
+
+    ItemManager.updateItem(itemId, { unitQty: dbQty });
+  }, []);
+
+  const handleDecrement = useCallback((itemId: string) => {
+    const currentItem = itemsRef.current.find(i => i.id === itemId);
+    if (!currentItem) return;
+    const currentQty = currentItem.unitQty ?? 1;
+    const newQty = Math.max(1, currentQty - 1);
+    if (newQty === currentQty) return;
+    const dbQty = newQty > 1 ? newQty : null;
+
+    const updatedItems = itemsRef.current.map(i =>
+      i.id === itemId ? { ...i, unitQty: dbQty } : i
+    );
+    itemsRef.current = updatedItems;
+    setItems(updatedItems);
+
+    ItemManager.updateItem(itemId, { unitQty: dbQty });
+  }, []);
+
+  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => {
     try {
       await ItemManager.updateItem(itemId, updates);
       // WatermelonDB observer will automatically update the UI
@@ -772,6 +810,17 @@ const ListDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {!list?.storeName && !isListLocked && !isListCompleted && (
+        <View style={styles.storeWarningBanner}>
+          <Text style={styles.storeWarningText}>
+            No store selected — prices won't be saved to history
+          </Text>
+          <TouchableOpacity onPress={() => setStorePickerVisible(true)}>
+            <Text style={styles.storeWarningLink}>Select Store</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={styles.flatListContent}
         refreshControl={
@@ -819,6 +868,8 @@ const ListDetailScreen = () => {
                 isListLocked={isListLocked}
                 onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
                 onItemTap={() => handleItemTap(item)}
+                onIncrement={handleIncrement}
+                onDecrement={handleDecrement}
                 itemRowStyle={styles.itemRow}
                 itemRowCheckedStyle={styles.itemRowChecked}
                 checkboxStyle={styles.checkbox}
@@ -880,12 +931,6 @@ const ListDetailScreen = () => {
       <ItemEditModal
         visible={editModalVisible}
         item={selectedItem}
-        storeName={list?.storeName || null}
-        onRequestStoreSelection={() => {
-          setEditModalVisible(false);
-          setSelectedItem(null);
-          setStorePickerVisible(true);
-        }}
         onClose={() => {
           setEditModalVisible(false);
           setSelectedItem(null);
@@ -1518,6 +1563,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  storeWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 214, 10, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 214, 10, 0.3)',
+  },
+  storeWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#FFD60A',
+  },
+  storeWarningLink: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    marginLeft: 8,
   },
 });
 

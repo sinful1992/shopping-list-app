@@ -20,10 +20,8 @@ import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../
 interface ItemEditModalProps {
   visible: boolean;
   item: Item | null;
-  storeName?: string | null;
-  onRequestStoreSelection?: () => void;
   onClose: () => void;
-  onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null; unitQty?: number | null }) => Promise<void>;
+  onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
   onDelete: (itemId: string) => Promise<void>;
   focusField?: 'name' | 'price';
 }
@@ -31,8 +29,6 @@ interface ItemEditModalProps {
 const ItemEditModal: React.FC<ItemEditModalProps> = ({
   visible,
   item,
-  storeName,
-  onRequestStoreSelection,
   onClose,
   onSave,
   onDelete,
@@ -41,7 +37,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const { showAlert } = useAlert();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [qty, setQty] = useState(1);
   const [category, setCategory] = useState<CategoryType | null>(null);
   const [priceHistoryVisible, setPriceHistoryVisible] = useState(false);
   const priceInputRef = useRef<TextInput>(null);
@@ -50,7 +45,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
     if (item) {
       setName(item.name || '');
       setPrice(item.price ? item.price.toString() : '');
-      setQty(item.unitQty ?? 1);
       setCategory((item.category as CategoryType) || null);
     }
   }, [item]);
@@ -70,7 +64,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
         name: name.trim(),
         price: priceValue,
         category: category,
-        unitQty: qty > 1 ? qty : null,
       });
       onClose();
     } catch (error: any) {
@@ -89,31 +82,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
     const priceValue = price.trim() ? parseFloat(price) : null;
     if (price.trim() && (priceValue === null || isNaN(priceValue))) {
       showAlert('Error', 'Please enter a valid price', undefined, { icon: 'error' });
-      return;
-    }
-
-    // Check if entering price without store selected
-    if (priceValue && priceValue > 0 && !storeName) {
-      showAlert(
-        'Store Required',
-        'Please select a store before entering prices. This helps track price history accurately.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Select Store',
-            onPress: () => {
-              onClose();
-              onRequestStoreSelection?.();
-            },
-          },
-          {
-            text: 'Save Anyway',
-            style: 'destructive',
-            onPress: () => performSave(priceValue),
-          },
-        ],
-        { icon: 'warning' }
-      );
       return;
     }
 
@@ -172,25 +140,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {!storeName && (
-              <View style={styles.storeWarningBanner}>
-                <Text style={styles.storeWarningText}>
-                  No store selected. Prices won't be tracked in history.
-                </Text>
-                {onRequestStoreSelection && (
-                  <TouchableOpacity
-                    style={styles.selectStoreLink}
-                    onPress={() => {
-                      onClose();
-                      onRequestStoreSelection();
-                    }}
-                  >
-                    <Text style={styles.selectStoreLinkText}>Select Store</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Name</Text>
               <TextInput
@@ -201,26 +150,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 placeholderTextColor={COLORS.text.tertiary}
                 autoFocus={focusField === 'name'}
               />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Quantity</Text>
-              <View style={styles.qtyRow}>
-                <TouchableOpacity
-                  style={[styles.qtyButton, qty <= 1 && styles.qtyButtonDisabled]}
-                  onPress={() => setQty(q => Math.max(1, q - 1))}
-                  disabled={qty <= 1}
-                >
-                  <Text style={[styles.qtyButtonText, qty <= 1 && styles.qtyButtonTextDisabled]}>−</Text>
-                </TouchableOpacity>
-                <Text style={styles.qtyValue}>{qty}</Text>
-                <TouchableOpacity
-                  style={styles.qtyButton}
-                  onPress={() => setQty(q => q + 1)}
-                >
-                  <Text style={styles.qtyButtonText}>+</Text>
-                </TouchableOpacity>
-              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -404,64 +333,6 @@ const styles = StyleSheet.create({
     color: COLORS.accent.blue,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  storeWarningBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.accent.yellowSubtle,
-    padding: SPACING.md,
-    borderRadius: RADIUS.small,
-    marginBottom: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.accent.yellowDim,
-  },
-  storeWarningText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.accent.yellow,
-  },
-  selectStoreLink: {
-    padding: SPACING.xs,
-    marginLeft: SPACING.sm,
-  },
-  selectStoreLinkText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.accent.blue,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    textDecorationLine: 'underline',
-  },
-  qtyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.lg,
-  },
-  qtyButton: {
-    width: 44,
-    height: 44,
-    borderRadius: RADIUS.medium,
-    backgroundColor: COLORS.accent.blueSubtle,
-    borderWidth: 1,
-    borderColor: COLORS.accent.blueDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  qtyButtonDisabled: {
-    opacity: 0.3,
-  },
-  qtyButtonText: {
-    fontSize: 22,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.accent.blue,
-  },
-  qtyButtonTextDisabled: {
-    color: COLORS.text.tertiary,
-  },
-  qtyValue: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    minWidth: 32,
-    textAlign: 'center',
   },
 });
 

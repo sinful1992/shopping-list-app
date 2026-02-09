@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Animated, View, TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { useColorShiftingBorder } from './ColorShiftingCard';
 
 interface AnimatedItemCardProps {
@@ -23,6 +23,8 @@ interface AnimatedItemCardProps {
   isListLocked: boolean;
   onToggleItem: () => void;
   onItemTap: () => void;
+  onIncrement: (itemId: string) => void;
+  onDecrement: (itemId: string) => void;
   itemRowStyle: StyleProp<ViewStyle>;
   itemRowCheckedStyle?: StyleProp<ViewStyle>;
   checkboxStyle: StyleProp<ViewStyle>;
@@ -53,6 +55,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   isListLocked,
   onToggleItem,
   onItemTap,
+  onIncrement,
+  onDecrement,
   itemRowStyle,
   itemRowCheckedStyle,
   checkboxStyle,
@@ -160,6 +164,9 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       >
         <View style={itemContentColumnStyle}>
           <View style={itemContentRowStyle}>
+            {qty > 1 && (
+              <Text style={cardStyles.qtyPrefix}>{qty}x</Text>
+            )}
             <Text
               style={[
                 itemNameTextStyle,
@@ -169,11 +176,6 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             >
               {item.name}
             </Text>
-            {qty > 1 && (
-              <Text style={{ fontSize: 13, fontWeight: '600', color: '#8E8E93', minWidth: 28, textAlign: 'center' }}>
-                x{qty}
-              </Text>
-            )}
             <Text
               style={[
                 itemPriceTextStyle,
@@ -193,8 +195,59 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           )}
         </View>
       </TouchableOpacity>
+
+      {/* Quantity buttons — hidden when checked */}
+      {!isChecked && (
+        <>
+          {qty > 1 && (
+            <TouchableOpacity
+              style={[cardStyles.qtyBtn, isListLocked && cardStyles.qtyBtnDisabled]}
+              onPress={() => onDecrement(item.id)}
+              disabled={isListLocked}
+            >
+              <Text style={[cardStyles.qtyBtnText, isListLocked && cardStyles.qtyBtnTextDisabled]}>-</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[cardStyles.qtyBtn, isListLocked && cardStyles.qtyBtnDisabled]}
+            onPress={() => onIncrement(item.id)}
+            disabled={isListLocked}
+          >
+            <Text style={[cardStyles.qtyBtnText, isListLocked && cardStyles.qtyBtnTextDisabled]}>+</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </Animated.View>
   );
 };
+
+const cardStyles = StyleSheet.create({
+  qtyPrefix: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginRight: 4,
+  },
+  qtyBtn: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    marginLeft: 6,
+  },
+  qtyBtnDisabled: {
+    opacity: 0.3,
+  },
+  qtyBtnText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  qtyBtnTextDisabled: {
+    color: '#6E6E73',
+  },
+});
 
 export default AnimatedItemCard;
