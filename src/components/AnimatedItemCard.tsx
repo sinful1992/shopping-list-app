@@ -8,7 +8,7 @@ interface AnimatedItemCardProps {
     id: string;
     name: string;
     checked?: boolean | null;
-    price?: number;
+    price?: number | null;
     unitQty?: number | null;
   };
   /** Unit price — card multiplies by quantity for display */
@@ -201,19 +201,21 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         <>
           {qty > 1 && (
             <TouchableOpacity
-              style={[cardStyles.qtyBtn, isListLocked && cardStyles.qtyBtnDisabled]}
+              style={[cardStyles.qtyBtnDecrement, isListLocked && cardStyles.qtyBtnDisabled]}
               onPress={() => onDecrement(item.id)}
               disabled={isListLocked}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <Text style={[cardStyles.qtyBtnText, isListLocked && cardStyles.qtyBtnTextDisabled]}>-</Text>
+              <Text style={cardStyles.qtyBtnTextDecrement}>-</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[cardStyles.qtyBtn, isListLocked && cardStyles.qtyBtnDisabled]}
+            style={[cardStyles.qtyBtnIncrement, isListLocked && cardStyles.qtyBtnDisabled]}
             onPress={() => onIncrement(item.id)}
             disabled={isListLocked}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Text style={[cardStyles.qtyBtnText, isListLocked && cardStyles.qtyBtnTextDisabled]}>+</Text>
+            <Text style={cardStyles.qtyBtnTextIncrement}>+</Text>
           </TouchableOpacity>
         </>
       )}
@@ -228,25 +230,36 @@ const cardStyles = StyleSheet.create({
     color: '#8E8E93',
     marginRight: 4,
   },
-  qtyBtn: {
-    minWidth: 44,
-    minHeight: 44,
+  qtyBtnIncrement: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
-    marginLeft: 6,
+    borderRadius: 6,
+    marginLeft: 4,
+    backgroundColor: 'rgba(52, 199, 89, 0.35)',
+  },
+  qtyBtnDecrement: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    marginLeft: 4,
+    backgroundColor: 'rgba(255, 59, 48, 0.35)',
   },
   qtyBtnDisabled: {
     opacity: 0.3,
   },
-  qtyBtnText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#007AFF',
+  qtyBtnTextIncrement: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#34C759',
   },
-  qtyBtnTextDisabled: {
-    color: '#6E6E73',
+  qtyBtnTextDecrement: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FF3B30',
   },
 });
 

@@ -9,6 +9,8 @@ import {
   RefreshControl,
   Vibration,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -40,6 +42,7 @@ const ListDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { showAlert } = useAlert();
+  const insets = useSafeAreaInsets();
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -642,7 +645,15 @@ const ListDetailScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.titleContainer}>
+      <View style={[styles.titleContainer, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
+          <Icon name="chevron-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
         {isEditingListName ? (
           <>
             <TextInput
@@ -851,10 +862,10 @@ const ListDetailScreen = () => {
               return null;
             }
 
-            const itemPrice = item.price ?? (item.name && predictedPrices[item.name.toLowerCase()]) ?? 0;
-            const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
-            const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
-            const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+            const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+            const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+            const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
+            const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
 
             return (
               <AnimatedItemCard
@@ -974,14 +985,18 @@ const styles = StyleSheet.create({
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.12)',
     gap: 10,
   },
+  backButton: {
+    padding: 4,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#ffffff',
     flex: 1,
