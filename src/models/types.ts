@@ -90,6 +90,7 @@ export interface Item {
   syncStatus: SyncStatus;
   category?: string | null; // Sprint 6: Category organization
   sortOrder?: number | null; // Sprint 6: Drag-and-drop reordering
+  unitQty?: number | null;
 }
 
 // Receipt Types

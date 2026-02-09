@@ -15,4 +15,5 @@ export class ItemModel extends Model {
   @field('sync_status') syncStatus!: string;
   @field('category') category!: string | null; // Sprint 6: Category organization
   @field('sort_order') sortOrder!: number | null; // Sprint 6: Drag-and-drop reordering
+  @field('unit_qty') unitQty!: number | null;
 }

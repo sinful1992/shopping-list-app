@@ -267,6 +267,7 @@ class LocalStorageManager {
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder || null;
+            record.unitQty = item.unitQty ?? null;
           });
         } catch {
           // Create new
@@ -283,6 +284,7 @@ class LocalStorageManager {
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder || null;
+            record.unitQty = item.unitQty ?? null;
           });
         }
       });
@@ -347,6 +349,7 @@ class LocalStorageManager {
           if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
           if (updates.category !== undefined) record.category = updates.category;
           if (updates.sortOrder !== undefined) record.sortOrder = updates.sortOrder;
+          if (updates.unitQty !== undefined) record.unitQty = updates.unitQty;
         });
       });
 
@@ -393,6 +396,7 @@ class LocalStorageManager {
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder || null;
+            record.unitQty = item.unitQty ?? null;
           });
         }
       });
@@ -827,7 +831,7 @@ class LocalStorageManager {
 
     // Use observeWithColumns to trigger on field changes (category, checked, etc.)
     // Without this, observer only fires on record add/delete, not field updates
-    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order']).subscribe((itemModels) => {
+    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty']).subscribe((itemModels) => {
       // Convert to Item types
       let items = itemModels.map((model) => this.itemModelToType(model));
 
@@ -919,6 +923,7 @@ class LocalStorageManager {
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
       category: model.category,
       sortOrder: model.sortOrder,
+      unitQty: model.unitQty,
     };
   }
 

@@ -9,7 +9,9 @@ interface AnimatedItemCardProps {
     name: string;
     checked?: boolean | null;
     price?: number;
+    unitQty?: number | null;
   };
+  /** Unit price — card multiplies by quantity for display */
   itemPrice: number;
   isPredicted: boolean;
   showSuggestion: boolean;
@@ -72,6 +74,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const borderStyles = useColorShiftingBorder(index, 1.5, 8, totalItems);
 
   const isChecked = item.checked === true;
+  const qty = item.unitQty ?? 1;
+  const totalPrice = itemPrice * qty;
 
   // Animation refs for tick-off effects
   const checkAnimation = useRef(new Animated.Value(1)).current;
@@ -165,6 +169,11 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             >
               {item.name}
             </Text>
+            {qty > 1 && (
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#8E8E93', minWidth: 28, textAlign: 'center' }}>
+                x{qty}
+              </Text>
+            )}
             <Text
               style={[
                 itemPriceTextStyle,
@@ -172,13 +181,13 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
                 isChecked && itemPriceCheckedStyle
               ]}
             >
-              {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
+              {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
             </Text>
           </View>
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
               <Text style={suggestionTextStyle}>
-                💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
+                💡 £{(suggestion.bestPrice * qty).toFixed(2)} at {suggestion.bestStore} (save £{(suggestion.savings * qty).toFixed(2)})
               </Text>
             </View>
           )}

@@ -7,8 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-02-08
+
+### Added
+- **Item Quantity**: +/- buttons in edit modal to buy multiples of the same item (e.g., 2 breads at £1.00 = £2.00)
+- Quantity badge ("x3") displayed on item cards when qty > 1
+- Running total and smart suggestions now reflect quantity multiplier
+- New `unit_qty` database column (schema v10) with migration from v9
+
 ### Fixed
 - **Critical**: Fixed lists disappearing after pull-refresh - added SQLite write verification in `saveList` to ensure database persistence before returning
+- Price of £0.00 no longer falls back to predicted price (changed `||` to `??`)
+
+### Removed
+- Dead `renderItem` function in ListDetailScreen (75 lines, replaced by inline `.map()`)
+- Unused `FlatList` import
 
 ## [0.14.0] - 2026-02-08
 

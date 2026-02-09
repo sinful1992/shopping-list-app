@@ -54,5 +54,17 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 9 to 10: Add unit quantity to items
+    {
+      toVersion: 10,
+      steps: [
+        addColumns({
+          table: 'items',
+          columns: [
+            { name: 'unit_qty', type: 'number', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

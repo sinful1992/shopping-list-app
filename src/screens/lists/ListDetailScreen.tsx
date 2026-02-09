@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  FlatList,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -102,11 +101,11 @@ const ListDetailScreen = () => {
       const checked = validItems.filter(item => item.checked).length;
       const unchecked = validItems.filter(item => !item.checked).length;
       const total = validItems.reduce((sum, item) => {
-        // Use actual price if available, otherwise use predicted price, otherwise 0
         const itemNameLower = item.name?.toLowerCase();
         const predictedPrice = itemNameLower && predictedPrices ? predictedPrices[itemNameLower] : 0;
-        const price = item.price || predictedPrice || 0;
-        return sum + price;
+        const price = item.price ?? predictedPrice ?? 0;
+        const qty = item.unitQty ?? 1;
+        return sum + (price * qty);
       }, 0);
 
       setCheckedCount(checked);
@@ -403,7 +402,7 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => {
+  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null; unitQty?: number | null }) => {
     try {
       await ItemManager.updateItem(itemId, updates);
       // WatermelonDB observer will automatically update the UI
@@ -512,82 +511,6 @@ const ListDetailScreen = () => {
       (error: any) => {
         // Silently handle error - user already notified of success
       }
-    );
-  };
-
-  const renderItem = ({ item: row }: { item: { type: 'header' | 'item'; category?: string; item?: Item } }) => {
-    // Render category headers
-    if (row.type === 'header') {
-      const category = CategoryService.getCategory(row.category as any);
-      return (
-        <View style={styles.categoryHeader}>
-          <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
-          <Text style={styles.categoryName}>{category?.name || row.category}</Text>
-        </View>
-      );
-    }
-
-    // Render items
-    const item = row.item;
-    if (!item || !item.id) {
-      return null;
-    }
-
-    const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
-    const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
-    const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
-    const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-
-    return (
-      <View style={[
-        styles.itemRow,
-        item.checked === true && styles.itemRowChecked
-      ]}>
-        <TouchableOpacity
-          style={[styles.checkbox, isListLocked && styles.checkboxDisabled]}
-          onPress={() => !isListLocked && handleToggleItem(item.id)}
-          disabled={isListLocked}
-        >
-          <Text style={isListLocked && styles.checkboxTextDisabled}>{item.checked === true ? '✓' : ' '}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemContentTouchable}
-          onPress={() => handleItemTap(item)}
-          disabled={isListLocked}
-          activeOpacity={0.7}
-        >
-          <View style={styles.itemContentColumn}>
-            <View style={styles.itemContentRow}>
-              <Text
-                style={[
-                  styles.itemNameText,
-                  item.checked === true && styles.itemNameChecked
-                ]}
-                numberOfLines={1}
-              >
-                {item.name}
-              </Text>
-              <Text
-                style={[
-                  styles.itemPriceText,
-                  isPredicted ? styles.itemPricePredicted : null,
-                  item.checked === true ? styles.itemPriceChecked : null
-                ]}
-              >
-                {isPredicted ? '~' : ''}£{itemPrice.toFixed(2)}
-              </Text>
-            </View>
-            {showSuggestion && (
-              <View style={styles.suggestionRow}>
-                <Text style={styles.suggestionText}>
-                  💡 £{suggestion.bestPrice.toFixed(2)} at {suggestion.bestStore} (save £{suggestion.savings.toFixed(2)})
-                </Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </View>
     );
   };
 
@@ -879,7 +802,7 @@ const ListDetailScreen = () => {
               return null;
             }
 
-            const itemPrice = item.price || (item.name && predictedPrices[item.name.toLowerCase()]) || 0;
+            const itemPrice = item.price ?? (item.name && predictedPrices[item.name.toLowerCase()]) ?? 0;
             const isPredicted = !item.price && item.name && predictedPrices[item.name.toLowerCase()];
             const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : null;
             const showSuggestion = suggestion && !item.checked && list?.storeName !== suggestion.bestStore;

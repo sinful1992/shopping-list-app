@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 9,
+  version: 10,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -48,6 +48,7 @@ export const schema = appSchema({
         { name: 'sync_status', type: 'string' },
         { name: 'category', type: 'string', isOptional: true, isIndexed: true }, // Sprint 6: Category organization
         { name: 'sort_order', type: 'number', isOptional: true, isIndexed: true }, // Sprint 6: Drag-and-drop reordering
+        { name: 'unit_qty', type: 'number', isOptional: true },
       ],
     }),
 

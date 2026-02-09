@@ -23,7 +23,7 @@ interface ItemEditModalProps {
   storeName?: string | null;
   onRequestStoreSelection?: () => void;
   onClose: () => void;
-  onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
+  onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null; unitQty?: number | null }) => Promise<void>;
   onDelete: (itemId: string) => Promise<void>;
   focusField?: 'name' | 'price';
 }
@@ -41,6 +41,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const { showAlert } = useAlert();
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [qty, setQty] = useState(1);
   const [category, setCategory] = useState<CategoryType | null>(null);
   const [priceHistoryVisible, setPriceHistoryVisible] = useState(false);
   const priceInputRef = useRef<TextInput>(null);
@@ -49,6 +50,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
     if (item) {
       setName(item.name || '');
       setPrice(item.price ? item.price.toString() : '');
+      setQty(item.unitQty ?? 1);
       setCategory((item.category as CategoryType) || null);
     }
   }, [item]);
@@ -68,6 +70,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
         name: name.trim(),
         price: priceValue,
         category: category,
+        unitQty: qty > 1 ? qty : null,
       });
       onClose();
     } catch (error: any) {
@@ -198,6 +201,26 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 placeholderTextColor={COLORS.text.tertiary}
                 autoFocus={focusField === 'name'}
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Quantity</Text>
+              <View style={styles.qtyRow}>
+                <TouchableOpacity
+                  style={[styles.qtyButton, qty <= 1 && styles.qtyButtonDisabled]}
+                  onPress={() => setQty(q => Math.max(1, q - 1))}
+                  disabled={qty <= 1}
+                >
+                  <Text style={[styles.qtyButtonText, qty <= 1 && styles.qtyButtonTextDisabled]}>−</Text>
+                </TouchableOpacity>
+                <Text style={styles.qtyValue}>{qty}</Text>
+                <TouchableOpacity
+                  style={styles.qtyButton}
+                  onPress={() => setQty(q => q + 1)}
+                >
+                  <Text style={styles.qtyButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -406,6 +429,39 @@ const styles = StyleSheet.create({
     color: COLORS.accent.blue,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textDecorationLine: 'underline',
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.lg,
+  },
+  qtyButton: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.medium,
+    backgroundColor: COLORS.accent.blueSubtle,
+    borderWidth: 1,
+    borderColor: COLORS.accent.blueDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyButtonDisabled: {
+    opacity: 0.3,
+  },
+  qtyButtonText: {
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.accent.blue,
+  },
+  qtyButtonTextDisabled: {
+    color: COLORS.text.tertiary,
+  },
+  qtyValue: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    minWidth: 32,
+    textAlign: 'center',
   },
 });
 

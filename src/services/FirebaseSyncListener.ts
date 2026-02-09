@@ -227,6 +227,7 @@ class FirebaseSyncListener {
         syncStatus: 'synced',
         category: firebaseData.category || null,
         sortOrder: firebaseData.sortOrder || null,
+        unitQty: firebaseData.unitQty ?? null,
       };
 
       if (existingItem && !this.hasItemChanged(existingItem, item)) {
@@ -250,7 +251,8 @@ class FirebaseSyncListener {
       local.price !== incoming.price ||
       local.checked !== incoming.checked ||
       local.category !== incoming.category ||
-      local.sortOrder !== incoming.sortOrder
+      local.sortOrder !== incoming.sortOrder ||
+      local.unitQty !== incoming.unitQty
     );
   }
 
