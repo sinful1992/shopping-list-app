@@ -35,8 +35,8 @@ android {
         applicationId "com.familyshoppinglist.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1400
-        versionName "0.14.0"
+        versionCode 1500
+        versionName "0.15.0"
         multiDexEnabled true
     }
 
