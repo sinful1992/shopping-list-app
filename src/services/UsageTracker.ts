@@ -203,7 +203,8 @@ class UsageTracker {
     urgentItems: number | 'unlimited';
   }> {
     const counters = await this.checkAndResetIfNeeded(user);
-    const limits = SUBSCRIPTION_LIMITS[user.subscriptionTier];
+    const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
+    const limits = SUBSCRIPTION_LIMITS[familyTier];
 
     return {
       lists:
