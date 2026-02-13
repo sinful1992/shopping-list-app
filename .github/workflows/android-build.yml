@@ -105,7 +105,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           echo "MYAPP_RELEASE_STORE_FILE=release.keystore" >> android/gradle.properties
-          echo "MYAPP_RELEASE_KEY_ALIAS=shoppinglistapp" >> android/gradle.properties
+          echo "MYAPP_RELEASE_KEY_ALIAS=upload-key" >> android/gradle.properties
           echo "MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_STORE_PASSWORD }}" >> android/gradle.properties
           echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
 
