@@ -8,70 +8,43 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { SubscriptionTier, User } from '../../models/types';
-import { SUBSCRIPTION_LIMITS, SUBSCRIPTION_PRICES, TIER_FEATURES } from '../../models/SubscriptionConfig';
+import { TIER_FEATURES } from '../../models/SubscriptionConfig';
 import { UsageIndicator } from '../../components/UsageIndicator';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
-import PaymentService from '../../services/PaymentService';
-import { PurchasesOffering } from 'react-native-purchases';
-import database from '@react-native-firebase/database';
 
-type SubscriptionScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Subscription'
->;
-
-interface Props {
-  navigation: SubscriptionScreenNavigationProp;
-}
-
-/**
- * SubscriptionScreen
- * Sprint 2: Manages subscription tier and displays usage statistics
- */
-export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
+export const SubscriptionScreen: React.FC = () => {
   const { showAlert } = useAlert();
+  const {
+    tier,
+    offerings,
+    isPurchasing,
+    isLoading: rcLoading,
+    presentPaywall,
+    presentCustomerCenter,
+    restorePurchases,
+  } = useRevenueCat();
+
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [familyTier, setFamilyTier] = useState<SubscriptionTier>('free');
   const [usageSummary, setUsageSummary] = useState<{
     lists: { used: number; limit: number | null };
     ocr: { used: number; limit: number | null };
     urgentItems: { used: number; limit: number | null };
   } | null>(null);
-  const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
-  const [purchasing, setPurchasing] = useState(false);
-  const [monthlyPrice, setMonthlyPrice] = useState<string>('£9.99');
 
   useEffect(() => {
     loadUserAndUsage();
-    loadOfferings();
   }, []);
 
-  // Real-time listener for subscription tier changes
+  // Reload usage when tier changes (e.g., after purchase)
   useEffect(() => {
-    if (!user?.familyGroupId) return;
-
-    const subscriptionRef = database().ref(`/familyGroups/${user.familyGroupId}/subscriptionTier`);
-
-    const onSubscriptionChange = (snapshot: any) => {
-      const newTier = snapshot.val() as SubscriptionTier;
-      if (newTier && newTier !== familyTier) {
-        setFamilyTier(newTier);
-        // Optionally reload usage limits when tier changes
-        loadUserAndUsage();
-      }
-    };
-
-    subscriptionRef.on('value', onSubscriptionChange);
-
-    return () => {
-      subscriptionRef.off('value', onSubscriptionChange);
-    };
-  }, [user?.familyGroupId]);
+    if (user) {
+      UsageTracker.getUsageSummary(user).then(setUsageSummary).catch(() => {});
+    }
+  }, [tier]);
 
   const loadUserAndUsage = async () => {
     try {
@@ -80,128 +53,54 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
         setUser(currentUser);
         const summary = await UsageTracker.getUsageSummary(currentUser);
         setUsageSummary(summary);
-        const tier = await UsageTracker.getFamilySubscriptionTier(currentUser.familyGroupId);
-        setFamilyTier(tier);
       }
-    } catch (error) {
+    } catch {
       // Failed to load user/usage
     } finally {
       setLoading(false);
     }
   };
 
-  const loadOfferings = async () => {
-    try {
-      const currentOfferings = await PaymentService.getOfferings();
-      setOfferings(currentOfferings);
-
-      // Extract monthly price from offerings
-      if (currentOfferings) {
-        const monthlyPackage = currentOfferings.availablePackages.find(
-          pkg => pkg.identifier === 'monthly' || pkg.packageType === 'MONTHLY'
-        );
-
-        if (monthlyPackage) {
-          // Get localized price string (e.g., "£9.99", "$9.99", "€9.99")
-          const priceString = monthlyPackage.product.priceString;
-          setMonthlyPrice(priceString);
-        }
-      }
-    } catch (error) {
-      // Failed to load offerings
-    }
-  };
+  const monthlyPrice = (() => {
+    if (!offerings) return null;
+    const monthlyPackage = offerings.availablePackages.find(
+      pkg => pkg.identifier === 'monthly' || pkg.packageType === 'MONTHLY'
+    );
+    return monthlyPackage?.product.priceString ?? null;
+  })();
 
   const handleUpgrade = async () => {
-    if (!user || !user.familyGroupId || purchasing) return;
-
-    setPurchasing(true);
-
-    try {
-      // Present RevenueCat Paywall (modern UI)
-      const result = await PaymentService.presentPaywall();
-
-      if (result.success && result.customerInfo) {
-        // Sync subscription status to Firebase
-        await PaymentService.syncSubscriptionToFirebase(user.familyGroupId, result.customerInfo);
-
-        const tier = PaymentService.getSubscriptionTierFromCustomerInfo(result.customerInfo);
-
-        showAlert(
-          'Welcome to Pro!',
-          `Your family group has been upgraded! Everyone in your family group now has full access.`,
-          [{ text: 'OK', onPress: loadUserAndUsage }],
-          { icon: 'success' }
-        );
-      }
-    } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to process purchase', undefined, { icon: 'error' });
-    } finally {
-      setPurchasing(false);
-    }
+    if (!user?.familyGroupId) return;
+    await presentPaywall();
   };
 
   const handleManageSubscription = async () => {
     try {
-      const canPresent = await PaymentService.canPresentCustomerCenter();
-      if (canPresent) {
-        await PaymentService.presentCustomerCenter();
-      } else {
-        showAlert('No Active Subscription', 'You need an active subscription to access Customer Center.', undefined, { icon: 'info' });
-      }
+      await presentCustomerCenter();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to open Customer Center', undefined, { icon: 'error' });
     }
   };
 
   const handleRestorePurchases = async () => {
-    if (!user || !user.familyGroupId) return;
-
-    setPurchasing(true);
-
+    if (!user?.familyGroupId) return;
     try {
-      const result = await PaymentService.restorePurchases();
-
-      if (result.success && result.customerInfo) {
-        // Sync restored subscription to Firebase
-        await PaymentService.syncSubscriptionToFirebase(user.familyGroupId, result.customerInfo);
-
-        const tier = PaymentService.getSubscriptionTierFromCustomerInfo(result.customerInfo);
-
-        if (tier !== 'free') {
-          showAlert(
-            'Restored!',
-            `Your ${tier} subscription has been restored!`,
-            [{ text: 'OK', onPress: loadUserAndUsage }],
-            { icon: 'success' }
-          );
-        } else {
-          showAlert('No Active Subscription', 'No active subscriptions were found to restore.', undefined, { icon: 'info' });
-        }
-      } else {
-        showAlert('Restore Failed', result.error || 'Failed to restore purchases', undefined, { icon: 'error' });
-      }
+      await restorePurchases();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to restore purchases', undefined, { icon: 'error' });
-    } finally {
-      setPurchasing(false);
     }
   };
 
-  const getTierBadgeColor = (tier: SubscriptionTier): string => {
-    switch (tier) {
-      case 'free':
-        return '#8E8E93';
-      case 'premium':
-        return '#007AFF';
-      case 'family':
-        return '#30D158';
-      default:
-        return '#8E8E93';
+  const getTierBadgeColor = (t: SubscriptionTier): string => {
+    switch (t) {
+      case 'free': return '#8E8E93';
+      case 'premium': return '#007AFF';
+      case 'family': return '#30D158';
+      default: return '#8E8E93';
     }
   };
 
-  if (loading) {
+  if (loading || rcLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -217,22 +116,23 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
     );
   }
 
-  const currentTier = familyTier;
-
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Activating overlay */}
+      {isPurchasing && (
+        <View style={styles.activatingBanner}>
+          <ActivityIndicator color="#FFFFFF" size="small" />
+          <Text style={styles.activatingText}>Activating your subscription...</Text>
+        </View>
+      )}
+
       {/* Current Plan Header */}
       <View style={styles.headerContainer}>
         <Text style={styles.headerTitle}>Your Subscription</Text>
         <View
-          style={[
-            styles.tierBadge,
-            { backgroundColor: getTierBadgeColor(currentTier) },
-          ]}
+          style={[styles.tierBadge, { backgroundColor: getTierBadgeColor(tier) }]}
         >
-          <Text style={styles.tierBadgeText}>
-            {currentTier.toUpperCase()}
-          </Text>
+          <Text style={styles.tierBadgeText}>{tier.toUpperCase()}</Text>
         </View>
       </View>
 
@@ -244,41 +144,32 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
             label="Shopping Lists"
             used={usageSummary.lists.used}
             limit={usageSummary.lists.limit}
-            tier={currentTier}
+            tier={tier}
           />
-          {/* OCR FEATURE HIDDEN
-          <UsageIndicator
-            label="Receipt Scans"
-            used={usageSummary.ocr.used}
-            limit={usageSummary.ocr.limit}
-            tier={currentTier}
-          />
-          */}
           <UsageIndicator
             label="Urgent Items"
             used={usageSummary.urgentItems.used}
             limit={usageSummary.urgentItems.limit}
-            tier={currentTier}
+            tier={tier}
           />
         </View>
       </View>
 
       {/* Upgrade Options */}
-      {currentTier !== 'family' && (
+      {tier !== 'family' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Upgrade Options</Text>
 
-          {/* Premium Tier */}
-          {currentTier === 'free' && (
+          {tier === 'free' && (
             <View style={styles.tierCard}>
               <View style={styles.tierCardHeader}>
                 <Text style={styles.tierCardName}>Premium</Text>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.price}>
-                    {monthlyPrice}
-                  </Text>
-                  <Text style={styles.priceLabel}>/month</Text>
-                </View>
+                {monthlyPrice && (
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.price}>{monthlyPrice}</Text>
+                    <Text style={styles.priceLabel}>/month</Text>
+                  </View>
+                )}
               </View>
               <View style={styles.featuresContainer}>
                 {TIER_FEATURES.premium.map((feature, index) => (
@@ -291,9 +182,9 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
               <TouchableOpacity
                 style={styles.upgradeButton}
                 onPress={handleUpgrade}
-                disabled={purchasing}
+                disabled={isPurchasing}
               >
-                {purchasing ? (
+                {isPurchasing ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.upgradeButtonText}>View Subscription Options</Text>
@@ -305,7 +196,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
       )}
 
       {/* Manage Subscription (Customer Center) */}
-      {currentTier !== 'free' && (
+      {tier !== 'free' && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Subscription Management</Text>
           <TouchableOpacity
@@ -324,7 +215,7 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Your Plan Features</Text>
         <View style={styles.currentFeaturesContainer}>
-          {TIER_FEATURES[currentTier].map((feature, index) => (
+          {TIER_FEATURES[tier].map((feature, index) => (
             <View key={index} style={styles.currentFeatureRow}>
               <Text style={styles.currentFeatureCheckmark}>✓</Text>
               <Text style={styles.currentFeatureText}>{feature}</Text>
@@ -338,9 +229,9 @@ export const SubscriptionScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity
           style={styles.restoreButton}
           onPress={handleRestorePurchases}
-          disabled={purchasing}
+          disabled={isPurchasing}
         >
-          {purchasing ? (
+          {isPurchasing ? (
             <ActivityIndicator color="#007AFF" />
           ) : (
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
@@ -371,6 +262,20 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FF453A',
     fontSize: 16,
+  },
+  activatingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  activatingText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   headerContainer: {
     padding: 20,
