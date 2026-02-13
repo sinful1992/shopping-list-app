@@ -6,14 +6,10 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "rootDirs": ["src", "../shared"]
+    "target": "es2017"
   },
   "compileOnSave": true,
   "include": [
-    "src",
-    "../shared"
+    "src"
   ]
 }
