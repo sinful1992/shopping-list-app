@@ -39,3 +39,6 @@ verify_jwt = true
 
 [functions.notify-urgent-item]
 verify_jwt = false
+
+[functions.revenuecat-webhook]
+verify_jwt = false
