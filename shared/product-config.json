@@ -1,0 +1,8 @@
+{
+  "entitlementId": "Family shopping list pro",
+  "productTierMap": {
+    "monthly": "premium",
+    "yearly": "family",
+    "lifetime": "family"
+  }
+}
