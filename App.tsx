@@ -10,10 +10,10 @@ import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import NotificationManager from './src/services/NotificationManager';
-import PaymentService from './src/services/PaymentService';
 import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
+import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 import { User } from './src/models/types';
 
 // Deep linking configuration
@@ -275,19 +275,6 @@ function App(): JSX.Element {
     }
   }, [user?.familyGroupId, user?.uid, showAlert]);
 
-  // Initialize RevenueCat on app launch
-  useEffect(() => {
-    const initializePayments = async () => {
-      try {
-        await PaymentService.initialize();
-      } catch (error) {
-        CrashReporting.recordError(error as Error, 'PaymentService.initialize');
-      }
-    };
-
-    initializePayments();
-  }, []);
-
   // Initialize Crashlytics and Analytics on app launch
   useEffect(() => {
     const initializeServices = async () => {
@@ -350,6 +337,7 @@ function App(): JSX.Element {
         backgroundColor="#0a0a0a"
         translucent={false}
       />
+      <RevenueCatProvider user={user}>
       <NavigationContainer theme={DarkNavigationTheme} linking={linking}>
         {!user ? (
           // Authentication Stack
@@ -393,6 +381,7 @@ function App(): JSX.Element {
           </Stack.Navigator>
         )}
       </NavigationContainer>
+      </RevenueCatProvider>
     </SafeAreaProvider>
   );
 }

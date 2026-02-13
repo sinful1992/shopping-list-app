@@ -5,7 +5,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
-import PaymentService from './PaymentService';
 
 /**
  * AuthenticationModule
@@ -50,9 +49,6 @@ class AuthenticationModule {
       // Cache locally
       await this.storeAuthData(user, token);
 
-      // Set user ID in RevenueCat
-      await PaymentService.setUserID(user.uid);
-
       return { user, token };
     } catch (error: any) {
       throw new Error(`Sign up failed: ${error.message}`);
@@ -77,9 +73,6 @@ class AuthenticationModule {
       }
 
       await this.storeAuthData(user, token);
-
-      // Set user ID in RevenueCat
-      await PaymentService.setUserID(user.uid);
 
       return { user, token };
     } catch (error: any) {
@@ -115,9 +108,6 @@ class AuthenticationModule {
       await AsyncStorage.removeItem(this.USER_KEY);
       // Clear token from encrypted storage
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
-
-      // Logout from RevenueCat
-      await PaymentService.logout();
     } catch (error: any) {
       throw new Error(`Sign out failed: ${error.message}`);
     }
@@ -412,21 +402,6 @@ class AuthenticationModule {
         claimsUnsubscribe();
       }
     };
-  }
-
-  /**
-   * Upgrade family group subscription tier
-   * Implements Sprint 2: Freemium Model
-   * One person pays, entire family group gets upgraded
-   */
-  async upgradeSubscription(familyGroupId: string, newTier: 'premium' | 'family'): Promise<void> {
-    try {
-      await database().ref(`/familyGroups/${familyGroupId}`).update({
-        subscriptionTier: newTier,
-      });
-    } catch (error: any) {
-      throw new Error(`Failed to upgrade subscription: ${error.message}`);
-    }
   }
 
   /**
