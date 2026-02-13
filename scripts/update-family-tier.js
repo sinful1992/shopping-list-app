@@ -1,146 +1,117 @@
+#!/usr/bin/env node
+
 /**
- * Script to update family group subscription tier
+ * Admin script: update-family-tier.js
  *
  * Usage:
- *   node scripts/update-family-tier.js YOUR_FAMILY_GROUP_ID family
+ *   node scripts/update-family-tier.js <familyGroupId> <tier>
+ *   node scripts/update-family-tier.js --list
  *
- * Requirements:
- *   - Firebase Admin SDK initialized
- *   - Service account credentials
+ * Examples:
+ *   node scripts/update-family-tier.js -Kx1234abc premium
+ *   node scripts/update-family-tier.js -Kx1234abc free
+ *   node scripts/update-family-tier.js --list
+ *
+ * Requires: GOOGLE_APPLICATION_CREDENTIALS env var pointing to a service account key,
+ * or run from an environment with default credentials (e.g., Cloud Shell).
  */
 
 const admin = require('firebase-admin');
-const path = require('path');
 
-// Initialize Firebase Admin
-try {
-  const serviceAccount = require(path.join(__dirname, '../serviceAccountKey.json'));
+const VALID_TIERS = ['free', 'premium', 'family'];
 
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://YOUR_PROJECT_ID.firebaseio.com' // Update with your project ID
+async function main() {
+  admin.initializeApp();
+  const db = admin.database();
+
+  const args = process.argv.slice(2);
+
+  if (args.length === 0) {
+    printUsage();
+    process.exit(1);
+  }
+
+  if (args[0] === '--list') {
+    await listFamilyGroups(db);
+    return;
+  }
+
+  if (args.length < 2) {
+    console.error('Error: Missing arguments. Provide <familyGroupId> <tier>');
+    printUsage();
+    process.exit(1);
+  }
+
+  const [familyGroupId, tier] = args;
+
+  if (!VALID_TIERS.includes(tier)) {
+    console.error(`Error: Invalid tier "${tier}". Must be one of: ${VALID_TIERS.join(', ')}`);
+    process.exit(1);
+  }
+
+  const groupSnapshot = await db.ref(`/familyGroups/${familyGroupId}`).once('value');
+  if (!groupSnapshot.exists()) {
+    console.error(`Error: Family group "${familyGroupId}" not found`);
+    process.exit(1);
+  }
+
+  const group = groupSnapshot.val();
+  const oldTier = group.subscriptionTier || 'free';
+
+  await db.ref(`/familyGroups/${familyGroupId}`).update({
+    subscriptionTier: tier,
+    tierUpdatedAt: Date.now(),
   });
 
-  console.log('✅ Firebase Admin initialized');
-} catch (error) {
-  console.error('❌ Failed to initialize Firebase Admin:', error.message);
-  console.log('\nPlease ensure you have:');
-  console.log('1. Downloaded service account key from Firebase Console');
-  console.log('2. Saved it as serviceAccountKey.json in project root');
-  console.log('3. Updated databaseURL with your project ID');
-  process.exit(1);
+  console.log(`Updated family group "${familyGroupId}" (${group.name})`);
+  console.log(`  Tier: ${oldTier} -> ${tier}`);
+  console.log('Done.');
 }
 
-/**
- * Update family group subscription tier
- */
-async function updateFamilyTier(familyGroupId, tier) {
-  const validTiers = ['free', 'premium', 'family'];
+async function listFamilyGroups(db) {
+  const snapshot = await db.ref('/familyGroups').once('value');
+  const groups = snapshot.val();
 
-  // Validate tier
-  if (!validTiers.includes(tier)) {
-    console.error(`❌ Invalid tier: ${tier}`);
-    console.log(`Valid tiers: ${validTiers.join(', ')}`);
-    process.exit(1);
+  if (!groups) {
+    console.log('No family groups found.');
+    return;
   }
 
-  try {
-    // Get reference to family group
-    const familyRef = admin.database().ref(`/familyGroups/${familyGroupId}`);
+  console.log('Family Groups:');
+  console.log('-'.repeat(80));
+  console.log(
+    padRight('ID', 25) +
+    padRight('Name', 25) +
+    padRight('Tier', 10) +
+    padRight('Members', 10)
+  );
+  console.log('-'.repeat(80));
 
-    // Check if family group exists
-    const snapshot = await familyRef.once('value');
-    if (!snapshot.exists()) {
-      console.error(`❌ Family group not found: ${familyGroupId}`);
-      process.exit(1);
-    }
-
-    const familyData = snapshot.val();
-    console.log('\n📋 Current Family Group:');
-    console.log(`   ID: ${familyGroupId}`);
-    console.log(`   Name: ${familyData.name || 'N/A'}`);
-    console.log(`   Current Tier: ${familyData.subscriptionTier || 'free'}`);
-    console.log(`   Members: ${familyData.members ? Object.keys(familyData.members).length : 0}`);
-
-    // Update subscription tier
-    await familyRef.update({
-      subscriptionTier: tier,
-      updatedAt: Date.now(),
-    });
-
-    console.log(`\n✅ Successfully updated subscription tier to: ${tier}`);
-
-    // Show tier benefits
-    const benefits = {
-      free: ['4 Lists', '1 OCR/month', '1 Urgent Item/month'],
-      premium: ['Unlimited Lists', '20 OCR/month', '3 Urgent Items/month'],
-      family: ['Unlimited Everything', '10 Family Members', 'All Features'],
-    };
-
-    console.log('\n🎁 Tier Benefits:');
-    benefits[tier].forEach(benefit => console.log(`   ✓ ${benefit}`));
-
-    console.log('\n📱 Next Steps:');
-    console.log('   1. All family members should restart the app');
-    console.log('   2. New limits will be applied immediately');
-    console.log('   3. Usage counters will reset monthly');
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error updating family tier:', error);
-    process.exit(1);
+  for (const [id, group] of Object.entries(groups)) {
+    const g = group;
+    const memberCount = g.memberIds ? Object.keys(g.memberIds).length : 0;
+    console.log(
+      padRight(id, 25) +
+      padRight(g.name || '(unnamed)', 25) +
+      padRight(g.subscriptionTier || 'free', 10) +
+      padRight(String(memberCount), 10)
+    );
   }
 }
 
-/**
- * List all family groups
- */
-async function listFamilyGroups() {
-  try {
-    const familyGroupsRef = admin.database().ref('/familyGroups');
-    const snapshot = await familyGroupsRef.once('value');
-    const familyGroups = snapshot.val();
-
-    if (!familyGroups) {
-      console.log('No family groups found');
-      return;
-    }
-
-    console.log('\n📋 All Family Groups:\n');
-    Object.entries(familyGroups).forEach(([id, data]) => {
-      console.log(`ID: ${id}`);
-      console.log(`   Name: ${data.name || 'N/A'}`);
-      console.log(`   Tier: ${data.subscriptionTier || 'free'}`);
-      console.log(`   Members: ${data.members ? Object.keys(data.members).length : 0}`);
-      console.log('');
-    });
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error listing family groups:', error);
-    process.exit(1);
-  }
+function padRight(str, len) {
+  return str.length >= len ? str.substring(0, len) : str + ' '.repeat(len - str.length);
 }
 
-// Main
-const args = process.argv.slice(2);
-
-if (args.length === 0 || args[0] === '--list') {
-  console.log('📋 Listing all family groups...\n');
-  listFamilyGroups();
-} else if (args.length === 2) {
-  const [familyGroupId, tier] = args;
-  console.log(`🔄 Updating family group ${familyGroupId} to ${tier} tier...\n`);
-  updateFamilyTier(familyGroupId, tier);
-} else {
+function printUsage() {
   console.log('Usage:');
+  console.log('  node scripts/update-family-tier.js <familyGroupId> <tier>');
   console.log('  node scripts/update-family-tier.js --list');
-  console.log('  node scripts/update-family-tier.js FAMILY_GROUP_ID TIER');
   console.log('');
-  console.log('Examples:');
-  console.log('  node scripts/update-family-tier.js --list');
-  console.log('  node scripts/update-family-tier.js -Abc123XyZ family');
-  console.log('');
-  console.log('Valid tiers: free, premium, family');
-  process.exit(1);
+  console.log('Tiers: free, premium, family');
 }
+
+main().then(() => process.exit(0)).catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
