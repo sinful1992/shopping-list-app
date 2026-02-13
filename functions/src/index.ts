@@ -110,9 +110,9 @@ export const revenuecatWebhook = functions.https.onRequest(async (req, res) => {
     return;
   }
 
-  const webhookSecret = functions.config().revenuecat?.webhook_secret;
+  const webhookSecret = process.env.REVENUECAT_WEBHOOK_SECRET;
   if (!webhookSecret) {
-    functions.logger.error('revenuecat.webhook_secret not configured');
+    functions.logger.error('REVENUECAT_WEBHOOK_SECRET env var not configured');
     res.status(500).send('Server misconfigured');
     return;
   }
