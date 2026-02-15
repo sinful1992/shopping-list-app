@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar, TouchableOpacity } from 'react-native';
 import { NavigationContainer, DefaultTheme, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import database from '@react-native-firebase/database';
@@ -14,6 +14,8 @@ import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
 import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
+import { AdMobProvider } from './src/contexts/AdMobContext';
+import AdBanner from './src/components/AdBanner';
 import { User } from './src/models/types';
 
 // Deep linking configuration
@@ -115,6 +117,7 @@ function ListsStack() {
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const [activeTab, setActiveTab] = useState('Lists');
 
   return (
     <Tab.Navigator
@@ -137,6 +140,19 @@ function MainTabNavigator() {
             <Icon name="settings-outline" size={24} color="#007AFF" />
           </TouchableOpacity>
         ),
+      }}
+      tabBar={(props) => (
+        <>
+          <AdBanner visible={activeTab !== 'Subscription'} />
+          <BottomTabBar {...props} />
+        </>
+      )}
+      screenListeners={{
+        state: (e: any) => {
+          const state = e.data.state;
+          const activeRoute = state.routes[state.index];
+          setActiveTab(activeRoute.name);
+        },
       }}
     >
       <Tab.Screen
@@ -338,6 +354,7 @@ function App(): JSX.Element {
         translucent={false}
       />
       <RevenueCatProvider user={user}>
+      <AdMobProvider>
       <NavigationContainer theme={DarkNavigationTheme} linking={linking}>
         {!user ? (
           // Authentication Stack
@@ -381,6 +398,7 @@ function App(): JSX.Element {
           </Stack.Navigator>
         )}
       </NavigationContainer>
+      </AdMobProvider>
       </RevenueCatProvider>
     </SafeAreaProvider>
   );

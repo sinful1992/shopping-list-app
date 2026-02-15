@@ -1,4 +1,7 @@
 {
   "name": "FamilyShoppingList",
-  "displayName": "Family Shopping List"
+  "displayName": "Family Shopping List",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-6393499933839379~1279392534"
+  }
 }

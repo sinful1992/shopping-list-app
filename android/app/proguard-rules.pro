@@ -52,3 +52,7 @@
 # WatermelonDB
 -keep class com.nozbe.watermelondb.** { *; }
 -dontwarn com.nozbe.watermelondb.**
+
+# Google Mobile Ads
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
