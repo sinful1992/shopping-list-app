@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -75,58 +75,62 @@ const FamilyGroupScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Family Group</Text>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Family Group</Text>
 
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleButton, mode === 'create' && styles.toggleButtonActive]}
-          onPress={() => setMode('create')}
-        >
-          <Text style={[styles.toggleText, mode === 'create' && styles.toggleTextActive]}>
-            Create
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, mode === 'join' && styles.toggleButtonActive]}
-          onPress={() => setMode('join')}
-        >
-          <Text style={[styles.toggleText, mode === 'join' && styles.toggleTextActive]}>
-            Join
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity
+              style={[styles.toggleButton, mode === 'create' && styles.toggleButtonActive]}
+              onPress={() => setMode('create')}
+            >
+              <Text style={[styles.toggleText, mode === 'create' && styles.toggleTextActive]}>
+                Create
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleButton, mode === 'join' && styles.toggleButtonActive]}
+              onPress={() => setMode('join')}
+            >
+              <Text style={[styles.toggleText, mode === 'join' && styles.toggleTextActive]}>
+                Join
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-      {mode === 'create' ? (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Family Group Name"
-            placeholderTextColor="#6E6E73"
-            value={groupName}
-            onChangeText={setGroupName}
-          />
-          <TouchableOpacity style={styles.button} onPress={handleCreateGroup}>
-            <Text style={styles.buttonText}>Create Family Group</Text>
-          </TouchableOpacity>
-        </>
-      ) : (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Invitation Code (e.g., A3F7K9M2)"
-            placeholderTextColor="#6E6E73"
-            value={invitationCode}
-            onChangeText={setInvitationCode}
-            autoCapitalize="characters"
-            maxLength={8}
-          />
-          <TouchableOpacity style={styles.button} onPress={handleJoinGroup}>
-            <Text style={styles.buttonText}>Join Family Group</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
+          {mode === 'create' ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Family Group Name"
+                placeholderTextColor="#6E6E73"
+                value={groupName}
+                onChangeText={setGroupName}
+              />
+              <TouchableOpacity style={styles.button} onPress={handleCreateGroup}>
+                <Text style={styles.buttonText}>Create Family Group</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Invitation Code (e.g., A3F7K9M2)"
+                placeholderTextColor="#6E6E73"
+                value={invitationCode}
+                onChangeText={setInvitationCode}
+                autoCapitalize="characters"
+                maxLength={8}
+              />
+              <TouchableOpacity style={styles.button} onPress={handleJoinGroup}>
+                <Text style={styles.buttonText}>Join Family Group</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
