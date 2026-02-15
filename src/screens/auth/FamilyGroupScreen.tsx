@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -13,6 +13,7 @@ const FamilyGroupScreen = () => {
   const [groupName, setGroupName] = useState('');
   const [invitationCode, setInvitationCode] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
+  const [loading, setLoading] = useState(false);
 
   const handleCreateGroup = async () => {
     if (!groupName) {
@@ -20,18 +21,20 @@ const FamilyGroupScreen = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) throw new Error('User not authenticated');
 
-      const group = await AuthenticationModule.createFamilyGroup(groupName, user.uid);
+      const result = await AuthenticationModule.createFamilyGroup(groupName, user.uid);
 
-      // Update local user data with new familyGroupId
       await AuthenticationModule.refreshUserData();
 
-      showAlert('Success', `Family group created! Invitation code: ${(group as any).invitationCode}`, undefined, { icon: 'success' });
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Success', `Family group created! Invitation code: ${result.invitationCode}`, undefined, { icon: 'success' });
+    } catch (error: unknown) {
+      showAlert('Error', error instanceof Error ? error.message : 'Something went wrong.', undefined, { icon: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,7 +44,6 @@ const FamilyGroupScreen = () => {
       return;
     }
 
-    // Normalize code (remove spaces, uppercase)
     const normalizedCode = invitationCode.trim().toUpperCase().replace(/\s/g, '');
 
     if (normalizedCode.length !== 8) {
@@ -49,28 +51,31 @@ const FamilyGroupScreen = () => {
       return;
     }
 
+    setLoading(true);
     try {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) throw new Error('User not authenticated');
 
       await AuthenticationModule.joinFamilyGroup(normalizedCode, user.uid);
 
-      // Update local user data with new familyGroupId
       await AuthenticationModule.refreshUserData();
 
       showAlert('Success', 'You have successfully joined the family group!', undefined, { icon: 'success' });
-    } catch (error: any) {
-      let userMessage = error.message;
-
-      if (error.message.includes('Invalid invitation code')) {
-        userMessage = 'Invalid invitation code. Please check the code and try again.';
-      } else if (error.message.includes('no longer exists')) {
-        userMessage = 'This family group has been deleted by the owner.';
-      } else if (error.message.includes('network')) {
-        userMessage = 'Network error. Please check your connection and try again.';
+    } catch (error: unknown) {
+      let userMessage = 'Something went wrong. Please try again.';
+      if (error instanceof Error) {
+        userMessage = error.message;
+        if (error.message.includes('Invalid invitation code')) {
+          userMessage = 'Invalid invitation code. Please check the code and try again.';
+        } else if (error.message.includes('no longer exists')) {
+          userMessage = 'This family group has been deleted by the owner.';
+        } else if (error.message.includes('network')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+        }
       }
-
       showAlert('Error', userMessage, undefined, { icon: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -107,9 +112,18 @@ const FamilyGroupScreen = () => {
                 placeholderTextColor="#6E6E73"
                 value={groupName}
                 onChangeText={setGroupName}
+                editable={!loading}
               />
-              <TouchableOpacity style={styles.button} onPress={handleCreateGroup}>
-                <Text style={styles.buttonText}>Create Family Group</Text>
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleCreateGroup}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Create Family Group</Text>
+                )}
               </TouchableOpacity>
             </>
           ) : (
@@ -122,9 +136,18 @@ const FamilyGroupScreen = () => {
                 onChangeText={setInvitationCode}
                 autoCapitalize="characters"
                 maxLength={8}
+                editable={!loading}
               />
-              <TouchableOpacity style={styles.button} onPress={handleJoinGroup}>
-                <Text style={styles.buttonText}>Join Family Group</Text>
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleJoinGroup}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Join Family Group</Text>
+                )}
               </TouchableOpacity>
             </>
           )}
@@ -201,6 +224,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   buttonText: {
     color: '#fff',

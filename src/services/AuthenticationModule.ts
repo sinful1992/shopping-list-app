@@ -50,8 +50,8 @@ class AuthenticationModule {
       await this.storeAuthData(user, token);
 
       return { user, token };
-    } catch (error: any) {
-      throw new Error(`Sign up failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Sign up failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -75,8 +75,8 @@ class AuthenticationModule {
       await this.storeAuthData(user, token);
 
       return { user, token };
-    } catch (error: any) {
-      throw new Error(`Sign in failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Sign in failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -108,8 +108,8 @@ class AuthenticationModule {
       await AsyncStorage.removeItem(this.USER_KEY);
       // Clear token from encrypted storage
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
-    } catch (error: any) {
-      throw new Error(`Sign out failed: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Sign out failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -131,8 +131,8 @@ class AuthenticationModule {
         .once('value');
 
       return groupSnapshot.val();
-    } catch (error: any) {
-      throw new Error(`Failed to get family group: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to get family group: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -155,7 +155,7 @@ class AuthenticationModule {
    * Create new family group
    * Implements Req 1.5
    */
-  async createFamilyGroup(groupName: string, userId: string): Promise<FamilyGroup> {
+  async createFamilyGroup(groupName: string, userId: string): Promise<{ group: FamilyGroup; invitationCode: string }> {
     try {
       const groupId = database().ref().push().key;
       if (!groupId) {
@@ -193,13 +193,9 @@ class AuthenticationModule {
         await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
-      // Return family group with invitation code for display
-      return {
-        ...familyGroup,
-        invitationCode, // Include in return value for UI display
-      } as any; // Type assertion since invitationCode is not in FamilyGroup interface
-    } catch (error: any) {
-      throw new Error(`Failed to create family group: ${error.message}`);
+      return { group: familyGroup, invitationCode };
+    } catch (error: unknown) {
+      throw new Error(`Failed to create family group: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -250,16 +246,18 @@ class AuthenticationModule {
       }
 
       return familyGroup;
-    } catch (error: any) {
-      // Provide specific error messages based on error type
-      if (error.message.includes('Invalid invitation code')) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const code = typeof error === 'object' && error !== null && 'code' in error ? (error as { code: string }).code : '';
+
+      if (msg.includes('Invalid invitation code')) {
         throw new Error('Invalid invitation code. Please check and try again.');
-      } else if (error.message.includes('no longer exists')) {
+      } else if (msg.includes('no longer exists')) {
         throw new Error('This family group has been deleted.');
-      } else if (error.code === 'PERMISSION_DENIED') {
+      } else if (code === 'PERMISSION_DENIED') {
         throw new Error('Permission denied. Please contact support.');
       } else {
-        throw new Error(`Failed to join family group: ${error.message}`);
+        throw new Error(`Failed to join family group: ${msg}`);
       }
     }
   }
@@ -547,8 +545,8 @@ class AuthenticationModule {
       // Step 8: Delete user from Firebase Authentication (must be last)
       await currentUser.delete();
 
-    } catch (error: any) {
-      throw new Error(`Failed to delete account: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to delete account: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -585,8 +583,8 @@ class AuthenticationModule {
       }
 
       return user;
-    } catch (error: any) {
-      throw new Error(`Failed to refresh user data: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to refresh user data: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

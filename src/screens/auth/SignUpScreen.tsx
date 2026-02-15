@@ -48,8 +48,8 @@ const SignUpScreen = () => {
     try {
       await AuthenticationModule.signUp(email, password, name);
       // Navigation handled by App.tsx
-    } catch (error: any) {
-      showAlert('Sign Up Failed', error.message, undefined, { icon: 'error' });
+    } catch (error: unknown) {
+      showAlert('Sign Up Failed', error instanceof Error ? error.message : 'Something went wrong. Please try again.', undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }

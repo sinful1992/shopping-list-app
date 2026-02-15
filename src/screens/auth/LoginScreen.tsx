@@ -36,8 +36,8 @@ const LoginScreen = () => {
     try {
       await AuthenticationModule.signIn(email, password);
       // Navigation handled by App.tsx based on auth state
-    } catch (error: any) {
-      showAlert('Login Failed', error.message, undefined, { icon: 'error' });
+    } catch (error: unknown) {
+      showAlert('Login Failed', error instanceof Error ? error.message : 'Something went wrong. Please try again.', undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
