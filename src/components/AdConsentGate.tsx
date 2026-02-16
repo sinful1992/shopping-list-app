@@ -9,12 +9,12 @@ interface AdConsentGateProps {
 
 export default function AdConsentGate({ children }: AdConsentGateProps) {
   const { consentChecked, consentObtained, retryConsent } = useAdMob();
-  const { tier, hasEntitlement, presentPaywall } = useRevenueCat();
+  const { tier, hasEntitlement, isLoading, presentPaywall } = useRevenueCat();
   const [retrying, setRetrying] = useState(false);
 
   const isFreeUser = tier === 'free' && !hasEntitlement;
 
-  if (!isFreeUser) return <>{children}</>;
+  if (isLoading || !isFreeUser) return <>{children}</>;
 
   if (!consentChecked) {
     return (

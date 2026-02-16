@@ -24,7 +24,7 @@ interface AdMobContextType {
 const AdMobContext = createContext<AdMobContextType | null>(null);
 
 export function AdMobProvider({ children }: { children: React.ReactNode }) {
-  const { tier, hasEntitlement } = useRevenueCat();
+  const { tier, hasEntitlement, isLoading } = useRevenueCat();
   const [isInitialized, setIsInitialized] = useState(false);
   const [consentObtained, setConsentObtained] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
@@ -48,6 +48,14 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const shouldShowAds = tier === 'free' && !hasEntitlement && consentObtained;
 
   useEffect(() => {
+    if (isLoading) return;
+
+    const isFreeUser = tier === 'free' && !hasEntitlement;
+    if (!isFreeUser) {
+      setConsentChecked(true);
+      return;
+    }
+
     let mounted = true;
 
     const initAds = async () => {
@@ -55,7 +63,6 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       isConsentInFlightRef.current = true;
 
       try {
-        if (__DEV__) AdsConsent.reset();
         await AdsConsent.gatherConsent();
       } catch (e) {
         if (__DEV__) console.warn('UMP consent failed:', JSON.stringify(e, Object.getOwnPropertyNames(e as object)));
@@ -92,8 +99,11 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     };
 
     initAds();
-    return () => { mounted = false; };
-  }, []);
+    return () => {
+      mounted = false;
+      isConsentInFlightRef.current = false;
+    };
+  }, [isLoading, tier, hasEntitlement]);
 
   const retryConsent = useCallback(async () => {
     if (isConsentInFlightRef.current) return;
