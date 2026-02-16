@@ -2,6 +2,7 @@
   "name": "FamilyShoppingList",
   "displayName": "Family Shopping List",
   "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-6393499933839379~1279392534"
+    "android_app_id": "ca-app-pub-6393499933839379~1279392534",
+    "delay_app_measurement_init": true
   }
 }

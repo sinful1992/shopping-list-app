@@ -16,6 +16,7 @@ import { AlertProvider, useAlert } from './src/contexts/AlertContext';
 import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 import { AdMobProvider } from './src/contexts/AdMobContext';
 import AdBanner from './src/components/AdBanner';
+import AdConsentGate from './src/components/AdConsentGate';
 import { User } from './src/models/types';
 
 // Deep linking configuration
@@ -379,23 +380,25 @@ function App(): JSX.Element {
           </Stack.Navigator>
         ) : (
           // Main App with Settings accessible from header
-          <Stack.Navigator>
-            <Stack.Screen
-              name="MainTabs"
-              component={MainTabNavigator}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Settings"
-              component={SettingsScreen}
-              options={{ title: 'Settings' }}
-            />
-            <Stack.Screen
-              name="LegalDocument"
-              component={LegalDocumentScreen}
-              options={({ route }: any) => ({ title: route.params?.title || 'Legal' })}
-            />
-          </Stack.Navigator>
+          <AdConsentGate>
+            <Stack.Navigator>
+              <Stack.Screen
+                name="MainTabs"
+                component={MainTabNavigator}
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ title: 'Settings' }}
+              />
+              <Stack.Screen
+                name="LegalDocument"
+                component={LegalDocumentScreen}
+                options={({ route }: any) => ({ title: route.params?.title || 'Legal' })}
+              />
+            </Stack.Navigator>
+          </AdConsentGate>
         )}
       </NavigationContainer>
       </AdMobProvider>

@@ -6,7 +6,6 @@ import mobileAds, {
   RewardedAdEventType,
   AdEventType,
   AdsConsent,
-  AdsConsentStatus,
 } from 'react-native-google-mobile-ads';
 import { useRevenueCat } from './RevenueCatContext';
 import { AD_UNIT_IDS, INTERSTITIAL_COOLDOWN_MS, MAX_RETRY_ATTEMPTS } from '../config/adConfig';
@@ -14,6 +13,9 @@ import { AD_UNIT_IDS, INTERSTITIAL_COOLDOWN_MS, MAX_RETRY_ATTEMPTS } from '../co
 interface AdMobContextType {
   shouldShowAds: boolean;
   isInitialized: boolean;
+  consentChecked: boolean;
+  consentObtained: boolean;
+  retryConsent: () => Promise<void>;
   showInterstitial: () => boolean;
   setPendingInterstitial: () => void;
   showRewarded: (onRewarded: () => void, onDismissed?: () => void) => boolean;
@@ -25,6 +27,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const { tier, hasEntitlement } = useRevenueCat();
   const [isInitialized, setIsInitialized] = useState(false);
   const [consentObtained, setConsentObtained] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
+
+  const isConsentInFlightRef = useRef(false);
 
   const interstitialRef = useRef<InterstitialAd | null>(null);
   const interstitialLoadedRef = useRef(false);
@@ -42,53 +47,86 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
 
   const shouldShowAds = tier === 'free' && !hasEntitlement && consentObtained;
 
-  // UMP consent first, then initialize AdMob SDK
-  // Docs: "ads may be preloaded upon initialization" — must resolve consent before init
   useEffect(() => {
     let mounted = true;
 
-    const init = async () => {
-      // Step 1: Resolve UMP consent before any SDK initialization
-      let hasConsent = false;
+    const initAds = async () => {
+      if (isConsentInFlightRef.current) return;
+      isConsentInFlightRef.current = true;
+
       try {
-        const consentInfo = await AdsConsent.requestInfoUpdate();
-        if (
-          consentInfo.status === AdsConsentStatus.OBTAINED ||
-          consentInfo.status === AdsConsentStatus.NOT_REQUIRED
-        ) {
-          hasConsent = true;
-        } else if (consentInfo.isConsentFormAvailable) {
-          const result = await AdsConsent.showForm();
-          if (result.status === AdsConsentStatus.OBTAINED) {
-            hasConsent = true;
-          }
-        }
+        await AdsConsent.gatherConsent();
       } catch (e) {
         if (__DEV__) console.warn('UMP consent failed:', e);
-        // hasConsent stays false — no ads, no SDK init (safe default)
+        if (mounted) {
+          setConsentObtained(false);
+          setConsentChecked(true);
+        }
+        isConsentInFlightRef.current = false;
+        return;
       }
 
-      if (!mounted) return;
-      setConsentObtained(hasConsent);
+      if (!mounted) { isConsentInFlightRef.current = false; return; }
 
-      if (!hasConsent) return;
+      const { canRequestAds } = await AdsConsent.getConsentInfo();
+      if (!mounted) { isConsentInFlightRef.current = false; return; }
 
-      // Step 2: Only initialize SDK after consent is obtained/not required
+      setConsentObtained(canRequestAds);
+      setConsentChecked(true);
+
+      if (!canRequestAds) { isConsentInFlightRef.current = false; return; }
+
       try {
         await mobileAds().initialize();
       } catch (e) {
         if (__DEV__) console.warn('AdMob init failed:', e);
+        isConsentInFlightRef.current = false;
         return;
       }
 
       if (mounted) setIsInitialized(true);
+      isConsentInFlightRef.current = false;
     };
 
-    init();
+    initAds();
+    return () => { mounted = false; };
+  }, []);
 
-    return () => {
-      mounted = false;
-    };
+  const retryConsent = useCallback(async () => {
+    if (isConsentInFlightRef.current) return;
+    isConsentInFlightRef.current = true;
+
+    setConsentChecked(false);
+    setConsentObtained(false);
+    setIsInitialized(false);
+
+    try {
+      AdsConsent.reset();
+      await AdsConsent.gatherConsent();
+    } catch (e) {
+      if (__DEV__) console.warn('UMP consent retry failed:', e);
+      setConsentChecked(true);
+      isConsentInFlightRef.current = false;
+      return;
+    }
+
+    const { canRequestAds } = await AdsConsent.getConsentInfo();
+    setConsentObtained(canRequestAds);
+    setConsentChecked(true);
+
+    if (!canRequestAds) {
+      isConsentInFlightRef.current = false;
+      return;
+    }
+
+    try {
+      await mobileAds().initialize();
+      setIsInitialized(true);
+    } catch (e) {
+      if (__DEV__) console.warn('AdMob init failed:', e);
+    }
+
+    isConsentInFlightRef.current = false;
   }, []);
 
   // Load interstitial ad
@@ -248,7 +286,6 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
             pendingInterstitialRef.current = null;
           }
         } else if (pending?.pending) {
-          // Expired — clear it
           pendingInterstitialRef.current = null;
         }
       }
@@ -261,6 +298,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const value: AdMobContextType = {
     shouldShowAds,
     isInitialized,
+    consentChecked,
+    consentObtained,
+    retryConsent,
     showInterstitial,
     setPendingInterstitial,
     showRewarded,
