@@ -109,8 +109,7 @@ export function useUrgentItems() {
       name.trim(),
       user.uid,
       user.displayName || 'Unknown',
-      user.familyGroupId,
-      user
+      user.familyGroupId
     );
     // WatermelonDB observer will automatically update the UI
   }, [user]);

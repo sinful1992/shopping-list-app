@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { AppState, AppStateStatus } from 'react-native';
 import mobileAds, {
   InterstitialAd,
+  RewardedAd,
+  RewardedAdEventType,
   AdEventType,
   AdsConsent,
   AdsConsentStatus,
@@ -14,6 +16,7 @@ interface AdMobContextType {
   isInitialized: boolean;
   showInterstitial: () => boolean;
   setPendingInterstitial: () => void;
+  showRewarded: (onRewarded: () => void, onDismissed?: () => void) => boolean;
 }
 
 const AdMobContext = createContext<AdMobContextType | null>(null);
@@ -29,6 +32,13 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const retryCountRef = useRef(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingInterstitialRef = useRef<{ pending: boolean; expiresAt: number } | null>(null);
+
+  const rewardedRef = useRef<RewardedAd | null>(null);
+  const rewardedLoadedRef = useRef(false);
+  const rewardedRetryCountRef = useRef(0);
+  const rewardedRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rewardedCallbackRef = useRef<{ onRewarded: () => void; onDismissed?: () => void } | null>(null);
+  const rewardedEarnedRef = useRef(false);
 
   const shouldShowAds = tier === 'free' && !hasEntitlement && consentObtained;
 
@@ -114,10 +124,59 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     interstitial.load();
   }, []);
 
-  // Start preloading interstitial when ads should show
+  // Load rewarded ad
+  const loadRewarded = useCallback(() => {
+    if (rewardedRef.current) {
+      rewardedRef.current.removeAllListeners();
+    }
+
+    const rewarded = RewardedAd.createForAdRequest(AD_UNIT_IDS.rewarded);
+
+    rewarded.addAdEventListener(RewardedAdEventType.LOADED, () => {
+      rewardedLoadedRef.current = true;
+      rewardedRetryCountRef.current = 0;
+    });
+
+    rewarded.addAdEventListener(RewardedAdEventType.EARNED_REWARD, () => {
+      rewardedEarnedRef.current = true;
+    });
+
+    rewarded.addAdEventListener(AdEventType.CLOSED, () => {
+      rewardedLoadedRef.current = false;
+      const callbacks = rewardedCallbackRef.current;
+      const earned = rewardedEarnedRef.current;
+      rewardedCallbackRef.current = null;
+      rewardedEarnedRef.current = false;
+
+      if (earned && callbacks?.onRewarded) {
+        callbacks.onRewarded();
+      } else if (!earned && callbacks?.onDismissed) {
+        callbacks.onDismissed();
+      }
+
+      loadRewarded();
+    });
+
+    rewarded.addAdEventListener(AdEventType.ERROR, () => {
+      rewardedLoadedRef.current = false;
+      if (rewardedRetryCountRef.current < MAX_RETRY_ATTEMPTS) {
+        const delay = 5000 * Math.pow(3, rewardedRetryCountRef.current);
+        rewardedRetryCountRef.current += 1;
+        rewardedRetryTimeoutRef.current = setTimeout(() => {
+          loadRewarded();
+        }, delay);
+      }
+    });
+
+    rewardedRef.current = rewarded;
+    rewarded.load();
+  }, []);
+
+  // Start preloading interstitial and rewarded when ads should show
   useEffect(() => {
     if (shouldShowAds && isInitialized) {
       loadInterstitial();
+      loadRewarded();
     }
 
     return () => {
@@ -127,8 +186,14 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       if (interstitialRef.current) {
         interstitialRef.current.removeAllListeners();
       }
+      if (rewardedRetryTimeoutRef.current) {
+        clearTimeout(rewardedRetryTimeoutRef.current);
+      }
+      if (rewardedRef.current) {
+        rewardedRef.current.removeAllListeners();
+      }
     };
-  }, [shouldShowAds, isInitialized, loadInterstitial]);
+  }, [shouldShowAds, isInitialized, loadInterstitial, loadRewarded]);
 
   const showInterstitial = useCallback((): boolean => {
     if (!shouldShowAds) return false;
@@ -156,6 +221,22 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const showRewarded = useCallback((onRewarded: () => void, onDismissed?: () => void): boolean => {
+    if (!shouldShowAds || !rewardedLoadedRef.current) return false;
+
+    rewardedCallbackRef.current = { onRewarded, onDismissed };
+    rewardedEarnedRef.current = false;
+
+    try {
+      rewardedRef.current?.show();
+      rewardedLoadedRef.current = false;
+      return true;
+    } catch {
+      rewardedCallbackRef.current = null;
+      return false;
+    }
+  }, [shouldShowAds]);
+
   // AppState listener for pending interstitial on foreground
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
@@ -182,6 +263,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     isInitialized,
     showInterstitial,
     setPendingInterstitial,
+    showRewarded,
   };
 
   return (

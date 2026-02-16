@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { useAdMob } from '../../contexts/AdMobContext';
+import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
 import { useUrgentItems } from '../../hooks';
 
@@ -19,6 +21,8 @@ import { useUrgentItems } from '../../hooks';
  */
 const UrgentItemsScreen = () => {
   const { showAlert } = useAlert();
+  const { shouldShowAds, showRewarded } = useAdMob();
+  const { tier } = useRevenueCat();
 
   // Use custom hook for urgent items management
   const { activeItems, resolvedItems, loading, createItem, resolveItem, formatTimeAgo } = useUrgentItems();
@@ -29,20 +33,53 @@ const UrgentItemsScreen = () => {
   const [selectedItem, setSelectedItem] = useState<UrgentItem | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [resolvePrice, setResolvePrice] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateItem = async () => {
     if (!newItemName.trim()) {
       showAlert('Error', 'Please enter an item name', undefined, { icon: 'error' });
       return;
     }
+    if (isCreating) return;
+    setIsCreating(true);
 
-    try {
-      await createItem(newItemName.trim());
-      setNewItemName('');
-      setShowCreateModal(false);
-      showAlert('Success', 'Urgent item created and family notified!', undefined, { icon: 'success' });
-    } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+    const performCreate = async () => {
+      try {
+        await createItem(newItemName.trim());
+        setNewItemName('');
+        setShowCreateModal(false);
+        showAlert('Success', 'Urgent item created and family notified!', undefined, { icon: 'success' });
+      } catch (error: any) {
+        showAlert('Error', error.message, undefined, { icon: 'error' });
+      } finally {
+        setIsCreating(false);
+      }
+    };
+
+    if (tier !== 'free') {
+      await performCreate();
+      return;
+    }
+
+    if (!shouldShowAds) {
+      setIsCreating(false);
+      showAlert(
+        'Ads Required',
+        'Please accept ads to create urgent items, or upgrade to Premium for unlimited access.',
+        undefined,
+        { icon: 'info' }
+      );
+      return;
+    }
+
+    const shown = showRewarded(
+      () => { performCreate(); },
+      () => { setIsCreating(false); }
+    );
+
+    if (!shown) {
+      setIsCreating(false);
+      showAlert('Ad Not Ready', 'Please wait a moment and try again.', undefined, { icon: 'info' });
     }
   };
 
@@ -183,8 +220,9 @@ const UrgentItemsScreen = () => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.createButton}
+                style={[styles.createButton, isCreating && { opacity: 0.5 }]}
                 onPress={handleCreateItem}
+                disabled={isCreating}
               >
                 <Text style={styles.createButtonText}>Create & Notify</Text>
               </TouchableOpacity>

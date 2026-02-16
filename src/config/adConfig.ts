@@ -5,6 +5,9 @@ export const AD_UNIT_IDS = {
   interstitial: __DEV__
     ? 'ca-app-pub-3940256099942544/1033173712'
     : 'ca-app-pub-6393499933839379/1924156722',
+  rewarded: __DEV__
+    ? 'ca-app-pub-3940256099942544/5224354917'
+    : 'ca-app-pub-6393499933839379/5544671685',
 };
 
 export const INTERSTITIAL_COOLDOWN_MS = 5 * 60 * 1000;
