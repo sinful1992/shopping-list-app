@@ -55,9 +55,10 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       isConsentInFlightRef.current = true;
 
       try {
+        if (__DEV__) AdsConsent.reset();
         await AdsConsent.gatherConsent();
       } catch (e) {
-        if (__DEV__) console.warn('UMP consent failed:', e);
+        if (__DEV__) console.warn('UMP consent failed:', JSON.stringify(e, Object.getOwnPropertyNames(e as object)));
         if (mounted) {
           setConsentObtained(false);
           setConsentChecked(true);
@@ -68,7 +69,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
 
       if (!mounted) { isConsentInFlightRef.current = false; return; }
 
-      const { canRequestAds } = await AdsConsent.getConsentInfo();
+      const consentInfo = await AdsConsent.getConsentInfo();
+      if (__DEV__) console.log('UMP consent info:', JSON.stringify(consentInfo));
+      const { canRequestAds } = consentInfo;
       if (!mounted) { isConsentInFlightRef.current = false; return; }
 
       setConsentObtained(canRequestAds);
