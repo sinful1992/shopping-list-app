@@ -3,6 +3,8 @@ apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 apply plugin: "com.google.firebase.crashlytics"
 
+import groovy.json.JsonSlurper
+
 /**
  * This is the configuration block to customize your React Native Android app.
  */
@@ -24,6 +26,30 @@ def jscFlavor = 'org.webkit:android-jsc:+'
  */
 project.ext.hermesEnabled = (findProperty('hermesEnabled')?.toBoolean()) ?: true
 
+def packageJsonFile = file("../../package.json")
+def packageVersionName = "1.0.0"
+
+if (packageJsonFile.exists()) {
+    def packageJson = new JsonSlurper().parse(packageJsonFile)
+    if (packageJson.version) {
+        packageVersionName = packageJson.version.toString()
+    }
+}
+
+def resolvedVersionName = (project.findProperty("APP_VERSION_NAME") ?: packageVersionName).toString()
+
+def semverParts = resolvedVersionName
+    .replaceAll(/[^0-9.]/, "")
+    .tokenize('.')
+    .collect { it ? it.toInteger() : 0 }
+
+while (semverParts.size() < 3) {
+    semverParts << 0
+}
+
+def derivedVersionCode = (semverParts[0] * 10000) + (semverParts[1] * 100) + semverParts[2]
+def resolvedVersionCode = (project.findProperty("APP_VERSION_CODE") ?: derivedVersionCode.toString()).toInteger()
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -35,8 +61,8 @@ android {
         applicationId "com.familyshoppinglist.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10000
-        versionName "1.0.0"
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
         multiDexEnabled true
     }
 
