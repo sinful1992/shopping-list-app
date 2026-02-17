@@ -125,7 +125,6 @@ export function useUrgentItems() {
       user.displayName || 'Unknown',
       price
     );
-    // WatermelonDB observer will automatically update the UI
   }, [user]);
 
   const deleteItem = useCallback(async (itemId: string): Promise<void> => {

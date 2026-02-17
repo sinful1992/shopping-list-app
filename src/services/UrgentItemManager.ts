@@ -18,25 +18,20 @@ class UrgentItemManager {
    * Sync urgent item to Firebase Realtime Database (for real-time sync)
    */
   private async syncToFirebase(urgentItem: UrgentItem): Promise<void> {
-    try {
-      const urgentItemRef = database().ref(`urgentItems/${urgentItem.familyGroupId}/${urgentItem.id}`);
-
-      await urgentItemRef.set({
-        id: urgentItem.id,
-        name: urgentItem.name,
-        familyGroupId: urgentItem.familyGroupId,
-        createdBy: urgentItem.createdBy,
-        createdByName: urgentItem.createdByName,
-        createdAt: urgentItem.createdAt,
-        resolvedBy: urgentItem.resolvedBy,
-        resolvedByName: urgentItem.resolvedByName,
-        resolvedAt: urgentItem.resolvedAt,
-        price: urgentItem.price,
-        status: urgentItem.status,
-      });
-    } catch (error) {
-      throw error;
-    }
+    const urgentItemRef = database().ref(`urgentItems/${urgentItem.familyGroupId}/${urgentItem.id}`);
+    await urgentItemRef.set({
+      id: urgentItem.id,
+      name: urgentItem.name,
+      familyGroupId: urgentItem.familyGroupId,
+      createdBy: urgentItem.createdBy,
+      createdByName: urgentItem.createdByName,
+      createdAt: urgentItem.createdAt,
+      resolvedBy: urgentItem.resolvedBy,
+      resolvedByName: urgentItem.resolvedByName,
+      resolvedAt: urgentItem.resolvedAt,
+      price: urgentItem.price,
+      status: urgentItem.status,
+    });
   }
 
   /**
@@ -207,7 +202,7 @@ class UrgentItemManager {
     try {
       await this.syncToSupabase(urgentItem);
     } catch {
-      // Supabase sync failed, will retry later
+      // Supabase sync failed silently
     }
 
     return urgentItem;

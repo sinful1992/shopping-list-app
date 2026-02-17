@@ -850,13 +850,14 @@ class LocalStorageManager {
   observeActiveUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
     const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
     const query = urgentItemsCollection.query(
-      Q.where('family_group_id', familyGroupId),
-      Q.where('status', 'active'),
-      Q.sortBy('created_at', Q.desc)
+      Q.where('family_group_id', familyGroupId)
     );
 
-    const subscription = query.observe().subscribe((itemModels) => {
-      const items = itemModels.map((model) => this.urgentItemModelToType(model));
+    const subscription = query.observeWithColumns(['status']).subscribe((itemModels) => {
+      const items = itemModels
+        .filter((model) => model.status === 'active')
+        .map((model) => this.urgentItemModelToType(model))
+        .sort((a, b) => b.createdAt - a.createdAt);
       callback(items);
     });
 
@@ -870,13 +871,14 @@ class LocalStorageManager {
   observeResolvedUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
     const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
     const query = urgentItemsCollection.query(
-      Q.where('family_group_id', familyGroupId),
-      Q.where('status', 'resolved'),
-      Q.sortBy('resolved_at', Q.desc)
+      Q.where('family_group_id', familyGroupId)
     );
 
-    const subscription = query.observe().subscribe((itemModels) => {
-      const items = itemModels.map((model) => this.urgentItemModelToType(model));
+    const subscription = query.observeWithColumns(['status']).subscribe((itemModels) => {
+      const items = itemModels
+        .filter((model) => model.status === 'resolved')
+        .map((model) => this.urgentItemModelToType(model))
+        .sort((a, b) => (b.resolvedAt ?? 0) - (a.resolvedAt ?? 0));
       callback(items);
     });
 
@@ -934,7 +936,7 @@ class LocalStorageManager {
       familyGroupId: model.familyGroupId,
       createdBy: model.createdBy,
       createdByName: model.createdByName,
-      createdAt: model.createdAt,
+      createdAt: Number(model.createdAt),
       resolvedBy: model.resolvedBy,
       resolvedByName: model.resolvedByName,
       resolvedAt: model.resolvedAt,
