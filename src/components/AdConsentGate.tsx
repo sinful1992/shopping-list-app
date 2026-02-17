@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAdMob } from '../contexts/AdMobContext';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
+import { useAlert } from '../contexts/AlertContext';
 
 interface AdConsentGateProps {
   children: React.ReactNode;
@@ -10,9 +12,29 @@ interface AdConsentGateProps {
 export default function AdConsentGate({ children }: AdConsentGateProps) {
   const { consentChecked, consentObtained, retryConsent } = useAdMob();
   const { tier, hasEntitlement, isLoading, presentPaywall } = useRevenueCat();
+  const { showAlert } = useAlert();
   const [retrying, setRetrying] = useState(false);
+  const shownRef = useRef(false);
 
   const isFreeUser = tier === 'free' && !hasEntitlement;
+
+  useEffect(() => {
+    if (!consentObtained || !isFreeUser || !consentChecked) return;
+    if (shownRef.current) return;
+    shownRef.current = true;
+
+    AsyncStorage.getItem('ad_thank_you_shown').then((value) => {
+      if (!value) {
+        showAlert(
+          'Thank You!',
+          'Your support by viewing ads helps keep this app free for everyone.',
+          undefined,
+          { icon: 'success' },
+        );
+        AsyncStorage.setItem('ad_thank_you_shown', 'true');
+      }
+    });
+  }, [consentObtained, isFreeUser, consentChecked]);
 
   if (isLoading || !isFreeUser) return <>{children}</>;
 

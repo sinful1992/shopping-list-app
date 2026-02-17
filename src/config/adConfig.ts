@@ -10,6 +10,5 @@ export const AD_UNIT_IDS = {
     : 'ca-app-pub-6393499933839379/5544671685',
 };
 
-export const INTERSTITIAL_COOLDOWN_MS = 5 * 60 * 1000;
-export const INTERSTITIAL_DELAY_MS = 3000;
+export const INTERSTITIAL_COOLDOWN_MS = 2 * 60 * 1000;
 export const MAX_RETRY_ATTEMPTS = 3;

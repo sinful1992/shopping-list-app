@@ -9,7 +9,6 @@ import {
   RefreshControl,
   Vibration,
   InteractionManager,
-  AppState,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -35,7 +34,6 @@ import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAdMob } from '../../contexts/AdMobContext';
-import { INTERSTITIAL_DELAY_MS } from '../../config/adConfig';
 
 /**
  * ListDetailScreen
@@ -46,8 +44,7 @@ const ListDetailScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
   const { showAlert } = useAlert();
-  const { showInterstitial, setPendingInterstitial } = useAdMob();
-  const interstitialTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { showInterstitial } = useAdMob();
   const insets = useSafeAreaInsets();
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
@@ -220,12 +217,17 @@ const ListDetailScreen = () => {
     };
   }, [listId, currentUserId]);
 
-  // Clean up interstitial timeout on unmount
+  // Show interstitial ad on list open (with retry for cold starts)
   useEffect(() => {
+    const shown = showInterstitial();
+    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (!shown) {
+      retryTimeout = setTimeout(() => {
+        showInterstitial();
+      }, 3000);
+    }
     return () => {
-      if (interstitialTimeoutRef.current) {
-        clearTimeout(interstitialTimeoutRef.current);
-      }
+      if (retryTimeout) clearTimeout(retryTimeout);
     };
   }, []);
 
@@ -511,14 +513,6 @@ const ListDetailScreen = () => {
     try {
       await ShoppingListManager.markListAsCompleted(listId);
       showAlert('Success', 'Shopping list completed!', undefined, { icon: 'success' });
-      interstitialTimeoutRef.current = setTimeout(() => {
-        if (AppState.currentState !== 'active') {
-          setPendingInterstitial();
-          return;
-        }
-        const shown = showInterstitial();
-        if (!shown) setPendingInterstitial();
-      }, INTERSTITIAL_DELAY_MS);
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
     }
@@ -581,16 +575,6 @@ const ListDetailScreen = () => {
 
     // Show success immediately (don't wait for completion)
     showAlert('Shopping Complete!', 'Your shopping list has been saved to history.', undefined, { icon: 'success' });
-
-    // Schedule interstitial ad after delay
-    interstitialTimeoutRef.current = setTimeout(() => {
-      if (AppState.currentState !== 'active') {
-        setPendingInterstitial();
-        return;
-      }
-      const shown = showInterstitial();
-      if (!shown) setPendingInterstitial();
-    }, INTERSTITIAL_DELAY_MS);
 
     // Run completion in background with pre-calculated data (no item re-fetch)
     ShoppingListManager.completeShoppingFast(listId, currentUserId, finalTotal, storeName).catch(
