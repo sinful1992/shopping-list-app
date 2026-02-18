@@ -364,6 +364,9 @@ function App(): JSX.Element {
             <Stack.Screen name="FamilyGroup" component={FamilyGroupScreen} />
           </Stack.Navigator>
         ) : (
+          // AdMobProvider is intentionally inside the auth gate — mounting it before login
+          // caused the UMP consent dialog to appear on the login screen and the thank-you
+          // alert to fire immediately after login (v1.2.3 fix).
           <AdMobProvider>
             {(user.termsAcceptedVersion ?? 0) < CURRENT_TERMS_VERSION ? (
               // Terms Acceptance

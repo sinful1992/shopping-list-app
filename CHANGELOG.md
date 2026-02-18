@@ -1,95 +1,48 @@
 # Changelog
 
-All notable changes to the Shopping List App will be documented in this file.
+All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-## [0.15.0] - 2026-02-08
-
-### Added
-- **Item Quantity**: +/- buttons in edit modal to buy multiples of the same item (e.g., 2 breads at £1.00 = £2.00)
-- Quantity badge ("x3") displayed on item cards when qty > 1
-- Running total and smart suggestions now reflect quantity multiplier
-- New `unit_qty` database column (schema v10) with migration from v9
-
+## [1.2.3] - 2026-02-18
 ### Fixed
-- **Critical**: Fixed lists disappearing after pull-refresh - added SQLite write verification in `saveList` to ensure database persistence before returning
-- Price of £0.00 no longer falls back to predicted price (changed `||` to `??`)
+- **Consent dialog before login** — `AdMobProvider` was mounted outside the auth gate, causing the UMP consent dialog to appear on the login screen. Moved `AdMobProvider` inside the authenticated branch so it never mounts for unauthenticated users.
+- **Thank-you alert fires immediately after login** — `AdConsentGate` mounted fresh after login but found `consentObtained=true` from the pre-login consent run and fired the alert instantly. Resolved by the same `AdMobProvider` relocation above.
+- **Banner and interstitial ads never displaying** — Premature consent/loading race prevented ads from initialising. Fixed alongside the above; ads now initialise only after the user's tier is confirmed.
+- **Ads race condition** — Added `setIsLoading(true)` at the start of `handleUser` in `RevenueCatContext` to keep `isLoading=true` for the entire async window while RevenueCat and Firebase resolve the user's tier.
 
-### Removed
-- Dead `renderItem` function in ListDetailScreen (75 lines, replaced by inline `.map()`)
-- Unused `FlatList` import
-
-## [0.14.0] - 2026-02-08
-
-### Added
-- **Play Store Readiness**: In-app legal document viewer with `SimpleMarkdown` renderer
-- **Terms Acceptance Flow**: New `TermsAcceptanceScreen` with Accept / Decline & Log Out, versioned via `CURRENT_TERMS_VERSION`
-- **License Grant**: Added License Grant clause to Terms of Service
-- **Hosted Legal Pages**: Separate `familyshoppinglist-legal` repo with GitHub Pages for Play Console privacy policy URL
-- **Data Safety Reference**: `docs/DATA_SAFETY.md` for Play Console Data Safety form
-
-### Changed
-- Synced `build.gradle` versionCode (1312) and versionName ("0.13.12") to match `package.json`
-- Settings footer now reads version dynamically from `package.json` (no more version drift)
-- Privacy Policy and Terms of Service open in-app instead of external browser
-- Strengthened RevenueCat data-sharing disclosure in Privacy Policy (purchase history explicitly mentioned)
-- Legal section icons changed from `open-outline` to `chevron-forward-outline`
-- Bumped Privacy Policy and Terms of Service "Last Updated" to February 2026
-
-### Added (Types)
-- `termsAcceptedVersion` and `termsAcceptedAt` fields on `User` interface
-
-## [0.13.8] - 2026-02-02
-
-### Added
-- Real-time user data synchronization - App now automatically updates when user data changes in Firebase
-- `refreshUserData()` method in AuthenticationModule to fetch latest user data
-- Auto-generated keystores for CI builds (no manual keystore management required)
-- Babel decorators plugin support for WatermelonDB models
-
+## [1.2.2] - 2026-02-17
 ### Fixed
-- **Critical**: Fixed lists disappearing when app returns from background - `useShoppingLists` now fetches lists directly from database on mount, foreground return, and manual refresh instead of relying solely on WatermelonDB observer (which can be unreliable on component remount)
-- **Critical**: Fixed family group navigation issue - App now automatically navigates to main screen after creating/joining a family group
-- **Critical**: Fixed Android build failure due to incorrect NetInfo import path (`@react-native-netinfo/netinfo` → `@react-native-community/netinfo`)
-- **Critical**: Fixed Android build failure due to missing Babel decorators configuration for WatermelonDB
-- **Critical**: Fixed Android build signing errors by auto-generating keystore during CI build
-- Fixed keystore path configuration in GitHub Actions workflow
-- Fixed AsyncStorage not updating after family group operations
+- `CustomAlert` background was semi-transparent; made it solid.
+- Consent form re-triggered on every app foreground after first acceptance; added guard.
+- Stale `showInterstitial` ref caused interstitial not to show.
+- Ad shown on list completion even for premium users; added tier check.
+- Empty-list guard missing before showing interstitial.
+- App did not navigate back after list completion.
 
-### Changed
-- iOS workflow now only runs on manual trigger (workflow_dispatch) to focus on Android builds
-- GitHub Actions workflow now generates keystores dynamically instead of using stored secrets
-- Enhanced `onAuthStateChanged` to listen for real-time Firebase Database changes
-- Updated family group creation/join flows to refresh user data immediately
+## [1.2.1] - 2026-02-16
+### Fixed
+- Urgent item Firebase sync failed with `permission-denied` — `createdAt` was a `Date` object; converted to `Number()` before writing.
+- Supabase urgent item sync failed with `401 Invalid API key`.
+- WatermelonDB observer did not fire when urgent item status changed from `active` to `resolved`; switched to broad query + JS filter.
 
-### Removed
-- Dependency on `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, `ANDROID_STORE_PASSWORD`, and `ANDROID_KEY_PASSWORD` GitHub secrets
-
-## [1.0.0] - 2025-01-XX
-
+## [1.2.0] - 2026-02-15
 ### Added
-- Initial release
-- User authentication with Firebase (email/password)
-- Family group creation and joining with invitation codes
-- Shopping list creation and management
-- Real-time item management with check-off functionality
-- Offline support with WatermelonDB
-- Real-time synchronization with Firebase Realtime Database
-- Cross-platform support (iOS and Android)
+- Interstitial ad shown when opening a list (2-minute cooldown between shows).
+- One-time "thank you for using the app" alert shown after consent is obtained.
 
----
+## [1.1.1] - 2026-02-14
+### Fixed
+- Premium users were shown the UMP consent flow; skipped consent for premium tier.
 
-## Build Fixes Summary (November 2025)
+## [1.1.0] - 2026-02-13
+### Added
+- AdMob banner and interstitial ads for free-tier users.
+- UMP consent flow (GDPR) before showing ads.
 
-During the initial CI/CD setup, several critical build issues were identified and resolved:
+## [1.0.1] - 2026-02-12
+### Fixed
+- Keyboard dismissed incorrectly on certain input fields.
+- Error type cleanup across auth screens.
 
-1. **Module Resolution Error**: NetInfo package import path was incorrect
-2. **Babel Parser Error**: WatermelonDB decorators required Babel plugin configuration
-3. **Keystore Authentication Error**: Simplified by auto-generating keystores during build
-4. **Navigation Bug**: User state not updating after family group operations
-
-All issues have been resolved and the Android build pipeline is now fully functional.
+## [1.0.0] - 2026-02-11
+### Added
+- Initial Play Store release.

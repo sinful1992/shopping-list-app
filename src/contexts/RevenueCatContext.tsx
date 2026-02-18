@@ -77,6 +77,8 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
     let customerInfoListener: (() => void) | null = null;
 
     const handleUser = async () => {
+      // Keep isLoading=true for the entire async window so AdMobContext's consent
+      // effect is blocked until RC + Firebase have resolved the user's tier (v1.2.3 fix).
       setIsLoading(true);
       if (user?.uid) {
         try {
