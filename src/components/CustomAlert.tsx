@@ -123,8 +123,10 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   modal: {
-    backgroundColor: COLORS.glass.elevated,
+    backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.large,
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
     width: '100%',
     maxWidth: 320,
     paddingTop: SPACING.xl,

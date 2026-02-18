@@ -45,6 +45,8 @@ const ListDetailScreen = () => {
   const navigation = useNavigation();
   const { showAlert } = useAlert();
   const { showInterstitial } = useAdMob();
+  const showInterstitialRef = useRef(showInterstitial);
+  showInterstitialRef.current = showInterstitial;
   const insets = useSafeAreaInsets();
   const { listId } = route.params as { listId: string };
   const [items, setItems] = useState<Item[]>([]);
@@ -219,11 +221,11 @@ const ListDetailScreen = () => {
 
   // Show interstitial ad on list open (with retry for cold starts)
   useEffect(() => {
-    const shown = showInterstitial();
+    const shown = showInterstitialRef.current();
     let retryTimeout: ReturnType<typeof setTimeout> | null = null;
     if (!shown) {
       retryTimeout = setTimeout(() => {
-        showInterstitial();
+        showInterstitialRef.current();
       }, 3000);
     }
     return () => {
@@ -565,6 +567,12 @@ const ListDetailScreen = () => {
 
   const handleDoneShopping = () => {
     if (!currentUserId) return;
+    if (items.length === 0) {
+      showAlert('Cannot Complete', 'Add at least one item before completing the list.', undefined, { icon: 'warning' });
+      return;
+    }
+
+    showInterstitial();
 
     // Capture pre-calculated values before UI change
     const finalTotal = runningTotal;
@@ -574,11 +582,16 @@ const ListDetailScreen = () => {
     setIsShoppingMode(false);
 
     // Show success immediately (don't wait for completion)
-    showAlert('Shopping Complete!', 'Your shopping list has been saved to history.', undefined, { icon: 'success' });
+    showAlert(
+      'Shopping Complete!',
+      'Your shopping list has been saved to history.',
+      [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
+      { icon: 'success' },
+    );
 
     // Run completion in background with pre-calculated data (no item re-fetch)
     ShoppingListManager.completeShoppingFast(listId, currentUserId, finalTotal, storeName).catch(
-      (error: any) => {
+      (_error: any) => {
         // Silently handle error - user already notified of success
       }
     );

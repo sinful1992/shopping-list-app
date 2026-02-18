@@ -30,6 +30,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const [consentChecked, setConsentChecked] = useState(false);
 
   const isConsentInFlightRef = useRef(false);
+  const consentInitializedOnceRef = useRef(false);
 
   const interstitialRef = useRef<InterstitialAd | null>(null);
   const interstitialLoadedRef = useRef(false);
@@ -55,6 +56,8 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       setConsentChecked(true);
       return;
     }
+
+    if (consentInitializedOnceRef.current) return;
 
     let mounted = true;
 
@@ -94,7 +97,10 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (mounted) setIsInitialized(true);
+      if (mounted) {
+        setIsInitialized(true);
+        consentInitializedOnceRef.current = true;
+      }
       isConsentInFlightRef.current = false;
     };
 
@@ -135,6 +141,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     try {
       await mobileAds().initialize();
       setIsInitialized(true);
+      consentInitializedOnceRef.current = true;
     } catch (e) {
       if (__DEV__) console.warn('AdMob init failed:', e);
     }
