@@ -77,6 +77,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
     let customerInfoListener: (() => void) | null = null;
 
     const handleUser = async () => {
+      setIsLoading(true);
       if (user?.uid) {
         try {
           await Purchases.logIn(user.uid);

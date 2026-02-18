@@ -355,7 +355,6 @@ function App(): JSX.Element {
         translucent={false}
       />
       <RevenueCatProvider user={user}>
-      <AdMobProvider>
       <NavigationContainer theme={DarkNavigationTheme} linking={linking}>
         {!user ? (
           // Authentication Stack
@@ -364,44 +363,47 @@ function App(): JSX.Element {
             <Stack.Screen name="SignUp" component={SignUpScreen} />
             <Stack.Screen name="FamilyGroup" component={FamilyGroupScreen} />
           </Stack.Navigator>
-        ) : (user.termsAcceptedVersion ?? 0) < CURRENT_TERMS_VERSION ? (
-          // Terms Acceptance
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="TermsAcceptance" component={TermsAcceptanceScreen} />
-          </Stack.Navigator>
-        ) : !user.familyGroupId ? (
-          // Family Group Setup
-          <Stack.Navigator>
-            <Stack.Screen
-              name="FamilyGroup"
-              component={FamilyGroupScreen}
-              options={{ title: 'Join or Create Family Group' }}
-            />
-          </Stack.Navigator>
         ) : (
-          // Main App with Settings accessible from header
-          <AdConsentGate>
-            <Stack.Navigator>
-              <Stack.Screen
-                name="MainTabs"
-                component={MainTabNavigator}
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen
-                name="Settings"
-                component={SettingsScreen}
-                options={{ title: 'Settings' }}
-              />
-              <Stack.Screen
-                name="LegalDocument"
-                component={LegalDocumentScreen}
-                options={({ route }: any) => ({ title: route.params?.title || 'Legal' })}
-              />
-            </Stack.Navigator>
-          </AdConsentGate>
+          <AdMobProvider>
+            {(user.termsAcceptedVersion ?? 0) < CURRENT_TERMS_VERSION ? (
+              // Terms Acceptance
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="TermsAcceptance" component={TermsAcceptanceScreen} />
+              </Stack.Navigator>
+            ) : !user.familyGroupId ? (
+              // Family Group Setup
+              <Stack.Navigator>
+                <Stack.Screen
+                  name="FamilyGroup"
+                  component={FamilyGroupScreen}
+                  options={{ title: 'Join or Create Family Group' }}
+                />
+              </Stack.Navigator>
+            ) : (
+              // Main App with Settings accessible from header
+              <AdConsentGate>
+                <Stack.Navigator>
+                  <Stack.Screen
+                    name="MainTabs"
+                    component={MainTabNavigator}
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="Settings"
+                    component={SettingsScreen}
+                    options={{ title: 'Settings' }}
+                  />
+                  <Stack.Screen
+                    name="LegalDocument"
+                    component={LegalDocumentScreen}
+                    options={({ route }: any) => ({ title: route.params?.title || 'Legal' })}
+                  />
+                </Stack.Navigator>
+              </AdConsentGate>
+            )}
+          </AdMobProvider>
         )}
       </NavigationContainer>
-      </AdMobProvider>
       </RevenueCatProvider>
     </SafeAreaProvider>
   );
