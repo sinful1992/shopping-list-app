@@ -1,6 +1,9 @@
+import { v4 as uuidv4 } from 'uuid';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import database from '@react-native-firebase/database';
 import LocalStorageManager from './LocalStorageManager';
-import ItemManager from './ItemManager';
-import { Item, ShoppingList } from '../models/types';
+import CrashReporting from './CrashReporting';
+import { Item, ShoppingList, PriceHistoryRecord } from '../models/types';
 
 /**
  * PriceHistoryService
@@ -25,6 +28,18 @@ export interface PriceStats {
   totalPurchases: number;
   trend: 'up' | 'down' | 'stable';
   percentageChange: number; // Last vs average
+}
+
+// Module-level cache — avoids repeated AsyncStorage reads on every getPriceHistory() call.
+// Map key is familyGroupId so multi-user scenarios on one device are handled correctly.
+const _backfillDoneCache = new Map<string, boolean>();
+
+async function isBackfillDone(familyGroupId: string): Promise<boolean> {
+  if (!_backfillDoneCache.has(familyGroupId)) {
+    const done = await AsyncStorage.getItem(`priceHistoryBackfillDone_v1_${familyGroupId}`) === 'true';
+    _backfillDoneCache.set(familyGroupId, done);
+  }
+  return _backfillDoneCache.get(familyGroupId)!;
 }
 
 class PriceHistoryService {
@@ -53,29 +68,133 @@ class PriceHistoryService {
   }
 
   /**
-   * Get price history for a specific item name
-   * Searches through all completed lists and collects price data
+   * Record a price event when an item is checked off.
+   * All errors are handled internally — caller fires and forgets safely.
+   */
+  async recordPrice(
+    familyGroupId: string,
+    itemName: string,
+    price: number,
+    storeName: string | null,
+    listId: string,
+  ): Promise<void> {
+    const record: PriceHistoryRecord = {
+      id: uuidv4(),
+      itemName,
+      itemNameNormalized: itemName.toLowerCase().trim(),
+      price,
+      storeName,
+      listId,
+      recordedAt: Date.now(),
+      familyGroupId,
+    };
+
+    try {
+      await LocalStorageManager.savePriceHistoryRecord(record);
+    } catch (err) {
+      CrashReporting.recordError(err as Error, 'PriceHistoryService.recordPrice local');
+      return;
+    }
+
+    database()
+      .ref(`familyGroups/${familyGroupId}/priceHistory/${record.id}`)
+      .set(record)
+      .catch(err => CrashReporting.recordError(err as Error, 'PriceHistoryService.recordPrice firebase'));
+  }
+
+  /**
+   * One-time backfill: scan all completed local lists and write deterministic price records.
+   * Guarded by a familyGroupId-scoped AsyncStorage flag — safe to call on every mount.
+   */
+  async backfillPriceHistory(familyGroupId: string): Promise<void> {
+    if (await isBackfillDone(familyGroupId)) return;
+
+    const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+    const allRecords: PriceHistoryRecord[] = [];
+
+    for (const list of completedLists) {
+      const items = await LocalStorageManager.getItemsForList(list.id);
+      for (const item of items) {
+        if (item.checked && item.price !== null) {
+          allRecords.push({
+            id: `backfill_${list.id}_${item.id}`,
+            itemName: item.name,
+            itemNameNormalized: item.name.toLowerCase().trim(),
+            price: item.price,
+            storeName: list.storeName ?? null,
+            listId: list.id,
+            recordedAt: item.updatedAt,
+            familyGroupId,
+          });
+        }
+      }
+    }
+
+    await LocalStorageManager.savePriceHistoryBatch(allRecords);
+
+    const CHUNK = 500;
+    for (let i = 0; i < allRecords.length; i += CHUNK) {
+      const chunk = allRecords.slice(i, i + CHUNK);
+      const updateMap: Record<string, PriceHistoryRecord> = {};
+      chunk.forEach(r => {
+        updateMap[`familyGroups/${familyGroupId}/priceHistory/${r.id}`] = r;
+      });
+      await database().ref().update(updateMap);
+    }
+
+    await AsyncStorage.setItem(`priceHistoryBackfillDone_v1_${familyGroupId}`, 'true');
+    _backfillDoneCache.set(familyGroupId, true);
+  }
+
+  /**
+   * Get price history for a specific item name.
+   * Uses the dedicated price_history table if available; falls back to
+   * legacy completed-list reconstruction until backfill flag is set.
    */
   async getPriceHistory(
     familyGroupId: string,
     itemName: string
   ): Promise<PricePoint[]> {
-    try {
-      // Get all completed lists
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+    const normalized = itemName.toLowerCase().trim();
 
+    const records = await LocalStorageManager.getPriceHistoryForItem(familyGroupId, normalized);
+    if (records.length > 0) {
+      return records.map(r => ({
+        price: r.price,
+        date: r.recordedAt,
+        storeName: r.storeName,
+        listId: r.listId ?? '',
+      }));
+    }
+
+    if (await isBackfillDone(familyGroupId)) {
+      return [];
+    }
+
+    // TODO: remove getFromCompletedListsLegacy() once priceHistoryBackfillDone_v1 has
+    // been set across all active devices (tracked as a follow-up cleanup task).
+    return this.getFromCompletedListsLegacy(familyGroupId, itemName);
+  }
+
+  /**
+   * Legacy price history reconstruction from completed lists.
+   * Used only during the upgrade window before backfill completes.
+   */
+  private async getFromCompletedListsLegacy(
+    familyGroupId: string,
+    itemName: string
+  ): Promise<PricePoint[]> {
+    try {
+      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
       const pricePoints: PricePoint[] = [];
 
-      // Search through each completed list for this item
       for (const list of completedLists) {
-        const items = await ItemManager.getItemsForList(list.id);
+        const items = await LocalStorageManager.getItemsForList(list.id);
 
-        // Find items with matching name (case-insensitive)
         const matchingItems = items.filter(
           item => item.name.toLowerCase() === itemName.toLowerCase() && item.price !== null
         );
 
-        // Add price points for each matching item
         matchingItems.forEach(item => {
           if (item.price) {
             pricePoints.push({
@@ -88,7 +207,6 @@ class PriceHistoryService {
         });
       }
 
-      // Sort by date (oldest first)
       return pricePoints.sort((a, b) => a.date - b.date);
     } catch {
       return [];
@@ -115,7 +233,6 @@ class PriceHistoryService {
       const averagePrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
       const currentPrice = priceHistory[priceHistory.length - 1]?.price || null;
 
-      // Calculate trend (comparing last price to average)
       let trend: 'up' | 'down' | 'stable' = 'stable';
       let percentageChange = 0;
 
@@ -191,14 +308,12 @@ class PriceHistoryService {
     limit: number = 10
   ): Promise<Array<{ itemName: string; volatility: number; priceRange: number }>> {
     try {
-      // Get all completed lists
       const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
 
-      // Collect all unique item names
       const itemNamesSet = new Set<string>();
 
       for (const list of completedLists) {
-        const items = await ItemManager.getItemsForList(list.id);
+        const items = await LocalStorageManager.getItemsForList(list.id);
         items.forEach(item => {
           if (item.price !== null) {
             itemNamesSet.add(item.name.toLowerCase());
@@ -208,7 +323,6 @@ class PriceHistoryService {
 
       const volatilityData: Array<{ itemName: string; volatility: number; priceRange: number }> = [];
 
-      // Calculate volatility for each item
       for (const itemName of Array.from(itemNamesSet)) {
         const priceHistory = await this.getPriceHistory(familyGroupId, itemName);
 
@@ -218,7 +332,6 @@ class PriceHistoryService {
           const highest = Math.max(...prices);
           const average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
 
-          // Volatility = (highest - lowest) / average * 100
           const volatility = ((highest - lowest) / average) * 100;
           const priceRange = highest - lowest;
 
@@ -230,7 +343,6 @@ class PriceHistoryService {
         }
       }
 
-      // Sort by volatility (highest first) and limit
       return volatilityData
         .sort((a, b) => b.volatility - a.volatility)
         .slice(0, limit);
@@ -250,7 +362,6 @@ class PriceHistoryService {
       const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
       const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
 
-      // Filter lists from last N days
       const recentLists = completedLists.filter(
         list => (list.completedAt || list.createdAt) >= cutoffDate
       );
@@ -258,7 +369,7 @@ class PriceHistoryService {
       const allPricePoints: (PricePoint & { itemName: string })[] = [];
 
       for (const list of recentLists) {
-        const items = await ItemManager.getItemsForList(list.id);
+        const items = await LocalStorageManager.getItemsForList(list.id);
 
         items.forEach(item => {
           if (item.price !== null) {
@@ -273,7 +384,6 @@ class PriceHistoryService {
         });
       }
 
-      // Sort by price
       const sortedByPrice = [...allPricePoints].sort((a, b) => a.price - b.price);
 
       return {
@@ -295,7 +405,6 @@ class PriceHistoryService {
     itemNames: string[]
   ): Promise<Map<string, { bestStore: string; bestPrice: number; savings: number }>> {
     try {
-      // Check cache first
       const cached = this.suggestionsCache.get(familyGroupId);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
         return cached.data;
@@ -303,11 +412,10 @@ class PriceHistoryService {
 
       const suggestions = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
 
-      // Validate item names before processing
       const validItemNames = itemNames.filter(name => name && typeof name === 'string' && name.trim().length > 0);
 
       if (validItemNames.length === 0) {
-        return suggestions; // Return empty map if no valid names
+        return suggestions;
       }
 
       for (const itemName of validItemNames) {
@@ -315,7 +423,6 @@ class PriceHistoryService {
         const stores = Object.entries(storeData);
 
         if (stores.length > 1) {
-          // Find the cheapest store
           let cheapestStore = '';
           let cheapestPrice = Infinity;
           let averagePrice = 0;
@@ -331,7 +438,7 @@ class PriceHistoryService {
           averagePrice = averagePrice / stores.length;
           const savings = averagePrice - cheapestPrice;
 
-          if (savings > 0.01) { // Only suggest if there's actual savings
+          if (savings > 0.01) {
             suggestions.set(itemName.toLowerCase(), {
               bestStore: cheapestStore,
               bestPrice: cheapestPrice,
@@ -341,7 +448,6 @@ class PriceHistoryService {
         }
       }
 
-      // Cache the results
       this.suggestionsCache.set(familyGroupId, {
         data: suggestions,
         timestamp: Date.now(),
