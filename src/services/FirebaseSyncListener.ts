@@ -1,5 +1,5 @@
 import database from '@react-native-firebase/database';
-import { ShoppingList, Item, UrgentItem, CategoryHistory, Unsubscribe } from '../models/types';
+import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { v4 as uuidv4 } from 'uuid';
@@ -502,6 +502,86 @@ class FirebaseSyncListener {
    */
   stopListeningToCategoryHistory(familyGroupId: string): void {
     const key = `category_history_${familyGroupId}`;
+    const unsubscribe = this.activeListeners.get(key);
+    if (unsubscribe) {
+      unsubscribe();
+    }
+  }
+
+  /**
+   * Map raw Firebase data to a PriceHistoryRecord.
+   * Returns null for malformed records (missing id or price) so callers can skip them.
+   */
+  private mapToPriceRecord(data: any): PriceHistoryRecord | null {
+    if (!data?.id || data?.price === undefined || data?.price === null) {
+      CrashReporting.recordError(
+        new Error(`Malformed priceHistory record: id=${data?.id}, price=${data?.price}`),
+        'FirebaseSyncListener.mapToPriceRecord'
+      );
+      return null;
+    }
+    return {
+      id: data.id,
+      itemName: data.itemName ?? '',
+      itemNameNormalized: data.itemNameNormalized ?? '',
+      price: data.price,
+      storeName: data.storeName ?? null,
+      listId: data.listId ?? null,
+      recordedAt: data.recordedAt ?? 0,
+      familyGroupId: data.familyGroupId ?? '',
+    };
+  }
+
+  /**
+   * Start listening to price history for a family group.
+   * Phase 1: bulk load all existing records via once('value').
+   * Phase 2: stream new records via child_added filtered to post-session timestamps.
+   */
+  startListeningToPriceHistory(familyGroupId: string): Unsubscribe {
+    const key = `price_history_${familyGroupId}`;
+    if (this.activeListeners.has(key)) return this.activeListeners.get(key)!;
+
+    const baseRef = database().ref(`familyGroups/${familyGroupId}/priceHistory`);
+    const sessionStart = Date.now();
+
+    baseRef.once('value').then(async (snapshot) => {
+      const records: PriceHistoryRecord[] = [];
+      snapshot.forEach(child => {
+        const data = child.val();
+        if (data) {
+          const record = this.mapToPriceRecord(data);
+          if (record) records.push(record);
+        }
+      });
+      await LocalStorageManager.savePriceHistoryBatch(records);
+    }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
+
+    const ongoingRef = baseRef.orderByChild('recordedAt').startAt(sessionStart);
+    const onChildAdded = ongoingRef.on('child_added', async (snapshot) => {
+      try {
+        const data = snapshot.val();
+        if (data) {
+          const record = this.mapToPriceRecord(data);
+          if (record) await LocalStorageManager.savePriceHistoryRecord(record);
+        }
+      } catch (err) {
+        CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory child_added');
+      }
+    });
+
+    const unsubscribe = () => {
+      ongoingRef.off('child_added', onChildAdded);
+      this.activeListeners.delete(key);
+    };
+    this.activeListeners.set(key, unsubscribe);
+    return unsubscribe;
+  }
+
+  /**
+   * Stop listening to price history for a family group
+   */
+  stopListeningToPriceHistory(familyGroupId: string): void {
+    const key = `price_history_${familyGroupId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();
