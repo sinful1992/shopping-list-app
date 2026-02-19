@@ -66,5 +66,23 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 10 to 11: Add price history table
+    {
+      toVersion: 11,
+      steps: [
+        createTable({
+          name: 'price_history',
+          columns: [
+            { name: 'item_name',            type: 'string' },
+            { name: 'item_name_normalized', type: 'string', isIndexed: true },
+            { name: 'price',                type: 'number' },
+            { name: 'store_name',           type: 'string', isOptional: true },
+            { name: 'list_id',              type: 'string', isOptional: true, isIndexed: true },
+            { name: 'recorded_at',          type: 'number', isIndexed: true },
+            { name: 'family_group_id',      type: 'string', isIndexed: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

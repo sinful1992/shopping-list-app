@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 10,
+  version: 11,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -94,6 +94,20 @@ export const schema = appSchema({
         { name: 'usage_count', type: 'number' },
         { name: 'last_used_at', type: 'number', isIndexed: true },
         { name: 'created_at', type: 'number', isIndexed: true },
+      ],
+    }),
+
+    // Price History Table
+    tableSchema({
+      name: 'price_history',
+      columns: [
+        { name: 'item_name',            type: 'string' },
+        { name: 'item_name_normalized', type: 'string', isIndexed: true },
+        { name: 'price',                type: 'number' },
+        { name: 'store_name',           type: 'string', isOptional: true },
+        { name: 'list_id',              type: 'string', isOptional: true, isIndexed: true },
+        { name: 'recorded_at',          type: 'number', isIndexed: true },
+        { name: 'family_group_id',      type: 'string', isIndexed: true },
       ],
     }),
   ],

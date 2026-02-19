@@ -345,6 +345,19 @@ export interface CategoryHistory {
   createdAt: number;
 }
 
+// Price History Types
+
+export interface PriceHistoryRecord {
+  id: string;
+  itemName: string;
+  itemNameNormalized: string;   // itemName.toLowerCase().trim()
+  price: number;
+  storeName: string | null;
+  listId: string | null;
+  recordedAt: number;           // Date.now() at the moment of check-off
+  familyGroupId: string;
+}
+
 // Utility Types
 
 export type Unsubscribe = () => void;
