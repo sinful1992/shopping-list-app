@@ -3,6 +3,8 @@ import { AppState, AppStateStatus } from 'react-native';
 import { ShoppingList, User } from '../models/types';
 import ShoppingListManager from '../services/ShoppingListManager';
 import FirebaseSyncListener from '../services/FirebaseSyncListener';
+import PriceHistoryService from '../services/PriceHistoryService';
+import CrashReporting from '../services/CrashReporting';
 
 /**
  * useShoppingLists Hook
@@ -72,10 +74,16 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       });
 
     fetchLists()
-      .then(() => setLoading(false))
+      .then(() => {
+        setLoading(false);
+        PriceHistoryService.backfillPriceHistory(familyGroupId)
+          .catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists backfillPriceHistory'));
+      })
       .catch(() => setLoading(false));
 
     // Helper to start Firebase listeners
+    // price history listener is intentionally NOT here — startListeningToPriceHistory() runs
+    // once('value') on start. Including it here would re-download all records on every foreground.
     const startFirebaseListeners = () => {
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
       FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
@@ -85,6 +93,11 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
     // Start listening to Firebase for remote changes
     startFirebaseListeners();
+
+    // Price history listener started ONCE per mount — not inside startFirebaseListeners().
+    // After unmount+remount (e.g. family group switch), it starts again with a fresh once('value').
+    // Duplicate-listener guard in FirebaseSyncListener (activeListeners.has(key)) prevents double starts.
+    FirebaseSyncListener.startListeningToPriceHistory(familyGroupId);
 
     // Subscribe to local WatermelonDB changes - single source of truth
     const unsubscribeLocal = ShoppingListManager.subscribeToListChanges(
@@ -113,6 +126,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     return () => {
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
       FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
+      FirebaseSyncListener.stopListeningToPriceHistory(familyGroupId);
       unsubscribeLocal();
       appStateSubscription.remove();
     };
