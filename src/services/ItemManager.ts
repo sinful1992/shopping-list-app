@@ -3,6 +3,7 @@ import { Item, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
+import PriceHistoryService from './PriceHistoryService';
 import CrashReporting from './CrashReporting';
 import { sanitizeItemName, sanitizeQuantity, sanitizePrice, sanitizeCategory } from '../utils/sanitize';
 
@@ -107,18 +108,31 @@ class ItemManager {
       checked: newCheckedState,
     });
 
-    // Fire-and-forget: category history for autocomplete suggestions
-    if (newCheckedState && existingItem.category) {
+    // Fire-and-forget: category history and price history on check-off
+    const needsListContext = newCheckedState && (!!existingItem.category || existingItem.price !== null);
+
+    if (needsListContext) {
       LocalStorageManager.getList(existingItem.listId).then(list => {
         if (list?.familyGroupId) {
-          CategoryHistoryService.recordCategoryUsage(
-            list.familyGroupId,
-            existingItem.name,
-            existingItem.category
-          );
+          if (existingItem.category) {
+            CategoryHistoryService.recordCategoryUsage(
+              list.familyGroupId,
+              existingItem.name,
+              existingItem.category
+            );
+          }
+          if (existingItem.price !== null) {
+            PriceHistoryService.recordPrice(
+              list.familyGroupId,
+              existingItem.name,
+              existingItem.price,
+              list.storeName ?? null,
+              existingItem.listId,
+            );
+          }
         }
       }).catch(error => {
-        CrashReporting.recordError(error as Error, 'ItemManager.toggleItemChecked categoryHistory');
+        CrashReporting.recordError(error as Error, 'ItemManager.toggleItemChecked listContext');
       });
     }
 
