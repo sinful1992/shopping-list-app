@@ -1,6 +1,6 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord } from '../models/types';
 import { schema } from '../database/schema';
 import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
@@ -8,6 +8,7 @@ import { ItemModel } from '../database/models/Item';
 import { SyncQueueModel } from '../database/models/SyncQueue';
 import { UrgentItemModel } from '../database/models/UrgentItem';
 import { CategoryHistoryModel } from '../database/models/CategoryHistory';
+import { PriceHistoryModel } from '../database/models/PriceHistory';
 
 /**
  * LocalStorageManager
@@ -31,7 +32,7 @@ class LocalStorageManager {
 
     this.database = new Database({
       adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel],
+      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel],
     });
   }
 
@@ -1058,6 +1059,107 @@ class LocalStorageManager {
     };
   }
 
+  // ===== PRICE HISTORY METHODS =====
+
+  /**
+   * Save a single price history record (create only — ID-based upsert).
+   * The find() inside the write() transaction prevents TOCTOU races between
+   * concurrent batch loads (once('value')) and ongoing child_added events.
+   */
+  async savePriceHistoryRecord(record: PriceHistoryRecord): Promise<void> {
+    const collection = this.database.get<PriceHistoryModel>('price_history');
+    await this.database.write(async () => {
+      try {
+        await collection.find(record.id);
+        return; // already exists — idempotent skip
+      } catch {
+        await collection.create(r => {
+          r._raw.id = record.id;
+          r.itemName = record.itemName;
+          r.itemNameNormalized = record.itemNameNormalized;
+          r.price = record.price;
+          r.storeName = record.storeName;
+          r.listId = record.listId;
+          r.recordedAt = record.recordedAt;
+          r.familyGroupId = record.familyGroupId;
+        });
+      }
+    });
+  }
+
+  /**
+   * Batch save price history records, skipping any that already exist.
+   * Chunks ID lookups to stay under SQLite's SQLITE_MAX_VARIABLE_NUMBER (999).
+   */
+  async savePriceHistoryBatch(records: PriceHistoryRecord[]): Promise<void> {
+    if (records.length === 0) return;
+
+    const collection = this.database.get<PriceHistoryModel>('price_history');
+    const CHUNK = 500;
+
+    const existingIds = new Set<string>();
+    for (let i = 0; i < records.length; i += CHUNK) {
+      const chunk = records.slice(i, i + CHUNK);
+      const found = await collection.query(Q.where('id', Q.oneOf(chunk.map(r => r.id)))).fetch();
+      found.forEach(m => existingIds.add(m.id));
+    }
+
+    const toCreate = records.filter(r => !existingIds.has(r.id));
+    if (toCreate.length === 0) return;
+
+    await this.database.write(async () => {
+      for (const record of toCreate) {
+        try {
+          await collection.find(record.id);
+        } catch {
+          await collection.create(r => {
+            r._raw.id = record.id;
+            r.itemName = record.itemName;
+            r.itemNameNormalized = record.itemNameNormalized;
+            r.price = record.price;
+            r.storeName = record.storeName;
+            r.listId = record.listId;
+            r.recordedAt = record.recordedAt;
+            r.familyGroupId = record.familyGroupId;
+          });
+        }
+      }
+    });
+  }
+
+  /**
+   * Get all price history records for a specific item (normalized name).
+   * Returns records ordered oldest-first for trend analysis.
+   */
+  async getPriceHistoryForItem(
+    familyGroupId: string,
+    itemNameNormalized: string
+  ): Promise<PriceHistoryRecord[]> {
+    try {
+      const collection = this.database.get<PriceHistoryModel>('price_history');
+      const records = await collection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('item_name_normalized', itemNameNormalized),
+          Q.sortBy('recorded_at', Q.asc)
+        )
+        .fetch();
+
+      return records.map(r => ({
+        id: r.id,
+        itemName: r.itemName,
+        itemNameNormalized: r.itemNameNormalized,
+        price: r.price,
+        storeName: r.storeName,
+        listId: r.listId,
+        recordedAt: r.recordedAt,
+        familyGroupId: r.familyGroupId,
+      }));
+    } catch (error: any) {
+      throw new Error(`Failed to get price history: ${error.message}`);
+    }
+  }
+
   /**
    * Clear ALL local WatermelonDB data
    * WARNING: This is irreversible! Used for account deletion.
@@ -1076,6 +1178,10 @@ class LocalStorageManager {
         // Delete all sync queue entries
         const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
         await Promise.all(syncQueue.map((entry: SyncQueueModel) => entry.markAsDeleted()));
+
+        // Delete all price history
+        const priceHistory = await this.database.collections.get('price_history').query().fetch();
+        await Promise.all(priceHistory.map((record: PriceHistoryModel) => record.markAsDeleted()));
       });
 
       // Data cleared successfully - no logging needed
