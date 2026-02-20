@@ -193,7 +193,7 @@ class ShoppingListManager {
    */
   async updateListStoreName(listId: string, storeName: string): Promise<ShoppingList> {
     const sanitizedStoreName = sanitizeStoreName(storeName);
-    return this.updateList(listId, { storeName: sanitizedStoreName || null });
+    return this.updateList(listId, { storeName: sanitizedStoreName || null, layoutApplied: false });
   }
 
   /**
