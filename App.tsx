@@ -77,6 +77,7 @@ import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
 import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
 import TermsAcceptanceScreen from './src/screens/auth/TermsAcceptanceScreen';
+import StoreLayoutEditor from './src/screens/StoreLayoutEditor';
 import { CURRENT_TERMS_VERSION } from './src/legal';
 
 const Stack = createStackNavigator();
@@ -110,6 +111,11 @@ function ListsStack() {
         name="ReceiptView"
         component={ReceiptViewScreen}
         options={{ title: 'Receipt Details' }}
+      />
+      <Stack.Screen
+        name="StoreLayoutEditor"
+        component={StoreLayoutEditor}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
