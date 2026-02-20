@@ -87,8 +87,10 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     const startFirebaseListeners = () => {
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
       FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
+      FirebaseSyncListener.stopListeningToStoreLayouts(familyGroupId);
       FirebaseSyncListener.startListeningToLists(familyGroupId);
       FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
+      FirebaseSyncListener.startListeningToStoreLayouts(familyGroupId);
     };
 
     // Start listening to Firebase for remote changes
@@ -126,6 +128,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     return () => {
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
       FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
+      FirebaseSyncListener.stopListeningToStoreLayouts(familyGroupId);
       FirebaseSyncListener.stopListeningToPriceHistory(familyGroupId);
       unsubscribeLocal();
       appStateSubscription.remove();

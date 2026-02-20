@@ -107,8 +107,10 @@ class SyncEngine {
     let data: any;
     if (entityType === 'list') {
       data = await LocalStorageManager.getList(entityId);
-    } else {
+    } else if (entityType === 'item') {
       data = await LocalStorageManager.getItem(entityId);
+    } else if (entityType === 'storeLayout') {
+      data = await LocalStorageManager.getStoreLayoutById(entityId);
     }
 
     if (this.isOnline) {
@@ -116,8 +118,10 @@ class SyncEngine {
         await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, data));
         if (entityType === 'list') {
           await LocalStorageManager.updateList(entityId, { syncStatus: 'synced' });
-        } else {
+        } else if (entityType === 'item') {
           await LocalStorageManager.updateItem(entityId, { syncStatus: 'synced' });
+        } else if (entityType === 'storeLayout') {
+          await LocalStorageManager.updateStoreLayout(entityId, { syncStatus: 'synced' });
         }
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
@@ -234,6 +238,8 @@ class SyncEngine {
             await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'synced' });
           } else if (operation.entityType === 'item') {
             await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'synced' });
+          } else if (operation.entityType === 'storeLayout') {
+            await LocalStorageManager.updateStoreLayout(operation.entityId, { syncStatus: 'synced' });
           }
         } catch (error) {
           CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);
@@ -247,6 +253,8 @@ class SyncEngine {
               await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'failed' });
             } else if (operation.entityType === 'item') {
               await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'failed' });
+            } else if (operation.entityType === 'storeLayout') {
+              await LocalStorageManager.updateStoreLayout(operation.entityId, { syncStatus: 'failed' });
             }
             await LocalStorageManager.removeFromSyncQueue(operation.id);
           } else {
@@ -309,7 +317,10 @@ class SyncEngine {
       throw new Error('Family group ID not set');
     }
 
-    const path = `/familyGroups/${this.familyGroupId}/${entityType === 'list' ? 'lists' : 'items'}/${entityId}`;
+    const path =
+      entityType === 'list'        ? `/familyGroups/${this.familyGroupId}/lists/${entityId}` :
+      entityType === 'item'        ? `/familyGroups/${this.familyGroupId}/items/${entityId}` :
+                                     `/familyGroups/${this.familyGroupId}/storeLayouts/${entityId}`;
 
     if (operation === 'delete') {
       await database().ref(path).remove();

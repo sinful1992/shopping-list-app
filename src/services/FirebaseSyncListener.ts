@@ -1,5 +1,6 @@
 import database from '@react-native-firebase/database';
-import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
+import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, Unsubscribe } from '../models/types';
+import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { v4 as uuidv4 } from 'uuid';
@@ -174,6 +175,7 @@ class FirebaseSyncListener {
         budget: firebaseData.budget || null,
         storeName: firebaseData.storeName || null,
         archived: firebaseData.archived || false,
+        layoutApplied: firebaseData.layoutApplied ?? false,
       };
 
       if (existingList && !this.hasListChanged(existingList, incomingList)) {
@@ -201,7 +203,8 @@ class FirebaseSyncListener {
       local.budget !== incoming.budget ||
       local.storeName !== incoming.storeName ||
       local.archived !== incoming.archived ||
-      local.receiptUrl !== incoming.receiptUrl
+      local.receiptUrl !== incoming.receiptUrl ||
+      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
     );
   }
 
@@ -575,6 +578,101 @@ class FirebaseSyncListener {
     };
     this.activeListeners.set(key, unsubscribe);
     return unsubscribe;
+  }
+
+  /**
+   * Start listening to store layouts for a family group
+   */
+  startListeningToStoreLayouts(familyGroupId: string): Unsubscribe {
+    const key = `storeLayouts_${familyGroupId}`;
+
+    if (this.activeListeners.has(key)) {
+      return this.activeListeners.get(key)!;
+    }
+
+    const layoutsRef = database().ref(`familyGroups/${familyGroupId}/storeLayouts`);
+
+    const onChildAdded = layoutsRef.on('child_added', async (snapshot) => {
+      const layoutId = snapshot.key;
+      const data = snapshot.val();
+      if (layoutId && data) {
+        await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
+      }
+    });
+
+    const onChildChanged = layoutsRef.on('child_changed', async (snapshot) => {
+      const layoutId = snapshot.key;
+      const data = snapshot.val();
+      if (layoutId && data) {
+        await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
+      }
+    });
+
+    const onChildRemoved = layoutsRef.on('child_removed', async (snapshot) => {
+      const layoutId = snapshot.key;
+      if (layoutId) {
+        try {
+          await LocalStorageManager.deleteStoreLayout(layoutId);
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'FirebaseSyncListener store layout deletion');
+        }
+      }
+    });
+
+    const unsubscribe = () => {
+      layoutsRef.off('child_added', onChildAdded);
+      layoutsRef.off('child_changed', onChildChanged);
+      layoutsRef.off('child_removed', onChildRemoved);
+      this.activeListeners.delete(key);
+    };
+
+    this.activeListeners.set(key, unsubscribe);
+    return unsubscribe;
+  }
+
+  private async syncStoreLayoutToLocal(
+    familyGroupId: string,
+    layoutId: string,
+    firebaseData: any
+  ): Promise<void> {
+    try {
+      const existing = await LocalStorageManager.getStoreLayoutById(layoutId);
+
+      // categoryOrder from Firebase arrives as a native JS array (RTDB reconstructs it)
+      const incomingLayout: StoreLayout = {
+        id: layoutId,
+        familyGroupId: firebaseData.familyGroupId || familyGroupId,
+        storeName: firebaseData.storeName || '',
+        categoryOrder: firebaseData.categoryOrder as CategoryType[],
+        createdBy: firebaseData.createdBy || '',
+        createdAt: firebaseData.createdAt || Date.now(),
+        updatedAt: firebaseData.updatedAt || Date.now(),
+        syncStatus: 'synced',
+      };
+
+      if (existing) {
+        await LocalStorageManager.updateStoreLayout(layoutId, {
+          categoryOrder: incomingLayout.categoryOrder,
+          updatedAt: incomingLayout.updatedAt,
+          syncStatus: 'synced',
+        });
+      } else {
+        await LocalStorageManager.saveStoreLayout(incomingLayout);
+      }
+    } catch (error) {
+      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncStoreLayoutToLocal');
+    }
+  }
+
+  /**
+   * Stop listening to store layouts for a family group
+   */
+  stopListeningToStoreLayouts(familyGroupId: string): void {
+    const key = `storeLayouts_${familyGroupId}`;
+    const unsubscribe = this.activeListeners.get(key);
+    if (unsubscribe) {
+      unsubscribe();
+    }
   }
 
   /**
