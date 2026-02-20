@@ -1,3 +1,5 @@
+import { CategoryType } from '../services/CategoryService';
+
 // Core User and Authentication Types
 
 export type FamilyRole = 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter';
@@ -75,6 +77,7 @@ export interface ShoppingList {
   budget: number | null; // Optional budget limit for shopping mode
   storeName?: string | null; // Sprint 6: Store tracking
   archived?: boolean | null; // Sprint 7: Archive functionality
+  layoutApplied?: boolean | null;
 }
 
 export interface Item {
@@ -197,7 +200,7 @@ export interface QueuedOCRRequest {
 
 // Sync Types
 
-export type EntityType = 'list' | 'item' | 'urgentItem';
+export type EntityType = 'list' | 'item' | 'urgentItem' | 'storeLayout';
 export type Operation = 'create' | 'update' | 'delete';
 
 export interface QueuedOperation {
@@ -356,6 +359,19 @@ export interface PriceHistoryRecord {
   listId: string | null;
   recordedAt: number;           // Date.now() at the moment of check-off
   familyGroupId: string;
+}
+
+// Store Layout Types
+
+export interface StoreLayout {
+  id: string;
+  familyGroupId: string;
+  storeName: string;
+  categoryOrder: CategoryType[];
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+  syncStatus: SyncStatus;
 }
 
 // Utility Types

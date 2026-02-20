@@ -1,6 +1,6 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
 import { schema } from '../database/schema';
 import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
@@ -9,6 +9,7 @@ import { SyncQueueModel } from '../database/models/SyncQueue';
 import { UrgentItemModel } from '../database/models/UrgentItem';
 import { CategoryHistoryModel } from '../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../database/models/PriceHistory';
+import StoreLayoutModel from '../database/models/StoreLayout';
 
 /**
  * LocalStorageManager
@@ -32,7 +33,7 @@ class LocalStorageManager {
 
     this.database = new Database({
       adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel],
+      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel],
     });
   }
 
@@ -67,6 +68,7 @@ class LocalStorageManager {
             record.budget = list.budget;
             record.storeName = list.storeName || null;
             record.archived = list.archived || null;
+            record.layoutApplied = list.layoutApplied ?? null;
           });
         } catch {
           // Create new
@@ -90,6 +92,7 @@ class LocalStorageManager {
             record.budget = list.budget;
             record.storeName = list.storeName || null;
             record.archived = list.archived || null;
+            record.layoutApplied = list.layoutApplied ?? null;
           });
         }
       });
@@ -219,6 +222,7 @@ class LocalStorageManager {
           if (updates.budget !== undefined) record.budget = updates.budget;
           if (updates.storeName !== undefined) record.storeName = updates.storeName;
           if (updates.archived !== undefined) record.archived = updates.archived;
+          if (updates.layoutApplied !== undefined) record.layoutApplied = updates.layoutApplied;
         });
       });
 
@@ -909,6 +913,7 @@ class LocalStorageManager {
       budget: model.budget,
       storeName: model.storeName,
       archived: model.archived,
+      layoutApplied: model.layoutApplied,
     };
   }
 
@@ -1158,6 +1163,103 @@ class LocalStorageManager {
     } catch (error: any) {
       throw new Error(`Failed to get price history: ${error.message}`);
     }
+  }
+
+  // ===== STORE LAYOUT METHODS =====
+
+  async saveStoreLayout(layout: StoreLayout): Promise<StoreLayout> {
+    try {
+      const collection = this.database.get<StoreLayoutModel>('store_layouts');
+      let record: StoreLayoutModel | undefined;
+
+      await this.database.write(async () => {
+        record = await collection.create((r) => {
+          r._raw.id = layout.id;
+          r.familyGroupId = layout.familyGroupId;
+          r.storeName = layout.storeName;
+          r.categoryOrder = JSON.stringify(layout.categoryOrder);
+          r.createdBy = layout.createdBy;
+          r.updatedAt = layout.updatedAt;
+          r.syncStatus = layout.syncStatus;
+        });
+      });
+
+      if (!record) throw new Error('Failed to create store layout record');
+      return this.storeLayoutModelToType(record);
+    } catch (error: any) {
+      throw new Error(`Failed to save store layout: ${error.message}`);
+    }
+  }
+
+  async getStoreLayoutByStore(storeName: string, familyGroupId: string): Promise<StoreLayout | null> {
+    try {
+      const collection = this.database.get<StoreLayoutModel>('store_layouts');
+      const records = await collection
+        .query(
+          Q.where('store_name', storeName),
+          Q.where('family_group_id', familyGroupId)
+        )
+        .fetch();
+
+      if (records.length === 0) return null;
+      return this.storeLayoutModelToType(records[0]);
+    } catch {
+      return null;
+    }
+  }
+
+  async getStoreLayoutById(id: string): Promise<StoreLayout | null> {
+    try {
+      const collection = this.database.get<StoreLayoutModel>('store_layouts');
+      const record = await collection.find(id);
+      return this.storeLayoutModelToType(record);
+    } catch {
+      return null;
+    }
+  }
+
+  async updateStoreLayout(id: string, updates: Partial<StoreLayout>): Promise<StoreLayout> {
+    try {
+      const collection = this.database.get<StoreLayoutModel>('store_layouts');
+      const record = await collection.find(id);
+
+      await this.database.write(async () => {
+        await record.update((r) => {
+          if (updates.categoryOrder !== undefined) r.categoryOrder = JSON.stringify(updates.categoryOrder);
+          if (updates.updatedAt !== undefined) r.updatedAt = updates.updatedAt;
+          if (updates.syncStatus !== undefined) r.syncStatus = updates.syncStatus;
+        });
+      });
+
+      return this.storeLayoutModelToType(record);
+    } catch (error: any) {
+      throw new Error(`Failed to update store layout: ${error.message}`);
+    }
+  }
+
+  async deleteStoreLayout(id: string): Promise<void> {
+    try {
+      const collection = this.database.get<StoreLayoutModel>('store_layouts');
+      const record = await collection.find(id);
+      await this.database.write(async () => {
+        await record.destroyPermanently();
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to delete store layout: ${error.message}`);
+    }
+  }
+
+  private storeLayoutModelToType(model: StoreLayoutModel): StoreLayout {
+    return {
+      id: model.id,
+      familyGroupId: model.familyGroupId,
+      storeName: model.storeName,
+      categoryOrder: JSON.parse(model.categoryOrder),
+      createdBy: model.createdBy,
+      createdAt: Number(model.createdAt), // @date decorator returns Date object; must convert
+      updatedAt: model.updatedAt,
+      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+    };
   }
 
   /**

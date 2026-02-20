@@ -22,4 +22,5 @@ export class ShoppingListModel extends Model {
   @field('budget') budget!: number | null;
   @field('store_name') storeName!: string | null;
   @field('archived') archived!: boolean | null;
+  @field('layout_applied') layoutApplied!: boolean | null;
 }
