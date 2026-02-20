@@ -10,13 +10,14 @@ import {
   Vibration,
   InteractionManager,
 } from 'react-native';
+import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { Item, ShoppingList, User } from '../../models/types';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { Item, ShoppingList, StoreLayout, User } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -24,9 +25,10 @@ import LocalStorageManager from '../../services/LocalStorageManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
 import PriceHistoryService from '../../services/PriceHistoryService';
-import CategoryService from '../../services/CategoryService';
+import CategoryService, { CategoryType } from '../../services/CategoryService';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
+import StoreLayoutService from '../../services/StoreLayoutService';
 import ItemEditModal from '../../components/ItemEditModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
@@ -86,6 +88,11 @@ const ListDetailScreen = () => {
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const [isOnline, setIsOnline] = useState(true);
   const [isShoppingHeaderExpanded, setIsShoppingHeaderExpanded] = useState(false);
+
+  // Store layout state
+  // undefined = not yet fetched; null = fetched, no layout found; StoreLayout = fetched and found
+  const [storeLayout, setStoreLayout] = useState<StoreLayout | null | undefined>(undefined);
+  const [isTogglingLayout, setIsTogglingLayout] = useState(false);
 
   // Cleanup flag to prevent setState after unmount
   const isMountedRef = React.useRef(true);
@@ -613,32 +620,62 @@ const ListDetailScreen = () => {
     }
   };
 
-  // Group items by category and sort by sortOrder
-  const groupedItems = useMemo(() => {
+  // Fetch store layout when storeName or familyGroupId changes, or when screen regains focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!list?.storeName || !list?.familyGroupId) {
+        setStoreLayout(null);
+        return;
+      }
+      let cancelled = false;
+      StoreLayoutService.getLayoutForStore(list.storeName, list.familyGroupId)
+        .then(layout => { if (!cancelled) setStoreLayout(layout); })
+        .catch(() => { if (!cancelled) setStoreLayout(null); });
+      return () => { cancelled = true; };
+    }, [list?.storeName, list?.familyGroupId])
+  );
+
+  // Cleanup stale layoutApplied when layout was deleted while screen was not focused
+  useEffect(() => {
+    if (storeLayout === null && list?.layoutApplied && list?.id) {
+      ShoppingListManager.updateList(list.id, { layoutApplied: false });
+    }
+  }, [storeLayout, list?.layoutApplied, list?.id]);
+
+  const handleToggleLayout = async () => {
+    if (!list || isTogglingLayout) return;
+    setIsTogglingLayout(true);
+    try {
+      await ShoppingListManager.updateList(list.id, { layoutApplied: !list.layoutApplied });
+    } finally {
+      setIsTogglingLayout(false);
+    }
+  };
+
+  const handleCategoryDragEnd = async (reorderedItems: Item[]) => {
+    await ItemManager.reorderItems(reorderedItems);
+  };
+
+  // Group items by category and sort by sortOrder within each group.
+  // Returns separate maps for unchecked and checked items.
+  // NOTE: after per-category D&D, sortOrder is a within-category rank (not global).
+  // All display code must group by category first, then sort by sortOrder within groups.
+  const { uncheckedGrouped, checkedGrouped } = useMemo(() => {
     if (!items || items.length === 0) {
-      return [];
+      return { uncheckedGrouped: {} as { [cat: string]: Item[] }, checkedGrouped: {} as { [cat: string]: Item[] } };
     }
 
-    // Filter out any null/undefined items
     const validItems = items.filter(item => item && item.id);
-
-    // Group items by checked status first, then by category
     const unchecked = validItems.filter(item => !item.checked);
     const checked = validItems.filter(item => item.checked);
 
-    // Function to group items by category
-    const groupByCategory = (itemsList: Item[]) => {
+    const groupByCategory = (itemsList: Item[]): { [category: string]: Item[] } => {
       const grouped: { [category: string]: Item[] } = {};
-
       itemsList.forEach(item => {
         const category = item.category || 'Other';
-        if (!grouped[category]) {
-          grouped[category] = [];
-        }
+        if (!grouped[category]) grouped[category] = [];
         grouped[category].push(item);
       });
-
-      // Sort items within each category by sortOrder (drag-and-drop), fallback to createdAt
       Object.keys(grouped).forEach(cat => {
         grouped[cat].sort((a, b) => {
           const orderA = a.sortOrder ?? a.createdAt;
@@ -646,60 +683,22 @@ const ListDetailScreen = () => {
           return orderA - orderB;
         });
       });
-
       return grouped;
     };
 
-    const uncheckedGrouped = groupByCategory(unchecked);
-    const checkedGrouped = groupByCategory(checked);
-
-    // Flatten groups in order of category sort order
-    const result: Array<{ type: 'header' | 'item'; category?: string; item?: Item }> = [];
-
-    // Add unchecked items by category
-    const categories = CategoryService.getCategories();
-    categories.forEach(cat => {
-      const catItems = uncheckedGrouped[cat.id];
-      if (catItems && catItems.length > 0) {
-        result.push({ type: 'header', category: cat.id });
-        catItems.forEach(item => result.push({ type: 'item', item }));
-      }
-    });
-
-    // Add "Other" category unchecked items (items with no category or unrecognized category)
-    Object.keys(uncheckedGrouped).forEach(catKey => {
-      if (!categories.some(c => c.id === catKey)) {
-        const catItems = uncheckedGrouped[catKey];
-        if (catItems && catItems.length > 0) {
-          result.push({ type: 'header', category: 'Other' });
-          catItems.forEach(item => result.push({ type: 'item', item }));
-        }
-      }
-    });
-
-    // Add checked items (with less prominence, can optionally collapse)
-    const hasCheckedItems = Object.keys(checkedGrouped).length > 0;
-    if (hasCheckedItems) {
-      result.push({ type: 'header', category: 'Completed' });
-      categories.forEach(cat => {
-        const catItems = checkedGrouped[cat.id];
-        if (catItems && catItems.length > 0) {
-          catItems.forEach(item => result.push({ type: 'item', item }));
-        }
-      });
-      // Add checked "Other" items
-      Object.keys(checkedGrouped).forEach(catKey => {
-        if (!categories.some(c => c.id === catKey)) {
-          const catItems = checkedGrouped[catKey];
-          if (catItems && catItems.length > 0) {
-            catItems.forEach(item => result.push({ type: 'item', item }));
-          }
-        }
-      });
-    }
-
-    return result;
+    return {
+      uncheckedGrouped: groupByCategory(unchecked),
+      checkedGrouped: groupByCategory(checked),
+    };
   }, [items]);
+
+  // Category display order: use layout order when layout is active, otherwise default service order
+  const categoryDisplayOrder = useMemo(() => {
+    if (list?.layoutApplied && storeLayout) {
+      return storeLayout.categoryOrder;
+    }
+    return CategoryService.getCategories().map(c => c.id as CategoryType);
+  }, [list?.layoutApplied, storeLayout]);
 
   return (
     <View style={styles.container}>
@@ -895,75 +894,280 @@ const ListDetailScreen = () => {
         </View>
       )}
 
+      {list?.storeName && !isListLocked && (
+        <View style={styles.layoutControlsRow}>
+          {storeLayout && (
+            <TouchableOpacity onPress={handleToggleLayout} style={styles.layoutToggleButton}>
+              <Text style={styles.layoutToggleText}>
+                {list.layoutApplied ? 'Store layout active' : 'Sort by store layout'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={() => {
+              if (!currentUserId) return;
+              navigation.navigate('StoreLayoutEditor' as never, {
+                storeName: list.storeName!,
+                familyGroupId: list.familyGroupId,
+                createdBy: currentUserId,
+              } as never);
+            }}
+            style={styles.layoutEditButton}
+          >
+            <Text style={styles.layoutEditText}>
+              {storeLayout ? 'Edit store layout' : 'Set up store layout'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <ScrollView
+        nestedScrollEnabled={true}
         contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {groupedItems.length === 0 ? (
+        {Object.keys(uncheckedGrouped).length === 0 && Object.keys(checkedGrouped).length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No items yet</Text>
           </View>
         ) : (
-          groupedItems.map((row, index) => {
-            // Calculate unchecked items count for wave effect
-            const uncheckedCount = items.filter(item => !item.checked).length;
-
-            if (row.type === 'header') {
-              const category = CategoryService.getCategory(row.category as any);
+          <>
+            {/* Unchecked items — known categories in layout/default order */}
+            {categoryDisplayOrder.map(cat => {
+              const catItems = uncheckedGrouped[cat];
+              if (!catItems?.length) return null;
+              const category = CategoryService.getCategory(cat);
+              const totalUnchecked = items.filter(item => !item.checked).length;
               return (
-                <View key={`header-${row.category}`} style={styles.categoryHeader}>
-                  <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
-                  <Text style={styles.categoryName}>{category?.name || row.category}</Text>
+                <View key={`cat-${cat}`}>
+                  <View style={styles.categoryHeader}>
+                    <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
+                    <Text style={styles.categoryName}>{category?.name || cat}</Text>
+                  </View>
+                  <DraggableFlatList
+                    data={catItems}
+                    scrollEnabled={false}
+                    keyExtractor={item => item.id}
+                    onDragEnd={({ data }) => handleCategoryDragEnd(data)}
+                    renderItem={({ item, drag, isActive }: RenderItemParams<Item>) => {
+                      const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                      const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                      const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
+                      const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+                      return (
+                        <ScaleDecorator>
+                          <TouchableOpacity
+                            onLongPress={!isListLocked ? drag : undefined}
+                            activeOpacity={1}
+                          >
+                            <AnimatedItemCard
+                              key={item.id}
+                              index={0}
+                              item={item}
+                              itemPrice={itemPrice}
+                              isPredicted={isPredicted}
+                              showSuggestion={showSuggestion}
+                              suggestion={suggestion}
+                              isListLocked={isListLocked}
+                              onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                              onItemTap={() => handleItemTap(item)}
+                              onIncrement={handleIncrement}
+                              onDecrement={handleDecrement}
+                              itemRowStyle={styles.itemRow}
+                              itemRowCheckedStyle={styles.itemRowChecked}
+                              checkboxStyle={styles.checkbox}
+                              checkboxDisabledStyle={styles.checkboxDisabled}
+                              checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                              checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                              itemContentTouchableStyle={styles.itemContentTouchable}
+                              itemContentColumnStyle={styles.itemContentColumn}
+                              itemContentRowStyle={styles.itemContentRow}
+                              itemNameTextStyle={styles.itemNameText}
+                              itemNameCheckedStyle={styles.itemNameChecked}
+                              itemPriceTextStyle={styles.itemPriceText}
+                              itemPricePredictedStyle={styles.itemPricePredicted}
+                              itemPriceCheckedStyle={styles.itemPriceChecked}
+                              suggestionRowStyle={styles.suggestionRow}
+                              suggestionTextStyle={styles.suggestionText}
+                              totalItems={totalUnchecked}
+                            />
+                          </TouchableOpacity>
+                        </ScaleDecorator>
+                      );
+                    }}
+                  />
                 </View>
               );
-            }
+            })}
 
-            const item = row.item;
-            if (!item || !item.id) {
-              return null;
-            }
+            {/* Unchecked items with unrecognised/custom category keys */}
+            {Object.keys(uncheckedGrouped)
+              .filter(key => !CategoryService.getCategories().some(c => c.id === key))
+              .map(key => {
+                const catItems = uncheckedGrouped[key];
+                if (!catItems?.length) return null;
+                const totalUnchecked = items.filter(item => !item.checked).length;
+                return (
+                  <View key={`custom-${key}`}>
+                    <View style={styles.categoryHeader}>
+                      <Text style={styles.categoryIcon}>📦</Text>
+                      <Text style={styles.categoryName}>{key}</Text>
+                    </View>
+                    <DraggableFlatList
+                      data={catItems}
+                      scrollEnabled={false}
+                      keyExtractor={item => item.id}
+                      onDragEnd={({ data }) => handleCategoryDragEnd(data)}
+                      renderItem={({ item, drag }: RenderItemParams<Item>) => {
+                        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
+                        const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+                        return (
+                          <ScaleDecorator>
+                            <TouchableOpacity
+                              onLongPress={!isListLocked ? drag : undefined}
+                              activeOpacity={1}
+                            >
+                              <AnimatedItemCard
+                                key={item.id}
+                                index={0}
+                                item={item}
+                                itemPrice={itemPrice}
+                                isPredicted={isPredicted}
+                                showSuggestion={showSuggestion}
+                                suggestion={suggestion}
+                                isListLocked={isListLocked}
+                                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                                onItemTap={() => handleItemTap(item)}
+                                onIncrement={handleIncrement}
+                                onDecrement={handleDecrement}
+                                itemRowStyle={styles.itemRow}
+                                itemRowCheckedStyle={styles.itemRowChecked}
+                                checkboxStyle={styles.checkbox}
+                                checkboxDisabledStyle={styles.checkboxDisabled}
+                                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                                checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                                itemContentTouchableStyle={styles.itemContentTouchable}
+                                itemContentColumnStyle={styles.itemContentColumn}
+                                itemContentRowStyle={styles.itemContentRow}
+                                itemNameTextStyle={styles.itemNameText}
+                                itemNameCheckedStyle={styles.itemNameChecked}
+                                itemPriceTextStyle={styles.itemPriceText}
+                                itemPricePredictedStyle={styles.itemPricePredicted}
+                                itemPriceCheckedStyle={styles.itemPriceChecked}
+                                suggestionRowStyle={styles.suggestionRow}
+                                suggestionTextStyle={styles.suggestionText}
+                                totalItems={totalUnchecked}
+                              />
+                            </TouchableOpacity>
+                          </ScaleDecorator>
+                        );
+                      }}
+                    />
+                  </View>
+                );
+              })}
 
-            const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
-            const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
-            const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
-            const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-
-            return (
-              <AnimatedItemCard
-                key={item.id || `item-${index}`}
-                index={index}
-                item={item}
-                itemPrice={itemPrice}
-                isPredicted={isPredicted}
-                showSuggestion={showSuggestion}
-                suggestion={suggestion}
-                isListLocked={isListLocked}
-                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                onItemTap={() => handleItemTap(item)}
-                onIncrement={handleIncrement}
-                onDecrement={handleDecrement}
-                itemRowStyle={styles.itemRow}
-                itemRowCheckedStyle={styles.itemRowChecked}
-                checkboxStyle={styles.checkbox}
-                checkboxDisabledStyle={styles.checkboxDisabled}
-                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                itemContentTouchableStyle={styles.itemContentTouchable}
-                itemContentColumnStyle={styles.itemContentColumn}
-                itemContentRowStyle={styles.itemContentRow}
-                itemNameTextStyle={styles.itemNameText}
-                itemNameCheckedStyle={styles.itemNameChecked}
-                itemPriceTextStyle={styles.itemPriceText}
-                itemPricePredictedStyle={styles.itemPricePredicted}
-                itemPriceCheckedStyle={styles.itemPriceChecked}
-                suggestionRowStyle={styles.suggestionRow}
-                suggestionTextStyle={styles.suggestionText}
-                totalItems={uncheckedCount}
-              />
-            );
-          })
+            {/* Checked items — non-draggable */}
+            {Object.keys(checkedGrouped).length > 0 && (
+              <View>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryIcon}>✅</Text>
+                  <Text style={styles.categoryName}>Completed</Text>
+                </View>
+                {CategoryService.getCategories().map(cat => {
+                  const catItems = checkedGrouped[cat.id];
+                  if (!catItems?.length) return null;
+                  const totalUnchecked = items.filter(item => !item.checked).length;
+                  return catItems.map((item, index) => {
+                    const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                    const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                    return (
+                      <AnimatedItemCard
+                        key={item.id || `checked-${index}`}
+                        index={index}
+                        item={item}
+                        itemPrice={itemPrice}
+                        isPredicted={isPredicted}
+                        showSuggestion={false}
+                        suggestion={undefined}
+                        isListLocked={isListLocked}
+                        onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                        onItemTap={() => handleItemTap(item)}
+                        onIncrement={handleIncrement}
+                        onDecrement={handleDecrement}
+                        itemRowStyle={styles.itemRow}
+                        itemRowCheckedStyle={styles.itemRowChecked}
+                        checkboxStyle={styles.checkbox}
+                        checkboxDisabledStyle={styles.checkboxDisabled}
+                        checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                        checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                        itemContentTouchableStyle={styles.itemContentTouchable}
+                        itemContentColumnStyle={styles.itemContentColumn}
+                        itemContentRowStyle={styles.itemContentRow}
+                        itemNameTextStyle={styles.itemNameText}
+                        itemNameCheckedStyle={styles.itemNameChecked}
+                        itemPriceTextStyle={styles.itemPriceText}
+                        itemPricePredictedStyle={styles.itemPricePredicted}
+                        itemPriceCheckedStyle={styles.itemPriceChecked}
+                        suggestionRowStyle={styles.suggestionRow}
+                        suggestionTextStyle={styles.suggestionText}
+                        totalItems={totalUnchecked}
+                      />
+                    );
+                  });
+                })}
+                {/* Checked items with unrecognised category */}
+                {Object.keys(checkedGrouped)
+                  .filter(key => !CategoryService.getCategories().some(c => c.id === key))
+                  .map(key => {
+                    const catItems = checkedGrouped[key];
+                    if (!catItems?.length) return null;
+                    const totalUnchecked = items.filter(item => !item.checked).length;
+                    return catItems.map((item, index) => {
+                      const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                      const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                      return (
+                        <AnimatedItemCard
+                          key={item.id || `checked-custom-${key}-${index}`}
+                          index={index}
+                          item={item}
+                          itemPrice={itemPrice}
+                          isPredicted={isPredicted}
+                          showSuggestion={false}
+                          suggestion={undefined}
+                          isListLocked={isListLocked}
+                          onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                          onItemTap={() => handleItemTap(item)}
+                          onIncrement={handleIncrement}
+                          onDecrement={handleDecrement}
+                          itemRowStyle={styles.itemRow}
+                          itemRowCheckedStyle={styles.itemRowChecked}
+                          checkboxStyle={styles.checkbox}
+                          checkboxDisabledStyle={styles.checkboxDisabled}
+                          checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                          checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                          itemContentTouchableStyle={styles.itemContentTouchable}
+                          itemContentColumnStyle={styles.itemContentColumn}
+                          itemContentRowStyle={styles.itemContentRow}
+                          itemNameTextStyle={styles.itemNameText}
+                          itemNameCheckedStyle={styles.itemNameChecked}
+                          itemPriceTextStyle={styles.itemPriceText}
+                          itemPricePredictedStyle={styles.itemPricePredicted}
+                          itemPriceCheckedStyle={styles.itemPriceChecked}
+                          suggestionRowStyle={styles.suggestionRow}
+                          suggestionTextStyle={styles.suggestionText}
+                          totalItems={totalUnchecked}
+                        />
+                      );
+                    });
+                  })}
+              </View>
+            )}
+          </>
         )}
 
         {/* List Footer - Receipt Photo Button */}
@@ -1554,6 +1758,39 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  layoutControlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 8,
+  },
+  layoutToggleButton: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  layoutToggleText: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  layoutEditButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  layoutEditText: {
+    fontSize: 13,
+    color: '#6E6E73',
+    textDecorationLine: 'underline',
   },
   storeWarningBanner: {
     flexDirection: 'row',
