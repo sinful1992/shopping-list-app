@@ -66,6 +66,28 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 11 to 12: Add store_layouts table and layout_applied on lists
+    {
+      toVersion: 12,
+      steps: [
+        createTable({
+          name: 'store_layouts',
+          columns: [
+            { name: 'family_group_id', type: 'string', isIndexed: true },
+            { name: 'store_name', type: 'string', isIndexed: true },
+            { name: 'category_order', type: 'string' },
+            { name: 'created_by', type: 'string' },
+            { name: 'created_at', type: 'number', isIndexed: true },
+            { name: 'updated_at', type: 'number' },
+            { name: 'sync_status', type: 'string' },
+          ],
+        }),
+        addColumns({
+          table: 'shopping_lists',
+          columns: [{ name: 'layout_applied', type: 'boolean', isOptional: true }],
+        }),
+      ],
+    },
     // Migration from version 10 to 11: Add price history table
     {
       toVersion: 11,
