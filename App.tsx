@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar, TouchableOpacity } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
@@ -348,6 +349,7 @@ function App(): JSX.Element {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StatusBar
         barStyle="light-content"
@@ -409,6 +411,7 @@ function App(): JSX.Element {
       </NavigationContainer>
       </RevenueCatProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

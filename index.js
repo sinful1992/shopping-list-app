@@ -2,7 +2,8 @@
  * @format
  */
 
-// IMPORTANT: This must be imported first to polyfill URL for Supabase
+import 'react-native-gesture-handler';
+// URL polyfill — must be imported before Supabase service files (which load in App.tsx)
 import 'react-native-url-polyfill/auto';
 
 import {AppRegistry} from 'react-native';
