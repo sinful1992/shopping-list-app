@@ -21,6 +21,7 @@ interface AnimatedItemCardProps {
     savings: number;
   };
   isListLocked: boolean;
+  onDrag?: () => void;
   onToggleItem: () => void;
   onItemTap: () => void;
   onIncrement: (itemId: string) => void;
@@ -53,6 +54,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   showSuggestion,
   suggestion,
   isListLocked,
+  onDrag,
   onToggleItem,
   onItemTap,
   onIncrement,
@@ -159,6 +161,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       <TouchableOpacity
         style={itemContentTouchableStyle}
         onPress={onItemTap}
+        onLongPress={onDrag}
+        delayLongPress={250}
         disabled={isListLocked}
         activeOpacity={0.7}
       >

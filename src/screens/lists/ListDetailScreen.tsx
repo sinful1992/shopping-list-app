@@ -13,7 +13,6 @@ import {
   ScrollViewContainer,
   NestedReorderableList,
   useReorderableDrag,
-  useIsActive,
   reorderItems,
   ReorderableListReorderEvent,
 } from 'react-native-reorderable-list';
@@ -43,24 +42,16 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAdMob } from '../../contexts/AdMobContext';
 
-// Drag handle row — must be a real component because useReorderableDrag is a hook
+// Drag wrapper — must be a real component because useReorderableDrag is a hook.
+// Renders children as a render prop, passing drag() so AnimatedItemCard can
+// attach it to its own inner touchable (avoiding nested-touchable conflicts).
 interface DraggableItemRowProps {
-  item: Item;
   isListLocked: boolean;
-  children: React.ReactNode;
+  children: (drag: (() => void) | undefined) => React.ReactNode;
 }
 const DraggableItemRow: React.FC<DraggableItemRowProps> = ({ isListLocked, children }) => {
   const drag = useReorderableDrag();
-  const isActive = useIsActive();
-  return (
-    <TouchableOpacity
-      onLongPress={!isListLocked ? drag : undefined}
-      disabled={isActive}
-      activeOpacity={1}
-    >
-      {children}
-    </TouchableOpacity>
-  );
+  return <>{children(!isListLocked ? drag : undefined)}</>;
 };
 
 /**
@@ -226,7 +217,6 @@ const ListDetailScreen = () => {
       }
 
       itemsRef.current = updatedItems;
-      console.log('[OBSERVER] items state update, count:', updatedItems.length, updatedItems.map(it => `${it.name}(sortOrder=${it.sortOrder})`), 'suppressed:', isReorderingRef.current);
       if (!isReorderingRef.current) {
         setItems(updatedItems);
       }
@@ -685,7 +675,6 @@ const ListDetailScreen = () => {
   };
 
   const handleCategoryDragEnd = (reorderedItems: Item[]) => {
-    console.log('[DRAG] onDragEnd fired, new order:', reorderedItems.map((it, i) => `[${i}] ${it.name}`));
     // Optimistically update UI immediately — onReorder fires synchronously on the UI thread
     const reorderedIds = new Set(reorderedItems.map(i => i.id));
     const optimistic = [
@@ -1001,38 +990,41 @@ const ListDetailScreen = () => {
                       const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
                       const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
                       return (
-                        <DraggableItemRow item={item} isListLocked={isListLocked}>
-                          <AnimatedItemCard
-                            key={item.id}
-                            index={0}
-                            item={item}
-                            itemPrice={itemPrice}
-                            isPredicted={isPredicted}
-                            showSuggestion={showSuggestion}
-                            suggestion={suggestion}
-                            isListLocked={isListLocked}
-                            onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                            onItemTap={() => handleItemTap(item)}
-                            onIncrement={handleIncrement}
-                            onDecrement={handleDecrement}
-                            itemRowStyle={styles.itemRow}
-                            itemRowCheckedStyle={styles.itemRowChecked}
-                            checkboxStyle={styles.checkbox}
-                            checkboxDisabledStyle={styles.checkboxDisabled}
-                            checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                            checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                            itemContentTouchableStyle={styles.itemContentTouchable}
-                            itemContentColumnStyle={styles.itemContentColumn}
-                            itemContentRowStyle={styles.itemContentRow}
-                            itemNameTextStyle={styles.itemNameText}
-                            itemNameCheckedStyle={styles.itemNameChecked}
-                            itemPriceTextStyle={styles.itemPriceText}
-                            itemPricePredictedStyle={styles.itemPricePredicted}
-                            itemPriceCheckedStyle={styles.itemPriceChecked}
-                            suggestionRowStyle={styles.suggestionRow}
-                            suggestionTextStyle={styles.suggestionText}
-                            totalItems={totalUnchecked}
-                          />
+                        <DraggableItemRow isListLocked={isListLocked}>
+                          {(drag) => (
+                            <AnimatedItemCard
+                              key={item.id}
+                              index={0}
+                              item={item}
+                              itemPrice={itemPrice}
+                              isPredicted={isPredicted}
+                              showSuggestion={showSuggestion}
+                              suggestion={suggestion}
+                              isListLocked={isListLocked}
+                              onDrag={drag}
+                              onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                              onItemTap={() => handleItemTap(item)}
+                              onIncrement={handleIncrement}
+                              onDecrement={handleDecrement}
+                              itemRowStyle={styles.itemRow}
+                              itemRowCheckedStyle={styles.itemRowChecked}
+                              checkboxStyle={styles.checkbox}
+                              checkboxDisabledStyle={styles.checkboxDisabled}
+                              checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                              checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                              itemContentTouchableStyle={styles.itemContentTouchable}
+                              itemContentColumnStyle={styles.itemContentColumn}
+                              itemContentRowStyle={styles.itemContentRow}
+                              itemNameTextStyle={styles.itemNameText}
+                              itemNameCheckedStyle={styles.itemNameChecked}
+                              itemPriceTextStyle={styles.itemPriceText}
+                              itemPricePredictedStyle={styles.itemPricePredicted}
+                              itemPriceCheckedStyle={styles.itemPriceChecked}
+                              suggestionRowStyle={styles.suggestionRow}
+                              suggestionTextStyle={styles.suggestionText}
+                              totalItems={totalUnchecked}
+                            />
+                          )}
                         </DraggableItemRow>
                       );
                     }}
@@ -1064,38 +1056,41 @@ const ListDetailScreen = () => {
                         const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
                         const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
                         return (
-                          <DraggableItemRow item={item} isListLocked={isListLocked}>
-                            <AnimatedItemCard
-                              key={item.id}
-                              index={0}
-                              item={item}
-                              itemPrice={itemPrice}
-                              isPredicted={isPredicted}
-                              showSuggestion={showSuggestion}
-                              suggestion={suggestion}
-                              isListLocked={isListLocked}
-                              onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                              onItemTap={() => handleItemTap(item)}
-                              onIncrement={handleIncrement}
-                              onDecrement={handleDecrement}
-                              itemRowStyle={styles.itemRow}
-                              itemRowCheckedStyle={styles.itemRowChecked}
-                              checkboxStyle={styles.checkbox}
-                              checkboxDisabledStyle={styles.checkboxDisabled}
-                              checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                              checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                              itemContentTouchableStyle={styles.itemContentTouchable}
-                              itemContentColumnStyle={styles.itemContentColumn}
-                              itemContentRowStyle={styles.itemContentRow}
-                              itemNameTextStyle={styles.itemNameText}
-                              itemNameCheckedStyle={styles.itemNameChecked}
-                              itemPriceTextStyle={styles.itemPriceText}
-                              itemPricePredictedStyle={styles.itemPricePredicted}
-                              itemPriceCheckedStyle={styles.itemPriceChecked}
-                              suggestionRowStyle={styles.suggestionRow}
-                              suggestionTextStyle={styles.suggestionText}
-                              totalItems={totalUnchecked}
-                            />
+                          <DraggableItemRow isListLocked={isListLocked}>
+                            {(drag) => (
+                              <AnimatedItemCard
+                                key={item.id}
+                                index={0}
+                                item={item}
+                                itemPrice={itemPrice}
+                                isPredicted={isPredicted}
+                                showSuggestion={showSuggestion}
+                                suggestion={suggestion}
+                                isListLocked={isListLocked}
+                                onDrag={drag}
+                                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                                onItemTap={() => handleItemTap(item)}
+                                onIncrement={handleIncrement}
+                                onDecrement={handleDecrement}
+                                itemRowStyle={styles.itemRow}
+                                itemRowCheckedStyle={styles.itemRowChecked}
+                                checkboxStyle={styles.checkbox}
+                                checkboxDisabledStyle={styles.checkboxDisabled}
+                                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                                checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                                itemContentTouchableStyle={styles.itemContentTouchable}
+                                itemContentColumnStyle={styles.itemContentColumn}
+                                itemContentRowStyle={styles.itemContentRow}
+                                itemNameTextStyle={styles.itemNameText}
+                                itemNameCheckedStyle={styles.itemNameChecked}
+                                itemPriceTextStyle={styles.itemPriceText}
+                                itemPricePredictedStyle={styles.itemPricePredicted}
+                                itemPriceCheckedStyle={styles.itemPriceChecked}
+                                suggestionRowStyle={styles.suggestionRow}
+                                suggestionTextStyle={styles.suggestionText}
+                                totalItems={totalUnchecked}
+                              />
+                            )}
                           </DraggableItemRow>
                         );
                       }}
