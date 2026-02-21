@@ -251,13 +251,10 @@ class ItemManager {
    * Implements Sprint 7: Drag-and-drop reordering
    */
   async reorderItems(items: Item[]): Promise<void> {
-    // Update sort order for all items based on array position
     const updates = items.map((item, index) => ({
       id: item.id,
       updates: { sortOrder: index },
     }));
-
-    // Batch update all items
     await this.updateItemsBatch(updates);
   }
 }

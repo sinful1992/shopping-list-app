@@ -271,7 +271,7 @@ class LocalStorageManager {
             record.updatedAt = item.updatedAt;
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
-            record.sortOrder = item.sortOrder || null;
+            record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
           });
         } catch {
@@ -288,7 +288,7 @@ class LocalStorageManager {
             record.updatedAt = item.updatedAt;
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
-            record.sortOrder = item.sortOrder || null;
+            record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
           });
         }
@@ -400,7 +400,7 @@ class LocalStorageManager {
             record.updatedAt = item.updatedAt;
             // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
-            record.sortOrder = item.sortOrder || null;
+            record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
           });
         }
@@ -840,8 +840,12 @@ class LocalStorageManager {
       // Convert to Item types
       let items = itemModels.map((model) => this.itemModelToType(model));
 
-      // Sort by created_at in JavaScript for consistent ordering
-      items = items.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      // Sort by sortOrder when available, falling back to createdAt
+      items = items.sort((a, b) => {
+        const orderA = a.sortOrder ?? a.createdAt ?? 0;
+        const orderB = b.sortOrder ?? b.createdAt ?? 0;
+        return orderA - orderB;
+      });
 
       callback(items);
     });

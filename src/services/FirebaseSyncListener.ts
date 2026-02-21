@@ -229,11 +229,16 @@ class FirebaseSyncListener {
         updatedAt: firebaseData.updatedAt || Date.now(),
         syncStatus: 'synced',
         category: firebaseData.category || null,
-        sortOrder: firebaseData.sortOrder || null,
+        sortOrder: firebaseData.sortOrder ?? null,
         unitQty: firebaseData.unitQty ?? null,
       };
 
       if (existingItem && !this.hasItemChanged(existingItem, item)) {
+        return;
+      }
+
+      // Skip stale echo-backs: if local data is newer, the incoming Firebase data is outdated
+      if (existingItem && existingItem.updatedAt > (firebaseData.updatedAt || 0)) {
         return;
       }
 
