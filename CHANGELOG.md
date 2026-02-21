@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.4.2] - 2026-02-21
 ### Fixed
-- **CI build broken** — `react-native-reorderable-list` caused npm to silently upgrade `react-native-reanimated` from `3.10.0` → `3.19.5` in the lock file. Version `3.19.5` requires React Native 0.78+, breaking the Android CI build. Pinned reanimated to exactly `3.17.5` — the last version that explicitly supports RN 0.74 while satisfying the `>=3.12.0` peer dependency of `react-native-reorderable-list`.
+- **CI build broken** — `react-native-reorderable-list` caused npm to silently upgrade `react-native-reanimated` from `3.10.0` → `3.19.5` in the lock file. Version `3.19.5` requires React Native 0.78+, breaking the Android CI build. Pinned reanimated to exactly `3.16.7` — which requires only RN 0.71+ and satisfies the `>=3.12.0` peer dependency of `react-native-reorderable-list`.
 
 ## [1.4.1] - 2026-02-21
 ### Fixed

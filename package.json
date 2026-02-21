@@ -41,7 +41,7 @@
     "react-native-localize": "^3.1.0",
     "react-native-purchases": "^9.6.5",
     "react-native-purchases-ui": "^9.6.5",
-    "react-native-reanimated": "3.17.5",
+    "react-native-reanimated": "3.16.7",
     "react-native-reorderable-list": "^0.18.0",
     "react-native-safe-area-context": "^4.8.2",
     "react-native-screens": "^3.29.0",
