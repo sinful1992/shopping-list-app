@@ -6,8 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import {
-  ReorderableList,
+import ReorderableList, {
   ReorderableListReorderEvent,
   reorderItems,
   useReorderableDrag,
