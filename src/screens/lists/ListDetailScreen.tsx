@@ -3,14 +3,20 @@ import {
   View,
   Text,
   TextInput,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
   Vibration,
   InteractionManager,
 } from 'react-native';
-import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
+import {
+  ScrollViewContainer,
+  NestedReorderableList,
+  useReorderableDrag,
+  useIsActive,
+  reorderItems,
+  ReorderableListReorderEvent,
+} from 'react-native-reorderable-list';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
@@ -36,6 +42,26 @@ import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAdMob } from '../../contexts/AdMobContext';
+
+// Drag handle row — must be a real component because useReorderableDrag is a hook
+interface DraggableItemRowProps {
+  item: Item;
+  isListLocked: boolean;
+  children: React.ReactNode;
+}
+const DraggableItemRow: React.FC<DraggableItemRowProps> = ({ isListLocked, children }) => {
+  const drag = useReorderableDrag();
+  const isActive = useIsActive();
+  return (
+    <TouchableOpacity
+      onLongPress={!isListLocked ? drag : undefined}
+      disabled={isActive}
+      activeOpacity={1}
+    >
+      {children}
+    </TouchableOpacity>
+  );
+};
 
 /**
  * ListDetailScreen
@@ -93,6 +119,9 @@ const ListDetailScreen = () => {
   // undefined = not yet fetched; null = fetched, no layout found; StoreLayout = fetched and found
   const [storeLayout, setStoreLayout] = useState<StoreLayout | null | undefined>(undefined);
   const [isTogglingLayout, setIsTogglingLayout] = useState(false);
+
+  // Suppresses observer re-renders during an active drag reorder to avoid intermediate state flicker
+  const isReorderingRef = useRef(false);
 
   // Cleanup flag to prevent setState after unmount
   const isMountedRef = React.useRef(true);
@@ -197,7 +226,10 @@ const ListDetailScreen = () => {
       }
 
       itemsRef.current = updatedItems;
-      setItems(updatedItems);
+      console.log('[OBSERVER] items state update, count:', updatedItems.length, updatedItems.map(it => `${it.name}(sortOrder=${it.sortOrder})`), 'suppressed:', isReorderingRef.current);
+      if (!isReorderingRef.current) {
+        setItems(updatedItems);
+      }
 
       // Calculate shopping mode stats - wrap in try-catch to prevent observer crashes
       try {
@@ -652,8 +684,22 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleCategoryDragEnd = async (reorderedItems: Item[]) => {
-    await ItemManager.reorderItems(reorderedItems);
+  const handleCategoryDragEnd = (reorderedItems: Item[]) => {
+    console.log('[DRAG] onDragEnd fired, new order:', reorderedItems.map((it, i) => `[${i}] ${it.name}`));
+    // Optimistically update UI immediately — onReorder fires synchronously on the UI thread
+    const reorderedIds = new Set(reorderedItems.map(i => i.id));
+    const optimistic = [
+      ...itemsRef.current.filter(i => !reorderedIds.has(i.id)),
+      ...reorderedItems.map((item, idx) => ({ ...item, sortOrder: idx })),
+    ];
+    itemsRef.current = optimistic;
+    setItems(optimistic);
+    // Write to DB in background, suppressing observer fires during batch writes
+    isReorderingRef.current = true;
+    ItemManager.reorderItems(reorderedItems).finally(() => {
+      isReorderingRef.current = false;
+      setItems([...itemsRef.current]);
+    });
   };
 
   // Group items by category and sort by sortOrder within each group.
@@ -921,8 +967,7 @@ const ListDetailScreen = () => {
         </View>
       )}
 
-      <ScrollView
-        nestedScrollEnabled={true}
+      <ScrollViewContainer
         contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -946,22 +991,80 @@ const ListDetailScreen = () => {
                     <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
                     <Text style={styles.categoryName}>{category?.name || cat}</Text>
                   </View>
-                  <DraggableFlatList
+                  <NestedReorderableList
                     data={catItems}
-                    scrollEnabled={false}
                     keyExtractor={item => item.id}
-                    onDragEnd={({ data }) => handleCategoryDragEnd(data)}
-                    renderItem={({ item, drag, isActive }: RenderItemParams<Item>) => {
+                    onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
+                    renderItem={({ item }: { item: Item }) => {
                       const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
                       const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
                       const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
                       const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
                       return (
-                        <ScaleDecorator>
-                          <TouchableOpacity
-                            onLongPress={!isListLocked ? drag : undefined}
-                            activeOpacity={1}
-                          >
+                        <DraggableItemRow item={item} isListLocked={isListLocked}>
+                          <AnimatedItemCard
+                            key={item.id}
+                            index={0}
+                            item={item}
+                            itemPrice={itemPrice}
+                            isPredicted={isPredicted}
+                            showSuggestion={showSuggestion}
+                            suggestion={suggestion}
+                            isListLocked={isListLocked}
+                            onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                            onItemTap={() => handleItemTap(item)}
+                            onIncrement={handleIncrement}
+                            onDecrement={handleDecrement}
+                            itemRowStyle={styles.itemRow}
+                            itemRowCheckedStyle={styles.itemRowChecked}
+                            checkboxStyle={styles.checkbox}
+                            checkboxDisabledStyle={styles.checkboxDisabled}
+                            checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                            checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                            itemContentTouchableStyle={styles.itemContentTouchable}
+                            itemContentColumnStyle={styles.itemContentColumn}
+                            itemContentRowStyle={styles.itemContentRow}
+                            itemNameTextStyle={styles.itemNameText}
+                            itemNameCheckedStyle={styles.itemNameChecked}
+                            itemPriceTextStyle={styles.itemPriceText}
+                            itemPricePredictedStyle={styles.itemPricePredicted}
+                            itemPriceCheckedStyle={styles.itemPriceChecked}
+                            suggestionRowStyle={styles.suggestionRow}
+                            suggestionTextStyle={styles.suggestionText}
+                            totalItems={totalUnchecked}
+                          />
+                        </DraggableItemRow>
+                      );
+                    }}
+                  />
+                </View>
+              );
+            })}
+
+            {/* Unchecked items with unrecognised/custom category keys */}
+            {Object.keys(uncheckedGrouped)
+              .filter(key => !CategoryService.getCategories().some(c => c.id === key))
+              .map(key => {
+                const catItems = uncheckedGrouped[key];
+                if (!catItems?.length) return null;
+                const totalUnchecked = items.filter(item => !item.checked).length;
+                return (
+                  <View key={`custom-${key}`}>
+                    <View style={styles.categoryHeader}>
+                      <Text style={styles.categoryIcon}>📦</Text>
+                      <Text style={styles.categoryName}>{key}</Text>
+                    </View>
+                    <NestedReorderableList
+                      data={catItems}
+                      keyExtractor={item => item.id}
+                      onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
+                      renderItem={({ item }: { item: Item }) => {
+                        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
+                        const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+                        return (
+                          <DraggableItemRow item={item} isListLocked={isListLocked}>
                             <AnimatedItemCard
                               key={item.id}
                               index={0}
@@ -993,77 +1096,7 @@ const ListDetailScreen = () => {
                               suggestionTextStyle={styles.suggestionText}
                               totalItems={totalUnchecked}
                             />
-                          </TouchableOpacity>
-                        </ScaleDecorator>
-                      );
-                    }}
-                  />
-                </View>
-              );
-            })}
-
-            {/* Unchecked items with unrecognised/custom category keys */}
-            {Object.keys(uncheckedGrouped)
-              .filter(key => !CategoryService.getCategories().some(c => c.id === key))
-              .map(key => {
-                const catItems = uncheckedGrouped[key];
-                if (!catItems?.length) return null;
-                const totalUnchecked = items.filter(item => !item.checked).length;
-                return (
-                  <View key={`custom-${key}`}>
-                    <View style={styles.categoryHeader}>
-                      <Text style={styles.categoryIcon}>📦</Text>
-                      <Text style={styles.categoryName}>{key}</Text>
-                    </View>
-                    <DraggableFlatList
-                      data={catItems}
-                      scrollEnabled={false}
-                      keyExtractor={item => item.id}
-                      onDragEnd={({ data }) => handleCategoryDragEnd(data)}
-                      renderItem={({ item, drag }: RenderItemParams<Item>) => {
-                        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
-                        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
-                        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
-                        const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-                        return (
-                          <ScaleDecorator>
-                            <TouchableOpacity
-                              onLongPress={!isListLocked ? drag : undefined}
-                              activeOpacity={1}
-                            >
-                              <AnimatedItemCard
-                                key={item.id}
-                                index={0}
-                                item={item}
-                                itemPrice={itemPrice}
-                                isPredicted={isPredicted}
-                                showSuggestion={showSuggestion}
-                                suggestion={suggestion}
-                                isListLocked={isListLocked}
-                                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                                onItemTap={() => handleItemTap(item)}
-                                onIncrement={handleIncrement}
-                                onDecrement={handleDecrement}
-                                itemRowStyle={styles.itemRow}
-                                itemRowCheckedStyle={styles.itemRowChecked}
-                                checkboxStyle={styles.checkbox}
-                                checkboxDisabledStyle={styles.checkboxDisabled}
-                                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                                checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                                itemContentTouchableStyle={styles.itemContentTouchable}
-                                itemContentColumnStyle={styles.itemContentColumn}
-                                itemContentRowStyle={styles.itemContentRow}
-                                itemNameTextStyle={styles.itemNameText}
-                                itemNameCheckedStyle={styles.itemNameChecked}
-                                itemPriceTextStyle={styles.itemPriceText}
-                                itemPricePredictedStyle={styles.itemPricePredicted}
-                                itemPriceCheckedStyle={styles.itemPriceChecked}
-                                suggestionRowStyle={styles.suggestionRow}
-                                suggestionTextStyle={styles.suggestionText}
-                                totalItems={totalUnchecked}
-                              />
-                            </TouchableOpacity>
-                          </ScaleDecorator>
+                          </DraggableItemRow>
                         );
                       }}
                     />
@@ -1194,7 +1227,7 @@ const ListDetailScreen = () => {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+      </ScrollViewContainer>
 
       {/* Primary action - Start Shopping (FAB) */}
       {!isShoppingMode && !isListLocked && !isListCompleted && (
