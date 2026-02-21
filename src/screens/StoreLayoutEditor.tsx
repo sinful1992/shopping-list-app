@@ -6,7 +6,13 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import DraggableFlatList, { ScaleDecorator, RenderItemParams } from 'react-native-draggable-flatlist';
+import {
+  ReorderableList,
+  ReorderableListReorderEvent,
+  reorderItems,
+  useReorderableDrag,
+  useIsActive,
+} from 'react-native-reorderable-list';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +23,25 @@ type RouteParams = {
   storeName: string;
   familyGroupId: string;
   createdBy: string;
+};
+
+// Must be a real component because useReorderableDrag/useIsActive are hooks
+const CategoryRow: React.FC<{ item: CategoryType }> = ({ item }) => {
+  const drag = useReorderableDrag();
+  const isActive = useIsActive();
+  const category = CategoryService.getCategory(item);
+  return (
+    <TouchableOpacity
+      onLongPress={drag}
+      disabled={isActive}
+      style={[styles.categoryRow, isActive && styles.categoryRowActive]}
+      activeOpacity={1}
+    >
+      <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
+      <Text style={styles.categoryName}>{category?.name || item}</Text>
+      <Text style={styles.dragHandle}>☰</Text>
+    </TouchableOpacity>
+  );
 };
 
 const StoreLayoutEditor = () => {
@@ -66,23 +91,7 @@ const StoreLayoutEditor = () => {
     }
   };
 
-  const renderItem = ({ item, drag, isActive }: RenderItemParams<CategoryType>) => {
-    const category = CategoryService.getCategory(item);
-    return (
-      <ScaleDecorator>
-        <TouchableOpacity
-          onLongPress={drag}
-          disabled={isActive}
-          style={[styles.categoryRow, isActive && styles.categoryRowActive]}
-          activeOpacity={1}
-        >
-          <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
-          <Text style={styles.categoryName}>{category?.name || item}</Text>
-          <Text style={styles.dragHandle}>☰</Text>
-        </TouchableOpacity>
-      </ScaleDecorator>
-    );
-  };
+  const renderItem = ({ item }: { item: CategoryType }) => <CategoryRow item={item} />;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -107,11 +116,11 @@ const StoreLayoutEditor = () => {
           <ActivityIndicator size="large" color="#007AFF" />
         </View>
       ) : (
-        <DraggableFlatList
+        <ReorderableList
           data={categoryOrder}
           renderItem={renderItem}
           keyExtractor={cat => cat}
-          onDragEnd={({ data }) => setCategoryOrder(data)}
+          onReorder={({ from, to }: ReorderableListReorderEvent) => setCategoryOrder(prev => reorderItems(prev, from, to))}
           contentContainerStyle={styles.listContent}
         />
       )}
