@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { StatusBar, TouchableOpacity } from 'react-native';
+import { LogBox, StatusBar, TouchableOpacity } from 'react-native';
+
+LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
