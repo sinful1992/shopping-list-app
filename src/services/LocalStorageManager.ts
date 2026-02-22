@@ -410,6 +410,52 @@ class LocalStorageManager {
     }
   }
 
+  async saveItemsBatchUpsert(items: Item[]): Promise<void> {
+    if (items.length === 0) return;
+    const itemsCollection = this.database.get<ItemModel>('items');
+    try {
+      await this.database.write(async () => {
+        const existingRecords = await itemsCollection
+          .query(Q.where('id', Q.oneOf(items.map(i => i.id))))
+          .fetch();
+        const existingMap = new Map(existingRecords.map(r => [r.id, r]));
+
+        for (const item of items) {
+          const existing = existingMap.get(item.id);
+          if (existing) {
+            if (existing.updatedAt > (item.updatedAt ?? 0)) continue;
+            await existing.update(record => {
+              record.name = item.name;
+              record.quantity = item.quantity;
+              record.price = item.price;
+              record.checked = item.checked;
+              record.updatedAt = item.updatedAt;
+              record.category = item.category || null;
+              record.sortOrder = item.sortOrder ?? null;
+              record.unitQty = item.unitQty ?? null;
+            });
+          } else {
+            await itemsCollection.create(record => {
+              record._raw.id = item.id;
+              record.listId = item.listId;
+              record.name = item.name;
+              record.quantity = item.quantity;
+              record.price = item.price;
+              record.checked = item.checked;
+              record.createdBy = item.createdBy;
+              record.updatedAt = item.updatedAt;
+              record.category = item.category || null;
+              record.sortOrder = item.sortOrder ?? null;
+              record.unitQty = item.unitQty ?? null;
+            });
+          }
+        }
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to batch upsert items: ${error.message}`);
+    }
+  }
+
   /**
    * Batch delete multiple items (more efficient than individual deletes)
    * Uses Q.oneOf to fetch all items in one query instead of N+1 queries

@@ -1,4 +1,4 @@
-import database from '@react-native-firebase/database';
+import database, { FirebaseDatabaseTypes } from '@react-native-firebase/database';
 import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, Unsubscribe } from '../models/types';
 import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
@@ -82,42 +82,93 @@ class FirebaseSyncListener {
    */
   startListeningToItems(familyGroupId: string, listId: string): Unsubscribe {
     const key = `items_${familyGroupId}_${listId}`;
-
-    // Don't create duplicate listeners
-    if (this.activeListeners.has(key)) {
-      return this.activeListeners.get(key)!;
-    }
+    if (this.activeListeners.has(key)) return this.activeListeners.get(key)!;
 
     const itemsRef = database().ref(`familyGroups/${familyGroupId}/items`);
+    let isCancelled = false;
+    let offChildAdded: (() => void) | null = null;
+    const initialItemIds = new Set<string>();
 
-    // Listen for new items
-    const onChildAdded = itemsRef.on('child_added', async (snapshot) => {
-      const itemId = snapshot.key;
-      const itemData = snapshot.val();
+    const onNewItem = async (snap: FirebaseDatabaseTypes.DataSnapshot) => {
+      const itemId = snap.key;
+      const itemData = snap.val();
+      if (!itemId || !itemData || itemData.listId !== listId) return;
+      if (initialItemIds.has(itemId)) return;
+      await this.syncItemToLocal(listId, itemId, itemData);
+    };
 
-      // Only sync items belonging to this list
-      if (itemId && itemData && itemData.listId === listId) {
-        await this.syncItemToLocal(listId, itemId, itemData);
+    // Phase 1: bulk-load all current items for this list in one batch transaction.
+    // child_added is attached inside .then()/.catch() so initialItemIds is guaranteed
+    // complete before Firebase starts delivering events to the listener — no race condition.
+    itemsRef.orderByChild('listId').equalTo(listId).once('value').then(async (snapshot) => {
+      if (isCancelled) return;
+
+      const snapshotItems: { id: string; data: any }[] = [];
+      snapshot.forEach(child => {
+        if (!child.key) return;
+        initialItemIds.add(child.key);
+        snapshotItems.push({ id: child.key, data: child.val() });
+      });
+
+      const localItems = await LocalStorageManager.getItemsForList(listId);
+      if (isCancelled) return;
+
+      const localItemMap = new Map(localItems.map(i => [i.id, i]));
+      const itemsToSync: Item[] = [];
+
+      for (const { id: itemId, data: itemData } of snapshotItems) {
+        const existing = localItemMap.get(itemId);
+        const item: Item = {
+          id: itemId,
+          listId,
+          name: itemData.name || '',
+          quantity: itemData.quantity ?? null,
+          price: itemData.price ?? null,
+          checked: itemData.checked || false,
+          createdBy: itemData.createdBy || '',
+          createdAt: itemData.createdAt || Date.now(),
+          updatedAt: itemData.updatedAt || Date.now(),
+          syncStatus: 'synced',
+          category: itemData.category || null,
+          sortOrder: itemData.sortOrder ?? null,
+          unitQty: itemData.unitQty ?? null,
+        };
+
+        if (existing && !this.hasItemChanged(existing, item)) continue;
+        if (existing && existing.updatedAt > (itemData.updatedAt || 0)) continue;
+
+        itemsToSync.push(item);
+      }
+
+      if (isCancelled) return;
+      if (itemsToSync.length > 0) {
+        await LocalStorageManager.saveItemsBatchUpsert(itemsToSync);
+      }
+
+      const listener = itemsRef.on('child_added', onNewItem);
+      offChildAdded = () => itemsRef.off('child_added', listener);
+      if (isCancelled) { offChildAdded(); return; }
+
+    }).catch(err => {
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener items batch');
+      if (!isCancelled) {
+        const listener = itemsRef.on('child_added', onNewItem);
+        offChildAdded = () => itemsRef.off('child_added', listener);
+        if (isCancelled) { offChildAdded(); }
       }
     });
 
-    // Listen for updated items
     const onChildChanged = itemsRef.on('child_changed', async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
-
-      // Only sync items belonging to this list
       if (itemId && itemData && itemData.listId === listId) {
         await this.syncItemToLocal(listId, itemId, itemData);
       }
     });
 
-    // Listen for deleted items
     const onChildRemoved = itemsRef.on('child_removed', async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
-
-      // Only delete items belonging to this list
       if (itemId && itemData && itemData.listId === listId) {
         try {
           await LocalStorageManager.deleteItem(itemId);
@@ -127,9 +178,9 @@ class FirebaseSyncListener {
       }
     });
 
-    // Create unsubscribe function
     const unsubscribe = () => {
-      itemsRef.off('child_added', onChildAdded);
+      isCancelled = true;
+      offChildAdded?.();
       itemsRef.off('child_changed', onChildChanged);
       itemsRef.off('child_removed', onChildRemoved);
       this.activeListeners.delete(key);
@@ -221,8 +272,8 @@ class FirebaseSyncListener {
         id: itemId,
         listId: listId,
         name: firebaseData.name || '',
-        quantity: firebaseData.quantity || null,
-        price: firebaseData.price || null,
+        quantity: firebaseData.quantity ?? null,
+        price: firebaseData.price ?? null,
         checked: firebaseData.checked || false,
         createdBy: firebaseData.createdBy || '',
         createdAt: firebaseData.createdAt || Date.now(),

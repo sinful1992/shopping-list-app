@@ -49,6 +49,7 @@
         },
 
         "items": {
+          ".indexOn": ["listId"],
           "$itemId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
@@ -65,6 +66,7 @@
         },
 
         "priceHistory": {
+          ".indexOn": ["recordedAt"],
           "$recordId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
