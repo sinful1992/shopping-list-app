@@ -929,6 +929,15 @@ const ListDetailScreen = () => {
         </View>
       )}
 
+      {list?.storeName && !isListLocked && !isListCompleted && (
+        <View style={styles.changeStoreRow}>
+          <Text style={styles.changeStoreLabel}>{list.storeName}</Text>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+            <Text style={styles.changeStoreLink}>Change</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {list?.storeName && !isListLocked && (
         <View style={styles.layoutControlsRow}>
           {storeLayout && (
@@ -1835,6 +1844,27 @@ const styles = StyleSheet.create({
     color: '#FFD60A',
   },
   storeWarningLink: {
+    fontSize: 13,
+    color: '#007AFF',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+    marginLeft: 8,
+  },
+  changeStoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  changeStoreLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: '#C7C7CC',
+  },
+  changeStoreLink: {
     fontSize: 13,
     color: '#007AFF',
     fontWeight: '600',
