@@ -983,6 +983,7 @@ const ListDetailScreen = () => {
                   <NestedReorderableList
                     data={catItems}
                     keyExtractor={item => item.id}
+                    scrollable={true}
                     onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
                     renderItem={({ item }: { item: Item }) => {
                       const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
@@ -1049,6 +1050,7 @@ const ListDetailScreen = () => {
                     <NestedReorderableList
                       data={catItems}
                       keyExtractor={item => item.id}
+                      scrollable={true}
                       onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
                       renderItem={({ item }: { item: Item }) => {
                         const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
