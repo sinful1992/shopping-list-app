@@ -1,0 +1,20 @@
+diff --git a/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx b/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
+index 908155c..9831d5a 100644
+--- a/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
++++ b/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
+@@ -1102,13 +1102,12 @@ const ReorderableListCore = <T,>(
+   );
+ 
+   const combinedGesture = useMemo(() => {
+-    // Android is able to handle nested scroll view, but not the full size ones like iOS.
+-    if (outerScrollGesture && !(Platform.OS === 'android' && scrollable)) {
++    if (outerScrollGesture && Platform.OS !== 'android') {
+       return Gesture.Simultaneous(outerScrollGesture, gestureHandler);
+     }
+ 
+     return gestureHandler;
+-  }, [scrollable, outerScrollGesture, gestureHandler]);
++  }, [outerScrollGesture, gestureHandler]);
+ 
+   const composedScrollHandler = useComposedEventHandler([
+     handleScroll,
