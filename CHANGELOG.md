@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-02-23
+### Added
+- **Change store button** — Lists with a store set (not locked, not completed) now show a row with the current store name and a "Change" link. Tapping it opens the store picker in banner mode, updating the store name without locking the list.
+
+### Fixed
+- **Gesture crash + scroll freeze on Android (regression from v1.4.6)** — `scrollable={true}` resolved the original crash but introduced a touch-freeze at scroll boundaries. Root cause: `scrollable` activated a nested autoscroll worklet that competed with the outer `ScrollView` at the same edge pixels. Fix: patched `react-native-reorderable-list@0.18.0` to unconditionally skip `Gesture.Simultaneous` on Android (the real fix for the duplicate handler tag crash), removed `scrollable={true}` from both `NestedReorderableList` instances, and pinned the library to `0.18.0` to prevent the patch being broken by an update.
+- **Items loading one-by-one on first install** — The `.catch()` fallback in `startListeningToItems` attached `child_added` with `initialItemIds` still empty, so every item was written individually. New approach: attach `child_added` immediately on a filtered ref, buffer events until Firebase's `value` fires (guaranteed after all initial `child_added` events), then flush the buffer in one batch write. `child_changed` and `child_removed` also moved from the root ref to the filtered ref to avoid processing other lists' events.
+
 ## [1.4.6] - 2026-02-23
 ### Fixed
 - **Gesture handler crash on Android with 2+ categories** — Opening a list with items in multiple categories crashed with `Handler with tag N already exists`. Root cause: `ScrollViewContainer` creates one `Gesture.Native()` instance and shares it via context; each `NestedReorderableList` was re-registering the same native gesture tag in its own `GestureDetector` → Android threw on the second registration. Fixed by adding `scrollable={true}` to both `NestedReorderableList` elements in `ListDetailScreen`, activating the library's built-in Android fast-path that skips including the shared outer gesture in `Gesture.Simultaneous`. Inner auto-scroll is a no-op in this layout anyway (lists are unconstrained height inside the outer `ScrollView`).
