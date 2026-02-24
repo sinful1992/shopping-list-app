@@ -38,6 +38,7 @@
     "react-native-get-random-values": "^1.11.0",
     "react-native-gifted-charts": "^1.4.66",
     "react-native-google-mobile-ads": "^14.7.2",
+    "react-native-linear-gradient": "^2.8.3",
     "react-native-localize": "^3.1.0",
     "react-native-purchases": "^9.6.5",
     "react-native-purchases-ui": "^9.6.5",
