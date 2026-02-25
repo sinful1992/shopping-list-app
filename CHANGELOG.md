@@ -2,9 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.5.1] - 2026-02-25
 ### Fixed
-- **Scroll blocked on item cards** — Inner `NestedReorderableList` FlatLists captured vertical scroll events before the parent `ScrollViewContainer`. Added `scrollEnabled={false}` to all instances so the outer scroll view handles scrolling while drag-to-reorder still works via `PanGestureHandler`.
+- **Store banner position** — Store banner (no-store warning + change-store row) now renders above the add item input for better visibility.
+- **Scroll blocked on item cards** — Pan gesture handler on `NestedReorderableList` captured all touch events immediately, blocking the outer `ScrollViewContainer` scroll. Extracted `CategoryItemList` component with `Gesture.Pan().activateAfterLongPress(250)` via `panGesture` prop — pan stays in WAITING state for 250ms, letting normal scrolls pass through. Removed ineffective `scrollEnabled={false}`.
 
 ### Added
 - **Category reorder arrows** — Up/down chevron arrows on category headers (when list has a store and is not locked) allow reordering categories locally. A Save button appears in the title bar to persist the new order to the store layout.
