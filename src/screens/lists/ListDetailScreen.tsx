@@ -717,6 +717,54 @@ const ListDetailScreen = () => {
     return CategoryService.getCategories().map(c => c.id as CategoryType);
   }, [storeLayout]);
 
+  // Local category order for arrow-tap reordering (syncs from categoryDisplayOrder, diverges while user reorders)
+  const [localCategoryOrder, setLocalCategoryOrder] = useState<CategoryType[]>([]);
+  const [isLayoutDirty, setIsLayoutDirty] = useState(false);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
+
+  useEffect(() => {
+    setLocalCategoryOrder(categoryDisplayOrder);
+    setIsLayoutDirty(false);
+  }, [categoryDisplayOrder]);
+
+  const visibleCategories = useMemo(() =>
+    localCategoryOrder.filter(cat => uncheckedGrouped[cat]?.length > 0),
+    [localCategoryOrder, uncheckedGrouped]
+  );
+
+  const handleMoveCategory = useCallback((cat: CategoryType, direction: 'up' | 'down') => {
+    const visibleIdx = visibleCategories.indexOf(cat);
+    const swapIdx = direction === 'up' ? visibleIdx - 1 : visibleIdx + 1;
+    if (swapIdx < 0 || swapIdx >= visibleCategories.length) return;
+
+    const fullFromIdx = localCategoryOrder.indexOf(cat);
+    const fullToIdx = localCategoryOrder.indexOf(visibleCategories[swapIdx]);
+    setLocalCategoryOrder(prev => {
+      const next = [...prev];
+      [next[fullFromIdx], next[fullToIdx]] = [next[fullToIdx], next[fullFromIdx]];
+      return next;
+    });
+    setIsLayoutDirty(true);
+    Vibration.vibrate(30);
+  }, [visibleCategories, localCategoryOrder]);
+
+  const handleSaveLayout = useCallback(async () => {
+    if (!list?.storeName || !list?.familyGroupId || !currentUserId || isSavingLayout) return;
+    setIsSavingLayout(true);
+    try {
+      const saved = await StoreLayoutService.saveLayout(
+        list.storeName, list.familyGroupId, localCategoryOrder, currentUserId,
+      );
+      setStoreLayout(saved);
+      setIsLayoutDirty(false);
+    } catch {
+      setLocalCategoryOrder(categoryDisplayOrder);
+      setIsLayoutDirty(false);
+    } finally {
+      setIsSavingLayout(false);
+    }
+  }, [list?.storeName, list?.familyGroupId, currentUserId, localCategoryOrder, categoryDisplayOrder, isSavingLayout]);
+
   return (
     <View style={styles.container}>
       <View style={[styles.titleContainer, { paddingTop: insets.top + 8 }]}>
@@ -748,7 +796,16 @@ const ListDetailScreen = () => {
         ) : (
           <>
             <Text style={styles.title}>{listName}</Text>
-            {!isListLocked && (
+            {isLayoutDirty && (
+              <TouchableOpacity
+                style={[styles.saveLayoutButton, isSavingLayout && styles.saveLayoutButtonDisabled]}
+                onPress={handleSaveLayout}
+                disabled={isSavingLayout}
+              >
+                <Text style={styles.saveLayoutText}>{isSavingLayout ? 'Saving…' : 'Save'}</Text>
+              </TouchableOpacity>
+            )}
+            {!isListLocked && !isLayoutDirty && (
               <TouchableOpacity onPress={handleEditListName}>
                 <Text style={styles.editIcon}>✏️</Text>
               </TouchableOpacity>
@@ -934,9 +991,7 @@ const ListDetailScreen = () => {
         ) : (
           <>
             {/* Unchecked items — known categories in layout/default order, draggable */}
-            {categoryDisplayOrder
-              .filter(cat => uncheckedGrouped[cat]?.length > 0)
-              .map(cat => {
+            {visibleCategories.map((cat, idx) => {
                 const catItems = uncheckedGrouped[cat]!;
                 const category = CategoryService.getCategory(cat);
                 const totalUnchecked = items.filter(i => !i.checked).length;
@@ -945,6 +1000,24 @@ const ListDetailScreen = () => {
                     <View style={styles.categoryHeader}>
                       <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
                       <Text style={styles.categoryName}>{category?.name || cat}</Text>
+                      {!isListLocked && !!list?.storeName && (
+                        <View style={styles.categoryArrows}>
+                          <TouchableOpacity
+                            onPress={() => handleMoveCategory(cat, 'up')}
+                            disabled={idx === 0}
+                            style={styles.arrowButton}
+                          >
+                            <Icon name="chevron-up" size={18} color={idx === 0 ? '#3A3A3C' : '#6E6E73'} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleMoveCategory(cat, 'down')}
+                            disabled={idx === visibleCategories.length - 1}
+                            style={styles.arrowButton}
+                          >
+                            <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? '#3A3A3C' : '#6E6E73'} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                     <NestedReorderableList
                       scrollEnabled={false}
@@ -1520,6 +1593,30 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  categoryArrows: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 'auto',
+  },
+  arrowButton: {
+    padding: 4,
+  },
+  saveLayoutButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  saveLayoutButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveLayoutText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
   },
   // FlatList content padding
   listScrollContainer: {
