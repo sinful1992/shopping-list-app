@@ -19,6 +19,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
+import DraggableCategorySection from '../../components/DraggableCategorySection';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -109,6 +110,10 @@ const ListDetailScreen = () => {
   // Store layout state
   // undefined = not yet fetched; null = fetched, no layout found; StoreLayout = fetched and found
   const [storeLayout, setStoreLayout] = useState<StoreLayout | null | undefined>(undefined);
+
+  // Inline category drag state
+  const [localCategoryOrder, setLocalCategoryOrder] = useState<CategoryType[]>([]);
+  const [isLayoutDirty, setIsLayoutDirty] = useState(false);
 
   // Suppresses observer re-renders during an active drag reorder to avoid intermediate state flicker
   const isReorderingRef = useRef(false);
@@ -717,6 +722,44 @@ const ListDetailScreen = () => {
     return CategoryService.getCategories().map(c => c.id as CategoryType);
   }, [storeLayout]);
 
+  // Sync localCategoryOrder with the source of truth (layout fetched, store changed)
+  useEffect(() => {
+    setLocalCategoryOrder(categoryDisplayOrder);
+    setIsLayoutDirty(false);
+  }, [categoryDisplayOrder]);
+
+  // Filter localCategoryOrder to only categories with unchecked items
+  const filteredLocalOrder = useMemo(() => {
+    return localCategoryOrder.filter(cat => uncheckedGrouped[cat]?.length > 0);
+  }, [localCategoryOrder, uncheckedGrouped]);
+
+  const handleCategoryReorder = useCallback(({ from, to }: ReorderableListReorderEvent) => {
+    setLocalCategoryOrder(prev => {
+      // Map filtered indices back to full order indices
+      const filteredCats = prev.filter(cat => uncheckedGrouped[cat]?.length > 0);
+      const fromCat = filteredCats[from];
+      const toCat = filteredCats[to];
+      if (!fromCat || !toCat) return prev;
+      const fromIdx = prev.indexOf(fromCat);
+      const toIdx = prev.indexOf(toCat);
+      return reorderItems(prev, fromIdx, toIdx);
+    });
+    setIsLayoutDirty(true);
+    Vibration.vibrate(50);
+  }, [uncheckedGrouped]);
+
+  const handleSaveLayout = useCallback(async () => {
+    if (!list?.storeName || !list?.familyGroupId || !currentUserId) return;
+    const saved = await StoreLayoutService.saveLayout(
+      list.storeName,
+      list.familyGroupId,
+      localCategoryOrder,
+      currentUserId,
+    );
+    setStoreLayout(saved);
+    setIsLayoutDirty(false);
+  }, [list?.storeName, list?.familyGroupId, currentUserId, localCategoryOrder]);
+
   return (
     <View style={styles.container}>
       <View style={[styles.titleContainer, { paddingTop: insets.top + 8 }]}>
@@ -748,7 +791,12 @@ const ListDetailScreen = () => {
         ) : (
           <>
             <Text style={styles.title}>{listName}</Text>
-            {!isListLocked && (
+            {isLayoutDirty && (
+              <TouchableOpacity style={styles.saveLayoutButton} onPress={handleSaveLayout}>
+                <Text style={styles.saveLayoutText}>Save</Text>
+              </TouchableOpacity>
+            )}
+            {!isListLocked && !isLayoutDirty && (
               <TouchableOpacity onPress={handleEditListName}>
                 <Text style={styles.editIcon}>✏️</Text>
               </TouchableOpacity>
@@ -932,70 +980,75 @@ const ListDetailScreen = () => {
           </View>
         ) : (
           <>
-            {/* Unchecked items — known categories in layout/default order */}
-            {categoryDisplayOrder.map(cat => {
-              const catItems = uncheckedGrouped[cat];
-              if (!catItems?.length) return null;
-              const category = CategoryService.getCategory(cat);
-              const totalUnchecked = items.filter(item => !item.checked).length;
-              return (
-                <View key={`cat-${cat}`}>
-                  <View style={styles.categoryHeader}>
-                    <Text style={styles.categoryIcon}>{category?.icon || '📦'}</Text>
-                    <Text style={styles.categoryName}>{category?.name || cat}</Text>
-                  </View>
-                  <NestedReorderableList
-                    data={catItems}
-                    keyExtractor={item => item.id}
-                    onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
-                    renderItem={({ item }: { item: Item }) => {
-                      const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
-                      const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
-                      const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
-                      const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-                      return (
-                        <DraggableItemRow isListLocked={isListLocked}>
-                          {(drag) => (
-                            <AnimatedItemCard
-                              key={item.id}
-                              index={0}
-                              item={item}
-                              itemPrice={itemPrice}
-                              isPredicted={isPredicted}
-                              showSuggestion={showSuggestion}
-                              suggestion={suggestion}
-                              isListLocked={isListLocked}
-                              onDrag={drag}
-                              onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                              onItemTap={() => handleItemTap(item)}
-                              onIncrement={handleIncrement}
-                              onDecrement={handleDecrement}
-                              itemRowStyle={styles.itemRow}
-                              itemRowCheckedStyle={styles.itemRowChecked}
-                              checkboxStyle={styles.checkbox}
-                              checkboxDisabledStyle={styles.checkboxDisabled}
-                              checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                              checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                              itemContentTouchableStyle={styles.itemContentTouchable}
-                              itemContentColumnStyle={styles.itemContentColumn}
-                              itemContentRowStyle={styles.itemContentRow}
-                              itemNameTextStyle={styles.itemNameText}
-                              itemNameCheckedStyle={styles.itemNameChecked}
-                              itemPriceTextStyle={styles.itemPriceText}
-                              itemPricePredictedStyle={styles.itemPricePredicted}
-                              itemPriceCheckedStyle={styles.itemPriceChecked}
-                              suggestionRowStyle={styles.suggestionRow}
-                              suggestionTextStyle={styles.suggestionText}
-                              totalItems={totalUnchecked}
-                            />
-                          )}
-                        </DraggableItemRow>
-                      );
-                    }}
-                  />
-                </View>
-              );
-            })}
+            {/* Unchecked items — known categories in layout/default order, draggable */}
+            <NestedReorderableList
+              data={filteredLocalOrder}
+              keyExtractor={cat => cat}
+              onReorder={handleCategoryReorder}
+              renderItem={({ item: cat }: { item: CategoryType }) => {
+                const catItems = uncheckedGrouped[cat];
+                if (!catItems) return null;
+                const category = CategoryService.getCategory(cat);
+                const totalUnchecked = items.filter(i => !i.checked).length;
+                return (
+                  <DraggableCategorySection
+                    category={category}
+                    categoryKey={cat}
+                    canDrag={!isListLocked && !!list?.storeName}
+                  >
+                    <NestedReorderableList
+                      data={catItems}
+                      keyExtractor={item => item.id}
+                      onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
+                      renderItem={({ item }: { item: Item }) => {
+                        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
+                        const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
+                        return (
+                          <DraggableItemRow isListLocked={isListLocked}>
+                            {(drag) => (
+                              <AnimatedItemCard
+                                key={item.id}
+                                index={0}
+                                item={item}
+                                itemPrice={itemPrice}
+                                isPredicted={isPredicted}
+                                showSuggestion={showSuggestion}
+                                suggestion={suggestion}
+                                isListLocked={isListLocked}
+                                onDrag={drag}
+                                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                                onItemTap={() => handleItemTap(item)}
+                                onIncrement={handleIncrement}
+                                onDecrement={handleDecrement}
+                                itemRowStyle={styles.itemRow}
+                                itemRowCheckedStyle={styles.itemRowChecked}
+                                checkboxStyle={styles.checkbox}
+                                checkboxDisabledStyle={styles.checkboxDisabled}
+                                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                                checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                                itemContentTouchableStyle={styles.itemContentTouchable}
+                                itemContentColumnStyle={styles.itemContentColumn}
+                                itemContentRowStyle={styles.itemContentRow}
+                                itemNameTextStyle={styles.itemNameText}
+                                itemNameCheckedStyle={styles.itemNameChecked}
+                                itemPriceTextStyle={styles.itemPriceText}
+                                itemPricePredictedStyle={styles.itemPricePredicted}
+                                itemPriceCheckedStyle={styles.itemPriceChecked}
+                                suggestionRowStyle={styles.suggestionRow}
+                                suggestionTextStyle={styles.suggestionText}
+                                totalItems={totalUnchecked}
+                              />
+                            )}
+                          </DraggableItemRow>
+                        );
+                      }}
+                    />
+                  </DraggableCategorySection>
+                );
+              }}
+            />
 
             {/* Unchecked items with unrecognised/custom category keys */}
             {Object.keys(uncheckedGrouped)
@@ -1294,6 +1347,19 @@ const styles = StyleSheet.create({
   },
   titleCancelButtonText: {
     fontSize: 20,
+  },
+  saveLayoutButton: {
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  saveLayoutText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '600',
   },
   addItemContainer: {
     flexDirection: 'row',
