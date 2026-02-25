@@ -947,6 +947,7 @@ const ListDetailScreen = () => {
                       <Text style={styles.categoryName}>{category?.name || cat}</Text>
                     </View>
                     <NestedReorderableList
+                      scrollEnabled={false}
                       data={catItems}
                       keyExtractor={item => item.id}
                       onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
@@ -1013,6 +1014,7 @@ const ListDetailScreen = () => {
                       <Text style={styles.categoryName}>{key}</Text>
                     </View>
                     <NestedReorderableList
+                      scrollEnabled={false}
                       data={catItems}
                       keyExtractor={item => item.id}
                       onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}

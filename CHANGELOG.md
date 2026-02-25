@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Fixed
+- **Scroll blocked on item cards** — Inner `NestedReorderableList` FlatLists captured vertical scroll events before the parent `ScrollViewContainer`. Added `scrollEnabled={false}` to all instances so the outer scroll view handles scrolling while drag-to-reorder still works via `PanGestureHandler`.
+
+### Added
+- **Category reorder arrows** — Up/down chevron arrows on category headers (when list has a store and is not locked) allow reordering categories locally. A Save button appears in the title bar to persist the new order to the store layout.
+
 ## [1.5.0] - 2026-02-23
 ### Added
 - **Change store button** — Lists with a store set (not locked, not completed) now show a row with the current store name and a "Change" link. Tapping it opens the store picker in banner mode, updating the store name without locking the list.
