@@ -16,6 +16,7 @@ import {
   reorderItems,
   ReorderableListReorderEvent,
 } from 'react-native-reorderable-list';
+import { Gesture } from 'react-native-gesture-handler';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
@@ -53,6 +54,90 @@ const DraggableItemRow: React.FC<DraggableItemRowProps> = ({ isListLocked, child
   const drag = useReorderableDrag();
   return <>{children(!isListLocked ? drag : undefined)}</>;
 };
+
+interface CategoryItemListProps {
+  catItems: Item[];
+  totalUnchecked: number;
+  predictedPrices: Record<string, number>;
+  smartSuggestions: Map<string, { bestStore: string; bestPrice: number; savings: number }>;
+  storeName?: string;
+  isListLocked: boolean;
+  onReorder: (items: Item[]) => void;
+  onToggleItem: (id: string) => void;
+  onItemTap: (item: Item) => void;
+  onIncrement: (id: string) => void;
+  onDecrement: (id: string) => void;
+  styles: any;
+}
+
+const CategoryItemList = memo(({
+  catItems,
+  totalUnchecked,
+  predictedPrices,
+  smartSuggestions,
+  storeName,
+  isListLocked,
+  onReorder,
+  onToggleItem,
+  onItemTap,
+  onIncrement,
+  onDecrement,
+  styles,
+}: CategoryItemListProps) => {
+  const panGesture = useMemo(() => Gesture.Pan().activateAfterLongPress(250), []);
+  return (
+    <NestedReorderableList
+      panGesture={panGesture}
+      data={catItems}
+      keyExtractor={(item: Item) => item.id}
+      onReorder={({ from, to }: ReorderableListReorderEvent) => onReorder(reorderItems(catItems, from, to))}
+      renderItem={({ item }: { item: Item }) => {
+        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
+        const showSuggestion = !!suggestion && !item.checked && storeName !== suggestion.bestStore;
+        return (
+          <DraggableItemRow isListLocked={isListLocked}>
+            {(drag) => (
+              <AnimatedItemCard
+                key={item.id}
+                index={0}
+                item={item}
+                itemPrice={itemPrice}
+                isPredicted={isPredicted}
+                showSuggestion={showSuggestion}
+                suggestion={suggestion}
+                isListLocked={isListLocked}
+                onDrag={drag}
+                onToggleItem={() => !isListLocked && onToggleItem(item.id)}
+                onItemTap={() => onItemTap(item)}
+                onIncrement={onIncrement}
+                onDecrement={onDecrement}
+                itemRowStyle={styles.itemRow}
+                itemRowCheckedStyle={styles.itemRowChecked}
+                checkboxStyle={styles.checkbox}
+                checkboxDisabledStyle={styles.checkboxDisabled}
+                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
+                checkboxTextCheckedStyle={styles.checkboxTextChecked}
+                itemContentTouchableStyle={styles.itemContentTouchable}
+                itemContentColumnStyle={styles.itemContentColumn}
+                itemContentRowStyle={styles.itemContentRow}
+                itemNameTextStyle={styles.itemNameText}
+                itemNameCheckedStyle={styles.itemNameChecked}
+                itemPriceTextStyle={styles.itemPriceText}
+                itemPricePredictedStyle={styles.itemPricePredicted}
+                itemPriceCheckedStyle={styles.itemPriceChecked}
+                suggestionRowStyle={styles.suggestionRow}
+                suggestionTextStyle={styles.suggestionText}
+                totalItems={totalUnchecked}
+              />
+            )}
+          </DraggableItemRow>
+        );
+      }}
+    />
+  );
+});
 
 /**
  * ListDetailScreen
@@ -1019,55 +1104,19 @@ const ListDetailScreen = () => {
                         </View>
                       )}
                     </View>
-                    <NestedReorderableList
-                      scrollEnabled={false}
-                      data={catItems}
-                      keyExtractor={item => item.id}
-                      onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
-                      renderItem={({ item }: { item: Item }) => {
-                        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
-                        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
-                        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
-                        const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-                        return (
-                          <DraggableItemRow isListLocked={isListLocked}>
-                            {(drag) => (
-                              <AnimatedItemCard
-                                key={item.id}
-                                index={0}
-                                item={item}
-                                itemPrice={itemPrice}
-                                isPredicted={isPredicted}
-                                showSuggestion={showSuggestion}
-                                suggestion={suggestion}
-                                isListLocked={isListLocked}
-                                onDrag={drag}
-                                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                                onItemTap={() => handleItemTap(item)}
-                                onIncrement={handleIncrement}
-                                onDecrement={handleDecrement}
-                                itemRowStyle={styles.itemRow}
-                                itemRowCheckedStyle={styles.itemRowChecked}
-                                checkboxStyle={styles.checkbox}
-                                checkboxDisabledStyle={styles.checkboxDisabled}
-                                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                                checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                                itemContentTouchableStyle={styles.itemContentTouchable}
-                                itemContentColumnStyle={styles.itemContentColumn}
-                                itemContentRowStyle={styles.itemContentRow}
-                                itemNameTextStyle={styles.itemNameText}
-                                itemNameCheckedStyle={styles.itemNameChecked}
-                                itemPriceTextStyle={styles.itemPriceText}
-                                itemPricePredictedStyle={styles.itemPricePredicted}
-                                itemPriceCheckedStyle={styles.itemPriceChecked}
-                                suggestionRowStyle={styles.suggestionRow}
-                                suggestionTextStyle={styles.suggestionText}
-                                totalItems={totalUnchecked}
-                              />
-                            )}
-                          </DraggableItemRow>
-                        );
-                      }}
+                    <CategoryItemList
+                      catItems={catItems}
+                      totalUnchecked={totalUnchecked}
+                      predictedPrices={predictedPrices}
+                      smartSuggestions={smartSuggestions}
+                      storeName={list?.storeName}
+                      isListLocked={isListLocked}
+                      onReorder={handleCategoryDragEnd}
+                      onToggleItem={handleToggleItem}
+                      onItemTap={handleItemTap}
+                      onIncrement={handleIncrement}
+                      onDecrement={handleDecrement}
+                      styles={styles}
                     />
                   </View>
                 );
@@ -1086,55 +1135,19 @@ const ListDetailScreen = () => {
                       <Text style={styles.categoryIcon}>📦</Text>
                       <Text style={styles.categoryName}>{key}</Text>
                     </View>
-                    <NestedReorderableList
-                      scrollEnabled={false}
-                      data={catItems}
-                      keyExtractor={item => item.id}
-                      onReorder={({ from, to }: ReorderableListReorderEvent) => handleCategoryDragEnd(reorderItems(catItems, from, to))}
-                      renderItem={({ item }: { item: Item }) => {
-                        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
-                        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
-                        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
-                        const showSuggestion = !!suggestion && !item.checked && list?.storeName !== suggestion.bestStore;
-                        return (
-                          <DraggableItemRow isListLocked={isListLocked}>
-                            {(drag) => (
-                              <AnimatedItemCard
-                                key={item.id}
-                                index={0}
-                                item={item}
-                                itemPrice={itemPrice}
-                                isPredicted={isPredicted}
-                                showSuggestion={showSuggestion}
-                                suggestion={suggestion}
-                                isListLocked={isListLocked}
-                                onDrag={drag}
-                                onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                                onItemTap={() => handleItemTap(item)}
-                                onIncrement={handleIncrement}
-                                onDecrement={handleDecrement}
-                                itemRowStyle={styles.itemRow}
-                                itemRowCheckedStyle={styles.itemRowChecked}
-                                checkboxStyle={styles.checkbox}
-                                checkboxDisabledStyle={styles.checkboxDisabled}
-                                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                                checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                                itemContentTouchableStyle={styles.itemContentTouchable}
-                                itemContentColumnStyle={styles.itemContentColumn}
-                                itemContentRowStyle={styles.itemContentRow}
-                                itemNameTextStyle={styles.itemNameText}
-                                itemNameCheckedStyle={styles.itemNameChecked}
-                                itemPriceTextStyle={styles.itemPriceText}
-                                itemPricePredictedStyle={styles.itemPricePredicted}
-                                itemPriceCheckedStyle={styles.itemPriceChecked}
-                                suggestionRowStyle={styles.suggestionRow}
-                                suggestionTextStyle={styles.suggestionText}
-                                totalItems={totalUnchecked}
-                              />
-                            )}
-                          </DraggableItemRow>
-                        );
-                      }}
+                    <CategoryItemList
+                      catItems={catItems}
+                      totalUnchecked={totalUnchecked}
+                      predictedPrices={predictedPrices}
+                      smartSuggestions={smartSuggestions}
+                      storeName={list?.storeName}
+                      isListLocked={isListLocked}
+                      onReorder={handleCategoryDragEnd}
+                      onToggleItem={handleToggleItem}
+                      onItemTap={handleItemTap}
+                      onIncrement={handleIncrement}
+                      onDecrement={handleDecrement}
+                      styles={styles}
                     />
                   </View>
                 );
