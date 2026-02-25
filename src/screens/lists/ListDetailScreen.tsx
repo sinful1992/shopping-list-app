@@ -929,6 +929,26 @@ const ListDetailScreen = () => {
         </View>
       )}
 
+      {!list?.storeName && !isListLocked && !isListCompleted && (
+        <View style={styles.storeWarningBanner}>
+          <Text style={styles.storeWarningText}>
+            No store selected — prices won't be saved to history
+          </Text>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+            <Text style={styles.storeWarningLink}>Select Store</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {list?.storeName && !isListLocked && !isListCompleted && (
+        <View style={styles.changeStoreRow}>
+          <Text style={styles.changeStoreLabel}>{list.storeName}</Text>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+            <Text style={styles.changeStoreLink}>Change</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.addItemContainer}>
         <TextInput
           style={styles.input}
@@ -956,26 +976,6 @@ const ListDetailScreen = () => {
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
-
-      {!list?.storeName && !isListLocked && !isListCompleted && (
-        <View style={styles.storeWarningBanner}>
-          <Text style={styles.storeWarningText}>
-            No store selected — prices won't be saved to history
-          </Text>
-          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
-            <Text style={styles.storeWarningLink}>Select Store</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {list?.storeName && !isListLocked && !isListCompleted && (
-        <View style={styles.changeStoreRow}>
-          <Text style={styles.changeStoreLabel}>{list.storeName}</Text>
-          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
-            <Text style={styles.changeStoreLink}>Change</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       <ScrollViewContainer
         style={styles.listScrollContainer}
