@@ -969,6 +969,7 @@ const ListDetailScreen = () => {
       )}
 
       <ScrollViewContainer
+        style={styles.listScrollContainer}
         contentContainerStyle={styles.flatListContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -1584,6 +1585,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   // FlatList content padding
+  listScrollContainer: {
+    flex: 1,
+  },
   flatListContent: {
     paddingBottom: 100, // Space for FAB
   },
