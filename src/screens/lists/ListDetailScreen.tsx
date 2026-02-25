@@ -109,7 +109,6 @@ const ListDetailScreen = () => {
   // Store layout state
   // undefined = not yet fetched; null = fetched, no layout found; StoreLayout = fetched and found
   const [storeLayout, setStoreLayout] = useState<StoreLayout | null | undefined>(undefined);
-  const [isTogglingLayout, setIsTogglingLayout] = useState(false);
 
   // Suppresses observer re-renders during an active drag reorder to avoid intermediate state flicker
   const isReorderingRef = useRef(false);
@@ -657,23 +656,6 @@ const ListDetailScreen = () => {
     }, [list?.storeName, list?.familyGroupId])
   );
 
-  // Cleanup stale layoutApplied when layout was deleted while screen was not focused
-  useEffect(() => {
-    if (storeLayout === null && list?.layoutApplied && list?.id) {
-      ShoppingListManager.updateList(list.id, { layoutApplied: false });
-    }
-  }, [storeLayout, list?.layoutApplied, list?.id]);
-
-  const handleToggleLayout = async () => {
-    if (!list || isTogglingLayout) return;
-    setIsTogglingLayout(true);
-    try {
-      await ShoppingListManager.updateList(list.id, { layoutApplied: !list.layoutApplied });
-    } finally {
-      setIsTogglingLayout(false);
-    }
-  };
-
   const handleCategoryDragEnd = (reorderedItems: Item[]) => {
     // Optimistically update UI immediately — onReorder fires synchronously on the UI thread
     const reorderedIds = new Set(reorderedItems.map(i => i.id));
@@ -729,11 +711,11 @@ const ListDetailScreen = () => {
 
   // Category display order: use layout order when layout is active, otherwise default service order
   const categoryDisplayOrder = useMemo(() => {
-    if (list?.layoutApplied && storeLayout) {
+    if (storeLayout) {
       return storeLayout.categoryOrder;
     }
     return CategoryService.getCategories().map(c => c.id as CategoryType);
-  }, [list?.layoutApplied, storeLayout]);
+  }, [storeLayout]);
 
   return (
     <View style={styles.container}>
@@ -934,33 +916,6 @@ const ListDetailScreen = () => {
           <Text style={styles.changeStoreLabel}>{list.storeName}</Text>
           <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
             <Text style={styles.changeStoreLink}>Change</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {list?.storeName && !isListLocked && (
-        <View style={styles.layoutControlsRow}>
-          {storeLayout && (
-            <TouchableOpacity onPress={handleToggleLayout} style={styles.layoutToggleButton}>
-              <Text style={styles.layoutToggleText}>
-                {list.layoutApplied ? 'Store layout active' : 'Sort by store layout'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={() => {
-              if (!currentUserId) return;
-              navigation.navigate('StoreLayoutEditor' as never, {
-                storeName: list.storeName!,
-                familyGroupId: list.familyGroupId,
-                createdBy: currentUserId,
-              } as never);
-            }}
-            style={styles.layoutEditButton}
-          >
-            <Text style={styles.layoutEditText}>
-              {storeLayout ? 'Edit store layout' : 'Set up store layout'}
-            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -1795,39 +1750,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
-  },
-  layoutControlsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    gap: 8,
-  },
-  layoutToggleButton: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-  },
-  layoutToggleText: {
-    fontSize: 13,
-    color: '#007AFF',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  layoutEditButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  layoutEditText: {
-    fontSize: 13,
-    color: '#6E6E73',
-    textDecorationLine: 'underline',
   },
   storeWarningBanner: {
     flexDirection: 'row',

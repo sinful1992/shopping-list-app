@@ -2,6 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { LogBox, StatusBar, TouchableOpacity } from 'react-native';
 
 LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
+
+const _consoleError = console.error.bind(console);
+console.error = (...args) => {
+  if (typeof args[0] === 'string' && args[0].includes('VirtualizedLists should never be nested')) return;
+  _consoleError(...args);
+};
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -79,7 +85,6 @@ import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
 import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
 import TermsAcceptanceScreen from './src/screens/auth/TermsAcceptanceScreen';
-import StoreLayoutEditor from './src/screens/StoreLayoutEditor';
 import { CURRENT_TERMS_VERSION } from './src/legal';
 
 const Stack = createStackNavigator();
@@ -113,11 +118,6 @@ function ListsStack() {
         name="ReceiptView"
         component={ReceiptViewScreen}
         options={{ title: 'Receipt Details' }}
-      />
-      <Stack.Screen
-        name="StoreLayoutEditor"
-        component={StoreLayoutEditor}
-        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
