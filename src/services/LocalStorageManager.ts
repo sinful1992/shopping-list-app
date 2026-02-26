@@ -1215,6 +1215,30 @@ class LocalStorageManager {
     }
   }
 
+  async getDistinctTrackedItems(
+    familyGroupId: string
+  ): Promise<Array<{ itemName: string; itemNameNormalized: string }>> {
+    try {
+      const collection = this.database.get<PriceHistoryModel>('price_history');
+      const records = await collection
+        .query(Q.where('family_group_id', familyGroupId))
+        .fetch();
+
+      const itemMap = new Map<string, string>();
+      for (const r of records) {
+        if (!itemMap.has(r.itemNameNormalized)) {
+          itemMap.set(r.itemNameNormalized, r.itemName);
+        }
+      }
+
+      return Array.from(itemMap.entries())
+        .map(([normalized, name]) => ({ itemName: name, itemNameNormalized: normalized }))
+        .sort((a, b) => a.itemName.localeCompare(b.itemName));
+    } catch (error: any) {
+      throw new Error(`Failed to get distinct tracked items: ${error.message}`);
+    }
+  }
+
   // ===== STORE LAYOUT METHODS =====
 
   async saveStoreLayout(layout: StoreLayout): Promise<StoreLayout> {
