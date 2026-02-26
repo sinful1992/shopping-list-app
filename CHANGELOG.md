@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-02-26
+### Fixed
+- **Store picker Cancel behavior** — "Skip" button renamed to "Cancel" and now aborts entirely (just closes the modal) instead of proceeding with an empty store name that would lock the list.
+
+### Added
+- **Store Price Comparison dashboard** — New ItemStoreComparison component in Analytics tab. Select any tracked item to see a bar chart comparing prices across stores, with date range filter (30/90/365 days), avg/latest price toggle, per-store volatility indicators (Low/Med/High), and text-based insights (cheapest store, most stable, latest vs average delta).
+- **Most Volatile Prices chart** — Bar chart of top 10 items with the biggest price swings across all purchase history.
+- **Smart Savings card** — Shows potential savings per shop by identifying the cheapest store for each item bought from multiple stores, with total savings banner.
+- **`getDistinctTrackedItems()`** — New LocalStorageManager method to query all unique items with price history.
+- **`getAllTrackedItems()`** — New PriceHistoryService wrapper for tracked item retrieval.
+- **Price Analytics section** — New section in AnalyticsScreen below spending charts, guarded by familyGroupId availability.
+
 ## [1.5.1] - 2026-02-25
 ### Fixed
 - **Store banner position** — Store banner (no-store warning + change-store row) now renders above the add item input for better visibility.
