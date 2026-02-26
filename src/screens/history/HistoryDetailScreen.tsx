@@ -13,7 +13,6 @@ import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
-import AuthenticationModule from '../../services/AuthenticationModule';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import { ListDetails, Item } from '../../models/types';
 import ItemEditModal from '../../components/ItemEditModal';
