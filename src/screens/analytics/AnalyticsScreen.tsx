@@ -12,7 +12,11 @@ import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import PriceHistoryService from '../../services/PriceHistoryService';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import ItemStoreComparison from './ItemStoreComparison';
+import VolatileItemsChart from './VolatileItemsChart';
+import SmartSavingsCard from './SmartSavingsCard';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -68,6 +72,8 @@ const AnalyticsScreen = () => {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [timePeriod, setTimePeriod] = useState<30 | 90 | 365>(30);
   const [error, setError] = useState<string | null>(null);
+  const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
+  const [trackedItems, setTrackedItems] = useState<{ itemName: string; itemNameNormalized: string }[]>([]);
 
   useEffect(() => {
     // Wrap in try-catch to prevent white screen
@@ -78,6 +84,20 @@ const AnalyticsScreen = () => {
       setLoading(false);
     }
   }, [timePeriod]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const user = await AuthenticationModule.getCurrentUser();
+        if (!user?.familyGroupId) return;
+        setFamilyGroupId(user.familyGroupId);
+        const items = await PriceHistoryService.getAllTrackedItems(user.familyGroupId);
+        setTrackedItems(items);
+      } catch {
+        // tracked items load failure is non-critical
+      }
+    })();
+  }, []);
 
   const loadAnalytics = async () => {
     setLoading(true);
@@ -400,6 +420,17 @@ const AnalyticsScreen = () => {
           })}
         </View>
 
+        {familyGroupId && (
+          <>
+            <View style={styles.sectionDivider}>
+              <Text style={styles.sectionTitle}>Price Analytics</Text>
+            </View>
+            <ItemStoreComparison familyGroupId={familyGroupId} trackedItems={trackedItems} />
+            <VolatileItemsChart familyGroupId={familyGroupId} />
+            <SmartSavingsCard familyGroupId={familyGroupId} trackedItems={trackedItems} />
+          </>
+        )}
+
         <View style={styles.bottomPadding} />
       </ScrollView>
     </View>
@@ -659,6 +690,18 @@ const styles = StyleSheet.create({
     color: '#a0a0a0',
     textAlign: 'center',
     marginBottom: 20,
+  },
+  sectionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    marginTop: 20,
+    paddingTop: 16,
+    paddingHorizontal: 15,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   noDataText: {
     fontSize: 14,
