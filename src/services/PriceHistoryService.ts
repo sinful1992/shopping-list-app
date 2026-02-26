@@ -103,6 +103,19 @@ class PriceHistoryService {
   }
 
   /**
+   * Get all distinct items that have price history records
+   */
+  async getAllTrackedItems(
+    familyGroupId: string
+  ): Promise<Array<{ itemName: string; itemNameNormalized: string }>> {
+    try {
+      return await LocalStorageManager.getDistinctTrackedItems(familyGroupId);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * One-time backfill: scan all completed local lists and write deterministic price records.
    * Guarded by a familyGroupId-scoped AsyncStorage flag — safe to call on every mount.
    */
