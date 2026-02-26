@@ -70,8 +70,7 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
     onClose();
   };
 
-  const handleSkip = () => {
-    onSelect('');
+  const handleCancel = () => {
     onClose();
   };
 
@@ -132,10 +131,10 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
             {/* Actions */}
             <View style={styles.actions}>
               <TouchableOpacity
-                style={styles.skipButton}
-                onPress={handleSkip}
+                style={styles.cancelButton}
+                onPress={handleCancel}
               >
-                <Text style={styles.skipButtonText}>Skip</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -228,13 +227,13 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
     marginTop: SPACING.md,
   },
-  skipButton: {
+  cancelButton: {
     flex: 1,
     ...COMMON_STYLES.button,
     padding: SPACING.lg,
     alignItems: 'center',
   },
-  skipButtonText: {
+  cancelButtonText: {
     color: COLORS.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
