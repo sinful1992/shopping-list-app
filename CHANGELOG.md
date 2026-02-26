@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.6.0] - 2026-02-26
 ### Fixed
+- **History detail shows 0 items after reinstall** — HistoryDetailScreen now subscribes to WatermelonDB item observer and starts a Firebase items listener, so items sync from Firebase on fresh installs. Price stats load reactively once items arrive. Removed item delete from history (items are immutable). Made `onDelete` optional in ItemEditModal.
 - **Store picker Cancel behavior** — "Skip" button renamed to "Cancel" and now aborts entirely (just closes the modal) instead of proceeding with an empty store name that would lock the list.
 
 ### Added

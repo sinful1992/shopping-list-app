@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import { ListDetails, Item } from '../../models/types';
 import ItemEditModal from '../../components/ItemEditModal';
 
@@ -30,35 +31,48 @@ const HistoryDetailScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [priceStats, setPriceStats] = useState<Map<string, PriceStats>>(new Map());
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
+  const priceStatsLoadedRef = useRef(false);
 
   useEffect(() => {
     loadListDetails();
   }, []);
 
-  const loadListDetails = async () => {
-    try {
-      setLoading(true);
-      const details = await HistoryTracker.getListDetails(listId);
-      setListDetails(details);
+  // Subscribe to WatermelonDB item observer for reactive item updates
+  useEffect(() => {
+    const unsubscribe = ItemManager.subscribeToItemChanges(listId, setItems);
+    return () => unsubscribe();
+  }, [listId]);
 
-      // Load price stats and suggestions for items
-      const user = await AuthenticationModule.getCurrentUser();
-      if (user?.familyGroupId && details?.items) {
+  // Start Firebase items listener once listDetails resolves with familyGroupId
+  useEffect(() => {
+    const familyGroupId = listDetails?.list.familyGroupId;
+    if (!familyGroupId) return;
+
+    const unsubscribe = FirebaseSyncListener.startListeningToItems(familyGroupId, listId);
+    return () => unsubscribe();
+  }, [listDetails?.list.familyGroupId, listId]);
+
+  // Load price stats once after items first arrive
+  useEffect(() => {
+    const familyGroupId = listDetails?.list.familyGroupId;
+    if (!familyGroupId || items.length === 0 || priceStatsLoadedRef.current) return;
+    priceStatsLoadedRef.current = true;
+
+    const loadPriceStats = async () => {
+      try {
         const statsMap = new Map<string, PriceStats>();
         const suggestionsMap = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
 
-        // Load stats for each unique item name
-        const uniqueNames = [...new Set(details.items.map(item => item.name.toLowerCase()))];
-
-        // Get smart suggestions for all items
-        const suggestions = await PriceHistoryService.getSmartSuggestions(user.familyGroupId, uniqueNames);
+        const uniqueNames = [...new Set(items.map(item => item.name.toLowerCase()))];
+        const suggestions = await PriceHistoryService.getSmartSuggestions(familyGroupId, uniqueNames);
 
         await Promise.all(uniqueNames.map(async (name) => {
-          const stats = await PriceHistoryService.getPriceStats(user.familyGroupId!, name);
+          const stats = await PriceHistoryService.getPriceStats(familyGroupId!, name);
           if (stats) statsMap.set(name, stats);
           const suggestion = suggestions.get(name);
           if (suggestion) suggestionsMap.set(name, suggestion);
@@ -66,7 +80,18 @@ const HistoryDetailScreen = () => {
 
         setPriceStats(statsMap);
         setSmartSuggestions(suggestionsMap);
+      } catch (error: any) {
+        // Price stats are non-critical, don't block UI
       }
+    };
+    loadPriceStats();
+  }, [items, listDetails?.list.familyGroupId]);
+
+  const loadListDetails = async () => {
+    try {
+      setLoading(true);
+      const details = await HistoryTracker.getListDetails(listId);
+      setListDetails(details);
     } catch (error: any) {
       showAlert('Error', error.message, undefined, { icon: 'error' });
       navigation.goBack();
@@ -113,7 +138,7 @@ const HistoryDetailScreen = () => {
 
     // Recalculate total if price changed
     if (updates.price !== undefined && listDetails) {
-      const newItems = listDetails.items.map(item =>
+      const newItems = items.map(item =>
         item.id === itemId ? { ...item, ...updates } : item
       );
       const newTotal = newItems.reduce((sum, item) => sum + (item.price || 0), 0);
@@ -139,38 +164,18 @@ const HistoryDetailScreen = () => {
         await ShoppingListManager.updateList(listId, { receiptData: newReceiptData as any });
       }
 
-      // Reload to show updated data
+      // Reload to refresh receiptData total
       await loadListDetails();
     }
   };
 
-  const handleDeleteItem = async (itemId: string) => {
-    // In history view, we only allow deleting if user confirms
-    showAlert(
-      'Delete Item',
-      'Are you sure? This will affect the historical record.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await ItemManager.deleteItem(itemId);
-            await loadListDetails();
-          },
-        },
-      ],
-      { icon: 'confirm' }
-    );
-  };
-
   // Calculate total from item prices
   const calculatedTotal = useMemo(() => {
-    if (!listDetails?.items) return 0;
-    return listDetails.items.reduce((sum, item) => sum + (item.price || 0), 0);
-  }, [listDetails?.items]);
+    if (!items.length) return 0;
+    return items.reduce((sum, item) => sum + (item.price || 0), 0);
+  }, [items]);
 
-  if (loading) {
+  if (loading || (listDetails && items.length === 0)) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -187,7 +192,7 @@ const HistoryDetailScreen = () => {
     );
   }
 
-  const { list, items, receiptUrl, receiptData } = listDetails;
+  const { list, receiptUrl, receiptData } = listDetails;
 
   return (
     <ScrollView style={styles.container}>
@@ -297,7 +302,6 @@ const HistoryDetailScreen = () => {
           setSelectedItem(null);
         }}
         onSave={handleSaveItem}
-        onDelete={handleDeleteItem}
         focusField="price"
       />
     </ScrollView>

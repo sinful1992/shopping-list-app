@@ -22,7 +22,7 @@ interface ItemEditModalProps {
   item: Item | null;
   onClose: () => void;
   onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
-  onDelete: (itemId: string) => Promise<void>;
+  onDelete?: (itemId: string) => Promise<void>;
   focusField?: 'name' | 'price';
 }
 
@@ -181,12 +181,14 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
           </ScrollView>
 
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDelete}
-            >
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </TouchableOpacity>
+            {onDelete && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={handleDelete}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={styles.actionButtons}>
               <TouchableOpacity
