@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.8] - 2026-02-27
+### Fixed
+- **`sanitizeError` allowlist — 3 missing entries** — `'Urgent item name is required'` (UrgentItemManager validation), `'No receipt found for this list'` (retryFailedOCR path), and `'Item not found'` (concurrent-delete edge case in ItemManager) were not covered by the v1.7.5 allowlist and silently degraded to the generic fallback message.
+
 ## [1.7.7] - 2026-02-27
 ### Security
 - **Deep link `listId` validation** — `ListDetailScreen` validates `listId` as a UUID on mount and rejects invalid formats immediately. `loadListMetadata` verifies `list.familyGroupId === currentUser.familyGroupId` after fetching — a foreign `listId` from a crafted deep link is rejected with "Access Denied" before any subscription or data operation starts.
