@@ -5,8 +5,7 @@ import { UrgentItem, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import { sanitizeUrgentItemName, sanitizePrice } from '../utils/sanitize';
-// @ts-ignore
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
+import supabase from './SupabaseClient';
 
 /**
  * UrgentItemManager
@@ -51,22 +50,8 @@ class UrgentItemManager {
    */
   private async syncToSupabase(urgentItem: UrgentItem): Promise<void> {
     try {
-      // Check if environment variables are loaded
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        throw new Error('Supabase configuration missing');
-      }
-
-      const url = `${SUPABASE_URL}/rest/v1/urgent_items`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke('upsert-urgent-item', {
+        body: {
           id: urgentItem.id,
           name: urgentItem.name,
           family_group_id: urgentItem.familyGroupId,
@@ -78,22 +63,19 @@ class UrgentItemManager {
           resolved_at: urgentItem.resolvedAt,
           price: urgentItem.price,
           status: urgentItem.status,
-          sync_status: 'synced'
-        })
+        },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to sync urgent item');
+      if (error) {
+        throw error;
       }
 
-      // Update local sync status
       await LocalStorageManager.updateUrgentItem(urgentItem.id, {
-        syncStatus: 'synced'
+        syncStatus: 'synced',
       });
     } catch (error) {
-      // Update local sync status to failed
       await LocalStorageManager.updateUrgentItem(urgentItem.id, {
-        syncStatus: 'failed'
+        syncStatus: 'failed',
       });
       throw error;
     }

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2026-02-27
+### Security
+- **Block direct anon REST access to Supabase tables** — `urgent_items` and `device_tokens` no longer have any RLS policies for `anon` or `authenticated` roles. All client access is now routed through Edge Functions that use `service_role` server-side, so the exposed anon key cannot be used to read or write any data.
+- **New Edge Function: `upsert-urgent-item`** — replaces direct REST POST to `/rest/v1/urgent_items` from `UrgentItemManager`.
+- **New Edge Function: `register-device-token`** — replaces direct REST POST to `/rest/v1/device_tokens` from `NotificationManager`.
+- **`UrgentItemManager`** — `syncToSupabase` now uses `supabase.functions.invoke('upsert-urgent-item')` instead of raw fetch with anon key.
+- **`NotificationManager`** — `registerToken` now uses `supabase.functions.invoke('register-device-token')` instead of raw fetch with anon key.
+
 ## [1.7.0] - 2026-02-27
 ### Added
 - **Unchecked items flow on completion** — "Done Shopping" now intercepts when items remain unchecked and presents three options:

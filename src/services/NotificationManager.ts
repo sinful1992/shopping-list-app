@@ -1,8 +1,7 @@
 import messaging from '@react-native-firebase/messaging';
 import { PermissionsAndroid, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// @ts-ignore
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
+import supabase from './SupabaseClient';
 
 /**
  * NotificationManager
@@ -83,35 +82,19 @@ class NotificationManager {
         return;
       }
 
-      // Check if environment variables are loaded
-      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        return;
-      }
-
-      const url = `${SUPABASE_URL}/rest/v1/device_tokens`;
-
-      // Send token to Supabase
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({
+      const { error } = await supabase.functions.invoke('register-device-token', {
+        body: {
           user_id: userId,
           family_group_id: familyGroupId,
           fcm_token: token,
-          platform: Platform.OS
-        })
+          platform: Platform.OS,
+        },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to register token');
+      if (error) {
+        throw error;
       }
 
-      // Store token data locally as well
       await AsyncStorage.setItem(
         '@fcm_token_data',
         JSON.stringify({

@@ -54,75 +54,27 @@ ALTER TABLE public.urgent_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- 4. CREATE RLS POLICIES
+-- 4. RLS POLICIES
+-- All direct client access is blocked. Only service_role (used by Edge Functions)
+-- can read/write these tables. service_role bypasses RLS automatically.
 -- ============================================
 
--- Drop existing policies if they exist
+-- Drop all existing policies
 DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow insert for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow select for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow update for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow delete for authenticated users" ON public.urgent_items;
 
--- Allow authenticated users to insert urgent items
-CREATE POLICY "Allow insert for authenticated users"
-    ON public.urgent_items
-    FOR INSERT
-    TO authenticated, anon
-    WITH CHECK (true);
-
--- Allow authenticated users to view urgent items in their family group
-CREATE POLICY "Allow select for authenticated users"
-    ON public.urgent_items
-    FOR SELECT
-    TO authenticated, anon
-    USING (true);
-
--- Allow authenticated users to update urgent items
-CREATE POLICY "Allow update for authenticated users"
-    ON public.urgent_items
-    FOR UPDATE
-    TO authenticated, anon
-    USING (true)
-    WITH CHECK (true);
-
--- Allow authenticated users to delete urgent items
-CREATE POLICY "Allow delete for authenticated users"
-    ON public.urgent_items
-    FOR DELETE
-    TO authenticated, anon
-    USING (true);
-
--- Device tokens policies
 DROP POLICY IF EXISTS "Allow insert for authenticated users" ON public.device_tokens;
 DROP POLICY IF EXISTS "Allow select for authenticated users" ON public.device_tokens;
 DROP POLICY IF EXISTS "Allow update for authenticated users" ON public.device_tokens;
 DROP POLICY IF EXISTS "Allow delete for authenticated users" ON public.device_tokens;
 
-CREATE POLICY "Allow insert for authenticated users"
-    ON public.device_tokens
-    FOR INSERT
-    TO authenticated, anon
-    WITH CHECK (true);
-
-CREATE POLICY "Allow select for authenticated users"
-    ON public.device_tokens
-    FOR SELECT
-    TO authenticated, anon
-    USING (true);
-
-CREATE POLICY "Allow update for authenticated users"
-    ON public.device_tokens
-    FOR UPDATE
-    TO authenticated, anon
-    USING (true)
-    WITH CHECK (true);
-
-CREATE POLICY "Allow delete for authenticated users"
-    ON public.device_tokens
-    FOR DELETE
-    TO authenticated, anon
-    USING (true);
+-- No new policies are created. RLS is enabled (below) with no permissive policies,
+-- so anon and authenticated roles have zero direct access.
+-- All writes go through upsert-urgent-item and register-device-token Edge Functions,
+-- which run as service_role and bypass RLS server-side.
 
 -- ============================================
 -- 5. CREATE DATABASE TRIGGER
