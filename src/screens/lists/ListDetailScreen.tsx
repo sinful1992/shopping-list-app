@@ -245,6 +245,12 @@ const ListDetailScreen = () => {
   }, [predictedPrices]);
 
   useEffect(() => {
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!listId || !UUID_REGEX.test(listId)) {
+      showAlert('Error', 'Invalid list link.', [{ text: 'OK', onPress: () => navigation.goBack() }], { icon: 'error' });
+      return;
+    }
+
     // Reset mounted flag
     isMountedRef.current = true;
 
@@ -376,6 +382,17 @@ const ListDetailScreen = () => {
     try {
       const fetchedList = await ShoppingListManager.getListById(listId);
       if (fetchedList) {
+        // Security: verify ownership — needed because listId can come from a deep link
+        const user = await AuthenticationModule.getCurrentUser();
+        if (user?.familyGroupId && fetchedList.familyGroupId !== user.familyGroupId) {
+          showAlert(
+            'Access Denied',
+            'You do not have access to this list.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }],
+            { icon: 'error' }
+          );
+          return null;
+        }
         setList(fetchedList);
         setListName(fetchedList.name);
         setIsListCompleted(fetchedList.status === 'completed');
