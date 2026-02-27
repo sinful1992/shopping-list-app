@@ -21,6 +21,7 @@ export function sanitizeText(input: string, maxLength: number = 200): string {
   }
 
   return input
+    .normalize('NFKC')
     .trim()
     .slice(0, maxLength)
     .replace(/[<>{}]/g, ''); // Strip angle brackets and braces
