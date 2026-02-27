@@ -131,12 +131,15 @@ export function sanitizeError(error: unknown): string {
     if (
       msg.startsWith('List name') ||
       msg.startsWith('Item name') ||
+      msg.startsWith('Urgent item name') ||
       msg.startsWith('Invalid invitation') ||
       msg.startsWith('This family group') ||
       msg.startsWith('Permission denied') ||
       msg.startsWith('OCR limit') ||
       msg.startsWith('Cannot create list') ||
-      msg.startsWith('User must belong')
+      msg.startsWith('User must belong') ||
+      msg.startsWith('No receipt found') ||
+      msg.startsWith('Item not found')
     ) {
       return msg;
     }
