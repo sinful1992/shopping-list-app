@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-02-27
+### Added
+- **Unchecked items flow on completion** — "Done Shopping" now intercepts when items remain unchecked and presents three options:
+  - **Full Shop** — complete normally; the history card shows an amber "X items not bought" indicator.
+  - **Partial Shop** — complete the current list and carry unchecked items (with their categories) into a new active list with the same name. A loading overlay covers the async work; on `createList` failure the item names are listed so the user can re-add them manually.
+  - **Cancel** — dismiss the dialog and return to shopping mode.
+  - If all items are checked, the existing optimistic completion flow runs unchanged.
+- **`unchecked_items_count` on completed lists** — stored in DB (schema v13, migration from v12), synced through Firebase, and used by HistoryScreen cards to display the amber indicator.
+- **HistoryScreen amber indicator** — cards restructured to `flexDirection: column` with an inner row; an amber "X items not bought" line appears below the date/total row when `uncheckedItemsCount > 0`.
+- **HistoryDetailScreen banner + title** — items section title changes to "Items (Y/Z bought)"; an amber banner appears above items when unchecked items exist.
+- **`category` support in `addItemsBatch`** — items passed to the batch creator now carry their original category, so Partial Shop preserves category assignments.
+
+### Changed
+- DB schema bumped to v13 (`unchecked_items_count` column on `shopping_lists`, optional).
+
 ## [1.6.1] - 2026-02-26
 ### Fixed
 - **Dead import cleanup** — Removed unused `AuthenticationModule` import from HistoryDetailScreen (leftover from pre-reactive price stats code).

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   Vibration,
   InteractionManager,
+  ActivityIndicator,
 } from 'react-native';
 import {
   ScrollViewContainer,
@@ -186,6 +187,7 @@ const ListDetailScreen = () => {
   const [runningTotal, setRunningTotal] = useState(0);
   const [checkedCount, setCheckedCount] = useState(0);
   const [uncheckedCount, setUncheckedCount] = useState(0);
+  const [isCreatingPartialList, setIsCreatingPartialList] = useState(false);
   const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const [isOnline, setIsOnline] = useState(true);
@@ -678,6 +680,83 @@ const ListDetailScreen = () => {
     await StoreHistoryService.addStore(storeName);
   };
 
+  const performFullCompletion = (skippedCount: number) => {
+    showInterstitial();
+    const finalTotal = runningTotal;
+    const storeName = list?.storeName || null;
+    setIsShoppingMode(false);
+    showAlert(
+      'Shopping Complete!',
+      'Your shopping list has been saved to history.',
+      [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
+      { icon: 'success' },
+    );
+    ShoppingListManager.completeShoppingFast(listId, currentUserId!, finalTotal, storeName, skippedCount > 0 ? skippedCount : null).catch(() => {});
+  };
+
+  const performPartialCompletion = async (uncheckedItems: Item[]) => {
+    if (isCreatingPartialList) return;
+    if (!list || !currentUser) {
+      showAlert('Error', 'Unable to complete. Please restart the app and try again.', undefined, { icon: 'error' });
+      return;
+    }
+
+    showInterstitial();
+    const finalTotal = runningTotal;
+    const storeName = list.storeName || null;
+    const count = uncheckedItems.length;
+
+    setIsShoppingMode(false);
+    setIsCreatingPartialList(true);
+
+    ShoppingListManager.completeShoppingFast(listId, currentUserId!, finalTotal, storeName, count).catch(() => {});
+
+    let newList;
+    try {
+      newList = await ShoppingListManager.createList(list.name, currentUserId!, list.familyGroupId, currentUser);
+    } catch {
+      const itemNames = uncheckedItems.map(i => `• ${i.name}`).join('\n');
+      setIsCreatingPartialList(false);
+      showAlert(
+        'Partial Save',
+        `Your list was completed, but a new list could not be created (you may be at your list limit). Items not carried over:\n\n${itemNames}`,
+        [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
+        { icon: 'warning' },
+      );
+      return;
+    }
+
+    try {
+      await ItemManager.addItemsBatch(
+        newList.id,
+        uncheckedItems.map(i => ({
+          name: i.name,
+          quantity: i.quantity ?? undefined,
+          price: i.price ?? undefined,
+          category: i.category,
+        })),
+        currentUserId!,
+      );
+    } catch {
+      setIsCreatingPartialList(false);
+      showAlert(
+        'Partial Save',
+        'Your list was completed and a new list was created, but items could not be added to it.',
+        [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
+        { icon: 'warning' },
+      );
+      return;
+    }
+
+    setIsCreatingPartialList(false);
+    showAlert(
+      'Shopping Complete!',
+      `${count} item${count === 1 ? '' : 's'} carried to a new list.`,
+      [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
+      { icon: 'success' },
+    );
+  };
+
   const handleDoneShopping = () => {
     if (!currentUserId) return;
     if (items.length === 0) {
@@ -685,28 +764,33 @@ const ListDetailScreen = () => {
       return;
     }
 
-    showInterstitial();
+    const uncheckedItems = items.filter(i => !i.checked);
 
-    // Capture pre-calculated values before UI change
-    const finalTotal = runningTotal;
-    const storeName = list?.storeName || null;
+    if (uncheckedItems.length === 0) {
+      performFullCompletion(0);
+      return;
+    }
 
-    // Immediate UI feedback
-    setIsShoppingMode(false);
-
-    // Show success immediately (don't wait for completion)
     showAlert(
-      'Shopping Complete!',
-      'Your shopping list has been saved to history.',
-      [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
-      { icon: 'success' },
-    );
-
-    // Run completion in background with pre-calculated data (no item re-fetch)
-    ShoppingListManager.completeShoppingFast(listId, currentUserId, finalTotal, storeName).catch(
-      (_error: any) => {
-        // Silently handle error - user already notified of success
-      }
+      'Items Not Bought',
+      `${uncheckedItems.length} item${uncheckedItems.length === 1 ? '' : 's'} weren't checked. What would you like to do?`,
+      [
+        {
+          text: 'Full Shop',
+          style: 'default',
+          onPress: () => performFullCompletion(uncheckedItems.length),
+        },
+        {
+          text: 'Partial Shop',
+          style: 'default',
+          onPress: () => performPartialCompletion(uncheckedItems),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+      { icon: 'confirm' },
     );
   };
 
@@ -1322,6 +1406,12 @@ const ListDetailScreen = () => {
           setPendingItemName('');
         }}
       />
+
+      {isCreatingPartialList && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#ffffff" />
+        </View>
+      )}
     </View>
   );
 };
@@ -1909,6 +1999,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textDecorationLine: 'underline',
     marginLeft: 8,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
   },
 });
 

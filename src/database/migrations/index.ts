@@ -88,6 +88,16 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 12 to 13: Add unchecked_items_count to shopping_lists
+    {
+      toVersion: 13,
+      steps: [
+        addColumns({
+          table: 'shopping_lists',
+          columns: [{ name: 'unchecked_items_count', type: 'number', isOptional: true }],
+        }),
+      ],
+    },
     // Migration from version 10 to 11: Add price history table
     {
       toVersion: 11,

@@ -246,7 +246,8 @@ class ShoppingListManager {
     listId: string,
     userId: string,
     preCalculatedTotal: number,
-    storeName: string | null
+    storeName: string | null,
+    uncheckedItemsCount?: number | null
   ): Promise<ShoppingList> {
     // Build receipt data with pre-calculated total (skip item fetch)
     const receiptData: ReceiptData | null =
@@ -277,6 +278,7 @@ class ShoppingListManager {
       lockedByRole: null,
       lockedAt: null,
       ...(receiptData && { receiptData }),
+      ...(uncheckedItemsCount != null && { uncheckedItemsCount }),
     });
 
     return updatedList;

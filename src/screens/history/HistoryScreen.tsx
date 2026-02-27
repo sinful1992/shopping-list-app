@@ -297,8 +297,15 @@ const HistoryScreen = () => {
         style={styles.listItem}
         onPress={() => handleListPress(item.id)}
       >
-        <Text style={styles.listDate}>{dateWithStore}</Text>
-        <Text style={styles.listTotal}>Total: {total}</Text>
+        <View style={styles.listItemRow}>
+          <Text style={styles.listDate}>{dateWithStore}</Text>
+          <Text style={styles.listTotal}>Total: {total}</Text>
+        </View>
+        {item.uncheckedItemsCount != null && item.uncheckedItemsCount > 0 && (
+          <Text style={styles.itemsNotBought}>
+            {item.uncheckedItemsCount} item{item.uncheckedItemsCount === 1 ? '' : 's'} not bought
+          </Text>
+        )}
       </TouchableOpacity>
     );
   };
@@ -578,9 +585,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   listItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginHorizontal: 15,
     marginTop: 10,
@@ -588,6 +593,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     padding: 15,
+  },
+  listItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   listDate: {
     fontSize: 16,
@@ -598,6 +608,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#30D158',
     fontWeight: '600',
+  },
+  itemsNotBought: {
+    fontSize: 12,
+    color: '#FF9500',
+    fontWeight: '500',
+    marginTop: 4,
   },
   emptyContainer: {
     flex: 1,

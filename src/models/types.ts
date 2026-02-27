@@ -78,6 +78,7 @@ export interface ShoppingList {
   storeName?: string | null; // Sprint 6: Store tracking
   archived?: boolean | null; // Sprint 7: Archive functionality
   layoutApplied?: boolean | null;
+  uncheckedItemsCount?: number | null;
 }
 
 export interface Item {

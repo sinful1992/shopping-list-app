@@ -223,6 +223,7 @@ class LocalStorageManager {
           if (updates.storeName !== undefined) record.storeName = updates.storeName;
           if (updates.archived !== undefined) record.archived = updates.archived;
           if (updates.layoutApplied !== undefined) record.layoutApplied = updates.layoutApplied;
+          if (updates.uncheckedItemsCount !== undefined) record.uncheckedItemsCount = updates.uncheckedItemsCount;
         });
       });
 
@@ -964,6 +965,7 @@ class LocalStorageManager {
       storeName: model.storeName,
       archived: model.archived,
       layoutApplied: model.layoutApplied,
+      uncheckedItemsCount: model.uncheckedItemsCount,
     };
   }
 

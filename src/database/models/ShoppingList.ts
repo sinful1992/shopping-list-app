@@ -23,4 +23,5 @@ export class ShoppingListModel extends Model {
   @field('store_name') storeName!: string | null;
   @field('archived') archived!: boolean | null;
   @field('layout_applied') layoutApplied!: boolean | null;
+  @field('unchecked_items_count') uncheckedItemsCount!: number | null;
 }

@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 12,
+  version: 13,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -31,6 +31,7 @@ export const schema = appSchema({
         { name: 'store_name', type: 'string', isOptional: true, isIndexed: true }, // Sprint 6: Store tracking
         { name: 'archived', type: 'boolean', isOptional: true, isIndexed: true }, // Sprint 7: Archive functionality
         { name: 'layout_applied', type: 'boolean', isOptional: true },
+        { name: 'unchecked_items_count', type: 'number', isOptional: true },
       ],
     }),
 

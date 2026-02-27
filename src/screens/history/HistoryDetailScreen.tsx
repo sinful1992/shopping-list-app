@@ -216,7 +216,22 @@ const HistoryDetailScreen = () => {
 
       {/* Items Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+        {(() => {
+          const checkedCount = items.filter(i => i.checked).length;
+          const uncheckedCount = items.length - checkedCount;
+          return (
+            <>
+              <Text style={styles.sectionTitle}>Items ({checkedCount}/{items.length} bought)</Text>
+              {uncheckedCount > 0 && (
+                <View style={styles.skippedBanner}>
+                  <Text style={styles.skippedBannerText}>
+                    {uncheckedCount} item{uncheckedCount === 1 ? '' : 's'} not purchased
+                  </Text>
+                </View>
+              )}
+            </>
+          );
+        })()}
         {items.length === 0 ? (
           <Text style={styles.emptyText}>No items in this list</Text>
         ) : (
@@ -518,6 +533,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  skippedBanner: {
+    backgroundColor: 'rgba(255, 149, 0, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  skippedBannerText: {
+    color: '#FF9500',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
