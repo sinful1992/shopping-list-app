@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.3] - 2026-02-27
+### Security
+- **Firebase rules: `createdAt` type validation** — `createdAt` must now be a positive number on `lists`, `familyGroups/urgentItems`, and top-level `urgentItems`. Follows the `priceHistory.recordedAt` pattern already in the rules.
+
 ## [1.7.2] - 2026-02-27
 ### Security
 - **Unicode normalization in sanitizeText** — Added `.normalize('NFKC')` before `.trim()` to prevent homograph-style injection via look-alike Unicode characters.

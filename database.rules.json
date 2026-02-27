@@ -44,7 +44,7 @@
           "$listId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId'])"
+            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0"
           }
         },
 
@@ -61,7 +61,7 @@
           "$itemId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId'])"
+            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0"
           }
         },
 
@@ -98,7 +98,7 @@
         ".read": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
         ".write": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
         "$itemId": {
-          ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId'])"
+          ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0"
         }
       }
     }
