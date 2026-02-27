@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.7.8",
+  "version": "1.7.9",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -57,7 +57,7 @@
     "@babel/plugin-proposal-decorators": "^7.28.0",
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
     "@babel/preset-env": "^7.23.7",
-    "@babel/runtime": "^7.23.7",
+    "@babel/runtime": "^7.26.10",
     "@react-native-community/cli": "^20.1.1",
     "@react-native-community/cli-platform-android": "^12.3.0",
     "@react-native/babel-preset": "^0.74.0",
@@ -85,5 +85,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "overrides": {
+    "fast-xml-parser": ">=5.3.8",
+    "@babel/runtime@<7.26.10": "7.26.10"
   }
 }
