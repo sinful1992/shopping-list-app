@@ -9,6 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import BudgetAlertService from '../../services/BudgetAlertService';
 import { ExpenditureBreakdownItem } from '../../models/types';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
@@ -54,7 +55,7 @@ const BudgetScreen = () => {
       setShowBudgetConfig(false);
       showAlert('Success', 'Budget limits saved', undefined, { icon: 'success' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 

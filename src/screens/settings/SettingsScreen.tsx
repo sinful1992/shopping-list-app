@@ -14,6 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
 import { useSettings } from '../../hooks';
@@ -83,7 +84,7 @@ const SettingsScreen = () => {
       setShowEditNameModal(false);
       showAlert('Success', 'Name updated successfully', undefined, { icon: 'success' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -103,7 +104,7 @@ const SettingsScreen = () => {
       setShowRoleModal(false);
       showAlert('Success', 'Role updated successfully', undefined, { icon: 'success' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -120,7 +121,7 @@ const SettingsScreen = () => {
             try {
               await logout();
             } catch (error: any) {
-              showAlert('Error', error.message, undefined, { icon: 'error' });
+              showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
             }
           },
         },
@@ -153,7 +154,7 @@ const SettingsScreen = () => {
                       await deleteAccount();
                       showAlert('Success', 'Account deleted successfully', undefined, { icon: 'success' });
                     } catch (error: any) {
-                      showAlert('Error', `Failed to delete account: ${error.message}`, undefined, { icon: 'error' });
+                      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
                     }
                   },
                 },

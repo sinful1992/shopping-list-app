@@ -42,6 +42,7 @@ import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
@@ -402,7 +403,7 @@ const ListDetailScreen = () => {
       }
       return null;
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       return null;
     }
   };
@@ -482,7 +483,7 @@ const ListDetailScreen = () => {
       await addItemWithCategory(newItemName.trim(), suggestedCategory);
       setNewItemName('');
     } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to add item. Please try again.', undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -507,7 +508,7 @@ const ListDetailScreen = () => {
       showAlert('Added', `${itemName} added to list`, undefined, { icon: 'success' });
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;
     }
   };
@@ -536,7 +537,7 @@ const ListDetailScreen = () => {
 
       // Don't reload - let WatermelonDB observer handle the update
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       // Always clear the in-progress flag
       toggleInProgressRef.current.delete(itemId);
@@ -548,7 +549,7 @@ const ListDetailScreen = () => {
       await ItemManager.deleteItem(itemId);
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -590,7 +591,7 @@ const ListDetailScreen = () => {
       await ItemManager.updateItem(itemId, updates);
       // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;
     }
   };
@@ -617,7 +618,7 @@ const ListDetailScreen = () => {
       setListName(editedListName.trim());
       setIsEditingListName(false);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -631,7 +632,7 @@ const ListDetailScreen = () => {
       await ShoppingListManager.markListAsCompleted(listId);
       showAlert('Success', 'Shopping list completed!', undefined, { icon: 'success' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -670,7 +671,7 @@ const ListDetailScreen = () => {
       // WatermelonDB observer will automatically update the list state
       showAlert('Shopping Mode', 'You are now shopping. Other family members can only view this list.', undefined, { icon: 'info' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 

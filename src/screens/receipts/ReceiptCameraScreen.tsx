@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 // OCR DISABLED - import removed
@@ -52,7 +53,7 @@ const ReceiptCameraScreen = () => {
 
       setCapturedImage(result.filePath);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       navigation.goBack();
     }
   };
@@ -78,7 +79,7 @@ const ReceiptCameraScreen = () => {
 
       navigation.goBack();
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       setUploading(false);
     }

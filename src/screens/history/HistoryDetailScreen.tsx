@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -92,7 +93,7 @@ const HistoryDetailScreen = () => {
       const details = await HistoryTracker.getListDetails(listId);
       setListDetails(details);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -114,7 +115,7 @@ const HistoryDetailScreen = () => {
               showAlert('Success', 'Shopping trip deleted', undefined, { icon: 'success' });
               navigation.goBack();
             } catch (error: any) {
-              showAlert('Error', error.message, undefined, { icon: 'error' });
+              showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
             }
           },
         },

@@ -10,6 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
@@ -59,7 +60,7 @@ const ReceiptViewScreen = () => {
       setReceiptData(data);
       setEditedData(data);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
@@ -83,7 +84,7 @@ const ReceiptViewScreen = () => {
         await loadReceiptData();
       }
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       setRetrying(false);
     }
@@ -98,7 +99,7 @@ const ReceiptViewScreen = () => {
       setEditing(false);
       showAlert('Success', 'Receipt data updated', undefined, { icon: 'success' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 

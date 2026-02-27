@@ -119,3 +119,27 @@ export function sanitizeCategory(category: string | null | undefined): string | 
   const sanitized = sanitizeText(category, 50);
   return sanitized || null;
 }
+
+/**
+ * Sanitize error for display at the UI boundary.
+ * Passes through known user-facing service messages; replaces all others
+ * with a generic fallback so raw DB/network error details never reach the UI.
+ */
+export function sanitizeError(error: unknown): string {
+  if (error instanceof Error) {
+    const msg = error.message;
+    if (
+      msg.startsWith('List name') ||
+      msg.startsWith('Item name') ||
+      msg.startsWith('Invalid invitation') ||
+      msg.startsWith('This family group') ||
+      msg.startsWith('Permission denied') ||
+      msg.startsWith('OCR limit') ||
+      msg.startsWith('Cannot create list') ||
+      msg.startsWith('User must belong')
+    ) {
+      return msg;
+    }
+  }
+  return 'Something went wrong. Please try again.';
+}

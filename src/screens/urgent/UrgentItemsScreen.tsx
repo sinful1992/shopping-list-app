@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
@@ -50,7 +51,7 @@ const UrgentItemsScreen = () => {
         setShowCreateModal(false);
         showAlert('Success', 'Urgent item created and family notified!', undefined, { icon: 'success' });
       } catch (error: any) {
-        showAlert('Error', error.message, undefined, { icon: 'error' });
+        showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       } finally {
         setIsCreating(false);
       }
@@ -108,7 +109,7 @@ const UrgentItemsScreen = () => {
       setResolvePrice('');
       showAlert('Success', 'Urgent item marked as resolved!', undefined, { icon: 'success' });
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 

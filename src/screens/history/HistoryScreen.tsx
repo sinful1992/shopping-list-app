@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import AuthenticationModule from '../../services/AuthenticationModule';
@@ -123,7 +124,7 @@ const HistoryScreen = () => {
       const currentUser = await AuthenticationModule.getCurrentUser();
       setUser(currentUser);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -241,7 +242,7 @@ const HistoryScreen = () => {
       setHasMore(currentOffset + pageSize < filteredLists.length);
       setOffset(currentOffset + pageSize);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);

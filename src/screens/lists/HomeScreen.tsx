@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import database from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
@@ -77,7 +78,7 @@ const HomeScreen = () => {
         }
       }
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -112,7 +113,7 @@ const HomeScreen = () => {
           maximumDate: maxDate,
         });
       } catch (error: any) {
-        showAlert('Error', `Failed to open date picker: ${error.message}`, undefined, { icon: 'error' });
+        showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       }
     } else {
       setShowIOSPicker(true);
@@ -144,7 +145,7 @@ const HomeScreen = () => {
     try {
       await createList(listName);
     } catch (error: any) {
-      showAlert('Error', error.message, undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -161,7 +162,7 @@ const HomeScreen = () => {
             try {
               await deleteList(listId);
             } catch (error: any) {
-              showAlert('Error', error.message, undefined, { icon: 'error' });
+              showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
             }
           },
         },

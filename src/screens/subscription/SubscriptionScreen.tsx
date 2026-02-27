@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { sanitizeError } from '../../utils/sanitize';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { SubscriptionTier, User } from '../../models/types';
 import { TIER_FEATURES } from '../../models/SubscriptionConfig';
@@ -78,7 +79,7 @@ export const SubscriptionScreen: React.FC = () => {
     try {
       await presentCustomerCenter();
     } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to open Customer Center', undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -87,7 +88,7 @@ export const SubscriptionScreen: React.FC = () => {
     try {
       await restorePurchases();
     } catch (error: any) {
-      showAlert('Error', error.message || 'Failed to restore purchases', undefined, { icon: 'error' });
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
