@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.10] - 2026-02-27
+### Security
+- **User data moved to EncryptedStorage** — `@user` cache in `AuthenticationModule` (email, uid, familyGroupId) now stored in `react-native-encrypted-storage` instead of plaintext `AsyncStorage`. All 6 write paths and both clear paths updated. `signOut` and `deleteUserAccount` also remove the legacy AsyncStorage entry on upgrade.
+
 ## [1.7.9] - 2026-02-27
 ### Security
 - **npm dependency vulnerabilities resolved** — `npm audit fix` patched `axios` (DoS via `__proto__`), `ajv`, `js-yaml`, `node-forge`, `qs`. Added `overrides` in `package.json` to pin `fast-xml-parser >=5.3.8` (stack overflow / entity expansion) and `@babel/runtime@<7.26.10 → 7.26.10` (ReDoS in named capturing group transpilation) without touching parent package versions. Result: 0 vulnerabilities.

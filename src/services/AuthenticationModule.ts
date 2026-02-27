@@ -104,10 +104,11 @@ class AuthenticationModule {
   async signOut(): Promise<void> {
     try {
       await auth().signOut();
-      // Clear user data from regular storage
-      await AsyncStorage.removeItem(this.USER_KEY);
-      // Clear token from encrypted storage
+      // Clear user data and token from encrypted storage
+      await EncryptedStorage.removeItem(this.USER_KEY);
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
+      // Migration cleanup: remove any legacy plaintext copy
+      await AsyncStorage.removeItem(this.USER_KEY).catch(() => {});
     } catch (error: unknown) {
       throw new Error(`Sign out failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -190,7 +191,7 @@ class AuthenticationModule {
       const userSnapshot = await database().ref(`/users/${userId}`).once('value');
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
-        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
       return { group: familyGroup, invitationCode };
@@ -242,7 +243,7 @@ class AuthenticationModule {
       const userSnapshot = await database().ref(`/users/${userId}`).once('value');
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
-        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
       return familyGroup;
@@ -280,7 +281,7 @@ class AuthenticationModule {
 
       if (userData) {
         // Update cache with fresh data
-        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
       }
 
       return userData;
@@ -355,7 +356,7 @@ class AuthenticationModule {
           const userData = snapshot.val();
           if (userData) {
             // Update local cache
-            AsyncStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+            EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
             callback(userData);
           }
         };
@@ -538,9 +539,11 @@ class AuthenticationModule {
       // Step 6: Clear all local WatermelonDB data
       await LocalStorageManager.clearAllData();
 
-      // Step 7: Clear storage (user data from AsyncStorage, token from EncryptedStorage)
-      await AsyncStorage.removeItem(this.USER_KEY);
+      // Step 7: Clear storage (user data and token from encrypted storage)
+      await EncryptedStorage.removeItem(this.USER_KEY);
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
+      // Migration cleanup: remove any legacy plaintext copy
+      await AsyncStorage.removeItem(this.USER_KEY).catch(() => {});
 
       // Step 8: Delete user from Firebase Authentication (must be last)
       await currentUser.delete();
@@ -579,7 +582,7 @@ class AuthenticationModule {
 
       if (user) {
         // Update local cache
-        await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(user));
+        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(user));
       }
 
       return user;
@@ -593,9 +596,8 @@ class AuthenticationModule {
    * SECURITY: Token is stored in encrypted storage for security
    */
   private async storeAuthData(user: User, token: string): Promise<void> {
-    // User data in regular storage (not sensitive)
-    await AsyncStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    // Token in encrypted storage (sensitive)
+    // User data and token both in encrypted storage
+    await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(user));
     await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, token);
   }
 }
