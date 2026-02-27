@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.6] - 2026-02-27
+### Security
+- **FCM tokens moved to EncryptedStorage** — `@fcm_token` and `@fcm_token_data` in `NotificationManager` now use `react-native-encrypted-storage`. Migration in `getFCMToken()` moves the token from AsyncStorage on first access after upgrade — existing users continue receiving notifications without re-registering.
+
 ## [1.7.5] - 2026-02-27
 ### Security
 - **Sanitize error messages at UI boundary** — Added `sanitizeError(error)` to `sanitize.ts` and applied it across all screen-level `showAlert` catch blocks. Raw Firebase/WatermelonDB/Supabase error details no longer reach the UI. An allowlist passes through known user-facing service messages unchanged.

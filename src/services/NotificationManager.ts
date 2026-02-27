@@ -1,6 +1,7 @@
 import messaging from '@react-native-firebase/messaging';
 import { PermissionsAndroid, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import EncryptedStorage from 'react-native-encrypted-storage';
 import supabase from './SupabaseClient';
 
 /**
@@ -45,11 +46,19 @@ class NotificationManager {
         return this.fcmToken;
       }
 
-      // Try to get from AsyncStorage
-      const storedToken = await AsyncStorage.getItem(this.FCM_TOKEN_KEY);
+      // Try EncryptedStorage first (new location)
+      const storedToken = await EncryptedStorage.getItem(this.FCM_TOKEN_KEY);
       if (storedToken) {
         this.fcmToken = storedToken;
         return storedToken;
+      }
+      // Migration: move from AsyncStorage on first access after upgrade
+      const legacyToken = await AsyncStorage.getItem(this.FCM_TOKEN_KEY);
+      if (legacyToken) {
+        await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, legacyToken);
+        await AsyncStorage.removeItem(this.FCM_TOKEN_KEY);
+        this.fcmToken = legacyToken;
+        return legacyToken;
       }
 
       // Request permission first
@@ -63,7 +72,7 @@ class NotificationManager {
 
       // Cache the token
       this.fcmToken = token;
-      await AsyncStorage.setItem(this.FCM_TOKEN_KEY, token);
+      await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       return token;
     } catch (error) {
@@ -95,7 +104,7 @@ class NotificationManager {
         throw error;
       }
 
-      await AsyncStorage.setItem(
+      await EncryptedStorage.setItem(
         '@fcm_token_data',
         JSON.stringify({
           token,
@@ -145,11 +154,11 @@ class NotificationManager {
     // Handle token refresh
     messaging().onTokenRefresh(async (token) => {
       this.fcmToken = token;
-      await AsyncStorage.setItem(this.FCM_TOKEN_KEY, token);
+      await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       // Update token in Supabase
       try {
-        const tokenData = await AsyncStorage.getItem('@fcm_token_data');
+        const tokenData = await EncryptedStorage.getItem('@fcm_token_data');
         if (tokenData) {
           const { userId, familyGroupId } = JSON.parse(tokenData);
           await this.registerToken(userId, familyGroupId);
@@ -174,8 +183,8 @@ class NotificationManager {
   async clearToken(): Promise<void> {
     try {
       await messaging().deleteToken();
-      await AsyncStorage.removeItem(this.FCM_TOKEN_KEY);
-      await AsyncStorage.removeItem('@fcm_token_data');
+      await EncryptedStorage.removeItem(this.FCM_TOKEN_KEY);
+      await EncryptedStorage.removeItem('@fcm_token_data');
       this.fcmToken = null;
     } catch (error) {
       // Token clear failed - not critical
