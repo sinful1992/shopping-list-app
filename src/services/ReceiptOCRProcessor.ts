@@ -28,7 +28,6 @@ import UsageTracker from './UsageTracker';
  * Implements Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 9.8
  */
 class ReceiptOCRProcessor {
-  private readonly apiKey: string;
   private readonly OCR_QUEUE_KEY = '@ocr_queue';
   private readonly API_USAGE_KEY = '@api_usage_count';
 
@@ -52,9 +51,7 @@ class ReceiptOCRProcessor {
   private readonly VAT_LIDL = /^([A-Z])\s+(\d+)\s*%\s+([\d.]+)\s+([\d.]+)$/; // "A 0% 56.21 0.00"
   private readonly VAT_ASTERISK = /\*$/; // Items ending with *
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey || process.env.GOOGLE_CLOUD_VISION_API_KEY || '';
-  }
+  constructor() {}
 
   /**
    * Helper: Detect store from merchant name
@@ -863,6 +860,4 @@ class ReceiptOCRProcessor {
   }
 }
 
-// Initialize with API key from environment
-const apiKey = process.env.GOOGLE_CLOUD_VISION_API_KEY || '';
-export default new ReceiptOCRProcessor(apiKey);
+export default new ReceiptOCRProcessor();

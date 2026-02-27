@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.4] - 2026-02-27
+### Security
+- **Remove Vision API key from client bundle** — Removed `apiKey` constructor param, `this.apiKey` field, and `process.env.GOOGLE_CLOUD_VISION_API_KEY` reference from `ReceiptOCRProcessor`. The field was unused — OCR already routes through `supabase.functions.invoke('process-ocr')`.
+
 ## [1.7.3] - 2026-02-27
 ### Security
 - **Firebase rules: `createdAt` type validation** — `createdAt` must now be a positive number on `lists`, `familyGroups/urgentItems`, and top-level `urgentItems`. Follows the `priceHistory.recordedAt` pattern already in the rules.
