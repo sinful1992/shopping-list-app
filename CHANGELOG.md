@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.11] - 2026-03-01
+### Security
+- **reconcile-subscription Edge Function** — Replaced client-side `subscriptionTier` write in `RevenueCatContext` with a server-side Edge Function. Family group ownership is verified via Firebase before the RevenueCat REST API is called for the authoritative entitlement check. Client can no longer forge tier by manipulating local SDK state. Function also acts as a startup re-validation sync.
+
 ## [1.7.10] - 2026-02-27
 ### Security
 - **User data moved to EncryptedStorage** — `@user` cache in `AuthenticationModule` (email, uid, familyGroupId) now stored in `react-native-encrypted-storage` instead of plaintext `AsyncStorage`. All 6 write paths and both clear paths updated. `signOut` and `deleteUserAccount` also remove the legacy AsyncStorage entry on upgrade.

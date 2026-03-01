@@ -8,7 +8,8 @@ import RevenueCatUI from 'react-native-purchases-ui';
 import database from '@react-native-firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubscriptionTier, User } from '../models/types';
-import { ENTITLEMENT_ID, TIER_CACHE_KEY, getTierFromProductId } from '../models/SubscriptionConfig';
+import { ENTITLEMENT_ID, TIER_CACHE_KEY } from '../models/SubscriptionConfig';
+import supabase from '../services/SupabaseClient';
 import { REVENUECAT_ANDROID_API_KEY } from '@env';
 
 interface RevenueCatContextType {
@@ -41,6 +42,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
   const [isPurchasing, setIsPurchasing] = useState(false);
   const purchaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevFamilyGroupIdRef = useRef<string | null>(null);
+  const reconciledGroupRef = useRef<string | null>(null);
 
   // Configure RevenueCat SDK on mount
   useEffect(() => {
@@ -152,28 +154,26 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
     };
   }, [user?.familyGroupId, isPurchasing]);
 
-  // Reconciliation: user joins a family group while having an active entitlement
-  // This is the one exception where the client writes tier
+  // Reconciliation: server-side subscription verification on cold start
   useEffect(() => {
     const prevGroupId = prevFamilyGroupIdRef.current;
     const currentGroupId = user?.familyGroupId ?? null;
     prevFamilyGroupIdRef.current = currentGroupId;
 
-    // Detect transition from null → non-null familyGroupId
-    if (prevGroupId === null && currentGroupId !== null && customerInfo) {
-      const activeEntitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
-      if (activeEntitlement) {
-        const productId = activeEntitlement.productIdentifier;
-        const reconciledTier = getTierFromProductId(productId);
-        database().ref(`/familyGroups/${currentGroupId}`).update({
-          subscriptionTier: reconciledTier,
-          tierUpdatedAt: Date.now(),
-        }).catch((error) => {
-          console.warn('Tier reconciliation failed:', error);
-        });
-      }
+    if (
+      prevGroupId === null &&
+      currentGroupId !== null &&
+      user?.uid &&
+      reconciledGroupRef.current !== currentGroupId
+    ) {
+      reconciledGroupRef.current = currentGroupId;
+      supabase.functions.invoke('reconcile-subscription', {
+        body: { appUserId: user.uid, familyGroupId: currentGroupId },
+      }).catch((error) => {
+        console.warn('Tier reconciliation failed:', error);
+      });
     }
-  }, [user?.familyGroupId, customerInfo]);
+  }, [user?.familyGroupId, user?.uid]);
 
   const loadCachedTier = async () => {
     try {
