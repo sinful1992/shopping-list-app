@@ -127,40 +127,14 @@ class UsageTracker {
       return { allowed: true };
     }
 
+    if (limits.maxOCRPerMonth === 0) {
+      return { allowed: false, reason: 'Receipt scanning is available on Premium and above.' };
+    }
+
     if (counters.ocrProcessed >= limits.maxOCRPerMonth) {
       return {
         allowed: false,
         reason: `You've used your ${limits.maxOCRPerMonth} OCR scan${limits.maxOCRPerMonth > 1 ? 's' : ''} this month. Upgrade for more!`,
-      };
-    }
-
-    return { allowed: true };
-  }
-
-  /**
-   * Check if user can create urgent item
-   * Uses FAMILY subscription tier, not individual user tier
-   * Admin users (via Custom Claims) bypass all limits
-   * NOTE: This is a client-side UX check. Actual enforcement is in Cloud Functions.
-   */
-  async canCreateUrgentItem(user: User): Promise<{ allowed: boolean; reason?: string }> {
-    // Admin check via Firebase Custom Claims
-    if (await this.isAdmin()) {
-      return { allowed: true };
-    }
-
-    const counters = await this.checkAndResetIfNeeded(user);
-    const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
-    const limits = SUBSCRIPTION_LIMITS[familyTier];
-
-    if (limits.maxUrgentItemsPerMonth === null) {
-      return { allowed: true };
-    }
-
-    if (counters.urgentItemsCreated >= limits.maxUrgentItemsPerMonth) {
-      return {
-        allowed: false,
-        reason: `You've reached your limit of ${limits.maxUrgentItemsPerMonth} urgent item${limits.maxUrgentItemsPerMonth > 1 ? 's' : ''} this month. Upgrade for more!`,
       };
     }
 
@@ -182,15 +156,6 @@ class UsageTracker {
   async incrementOCRCounter(userId: string): Promise<void> {
     await database()
       .ref(`/users/${userId}/usageCounters/ocrProcessed`)
-      .transaction((current) => (current || 0) + 1);
-  }
-
-  /**
-   * Increment urgent item counter
-   */
-  async incrementUrgentItemCounter(userId: string): Promise<void> {
-    await database()
-      .ref(`/users/${userId}/usageCounters/urgentItemsCreated`)
       .transaction((current) => (current || 0) + 1);
   }
 

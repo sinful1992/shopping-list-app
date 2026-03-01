@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.12] - 2026-03-01
+### Changed
+- **Tier restructure** — Free tier list cap removed; OCR restricted to premium+ (hard-blocked at 0). Premium repositioned as ad-free for the individual; family as ad-free for the whole group under one subscription. Rewarded-ad gate for urgent items unchanged. `TIER_FEATURES` rewritten for all tiers to reflect the new value proposition.
+- **Dead code removal** — `canCreateUrgentItem()` and `incrementUrgentItemCounter()` removed from `UsageTracker` (never called). `canProcessOCR` handles `maxOCRPerMonth === 0` with a clear message instead of "You've used your 0 OCR scans this month."
+
 ## [1.7.11] - 2026-03-01
 ### Security
 - **reconcile-subscription Edge Function** — Replaced client-side `subscriptionTier` write in `RevenueCatContext` with a server-side Edge Function. Family group ownership is verified via Firebase before the RevenueCat REST API is called for the authoritative entitlement check. Client can no longer forge tier by manipulating local SDK state. Function also acts as a startup re-validation sync.

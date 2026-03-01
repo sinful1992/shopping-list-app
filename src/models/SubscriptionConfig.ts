@@ -11,15 +11,15 @@ export function getTierFromProductId(productId: string): SubscriptionTier {
 
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
   free: {
-    maxLists: 4,
-    maxOCRPerMonth: 1,
-    maxUrgentItemsPerMonth: 1,
+    maxLists: null,
+    maxOCRPerMonth: 0,            // hard-block — OCR is premium+ only
+    maxUrgentItemsPerMonth: null, // gate is "ad per creation", not monthly cap
     maxFamilyMembers: null,
   },
   premium: {
     maxLists: null,
-    maxOCRPerMonth: 20,
-    maxUrgentItemsPerMonth: 3,
+    maxOCRPerMonth: null,         // inversion fix — was 20, premium unlocks OCR fully
+    maxUrgentItemsPerMonth: null, // inversion fix — was 3, dead code anyway
     maxFamilyMembers: null,
   },
   family: {
@@ -32,20 +32,21 @@ export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> =
 
 export const TIER_FEATURES = {
   free: [
-    '4 Shopping Lists',
-    '1 Urgent Item/month',
-    'Basic Features',
+    'Unlimited Shopping Lists',
+    'Urgent Items (Watch Ad)',
+    'Ad-supported',
   ],
   premium: [
-    'Unlimited Shopping Lists',
-    '3 Urgent Items/month',
+    'No Ads — for you',
+    'Receipt Scanning',
+    'Urgent Items Without Ads',
     'Priority Support',
   ],
   family: [
-    'Unlimited Everything',
+    'No Ads — for everyone in your group',
+    'Receipt Scanning',
+    'Urgent Items Without Ads',
     'Up to 10 Family Members',
-    'Shared Shopping Lists',
-    'Unlimited Urgent Items',
     'Priority Support',
   ],
 };
