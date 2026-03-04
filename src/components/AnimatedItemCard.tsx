@@ -10,6 +10,8 @@ interface AnimatedItemCardProps {
     checked?: boolean | null;
     price?: number | null;
     unitQty?: number | null;
+    measurementUnit?: string | null;
+    measurementValue?: number | null;
   };
   /** Unit price — card multiplies by quantity for display */
   itemPrice: number;
@@ -190,6 +192,11 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
               {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
             </Text>
           </View>
+          {item.measurementUnit && (
+            <Text style={cardStyles.measurementText}>
+              {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
+            </Text>
+          )}
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
               <Text style={suggestionTextStyle}>
@@ -264,6 +271,12 @@ const cardStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FF3B30',
+  },
+  measurementText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginLeft: 4,
+    marginTop: 1,
   },
 });
 
