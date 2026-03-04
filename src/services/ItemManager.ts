@@ -17,7 +17,7 @@ class ItemManager {
    * Add new item to shopping list
    * Implements Req 3.1, 3.2
    */
-  async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number, category?: string | null): Promise<Item> {
+  async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number, category?: string | null, measurementUnit?: string | null, measurementValue?: number | null): Promise<Item> {
     const sanitizedName = sanitizeItemName(name);
     if (!sanitizedName) {
       throw new Error('Item name is required');
@@ -42,6 +42,8 @@ class ItemManager {
       syncStatus: 'pending',
       category: category != null ? sanitizeCategory(category) : null,
       sortOrder: maxSortOrder + 1,
+      measurementUnit: measurementUnit ?? null,
+      measurementValue: measurementValue ?? null,
     };
 
     // Save locally first (offline-first)

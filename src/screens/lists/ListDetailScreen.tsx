@@ -43,6 +43,7 @@ import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
+import MeasurementService from '../../services/MeasurementService';
 import { useAdMob } from '../../contexts/AdMobContext';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
@@ -507,7 +508,18 @@ const ListDetailScreen = () => {
   const addItemWithCategory = async (name: string, category: string | null) => {
     if (!currentUserId) return;
 
-    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category);
+    let measurementUnit: string | null = null;
+    let measurementValue: number | null = null;
+
+    if (list?.familyGroupId) {
+      const suggestion = await MeasurementService.suggestMeasurement(list.familyGroupId, name, category);
+      if (suggestion) {
+        measurementUnit = suggestion.unit;
+        measurementValue = suggestion.value;
+      }
+    }
+
+    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category, measurementUnit, measurementValue);
   };
 
   const handleConflictResolved = async (selectedCategory: string) => {
@@ -521,9 +533,21 @@ const ListDetailScreen = () => {
     if (!currentUserId) return;
 
     try {
-      await ItemManager.addItem(listId, itemName, currentUserId);
+      let category: string | null = null;
+      let measurementUnit: string | null = null;
+      let measurementValue: number | null = null;
+
+      if (list?.familyGroupId) {
+        category = await CategoryHistoryService.getSuggestedCategory(list.familyGroupId, itemName);
+        const suggestion = await MeasurementService.suggestMeasurement(list.familyGroupId, itemName, category);
+        if (suggestion) {
+          measurementUnit = suggestion.unit;
+          measurementValue = suggestion.value;
+        }
+      }
+
+      await ItemManager.addItem(listId, itemName, currentUserId, undefined, undefined, category, measurementUnit, measurementValue);
       showAlert('Added', `${itemName} added to list`, undefined, { icon: 'success' });
-      // WatermelonDB observer will automatically update the UI
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;
