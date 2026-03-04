@@ -95,6 +95,8 @@ export interface Item {
   category?: string | null; // Sprint 6: Category organization
   sortOrder?: number | null; // Sprint 6: Drag-and-drop reordering
   unitQty?: number | null;
+  measurementUnit?: string | null;
+  measurementValue?: number | null;
 }
 
 // Receipt Types
@@ -373,6 +375,18 @@ export interface StoreLayout {
   createdAt: number;
   updatedAt: number;
   syncStatus: SyncStatus;
+}
+
+// Item Preference Types
+
+export interface ItemPreference {
+  id: string;
+  familyGroupId: string;
+  itemNameNormalized: string;
+  measurementUnit: string | null;
+  measurementValue: number | null;
+  updatedAt: number;
+  createdAt: number;
 }
 
 // Utility Types

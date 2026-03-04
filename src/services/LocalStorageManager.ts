@@ -1,6 +1,7 @@
 import { Database, Q } from '@nozbe/watermelondb';
+import { v4 as uuidv4 } from 'uuid';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, ItemPreference } from '../models/types';
 import { schema } from '../database/schema';
 import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
@@ -10,6 +11,7 @@ import { UrgentItemModel } from '../database/models/UrgentItem';
 import { CategoryHistoryModel } from '../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../database/models/PriceHistory';
 import StoreLayoutModel from '../database/models/StoreLayout';
+import { ItemPreferenceModel } from '../database/models/ItemPreference';
 
 /**
  * LocalStorageManager
@@ -33,7 +35,7 @@ class LocalStorageManager {
 
     this.database = new Database({
       adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel],
+      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel],
     });
   }
 
@@ -274,6 +276,8 @@ class LocalStorageManager {
             record.category = item.category || null;
             record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
+            record.measurementUnit = item.measurementUnit ?? null;
+            record.measurementValue = item.measurementValue ?? null;
           });
         } catch {
           // Create new
@@ -291,6 +295,8 @@ class LocalStorageManager {
             record.category = item.category || null;
             record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
+            record.measurementUnit = item.measurementUnit ?? null;
+            record.measurementValue = item.measurementValue ?? null;
           });
         }
       });
@@ -356,6 +362,8 @@ class LocalStorageManager {
           if (updates.category !== undefined) record.category = updates.category;
           if (updates.sortOrder !== undefined) record.sortOrder = updates.sortOrder;
           if (updates.unitQty !== undefined) record.unitQty = updates.unitQty;
+          if (updates.measurementUnit !== undefined) record.measurementUnit = updates.measurementUnit;
+          if (updates.measurementValue !== undefined) record.measurementValue = updates.measurementValue;
         });
       });
 
@@ -403,6 +411,8 @@ class LocalStorageManager {
             record.category = item.category || null;
             record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
+            record.measurementUnit = item.measurementUnit ?? null;
+            record.measurementValue = item.measurementValue ?? null;
           });
         }
       });
@@ -434,6 +444,8 @@ class LocalStorageManager {
               record.category = item.category || null;
               record.sortOrder = item.sortOrder ?? null;
               record.unitQty = item.unitQty ?? null;
+              record.measurementUnit = item.measurementUnit ?? null;
+              record.measurementValue = item.measurementValue ?? null;
             });
           } else {
             await itemsCollection.create(record => {
@@ -448,6 +460,8 @@ class LocalStorageManager {
               record.category = item.category || null;
               record.sortOrder = item.sortOrder ?? null;
               record.unitQty = item.unitQty ?? null;
+              record.measurementUnit = item.measurementUnit ?? null;
+              record.measurementValue = item.measurementValue ?? null;
             });
           }
         }
@@ -883,7 +897,7 @@ class LocalStorageManager {
 
     // Use observeWithColumns to trigger on field changes (category, checked, etc.)
     // Without this, observer only fires on record add/delete, not field updates
-    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty']).subscribe((itemModels) => {
+    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value']).subscribe((itemModels) => {
       // Convert to Item types
       let items = itemModels.map((model) => this.itemModelToType(model));
 
@@ -984,6 +998,8 @@ class LocalStorageManager {
       category: model.category,
       sortOrder: model.sortOrder,
       unitQty: model.unitQty,
+      measurementUnit: model.measurementUnit,
+      measurementValue: model.measurementValue,
     };
   }
 
@@ -1335,6 +1351,89 @@ class LocalStorageManager {
       createdAt: Number(model.createdAt), // @date decorator returns Date object; must convert
       updatedAt: model.updatedAt,
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+    };
+  }
+
+  // ===== ITEM PREFERENCE METHODS =====
+
+  async getItemPreference(familyGroupId: string, itemNameNormalized: string): Promise<ItemPreference | null> {
+    try {
+      const collection = this.database.get<ItemPreferenceModel>('item_preferences');
+      const records = await collection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('item_name_normalized', itemNameNormalized)
+        )
+        .fetch();
+      if (records.length === 0) return null;
+      return this.itemPreferenceModelToType(records[0]);
+    } catch {
+      return null;
+    }
+  }
+
+  async saveItemPreference(
+    familyGroupId: string,
+    itemNameNormalized: string,
+    measurementUnit: string,
+    measurementValue: number | null
+  ): Promise<void> {
+    const collection = this.database.get<ItemPreferenceModel>('item_preferences');
+    await this.database.write(async () => {
+      const existing = await collection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('item_name_normalized', itemNameNormalized)
+        )
+        .fetch();
+
+      if (existing.length > 0) {
+        await existing[0].update(r => {
+          r.measurementUnit = measurementUnit;
+          r.measurementValue = measurementValue ?? null;
+          r.updatedAt = Date.now();
+        });
+      } else {
+        await collection.create(r => {
+          r._raw.id = uuidv4();
+          r.familyGroupId = familyGroupId;
+          r.itemNameNormalized = itemNameNormalized;
+          r.measurementUnit = measurementUnit;
+          r.measurementValue = measurementValue ?? null;
+          r.updatedAt = Date.now();
+          r.createdAt = Date.now();
+        });
+      }
+    });
+  }
+
+  async deleteItemPreference(familyGroupId: string, itemNameNormalized: string): Promise<void> {
+    try {
+      const collection = this.database.get<ItemPreferenceModel>('item_preferences');
+      const records = await collection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('item_name_normalized', itemNameNormalized)
+        )
+        .fetch();
+      if (records.length === 0) return;
+      await this.database.write(async () => {
+        await records[0].destroyPermanently();
+      });
+    } catch {
+      // already gone — ignore
+    }
+  }
+
+  private itemPreferenceModelToType(model: ItemPreferenceModel): ItemPreference {
+    return {
+      id: model.id,
+      familyGroupId: model.familyGroupId,
+      itemNameNormalized: model.itemNameNormalized,
+      measurementUnit: model.measurementUnit,
+      measurementValue: model.measurementValue,
+      updatedAt: model.updatedAt,
+      createdAt: model.createdAt,
     };
   }
 

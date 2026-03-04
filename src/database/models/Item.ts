@@ -16,4 +16,6 @@ export class ItemModel extends Model {
   @field('category') category!: string | null; // Sprint 6: Category organization
   @field('sort_order') sortOrder!: number | null; // Sprint 6: Drag-and-drop reordering
   @field('unit_qty') unitQty!: number | null;
+  @field('measurement_unit') measurementUnit!: string | null;
+  @field('measurement_value') measurementValue!: number | null;
 }
