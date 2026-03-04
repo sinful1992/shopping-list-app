@@ -123,7 +123,11 @@ const HistoryDetailScreen = () => {
     setEditModalVisible(true);
   };
 
-  const handleSaveItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => {
+  const handleSaveItem = async (
+    itemId: string,
+    updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
+    _measurementChanged: boolean
+  ) => {
     await ItemManager.updateItem(itemId, updates);
 
     // Recalculate total if price changed

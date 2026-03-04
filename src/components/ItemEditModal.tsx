@@ -17,11 +17,17 @@ import PriceHistoryModal from './PriceHistoryModal';
 import { useAlert } from '../contexts/AlertContext';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
+const MEASUREMENT_UNITS = ['ml', 'L', 'g', 'kg'] as const;
+
 interface ItemEditModalProps {
   visible: boolean;
   item: Item | null;
   onClose: () => void;
-  onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
+  onSave: (
+    itemId: string,
+    updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
+    measurementChanged: boolean
+  ) => Promise<void>;
   onDelete?: (itemId: string) => Promise<void>;
   focusField?: 'name' | 'price';
   priceOnly?: boolean;
@@ -40,14 +46,24 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
+  const [measurementUnit, setMeasurementUnit] = useState<string | null>(null);
+  const [measurementValueText, setMeasurementValueText] = useState('');
   const [priceHistoryVisible, setPriceHistoryVisible] = useState(false);
   const priceInputRef = useRef<TextInput>(null);
+
+  // Track original measurement values to detect explicit user changes
+  const originalUnitRef = useRef<string | null>(null);
+  const originalValueRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (item) {
       setName(item.name || '');
       setPrice(item.price ? item.price.toString() : '');
       setCategory((item.category as CategoryType) || null);
+      setMeasurementUnit(item.measurementUnit ?? null);
+      setMeasurementValueText(item.measurementValue != null ? item.measurementValue.toString() : '');
+      originalUnitRef.current = item.measurementUnit ?? null;
+      originalValueRef.current = item.measurementValue ?? null;
     }
   }, [item]);
 
@@ -62,10 +78,21 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const performSave = async (priceValue: number | null) => {
     if (!item) return;
     try {
+      const measurementValue = measurementValueText.trim() ? parseFloat(measurementValueText) : null;
+      const measurementChanged =
+        measurementUnit !== originalUnitRef.current ||
+        (measurementValue ?? null) !== originalValueRef.current;
+
       const updates = priceOnly
         ? { price: priceValue }
-        : { name: name.trim(), price: priceValue, category: category };
-      await onSave(item.id, updates);
+        : {
+            name: name.trim(),
+            price: priceValue,
+            category: category,
+            measurementUnit: measurementUnit,
+            measurementValue: measurementValue,
+          };
+      await onSave(item.id, updates, measurementChanged);
       onClose();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to save item', undefined, { icon: 'error' });
@@ -175,6 +202,46 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
               />
             )}
 
+            {!priceOnly && (
+              <View style={styles.measurementSection}>
+                <Text style={styles.label}>Measurement</Text>
+                <View style={styles.measurementPills}>
+                  {MEASUREMENT_UNITS.map(unit => (
+                    <TouchableOpacity
+                      key={unit}
+                      style={[styles.pill, measurementUnit === unit && styles.pillActive]}
+                      onPress={() => setMeasurementUnit(measurementUnit === unit ? null : unit)}
+                    >
+                      <Text style={[styles.pillText, measurementUnit === unit && styles.pillTextActive]}>
+                        {unit}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  {measurementUnit && (
+                    <TouchableOpacity
+                      style={styles.pillClear}
+                      onPress={() => {
+                        setMeasurementUnit(null);
+                        setMeasurementValueText('');
+                      }}
+                    >
+                      <Text style={styles.pillClearText}>✕</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {measurementUnit && (
+                  <TextInput
+                    style={[styles.input, styles.measurementInput]}
+                    value={measurementValueText}
+                    onChangeText={setMeasurementValueText}
+                    placeholder={`Amount in ${measurementUnit} (optional)`}
+                    placeholderTextColor={COLORS.text.tertiary}
+                    keyboardType="numeric"
+                  />
+                )}
+              </View>
+            )}
+
             {/* Price History Button */}
             <TouchableOpacity
               style={styles.priceHistoryButton}
@@ -275,6 +342,50 @@ const styles = StyleSheet.create({
   input: {
     ...COMMON_STYLES.input,
     fontSize: TYPOGRAPHY.fontSize.lg,
+  },
+  measurementSection: {
+    marginBottom: SPACING.xl,
+  },
+  measurementPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  pill: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
+    backgroundColor: 'transparent',
+  },
+  pillActive: {
+    borderColor: COLORS.accent.blue,
+    backgroundColor: COLORS.accent.blueSubtle,
+  },
+  pillText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  pillTextActive: {
+    color: COLORS.accent.blue,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  pillClear: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+  },
+  pillClearText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+  },
+  measurementInput: {
+    marginTop: SPACING.sm,
   },
   footer: {
     flexDirection: 'row',

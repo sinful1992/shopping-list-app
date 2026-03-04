@@ -627,10 +627,24 @@ const ListDetailScreen = () => {
     ItemManager.updateItem(itemId, { unitQty: dbQty });
   }, []);
 
-  const handleUpdateItem = async (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => {
+  const handleUpdateItem = async (
+    itemId: string,
+    updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
+    measurementChanged: boolean
+  ) => {
     try {
       await ItemManager.updateItem(itemId, updates);
-      // WatermelonDB observer will automatically update the UI
+
+      if (measurementChanged && list?.familyGroupId) {
+        const item = items.find(i => i.id === itemId);
+        const itemName = updates.name ?? item?.name ?? '';
+        MeasurementService.savePreference(
+          list.familyGroupId,
+          itemName,
+          updates.measurementUnit ?? null,
+          updates.measurementValue ?? null
+        ).catch(() => {});
+      }
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;
