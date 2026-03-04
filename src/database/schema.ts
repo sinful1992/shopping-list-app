@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 13,
+  version: 14,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -51,6 +51,8 @@ export const schema = appSchema({
         { name: 'category', type: 'string', isOptional: true, isIndexed: true }, // Sprint 6: Category organization
         { name: 'sort_order', type: 'number', isOptional: true, isIndexed: true }, // Sprint 6: Drag-and-drop reordering
         { name: 'unit_qty', type: 'number', isOptional: true },
+        { name: 'measurement_unit', type: 'string', isOptional: true },
+        { name: 'measurement_value', type: 'number', isOptional: true },
       ],
     }),
 
@@ -110,6 +112,19 @@ export const schema = appSchema({
         { name: 'created_at', type: 'number', isIndexed: true },
         { name: 'updated_at', type: 'number' },
         { name: 'sync_status', type: 'string' },
+      ],
+    }),
+
+    // Item Preferences Table
+    tableSchema({
+      name: 'item_preferences',
+      columns: [
+        { name: 'family_group_id', type: 'string', isIndexed: true },
+        { name: 'item_name_normalized', type: 'string', isIndexed: true },
+        { name: 'measurement_unit', type: 'string', isOptional: true },
+        { name: 'measurement_value', type: 'number', isOptional: true },
+        { name: 'updated_at', type: 'number' },
+        { name: 'created_at', type: 'number', isIndexed: true },
       ],
     }),
 

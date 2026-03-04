@@ -98,6 +98,30 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 13 to 14: Add measurement columns to items + item_preferences table
+    {
+      toVersion: 14,
+      steps: [
+        addColumns({
+          table: 'items',
+          columns: [
+            { name: 'measurement_unit', type: 'string', isOptional: true },
+            { name: 'measurement_value', type: 'number', isOptional: true },
+          ],
+        }),
+        createTable({
+          name: 'item_preferences',
+          columns: [
+            { name: 'family_group_id', type: 'string', isIndexed: true },
+            { name: 'item_name_normalized', type: 'string', isIndexed: true },
+            { name: 'measurement_unit', type: 'string', isOptional: true },
+            { name: 'measurement_value', type: 'number', isOptional: true },
+            { name: 'updated_at', type: 'number' },
+            { name: 'created_at', type: 'number', isIndexed: true },
+          ],
+        }),
+      ],
+    },
     // Migration from version 10 to 11: Add price history table
     {
       toVersion: 11,
