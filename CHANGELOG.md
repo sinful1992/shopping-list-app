@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-03-04
+### Added
+- **Measurement unit recognition** — Items auto-assigned a measurement unit (ml, L, g, kg) based on category and keyword rules. Learned preferences are stored per item name per family and persist across sessions.
+  - Static defaults: Dairy/Beverages → ml, Meat/Fish/Pantry/Frozen → g
+  - Keyword overrides: butter/cheese/yogurt → g, oil → ml
+  - Learned preferences stored in new `item_preferences` table (schema v14) and synced via Firebase
+- **Measurement display on item cards** — Small muted label below item name shows measurement (e.g. "500ml", "g") when set
+- **Measurement editing in item modal** — Pill buttons (ml | L | g | kg) + optional numeric amount input; changes are saved as learned preferences only on explicit user edit; clearing restores static defaults
+- **Schema v14** — New `item_preferences` table; `measurement_unit` and `measurement_value` columns on `items`
+- **Firebase sync** — Measurement fields synced across devices via existing item sync; item preferences synced inline via `/itemPreferences` node (same architecture as category history)
+- **Frequent item add fix** — `handleAddFrequentItem` now runs full category + measurement lookup, matching manual add behavior
+
 ## [1.7.13] - 2026-03-04
 ### Fixed
 - **Completed list: "Not Purchased (N)" section** — Unchecked items now appear under an amber "Not Purchased (N)" section header above the green "Purchased" section, replacing the old amber banner. Count is visible in the header.
