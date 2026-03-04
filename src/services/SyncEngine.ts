@@ -166,6 +166,8 @@ class SyncEngine {
         if (localEntity.quantity !== remoteEntity.quantity) merged.quantity = localEntity.quantity;
         if (localEntity.price !== remoteEntity.price) merged.price = localEntity.price;
         if (localEntity.unitQty !== remoteEntity.unitQty) merged.unitQty = localEntity.unitQty;
+        if (localEntity.measurementUnit !== remoteEntity.measurementUnit) merged.measurementUnit = localEntity.measurementUnit;
+        if (localEntity.measurementValue !== remoteEntity.measurementValue) merged.measurementValue = localEntity.measurementValue;
         merged.updatedAt = localEntity.updatedAt;
       }
       return merged;

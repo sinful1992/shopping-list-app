@@ -260,6 +260,8 @@ class FirebaseSyncListener {
       category: data.category || null,
       sortOrder: data.sortOrder ?? null,
       unitQty: data.unitQty ?? null,
+      measurementUnit: data.measurementUnit ?? null,
+      measurementValue: data.measurementValue ?? null,
     };
   }
 
@@ -294,7 +296,9 @@ class FirebaseSyncListener {
       local.checked !== incoming.checked ||
       local.category !== incoming.category ||
       local.sortOrder !== incoming.sortOrder ||
-      local.unitQty !== incoming.unitQty
+      local.unitQty !== incoming.unitQty ||
+      local.measurementUnit !== incoming.measurementUnit ||
+      local.measurementValue !== incoming.measurementValue
     );
   }
 
@@ -723,6 +727,59 @@ class FirebaseSyncListener {
     if (unsubscribe) {
       unsubscribe();
     }
+  }
+
+  /**
+   * Start listening to item preferences for a family group.
+   * Syncs measurement preferences from Firebase to local WatermelonDB.
+   */
+  startListeningToItemPreferences(familyGroupId: string): Unsubscribe {
+    const key = `item_preferences_${familyGroupId}`;
+    if (this.activeListeners.has(key)) return this.activeListeners.get(key)!;
+
+    const prefsRef = database().ref(`familyGroups/${familyGroupId}/itemPreferences`);
+
+    const onChildAdded = prefsRef.on('child_added', async (snapshot) => {
+      const itemKey = snapshot.key;
+      const data = snapshot.val();
+      if (itemKey && data?.unit) {
+        const normalized = itemKey.replace(/_/g, '.');
+        await LocalStorageManager.saveItemPreference(familyGroupId, normalized, data.unit, data.value ?? null);
+      }
+    });
+
+    const onChildChanged = prefsRef.on('child_changed', async (snapshot) => {
+      const itemKey = snapshot.key;
+      const data = snapshot.val();
+      if (itemKey && data?.unit) {
+        const normalized = itemKey.replace(/_/g, '.');
+        await LocalStorageManager.saveItemPreference(familyGroupId, normalized, data.unit, data.value ?? null);
+      }
+    });
+
+    const onChildRemoved = prefsRef.on('child_removed', async (snapshot) => {
+      const itemKey = snapshot.key;
+      if (itemKey) {
+        const normalized = itemKey.replace(/_/g, '.');
+        await LocalStorageManager.deleteItemPreference(familyGroupId, normalized);
+      }
+    });
+
+    const unsubscribe = () => {
+      prefsRef.off('child_added', onChildAdded);
+      prefsRef.off('child_changed', onChildChanged);
+      prefsRef.off('child_removed', onChildRemoved);
+      this.activeListeners.delete(key);
+    };
+
+    this.activeListeners.set(key, unsubscribe);
+    return unsubscribe;
+  }
+
+  stopListeningToItemPreferences(familyGroupId: string): void {
+    const key = `item_preferences_${familyGroupId}`;
+    const unsubscribe = this.activeListeners.get(key);
+    if (unsubscribe) unsubscribe();
   }
 }
 

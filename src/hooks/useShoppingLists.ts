@@ -88,9 +88,11 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
       FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
       FirebaseSyncListener.stopListeningToStoreLayouts(familyGroupId);
+      FirebaseSyncListener.stopListeningToItemPreferences(familyGroupId);
       FirebaseSyncListener.startListeningToLists(familyGroupId);
       FirebaseSyncListener.startListeningToCategoryHistory(familyGroupId);
       FirebaseSyncListener.startListeningToStoreLayouts(familyGroupId);
+      FirebaseSyncListener.startListeningToItemPreferences(familyGroupId);
     };
 
     // Start listening to Firebase for remote changes
