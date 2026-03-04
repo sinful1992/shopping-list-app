@@ -165,6 +165,11 @@ const HistoryDetailScreen = () => {
     return items.reduce((sum, item) => sum + (item.price || 0), 0);
   }, [items]);
 
+  const { uncheckedItems, checkedItems } = useMemo(() => ({
+    uncheckedItems: items.filter(i => !i.checked),
+    checkedItems: items.filter(i => i.checked),
+  }), [items]);
+
   if (loading || (listDetails && items.length === 0)) {
     return (
       <View style={styles.centerContainer}>
@@ -207,77 +212,101 @@ const HistoryDetailScreen = () => {
 
       {/* Items Section */}
       <View style={styles.section}>
-        {(() => {
-          const checkedCount = items.filter(i => i.checked).length;
-          const uncheckedCount = items.length - checkedCount;
-          return (
-            <>
-              <Text style={styles.sectionTitle}>Items ({checkedCount}/{items.length} bought)</Text>
-              {uncheckedCount > 0 && (
-                <View style={styles.skippedBanner}>
-                  <Text style={styles.skippedBannerText}>
-                    {uncheckedCount} item{uncheckedCount === 1 ? '' : 's'} not purchased
-                  </Text>
-                </View>
-              )}
-            </>
-          );
-        })()}
+        <Text style={styles.sectionTitle}>Items ({checkedItems.length}/{items.length} bought)</Text>
         {items.length === 0 ? (
           <Text style={styles.emptyText}>No items in this list</Text>
         ) : (
-          <View style={styles.itemsContainer}>
-            {items.map((item) => {
-              const stats = priceStats.get(item.name.toLowerCase());
-              const suggestion = smartSuggestions.get(item.name.toLowerCase());
-              const hasCheaperOption = suggestion && suggestion.bestStore !== list.storeName && suggestion.savings > 0.01;
-              const priceChange = stats && stats.priceHistory.length > 1 && item.price
-                ? item.price - stats.priceHistory[stats.priceHistory.length - 2]?.price
-                : null;
+          <>
+            {uncheckedItems.length > 0 && (
+              <>
+                <View style={styles.subSectionHeaderNotPurchased}>
+                  <Text style={styles.subSectionTitleNotPurchased}>
+                    Not Purchased ({uncheckedItems.length})
+                  </Text>
+                </View>
+                <View style={styles.itemsContainer}>
+                  {uncheckedItems.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.itemRow}
+                      onPress={() => handleItemPress(item)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.checkboxContainer}>
+                        <View style={styles.checkboxUnchecked} />
+                      </View>
+                      <View style={styles.itemContent}>
+                        <View style={styles.itemNameRow}>
+                          <Text style={[styles.itemName, styles.itemNameNotPurchased]}>
+                            {item.name}
+                          </Text>
+                        </View>
+                        <View style={styles.priceRow}>
+                          {item.price !== null && item.price !== undefined && (
+                            <Text style={[styles.itemPrice, styles.itemPriceNotPurchased]}>
+                              £{item.price.toFixed(2)}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
 
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.itemRow}
-                  onPress={() => handleItemPress(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.checkboxContainer}>
-                    {item.checked ? (
+            <View style={[styles.subSectionHeaderPurchased, uncheckedItems.length > 0 && { marginTop: 12 }]}>
+              <Text style={styles.subSectionTitlePurchased}>Purchased</Text>
+            </View>
+            <View style={styles.itemsContainer}>
+              {checkedItems.map((item) => {
+                const stats = priceStats.get(item.name.toLowerCase());
+                const suggestion = smartSuggestions.get(item.name.toLowerCase());
+                const hasCheaperOption = suggestion && suggestion.bestStore !== list.storeName && suggestion.savings > 0.01;
+                const priceChange = stats && stats.priceHistory.length > 1 && item.price
+                  ? item.price - stats.priceHistory[stats.priceHistory.length - 2]?.price
+                  : null;
+
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.itemRow}
+                    onPress={() => handleItemPress(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.checkboxContainer}>
                       <Text style={styles.checkboxChecked}>✓</Text>
-                    ) : (
-                      <View style={styles.checkboxUnchecked} />
-                    )}
-                  </View>
-                  <View style={styles.itemContent}>
-                    <View style={styles.itemNameRow}>
-                      <Text style={[styles.itemName, item.checked && styles.itemNameChecked]}>
-                        {item.name}
-                      </Text>
-                      {hasCheaperOption && (
-                        <Text style={styles.cheaperIcon}>⭐</Text>
-                      )}
                     </View>
-                    <View style={styles.priceRow}>
-                      {item.price !== null && item.price !== undefined && (
-                        <Text style={styles.itemPrice}>
-                          £{item.price.toFixed(2)}
+                    <View style={styles.itemContent}>
+                      <View style={styles.itemNameRow}>
+                        <Text style={[styles.itemName, styles.itemNameChecked]}>
+                          {item.name}
                         </Text>
-                      )}
-                      {priceChange !== null && priceChange !== 0 && (
-                        <Text style={[
-                          styles.priceTrend,
-                          priceChange > 0 ? styles.priceUp : styles.priceDown
-                        ]}>
-                          {priceChange > 0 ? '↑' : '↓'}
-                        </Text>
-                      )}
+                        {hasCheaperOption && (
+                          <Text style={styles.cheaperIcon}>⭐</Text>
+                        )}
+                      </View>
+                      <View style={styles.priceRow}>
+                        {item.price !== null && item.price !== undefined && (
+                          <Text style={styles.itemPrice}>
+                            £{item.price.toFixed(2)}
+                          </Text>
+                        )}
+                        {priceChange !== null && priceChange !== 0 && (
+                          <Text style={[
+                            styles.priceTrend,
+                            priceChange > 0 ? styles.priceUp : styles.priceDown
+                          ]}>
+                            {priceChange > 0 ? '↑' : '↓'}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
         )}
       </View>
 
@@ -526,19 +555,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  skippedBanner: {
+  subSectionHeaderNotPurchased: {
     backgroundColor: 'rgba(255, 149, 0, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255, 149, 0, 0.3)',
     borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 4,
   },
-  skippedBannerText: {
+  subSectionTitleNotPurchased: {
     color: '#FF9500',
     fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '700',
+  },
+  subSectionHeaderPurchased: {
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  subSectionTitlePurchased: {
+    color: '#30D158',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  itemNameNotPurchased: {
+    color: '#FF9500',
+  },
+  itemPriceNotPurchased: {
+    color: '#FF9500',
   },
 });
 
