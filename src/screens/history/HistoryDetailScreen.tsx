@@ -14,7 +14,6 @@ import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
-import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import { ListDetails, Item } from '../../models/types';
 import ItemEditModal from '../../components/ItemEditModal';
 
@@ -47,15 +46,6 @@ const HistoryDetailScreen = () => {
     const unsubscribe = ItemManager.subscribeToItemChanges(listId, setItems);
     return () => unsubscribe();
   }, [listId]);
-
-  // Start Firebase items listener once listDetails resolves with familyGroupId
-  useEffect(() => {
-    const familyGroupId = listDetails?.list.familyGroupId;
-    if (!familyGroupId) return;
-
-    const unsubscribe = FirebaseSyncListener.startListeningToItems(familyGroupId, listId);
-    return () => unsubscribe();
-  }, [listDetails?.list.familyGroupId, listId]);
 
   // Load price stats once after items first arrive
   useEffect(() => {
@@ -318,6 +308,7 @@ const HistoryDetailScreen = () => {
         }}
         onSave={handleSaveItem}
         focusField="price"
+        priceOnly={true}
       />
     </ScrollView>
   );

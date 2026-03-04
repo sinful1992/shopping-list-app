@@ -24,6 +24,7 @@ interface ItemEditModalProps {
   onSave: (itemId: string, updates: { name?: string; price?: number | null; category?: string | null }) => Promise<void>;
   onDelete?: (itemId: string) => Promise<void>;
   focusField?: 'name' | 'price';
+  priceOnly?: boolean;
 }
 
 const ItemEditModal: React.FC<ItemEditModalProps> = ({
@@ -33,6 +34,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   onSave,
   onDelete,
   focusField = 'name',
+  priceOnly = false,
 }) => {
   const { showAlert } = useAlert();
   const [name, setName] = useState('');
@@ -60,11 +62,10 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const performSave = async (priceValue: number | null) => {
     if (!item) return;
     try {
-      await onSave(item.id, {
-        name: name.trim(),
-        price: priceValue,
-        category: category,
-      });
+      const updates = priceOnly
+        ? { price: priceValue }
+        : { name: name.trim(), price: priceValue, category: category };
+      await onSave(item.id, updates);
       onClose();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to save item', undefined, { icon: 'error' });
@@ -74,7 +75,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const handleSave = async () => {
     if (!item) return;
 
-    if (!name.trim()) {
+    if (!priceOnly && !name.trim()) {
       showAlert('Error', 'Item name cannot be empty', undefined, { icon: 'error' });
       return;
     }
@@ -133,24 +134,26 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
         />
         <View style={styles.modal}>
           <View style={styles.header}>
-            <Text style={styles.title}>Edit Item</Text>
+            <Text style={styles.title}>{priceOnly ? 'Set Price' : 'Edit Item'}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Item name"
-                placeholderTextColor={COLORS.text.tertiary}
-                autoFocus={focusField === 'name'}
-              />
-            </View>
+            {!priceOnly && (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Item name"
+                  placeholderTextColor={COLORS.text.tertiary}
+                  autoFocus={focusField === 'name'}
+                />
+              </View>
+            )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Price</Text>
@@ -165,10 +168,12 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
               />
             </View>
 
-            <CategoryPicker
-              selectedCategory={category}
-              onSelectCategory={setCategory}
-            />
+            {!priceOnly && (
+              <CategoryPicker
+                selectedCategory={category}
+                onSelectCategory={setCategory}
+              />
+            )}
 
             {/* Price History Button */}
             <TouchableOpacity
