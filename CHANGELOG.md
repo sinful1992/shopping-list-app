@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.13] - 2026-03-04
+### Fixed
+- **Completed list: "Not Purchased (N)" section** — Unchecked items now appear under an amber "Not Purchased (N)" section header above the green "Purchased" section, replacing the old amber banner. Count is visible in the header.
+- **Completed list: price-only editing** — Tapping an item in a completed list opens a "Set Price" modal (price input + View Price History only; name and category fields hidden). Firebase sync listener removed from `HistoryDetailScreen` — completed lists don't need real-time updates.
+
 ## [1.7.12] - 2026-03-01
 ### Changed
 - **Tier restructure** — Free tier list cap removed; OCR restricted to premium+ (hard-blocked at 0). Premium repositioned as ad-free for the individual; family as ad-free for the whole group under one subscription. Rewarded-ad gate for urgent items unchanged. `TIER_FEATURES` rewritten for all tiers to reflect the new value proposition.
