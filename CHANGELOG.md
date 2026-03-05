@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2026-03-05
+### Fixed
+- **HistoryDetailScreen infinite spinner** — Completed lists now display immediately. Two bugs combined to cause an infinite "Loading details..." spinner: (1) items fetched by `getListDetails()` were discarded instead of seeded into state; (2) the loading guard checked `items.length === 0` which was always true before the WatermelonDB subscription fired. Fix: seed items from the initial fetch (`setItems(details.items)`) and simplify the guard to `if (loading)`.
+
 ## [1.8.0] - 2026-03-04
 ### Added
 - **Measurement unit recognition** — Items auto-assigned a measurement unit (ml, L, g, kg) based on category and keyword rules. Learned preferences are stored per item name per family and persist across sessions.

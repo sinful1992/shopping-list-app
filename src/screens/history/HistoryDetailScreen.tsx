@@ -82,6 +82,7 @@ const HistoryDetailScreen = () => {
       setLoading(true);
       const details = await HistoryTracker.getListDetails(listId);
       setListDetails(details);
+      setItems(details.items);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       navigation.goBack();
@@ -174,7 +175,7 @@ const HistoryDetailScreen = () => {
     checkedItems: items.filter(i => i.checked),
   }), [items]);
 
-  if (loading || (listDetails && items.length === 0)) {
+  if (loading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
