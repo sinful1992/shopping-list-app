@@ -13,6 +13,7 @@ import {
 import { Item } from '../models/types';
 import CategoryPicker from './CategoryPicker';
 import { CategoryType } from '../services/CategoryService';
+import { MeasurementService } from '../services/MeasurementService';
 import PriceHistoryModal from './PriceHistoryModal';
 import { useAlert } from '../contexts/AlertContext';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
@@ -198,7 +199,15 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
             {!priceOnly && (
               <CategoryPicker
                 selectedCategory={category}
-                onSelectCategory={setCategory}
+                onSelectCategory={(newCategory) => {
+                  setCategory(newCategory);
+                  if (measurementUnit === null) {
+                    const suggested = MeasurementService.getStaticDefault(name, newCategory);
+                    if (suggested) {
+                      setMeasurementUnit(suggested.unit);
+                    }
+                  }
+                }}
               />
             )}
 
