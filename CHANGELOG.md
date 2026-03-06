@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.6] - 2026-03-06
+### Refactor
+- **Style extraction** — Moved inline `StyleSheet` blocks out of `ListDetailScreen` (593 lines), `SettingsScreen` (376 lines), and `HomeScreen` (290 lines) into sibling `.styles.ts` files. No behaviour change.
+- **Dead code removal** — Deleted `useListDetail` hook (289 lines) that was never imported by any screen, and removed it from the hooks barrel export.
+
 ## [1.8.5] - 2026-03-06
 ### Fixed
 - **History tab highlight** — Tapping a list in History tab no longer switches the active tab highlight back to "Shopping Lists". History now has its own stack navigator, so navigation stays within the History tab.

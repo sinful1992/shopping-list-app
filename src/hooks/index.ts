@@ -7,7 +7,6 @@
 
 export { useAuth } from './useAuth';
 export { useShoppingLists } from './useShoppingLists';
-export { useListDetail } from './useListDetail';
 export { useShoppingMode } from './useShoppingMode';
 export { useBudgetData } from './useBudgetData';
 export { useUrgentItems } from './useUrgentItems';
