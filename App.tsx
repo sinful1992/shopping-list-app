@@ -123,6 +123,29 @@ function ListsStack() {
   );
 }
 
+// History Stack Navigator
+function HistoryStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="HistoryHome"
+        component={HistoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="HistoryDetail"
+        component={HistoryDetailScreen}
+        options={{ title: 'List Details' }}
+      />
+      <Stack.Screen
+        name="ReceiptView"
+        component={ReceiptViewScreen}
+        options={{ title: 'Receipt Details' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 // Main Tab Navigator with safe area handling
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
@@ -191,12 +214,16 @@ function MainTabNavigator() {
       />
       <Tab.Screen
         name="History"
-        component={HistoryScreen}
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="time-outline" size={size} color={color} />
-          ),
+        component={HistoryStack}
+        options={({ route }) => {
+          const routeName = getFocusedRouteNameFromRoute(route) ?? 'HistoryHome';
+          return {
+            title: 'History',
+            headerShown: routeName === 'HistoryHome',
+            tabBarIcon: ({ color, size }) => (
+              <Icon name="time-outline" size={size} color={color} />
+            ),
+          };
         }}
       />
       <Tab.Screen

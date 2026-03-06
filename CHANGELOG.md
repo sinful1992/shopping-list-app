@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.5] - 2026-03-06
+### Fixed
+- **History tab highlight** — Tapping a list in History tab no longer switches the active tab highlight back to "Shopping Lists". History now has its own stack navigator, so navigation stays within the History tab.
+
 ## [1.8.4] - 2026-03-06
 ### Fixed
 - **History items missing** — On a fresh install or new device, completed list items were never synced to local storage (items are only synced while a list is actively open). HistoryDetailScreen now falls back to a one-time Firebase fetch when local DB returns 0 items, and persists results locally so subsequent opens are instant.
