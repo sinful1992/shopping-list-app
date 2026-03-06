@@ -425,6 +425,13 @@ class LocalStorageManager {
     if (items.length === 0) return;
     const itemsCollection = this.database.get<ItemModel>('items');
     try {
+      const ids = items.map(i => i.id);
+      const deletedIds = await this.database.adapter.getDeletedRecords('items');
+      const staleIds = ids.filter(id => deletedIds.includes(id));
+      if (staleIds.length > 0) {
+        await this.database.adapter.destroyDeletedRecords('items', staleIds);
+      }
+
       await this.database.write(async () => {
         const existingRecords = await itemsCollection
           .query(Q.where('id', Q.oneOf(items.map(i => i.id))))

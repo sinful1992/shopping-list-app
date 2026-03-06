@@ -150,12 +150,13 @@ class FirebaseSyncListener {
 
     const onChildRemoved = filteredRef.on('child_removed', async (snapshot) => {
       const itemId = snapshot.key;
-      if (itemId) {
-        try {
-          await LocalStorageManager.deleteItem(itemId);
-        } catch (error) {
-          CrashReporting.recordError(error as Error, 'FirebaseSyncListener item deletion');
-        }
+      if (!itemId) return;
+      try {
+        const snap = await itemsRef.child(itemId).once('value');
+        if (snap.exists()) return; // ghost event — item still in Firebase
+        await LocalStorageManager.deleteItem(itemId);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'FirebaseSyncListener item deletion');
       }
     });
 

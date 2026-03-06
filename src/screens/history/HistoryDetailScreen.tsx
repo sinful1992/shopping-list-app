@@ -12,7 +12,6 @@ import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import ItemManager from '../../services/ItemManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
 import { ListDetails, Item } from '../../models/types';
 import ItemEditModal from '../../components/ItemEditModal';
@@ -40,12 +39,6 @@ const HistoryDetailScreen = () => {
   useEffect(() => {
     loadListDetails();
   }, []);
-
-  // Subscribe to WatermelonDB item observer for reactive item updates
-  useEffect(() => {
-    const unsubscribe = ItemManager.subscribeToItemChanges(listId, setItems);
-    return () => unsubscribe();
-  }, [listId]);
 
   // Load price stats once after items first arrive
   useEffect(() => {

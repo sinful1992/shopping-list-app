@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.3] - 2026-03-05
+### Fixed
+- **Empty items in HistoryDetailScreen** — Three compounding issues caused completed lists to show zero items:
+  1. Ghost `child_removed` events (Firebase SDK reconnection) were trusted blindly, permanently deleting items from local WatermelonDB. Fix: verify item is actually gone from Firebase before deleting locally.
+  2. `saveItemsBatchUpsert` failed to recover items after they were soft-deleted (`_status='deleted'`), hitting a SQLite unique constraint on `create()`. Fix: physically destroy stale deleted records before the upsert loop using `adapter.destroyDeletedRecords`.
+  3. WatermelonDB observer in HistoryDetailScreen could overwrite seeded items with `[]` (race condition). Fix: removed the observer — completed list items are immutable; price edits already reload via `loadListDetails()`.
+
 ## [1.8.2] - 2026-03-05
 ### Fixed
 - **Measurement auto-assign on category change** — Changing a category in ItemEditModal now auto-suggests the default measurement unit (e.g., Meat → g) when no unit is currently set. Explicit user choices are never overridden.
