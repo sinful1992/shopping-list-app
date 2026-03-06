@@ -304,6 +304,28 @@ class FirebaseSyncListener {
   }
 
   /**
+   * One-time fetch of items for a completed list from Firebase.
+   * Used by HistoryDetailScreen when local DB has no items for the list
+   * (e.g. fresh install or new device where items were never synced locally).
+   * Saves results to WatermelonDB so subsequent opens are instant.
+   */
+  async fetchItemsOnceForHistory(familyGroupId: string, listId: string): Promise<Item[]> {
+    const itemsRef = database().ref(`familyGroups/${familyGroupId}/items`);
+    const filteredRef = itemsRef.orderByChild('listId').equalTo(listId);
+    const snapshot = await filteredRef.once('value');
+    const items: Item[] = [];
+    snapshot.forEach(child => {
+      if (child.key) {
+        items.push(this.buildItemFromFirebase(child.key, listId, child.val()));
+      }
+    });
+    if (items.length > 0) {
+      await LocalStorageManager.saveItemsBatchUpsert(items);
+    }
+    return items;
+  }
+
+  /**
    * Stop all active listeners
    */
   stopAllListeners(): void {

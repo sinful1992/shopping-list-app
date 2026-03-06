@@ -11,6 +11,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
+import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
 import { ListDetails, Item } from '../../models/types';
@@ -75,7 +76,20 @@ const HistoryDetailScreen = () => {
       setLoading(true);
       const details = await HistoryTracker.getListDetails(listId);
       setListDetails(details);
-      setItems(details.items);
+      if (details.items.length > 0) {
+        setItems(details.items);
+      } else if (details.list.familyGroupId) {
+        // Items not in local DB (fresh install / new device) — fetch from Firebase
+        try {
+          const firebaseItems = await FirebaseSyncListener.fetchItemsOnceForHistory(
+            details.list.familyGroupId,
+            listId
+          );
+          setItems(firebaseItems);
+        } catch {
+          setItems([]);
+        }
+      }
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       navigation.goBack();
