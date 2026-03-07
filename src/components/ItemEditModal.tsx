@@ -13,7 +13,7 @@ import {
 import { Item } from '../models/types';
 import CategoryPicker from './CategoryPicker';
 import { CategoryType } from '../services/CategoryService';
-import { MeasurementService } from '../services/MeasurementService';
+import MeasurementService from '../services/MeasurementService';
 import PriceHistoryModal from './PriceHistoryModal';
 import { useAlert } from '../contexts/AlertContext';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
