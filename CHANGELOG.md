@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.8] - 2026-03-07
+### Performance
+- **Stop CategoryItemList re-rendering on every keystroke** — Wrapped `handleToggleItem`, `handleItemTap`, and `handleCategoryDragEnd` in `useCallback([], [])`. Added `isListLockedRef` to avoid capturing `isListLocked` state in the `handleItemTap` closure, keeping all three deps arrays empty so `memo`-wrapped `CategoryItemList` instances no longer re-render when the "add item" input changes.
+
 ## [1.8.7] - 2026-03-07
 ### Fixed
 - **App crash on category change** — Moving an item to a different category crashed the app because `NestedReorderableList` received an updated `data` prop that conflicted with its internal drag-state. Fixed by keying each `CategoryItemList` on the sorted set of item IDs in that category, so the reorderable list remounts cleanly when items join or leave.

@@ -211,6 +211,9 @@ const ListDetailScreen = () => {
   // Ref for optimistic quantity updates (always has latest state for rapid taps)
   const itemsRef = useRef<Item[]>([]);
 
+  // Ref to avoid isListLocked closure in useCallback handlers
+  const isListLockedRef = useRef(false);
+
   // Define calculateShoppingStats before useEffect
   const calculateShoppingStats = useCallback((itemsList: Item[]) => {
     try {
@@ -281,6 +284,7 @@ const ListDetailScreen = () => {
 
           // Check if list is locked
           const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
+          isListLockedRef.current = locked;
           setIsListLocked(locked);
 
           // If locked by current user, enable shopping mode
@@ -401,6 +405,7 @@ const ListDetailScreen = () => {
         // Check if list is locked
         if (currentUserId) {
           const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
+          isListLockedRef.current = locked;
           setIsListLocked(locked);
 
           // If locked by current user, enable shopping mode
@@ -554,7 +559,7 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleToggleItem = async (itemId: string) => {
+  const handleToggleItem = useCallback(async (itemId: string) => {
     // CRITICAL: Prevent multiple simultaneous toggles on same item
     if (toggleInProgressRef.current.has(itemId)) {
       return;
@@ -583,7 +588,7 @@ const ListDetailScreen = () => {
       // Always clear the in-progress flag
       toggleInProgressRef.current.delete(itemId);
     }
-  };
+  }, []);
 
   const handleDeleteItem = async (itemId: string) => {
     try {
@@ -651,11 +656,11 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleItemTap = (item: Item) => {
-    if (isListLocked) return;
+  const handleItemTap = useCallback((item: Item) => {
+    if (isListLockedRef.current) return;
     setSelectedItem(item);
     setEditModalVisible(true);
-  };
+  }, []);
 
 
   const handleEditListName = () => {
@@ -722,6 +727,7 @@ const ListDetailScreen = () => {
       );
 
       setIsShoppingMode(true);
+      isListLockedRef.current = false;
       setIsListLocked(false); // Not locked for current user
       // WatermelonDB observer will automatically update the list state
       showAlert('Shopping Mode', 'You are now shopping. Other family members can only view this list.', undefined, { icon: 'info' });
@@ -881,7 +887,7 @@ const ListDetailScreen = () => {
     }, [list?.storeName, list?.familyGroupId])
   );
 
-  const handleCategoryDragEnd = (reorderedItems: Item[]) => {
+  const handleCategoryDragEnd = useCallback((reorderedItems: Item[]) => {
     // Optimistically update UI immediately — onReorder fires synchronously on the UI thread
     const reorderedIds = new Set(reorderedItems.map(i => i.id));
     const optimistic = [
@@ -896,7 +902,7 @@ const ListDetailScreen = () => {
       isReorderingRef.current = false;
       setItems([...itemsRef.current]);
     });
-  };
+  }, []);
 
   // Group items by category and sort by sortOrder within each group.
   // Returns separate maps for unchecked and checked items.
