@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.7] - 2026-03-07
+### Fixed
+- **App crash on category change** — Moving an item to a different category crashed the app because `NestedReorderableList` received an updated `data` prop that conflicted with its internal drag-state. Fixed by keying each `CategoryItemList` on the sorted set of item IDs in that category, so the reorderable list remounts cleanly when items join or leave.
+
 ## [1.8.6] - 2026-03-06
 ### Refactor
 - **Style extraction** — Moved inline `StyleSheet` blocks out of `ListDetailScreen` (593 lines), `SettingsScreen` (376 lines), and `HomeScreen` (290 lines) into sibling `.styles.ts` files. No behaviour change.

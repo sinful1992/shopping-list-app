@@ -1245,6 +1245,7 @@ const ListDetailScreen = () => {
                       )}
                     </View>
                     <CategoryItemList
+                      key={catItems.map(i => i.id).sort().join(',')}
                       catItems={catItems}
                       totalUnchecked={totalUnchecked}
                       predictedPrices={predictedPrices}
@@ -1276,6 +1277,7 @@ const ListDetailScreen = () => {
                       <Text style={styles.categoryName}>{key}</Text>
                     </View>
                     <CategoryItemList
+                      key={catItems.map(i => i.id).sort().join(',')}
                       catItems={catItems}
                       totalUnchecked={totalUnchecked}
                       predictedPrices={predictedPrices}
