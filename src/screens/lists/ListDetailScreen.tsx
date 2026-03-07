@@ -310,6 +310,7 @@ const ListDetailScreen = () => {
         return;
       }
 
+      console.log('[DEBUG] observer fired, item count:', updatedItems.length, 'categories:', [...new Set(updatedItems.map(i => i.category || 'null'))]);
       itemsRef.current = updatedItems;
       if (!isReorderingRef.current) {
         setItems(updatedItems);
@@ -632,12 +633,15 @@ const ListDetailScreen = () => {
     updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
     measurementChanged: boolean
   ) => {
+    console.log('[DEBUG] handleUpdateItem start', { itemId, category: updates.category, measurementChanged });
     try {
       await ItemManager.updateItem(itemId, updates);
+      console.log('[DEBUG] handleUpdateItem: DB write done');
 
       if (measurementChanged && list?.familyGroupId) {
         const item = items.find(i => i.id === itemId);
         const itemName = updates.name ?? item?.name ?? '';
+        console.log('[DEBUG] handleUpdateItem: saving measurement preference');
         MeasurementService.savePreference(
           list.familyGroupId,
           itemName,
@@ -645,7 +649,9 @@ const ListDetailScreen = () => {
           updates.measurementValue ?? null
         ).catch(() => {});
       }
+      console.log('[DEBUG] handleUpdateItem done (no error)');
     } catch (error: any) {
+      console.log('[DEBUG] handleUpdateItem ERROR', error?.message);
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;
     }
@@ -1218,6 +1224,8 @@ const ListDetailScreen = () => {
             {/* Unchecked items — known categories in layout/default order, draggable */}
             {visibleCategories.map((cat, idx) => {
                 const catItems = uncheckedGrouped[cat]!;
+                const catKey = catItems.map(i => i.id).sort().join(',');
+                console.log('[DEBUG] render cat', cat, 'items:', catItems.length, 'key:', catKey);
                 const category = CategoryService.getCategory(cat);
                 const totalUnchecked = items.filter(i => !i.checked).length;
                 return (
