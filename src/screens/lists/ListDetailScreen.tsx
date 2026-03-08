@@ -62,7 +62,6 @@ const DraggableItemRow: React.FC<DraggableItemRowProps> = ({ isListLocked, child
 
 interface CategoryItemListProps {
   catItems: Item[];
-  totalUnchecked: number;
   predictedPrices: Record<string, number>;
   smartSuggestions: Map<string, { bestStore: string; bestPrice: number; savings: number }>;
   storeName?: string;
@@ -77,7 +76,6 @@ interface CategoryItemListProps {
 
 const CategoryItemList = memo(({
   catItems,
-  totalUnchecked,
   predictedPrices,
   smartSuggestions,
   storeName,
@@ -134,7 +132,6 @@ const CategoryItemList = memo(({
                 itemPriceCheckedStyle={styles.itemPriceChecked}
                 suggestionRowStyle={styles.suggestionRow}
                 suggestionTextStyle={styles.suggestionText}
-                totalItems={totalUnchecked}
               />
             )}
           </DraggableItemRow>
@@ -1234,7 +1231,6 @@ const ListDetailScreen = () => {
             {visibleCategories.map((cat, idx) => {
                 const catItems = uncheckedGrouped[cat]!;
                 const category = CategoryService.getCategory(cat);
-                const totalUnchecked = items.filter(i => !i.checked).length;
                 return (
                   <View key={`cat-${cat}`}>
                     <View style={styles.categoryHeader}>
@@ -1262,7 +1258,6 @@ const ListDetailScreen = () => {
                     <CategoryItemList
                       key={catItems.map(i => i.id).sort().join(',')}
                       catItems={catItems}
-                      totalUnchecked={totalUnchecked}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
                       storeName={list?.storeName}
@@ -1284,7 +1279,6 @@ const ListDetailScreen = () => {
               .map(key => {
                 const catItems = uncheckedGrouped[key];
                 if (!catItems?.length) return null;
-                const totalUnchecked = items.filter(item => !item.checked).length;
                 return (
                   <View key={`custom-${key}`}>
                     <View style={styles.categoryHeader}>
@@ -1294,7 +1288,6 @@ const ListDetailScreen = () => {
                     <CategoryItemList
                       key={catItems.map(i => i.id).sort().join(',')}
                       catItems={catItems}
-                      totalUnchecked={totalUnchecked}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
                       storeName={list?.storeName}
@@ -1320,7 +1313,6 @@ const ListDetailScreen = () => {
                 {CategoryService.getCategories().map(cat => {
                   const catItems = checkedGrouped[cat.id];
                   if (!catItems?.length) return null;
-                  const totalUnchecked = items.filter(item => !item.checked).length;
                   return catItems.map((item, index) => {
                     const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
                     const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
@@ -1354,7 +1346,6 @@ const ListDetailScreen = () => {
                         itemPriceCheckedStyle={styles.itemPriceChecked}
                         suggestionRowStyle={styles.suggestionRow}
                         suggestionTextStyle={styles.suggestionText}
-                        totalItems={totalUnchecked}
                       />
                     );
                   });
@@ -1365,7 +1356,6 @@ const ListDetailScreen = () => {
                   .map(key => {
                     const catItems = checkedGrouped[key];
                     if (!catItems?.length) return null;
-                    const totalUnchecked = items.filter(item => !item.checked).length;
                     return catItems.map((item, index) => {
                       const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
                       const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
@@ -1399,7 +1389,6 @@ const ListDetailScreen = () => {
                           itemPriceCheckedStyle={styles.itemPriceChecked}
                           suggestionRowStyle={styles.suggestionRow}
                           suggestionTextStyle={styles.suggestionText}
-                          totalItems={totalUnchecked}
                         />
                       );
                     });

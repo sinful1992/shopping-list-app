@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
-import { useColorShiftingBorder } from './ColorShiftingCard';
 import { COLORS, RADIUS } from '../styles/theme';
 
 const VOLUME_UNITS = ['ml', 'L'];
@@ -47,13 +46,11 @@ interface AnimatedItemCardProps {
   itemPriceCheckedStyle?: StyleProp<TextStyle>;
   suggestionRowStyle?: StyleProp<ViewStyle>;
   suggestionTextStyle?: StyleProp<TextStyle>;
-  totalItems: number;
 }
 
 const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   index,
   item,
-  totalItems,
   itemPrice,
   isPredicted,
   showSuggestion,
@@ -81,9 +78,6 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   suggestionRowStyle,
   suggestionTextStyle,
 }) => {
-  // Apply color-shifting border with wave effect
-  const borderStyles = useColorShiftingBorder(index, 1.5, 8, totalItems);
-
   const isChecked = item.checked === true;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
@@ -139,10 +133,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       style={[
         itemRowStyle,
         isChecked && itemRowCheckedStyle,
-        borderStyles,
-        // Reduce opacity for entire card when checked
         isChecked && { opacity: 0.5 },
-        // Apply scale animation
         { transform: [{ scale: scaleAnimation }] }
       ]}
     >
