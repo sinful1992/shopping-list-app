@@ -151,9 +151,7 @@ const styles = StyleSheet.create({
   },
   itemContentRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
   },
   suggestionRow: {
     marginTop: 4,

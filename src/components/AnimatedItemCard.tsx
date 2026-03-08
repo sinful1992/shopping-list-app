@@ -176,15 +176,6 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             >
               {item.name}
             </Text>
-            <Text
-              style={[
-                itemPriceTextStyle,
-                isPredicted && itemPricePredictedStyle,
-                isChecked && itemPriceCheckedStyle
-              ]}
-            >
-              {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
-            </Text>
           </View>
           {item.measurementUnit ? (
             <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
@@ -202,6 +193,17 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           )}
         </View>
       </TouchableOpacity>
+
+      {/* Price — outside touchable so it aligns with card edge */}
+      <Text
+        style={[
+          itemPriceTextStyle,
+          isPredicted && itemPricePredictedStyle,
+          isChecked && itemPriceCheckedStyle
+        ]}
+      >
+        {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
+      </Text>
 
       {/* Quantity buttons — hidden when checked */}
       {!isChecked && (
