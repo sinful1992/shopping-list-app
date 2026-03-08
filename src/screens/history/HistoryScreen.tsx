@@ -514,9 +514,6 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   searchInput: {
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
@@ -549,10 +546,8 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 15,
+    paddingBottom: 15,
   },
   filterButton: {
     flex: 1,
@@ -568,11 +563,6 @@ const styles = StyleSheet.create({
   filterButtonActive: {
     backgroundColor: 'rgba(110, 168, 254, 0.25)',
     borderColor: 'rgba(110, 168, 254, 0.5)',
-    shadowColor: '#6EA8FE',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
   },
   filterButtonText: {
     fontSize: 14,
@@ -607,7 +597,7 @@ const styles = StyleSheet.create({
   },
   listTotal: {
     fontSize: 16,
-    color: '#30D158',
+    color: 'rgba(255,255,255,0.5)',
     fontWeight: '600',
   },
   itemsNotBought: {
