@@ -128,6 +128,7 @@ const HistoryDetailScreen = () => {
   };
 
   const handleItemPress = (item: Item) => {
+    if (item.price != null && item.price > 0) return;
     setSelectedItem(item);
     setEditModalVisible(true);
   };
@@ -238,32 +239,38 @@ const HistoryDetailScreen = () => {
                   </Text>
                 </View>
                 <View style={styles.itemsContainer}>
-                  {uncheckedItems.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.itemRow}
-                      onPress={() => handleItemPress(item)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.checkboxContainer}>
-                        <View style={styles.checkboxUnchecked} />
-                      </View>
-                      <View style={styles.itemContent}>
-                        <View style={styles.itemNameRow}>
-                          <Text style={[styles.itemName, styles.itemNameNotPurchased]}>
-                            {item.name}
-                          </Text>
+                  {uncheckedItems.map((item) => {
+                    const hasPrice = item.price != null && item.price > 0;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.itemRow}
+                        onPress={() => handleItemPress(item)}
+                        activeOpacity={hasPrice ? 1 : 0.7}
+                        disabled={hasPrice}
+                      >
+                        <View style={styles.checkboxContainer}>
+                          <View style={styles.checkboxUnchecked} />
                         </View>
-                        <View style={styles.priceRow}>
-                          {item.price !== null && item.price !== undefined && (
-                            <Text style={[styles.itemPrice, styles.itemPriceNotPurchased]}>
-                              £{item.price.toFixed(2)}
+                        <View style={styles.itemContent}>
+                          <View style={styles.itemNameRow}>
+                            <Text style={[styles.itemName, styles.itemNameNotPurchased]}>
+                              {item.name}
                             </Text>
-                          )}
+                          </View>
+                          <View style={styles.priceRow}>
+                            {hasPrice ? (
+                              <Text style={[styles.itemPrice, styles.itemPriceNotPurchased]}>
+                                £{item.price!.toFixed(2)}
+                              </Text>
+                            ) : (
+                              <Text style={styles.addPricePrompt}>+ set price</Text>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </>
             )}
@@ -280,12 +287,14 @@ const HistoryDetailScreen = () => {
                   ? item.price - stats.priceHistory[stats.priceHistory.length - 2]?.price
                   : null;
 
+                const hasPrice = item.price != null && item.price > 0;
                 return (
                   <TouchableOpacity
                     key={item.id}
                     style={styles.itemRow}
                     onPress={() => handleItemPress(item)}
-                    activeOpacity={0.7}
+                    activeOpacity={hasPrice ? 1 : 0.7}
+                    disabled={hasPrice}
                   >
                     <View style={styles.checkboxContainer}>
                       <Text style={styles.checkboxChecked}>✓</Text>
@@ -300,10 +309,12 @@ const HistoryDetailScreen = () => {
                         )}
                       </View>
                       <View style={styles.priceRow}>
-                        {item.price !== null && item.price !== undefined && (
+                        {hasPrice ? (
                           <Text style={styles.itemPrice}>
-                            £{item.price.toFixed(2)}
+                            £{item.price!.toFixed(2)}
                           </Text>
+                        ) : (
+                          <Text style={styles.addPricePrompt}>+ set price</Text>
                         )}
                         {priceChange !== null && priceChange !== 0 && (
                           <Text style={[
@@ -514,6 +525,11 @@ const styles = StyleSheet.create({
   cheaperIcon: {
     fontSize: 12,
     marginLeft: 6,
+  },
+  addPricePrompt: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.2)',
+    fontStyle: 'italic',
   },
   priceTrend: {
     fontSize: 14,
