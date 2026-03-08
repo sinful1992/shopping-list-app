@@ -336,10 +336,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
   },
   dateRangeContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   dateRangeLabel: {
     fontSize: 14,
@@ -363,11 +360,6 @@ const styles = StyleSheet.create({
   dateRangeButtonActive: {
     backgroundColor: 'rgba(110, 168, 254, 0.25)',
     borderColor: 'rgba(110, 168, 254, 0.5)',
-    shadowColor: '#6EA8FE',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
   },
   dateRangeButtonText: {
     fontSize: 14,
@@ -600,7 +592,7 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#30D158',
+    color: 'rgba(255,255,255,0.5)',
   },
   noReceipt: {
     fontSize: 14,
