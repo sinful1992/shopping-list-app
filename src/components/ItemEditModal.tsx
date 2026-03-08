@@ -44,7 +44,7 @@ interface ItemEditModalProps {
     measurementChanged: boolean
   ) => Promise<void>;
   onDelete?: (itemId: string) => Promise<void>;
-  focusField?: 'name' | 'price';
+  focusField?: 'name' | 'price' | 'measurement';
   priceOnly?: boolean;
 }
 
@@ -68,6 +68,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [priceHistoryVisible, setPriceHistoryVisible] = useState(false);
   const priceInputRef = useRef<TextInput>(null);
+  const measurementInputRef = useRef<TextInput>(null);
 
   // Track original measurement values to detect explicit user changes
   const originalUnitRef = useRef<string | null>(null);
@@ -95,8 +96,13 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
 
   // Focus the correct field when modal opens
   useEffect(() => {
-    if (visible && focusField === 'price') {
+    if (!visible) return;
+    if (focusField === 'price') {
       const timeoutId = setTimeout(() => priceInputRef.current?.focus(), 100);
+      return () => clearTimeout(timeoutId);
+    }
+    if (focusField === 'measurement') {
+      const timeoutId = setTimeout(() => measurementInputRef.current?.focus(), 100);
       return () => clearTimeout(timeoutId);
     }
   }, [visible, focusField]);
@@ -305,6 +311,7 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 {/* Combined input field */}
                 <View style={styles.combinedInputRow}>
                   <TextInput
+                    ref={measurementInputRef}
                     style={[styles.input, styles.combinedInput]}
                     value={combinedInput}
                     onChangeText={handleCombinedInputChange}

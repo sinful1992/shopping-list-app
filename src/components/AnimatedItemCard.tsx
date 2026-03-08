@@ -27,7 +27,7 @@ interface AnimatedItemCardProps {
   isListLocked: boolean;
   onDrag?: () => void;
   onToggleItem: () => void;
-  onItemTap: () => void;
+  onItemTap: (focusField?: 'name' | 'price' | 'measurement') => void;
   onIncrement: (itemId: string) => void;
   onDecrement: (itemId: string) => void;
   itemRowStyle: StyleProp<ViewStyle>;
@@ -156,7 +156,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       {/* Item content */}
       <TouchableOpacity
         style={itemContentTouchableStyle}
-        onPress={onItemTap}
+        onPress={() => onItemTap('name')}
         onLongPress={onDrag}
         delayLongPress={250}
         disabled={isListLocked}
@@ -178,11 +178,15 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             </Text>
           </View>
           {item.measurementUnit ? (
-            <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
-              {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
-            </Text>
+            <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
+                {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
+              </Text>
+            </TouchableOpacity>
           ) : !isChecked && (
-            <Text style={cardStyles.addSizeText}>+ add size</Text>
+            <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <Text style={cardStyles.addSizeText}>+ add size</Text>
+            </TouchableOpacity>
           )}
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
@@ -194,16 +198,18 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         </View>
       </TouchableOpacity>
 
-      {/* Price — outside touchable so it aligns with card edge */}
-      <Text
-        style={[
-          itemPriceTextStyle,
-          isPredicted && itemPricePredictedStyle,
-          isChecked && itemPriceCheckedStyle
-        ]}
-      >
-        {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
-      </Text>
+      {/* Price — tappable to open price field */}
+      <TouchableOpacity onPress={() => onItemTap('price')} disabled={isListLocked} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text
+          style={[
+            itemPriceTextStyle,
+            isPredicted && itemPricePredictedStyle,
+            isChecked && itemPriceCheckedStyle
+          ]}
+        >
+          {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
+        </Text>
+      </TouchableOpacity>
 
       {/* Quantity buttons — hidden when checked */}
       {!isChecked && (

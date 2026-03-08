@@ -68,7 +68,7 @@ interface CategoryItemListProps {
   isListLocked: boolean;
   onReorder: (items: Item[]) => void;
   onToggleItem: (id: string) => void;
-  onItemTap: (item: Item) => void;
+  onItemTap: (item: Item, focusField?: 'name' | 'price' | 'measurement') => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   styles: any;
@@ -113,7 +113,7 @@ const CategoryItemList = memo(({
                 isListLocked={isListLocked}
                 onDrag={drag}
                 onToggleItem={() => !isListLocked && onToggleItem(item.id)}
-                onItemTap={() => onItemTap(item)}
+                onItemTap={(focusField) => onItemTap(item, focusField)}
                 onIncrement={onIncrement}
                 onDecrement={onDecrement}
                 itemRowStyle={styles.itemRow}
@@ -655,9 +655,12 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleItemTap = useCallback((item: Item) => {
+  const [editModalFocusField, setEditModalFocusField] = useState<'name' | 'price' | 'measurement'>('name');
+
+  const handleItemTap = useCallback((item: Item, focusField: 'name' | 'price' | 'measurement' = 'name') => {
     if (isListLockedRef.current) return;
     setSelectedItem(item);
+    setEditModalFocusField(focusField);
     setEditModalVisible(true);
   }, []);
 
@@ -1327,7 +1330,7 @@ const ListDetailScreen = () => {
                         suggestion={undefined}
                         isListLocked={isListLocked}
                         onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                        onItemTap={() => handleItemTap(item)}
+                        onItemTap={(focusField) => handleItemTap(item, focusField)}
                         onIncrement={handleIncrement}
                         onDecrement={handleDecrement}
                         itemRowStyle={styles.itemRow}
@@ -1370,7 +1373,7 @@ const ListDetailScreen = () => {
                           suggestion={undefined}
                           isListLocked={isListLocked}
                           onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                          onItemTap={() => handleItemTap(item)}
+                          onItemTap={(focusField) => handleItemTap(item, focusField)}
                           onIncrement={handleIncrement}
                           onDecrement={handleDecrement}
                           itemRowStyle={styles.itemRow}
@@ -1443,6 +1446,7 @@ const ListDetailScreen = () => {
         }}
         onSave={handleUpdateItem}
         onDelete={handleDeleteItem}
+        focusField={editModalFocusField}
       />
 
       <StoreNamePicker
