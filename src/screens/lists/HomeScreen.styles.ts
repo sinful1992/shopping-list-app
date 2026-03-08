@@ -13,11 +13,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
     borderColor: COLORS.border.subtle,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
     position: 'relative',
   },
   completedCard: {

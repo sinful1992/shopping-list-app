@@ -388,11 +388,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     marginHorizontal: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
   },
   headerRow: {
     flexDirection: 'row',
