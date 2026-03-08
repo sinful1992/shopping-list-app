@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -109,21 +110,28 @@ const FamilyGroupScreen = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Family Group Name"
-                placeholderTextColor="#6E6E73"
+                placeholderTextColor="rgba(255,255,255,0.3)"
                 value={groupName}
                 onChangeText={setGroupName}
                 editable={!loading}
               />
               <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
+                style={loading && styles.buttonDisabled}
                 onPress={handleCreateGroup}
                 disabled={loading}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Create Family Group</Text>
-                )}
+                <LinearGradient
+                  colors={['#6EA8FE', '#A78BFA']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.button}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Create Family Group</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </>
           ) : (
@@ -131,7 +139,7 @@ const FamilyGroupScreen = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Invitation Code (e.g., A3F7K9M2)"
-                placeholderTextColor="#6E6E73"
+                placeholderTextColor="rgba(255,255,255,0.3)"
                 value={invitationCode}
                 onChangeText={setInvitationCode}
                 autoCapitalize="characters"
@@ -139,15 +147,22 @@ const FamilyGroupScreen = () => {
                 editable={!loading}
               />
               <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
+                style={loading && styles.buttonDisabled}
                 onPress={handleJoinGroup}
                 disabled={loading}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Join Family Group</Text>
-                )}
+                <LinearGradient
+                  colors={['#6EA8FE', '#A78BFA']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.button}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>Join Family Group</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </>
           )}
@@ -161,7 +176,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
   },
   title: {
     fontSize: 32,
@@ -174,11 +189,11 @@ const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: 'row',
     marginBottom: 30,
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   toggleButton: {
     flex: 1,
@@ -187,43 +202,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.6)',
+    backgroundColor: 'rgba(110, 168, 254, 0.25)',
   },
   toggleText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     fontWeight: '600',
   },
   toggleTextActive: {
     color: '#fff',
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 15,
-    borderRadius: 16,
+    borderRadius: 14,
     fontSize: 16,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     color: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
   button: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.5,

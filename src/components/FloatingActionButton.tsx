@@ -6,7 +6,9 @@ import {
   Animated,
   ViewStyle,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { COLORS } from '../styles/theme';
 
 interface FloatingActionButtonProps {
   icon?: string;
@@ -27,7 +29,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   icon = 'cart',
   label,
   onPress,
-  backgroundColor = '#007AFF',
+  backgroundColor,
   size = 60,
   disabled = false,
   style,
@@ -64,7 +66,6 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
         style={[
           styles.fab,
           {
-            backgroundColor: disabled ? '#48484A' : backgroundColor,
             width: size,
             height: size,
             borderRadius: size / 2,
@@ -76,8 +77,27 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
         disabled={disabled}
         activeOpacity={0.8}
       >
-        <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
-        {label && <Text style={styles.fabLabel}>{label}</Text>}
+        {disabled ? (
+          <LinearGradient
+            colors={['#48484A', '#3A3A3C']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
+          >
+            <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
+            {label && <Text style={styles.fabLabel}>{label}</Text>}
+          </LinearGradient>
+        ) : (
+          <LinearGradient
+            colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
+          >
+            <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
+            {label && <Text style={styles.fabLabel}>{label}</Text>}
+          </LinearGradient>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -89,13 +109,18 @@ const styles = StyleSheet.create({
     bottom: 20,
     right: 20,
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: COLORS.accent.blue,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
     zIndex: 1000,
   },
   fab: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  fabGradient: {
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -151,17 +151,17 @@ const styles = {
   },
   listDateFormatted: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 4,
   },
   listDateSecondary: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(255, 255, 255, 0.3)',
     marginTop: 2,
   },
   storeName: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 2,
   },
 };

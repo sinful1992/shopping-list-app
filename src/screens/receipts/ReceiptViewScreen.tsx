@@ -355,22 +355,22 @@ const ReceiptViewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   emptyText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   imageContainer: {
     backgroundColor: '#000',
@@ -382,11 +382,11 @@ const styles = StyleSheet.create({
   },
   dataContainer: {
     padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 20,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
     marginHorizontal: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   },
   editButton: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#6EA8FE',
     fontWeight: '600',
   },
   confidenceRow: {
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   confidenceText: {
     fontSize: 18,
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   highConfidence: {
-    color: '#34C759',
+    color: '#30D158',
   },
   lowConfidence: {
     color: '#FF9500',
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: 5,
   },
   value: {
@@ -450,17 +450,17 @@ const styles = StyleSheet.create({
   input: {
     fontSize: 16,
     color: '#ffffff',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
     padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   lineItemsContainer: {
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   lineItem: {
     flexDirection: 'row',
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   extractedText: {
     fontSize: 12,
-    color: '#6E6E73',
+    color: 'rgba(255,255,255,0.3)',
     marginTop: 15,
     fontStyle: 'italic',
   },
@@ -504,18 +504,18 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: 15,
   },
   retryButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(110, 168, 254, 0.8)',
+    borderRadius: 14,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
+    borderColor: 'rgba(110, 168, 254, 0.3)',
+    shadowColor: '#6EA8FE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -546,17 +546,17 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
     alignItems: 'center',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   saveButton: {
     flex: 1,

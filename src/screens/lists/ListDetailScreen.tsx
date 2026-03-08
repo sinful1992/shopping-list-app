@@ -9,6 +9,8 @@ import {
   InteractionManager,
   ActivityIndicator,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS } from '../../styles/theme';
 import styles from './ListDetailScreen.styles';
 import {
   ScrollViewContainer,
@@ -1128,7 +1130,14 @@ const ListDetailScreen = () => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonExpanded} onPress={handleDoneShopping}>
-                  <Text style={styles.doneButtonText}>Done Shopping</Text>
+                  <LinearGradient
+                    colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ borderRadius: 8, alignItems: 'center', padding: 12, width: '100%' }}
+                  >
+                    <Text style={styles.doneButtonText}>Done Shopping</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>

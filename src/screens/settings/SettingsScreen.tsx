@@ -171,7 +171,7 @@ const SettingsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#6EA8FE" />
         <Text style={styles.loadingText}>Loading settings...</Text>
       </View>
     );
@@ -182,7 +182,7 @@ const SettingsScreen = () => {
       {/* User Info Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Icon name="person-circle-outline" size={24} color="#007AFF" />
+          <Icon name="person-circle-outline" size={24} color="#6EA8FE" />
           <Text style={styles.sectionTitle}>Account</Text>
         </View>
         <View style={styles.infoRow}>

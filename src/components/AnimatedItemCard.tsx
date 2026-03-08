@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { useColorShiftingBorder } from './ColorShiftingCard';
+import { COLORS, RADIUS } from '../styles/theme';
 
 interface AnimatedItemCardProps {
   index: number;
@@ -238,7 +239,7 @@ const cardStyles = StyleSheet.create({
   qtyPrefix: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: COLORS.text.secondary,
     marginRight: 4,
   },
   qtyBtnIncrement: {
@@ -246,18 +247,18 @@ const cardStyles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: RADIUS.small - 2,
     marginLeft: 4,
-    backgroundColor: 'rgba(52, 199, 89, 0.35)',
+    backgroundColor: COLORS.accent.greenDim,
   },
   qtyBtnDecrement: {
     width: 28,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: RADIUS.small - 2,
     marginLeft: 4,
-    backgroundColor: 'rgba(255, 59, 48, 0.35)',
+    backgroundColor: COLORS.accent.redSubtle,
   },
   qtyBtnDisabled: {
     opacity: 0.3,
@@ -265,16 +266,16 @@ const cardStyles = StyleSheet.create({
   qtyBtnTextIncrement: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#34C759',
+    color: COLORS.accent.green,
   },
   qtyBtnTextDecrement: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FF3B30',
+    color: COLORS.accent.red,
   },
   measurementText: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: COLORS.text.secondary,
     marginLeft: 4,
     marginTop: 1,
   },

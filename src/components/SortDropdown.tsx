@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Modal,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
 export type SortField = 'date' | 'amount' | 'store' | 'name';
@@ -65,7 +66,14 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
           activeOpacity={1}
           onPress={() => setVisible(false)}
         >
-          <View style={styles.dropdown}>
+          <LinearGradient
+            colors={['#1E1E2E', '#181825']}
+            style={styles.dropdown}
+          >
+            {/* Handle bar */}
+            <View style={COMMON_STYLES.modalHandleContainer}>
+              <View style={COMMON_STYLES.modalHandle} />
+            </View>
             <Text style={styles.dropdownTitle}>Sort By</Text>
             {SORT_OPTIONS.map((option, index) => {
               const isSelected =
@@ -96,7 +104,7 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </LinearGradient>
         </TouchableOpacity>
       </Modal>
     </>
@@ -126,10 +134,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.overlay.dark,
   },
   dropdown: {
-    ...COMMON_STYLES.glassCardElevated,
+    borderRadius: RADIUS.xlarge,
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
     minWidth: 280,
     maxWidth: '80%',
     padding: SPACING.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   dropdownTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -151,8 +166,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   optionSelected: {
-    backgroundColor: COLORS.glass.elevated,
+    backgroundColor: 'rgba(110,168,254,0.08)',
     borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: '#6EA8FE',
   },
   optionText: {
     fontSize: TYPOGRAPHY.fontSize.md,

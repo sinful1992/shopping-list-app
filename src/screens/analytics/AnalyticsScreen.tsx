@@ -159,7 +159,7 @@ const AnalyticsScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={COLORS.accent.blue} />
         <Text style={styles.loadingText}>Loading analytics...</Text>
       </View>
     );
@@ -201,7 +201,7 @@ const AnalyticsScreen = () => {
         return {
           value: trend.amount,
           label: label,
-          labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
+          labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
         };
       });
     }
@@ -210,13 +210,13 @@ const AnalyticsScreen = () => {
       storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
         value: store.totalSpent,
         label: store.storeName.length > 8 ? store.storeName.substring(0, 8) + '...' : store.storeName,
-        labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
-        frontColor: '#007AFF',
+        labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
+        frontColor: COLORS.accent.blue,
       }));
     }
 
     if (Array.isArray(analytics.categoryBreakdown)) {
-      const categoryColors = ['#007AFF', '#34C759', '#FFD60A', '#FF453A', '#AF52DE'];
+      const categoryColors = [COLORS.accent.blue, COLORS.accent.green, '#FFD60A', '#FF453A', COLORS.accent.purple];
       categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, index) => ({
         value: cat.totalSpent,
         text: cat.category,
@@ -266,10 +266,10 @@ const AnalyticsScreen = () => {
               adjustToWidth={true}
               initialSpacing={0}
               endSpacing={0}
-              color="#007AFF"
+              color={COLORS.accent.blue}
               thickness={3}
-              startFillColor="rgba(0, 122, 255, 0.3)"
-              endFillColor="rgba(0, 122, 255, 0.01)"
+              startFillColor="rgba(110, 168, 254, 0.3)"
+              endFillColor="rgba(110, 168, 254, 0.01)"
               startOpacity={0.9}
               endOpacity={0.2}
               areaChart
@@ -286,7 +286,7 @@ const AnalyticsScreen = () => {
               yAxisLabelPrefix="£"
               yAxisLabelWidth={40}
               hideDataPoints={false}
-              dataPointsColor="#007AFF"
+              dataPointsColor="#6EA8FE"
               dataPointsRadius={4}
               textColor="#ffffff"
               textFontSize={10}
@@ -440,24 +440,24 @@ const AnalyticsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background.primary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background.primary,
   },
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background.primary,
     paddingHorizontal: 40,
   },
   emptyIcon: {
@@ -473,34 +473,34 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     textAlign: 'center',
   },
   timePeriodContainer: {
     flexDirection: 'row',
     padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: COLORS.glass.subtle,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: COLORS.border.subtle,
   },
   timePeriodButton: {
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.glass.medium,
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.medium,
   },
   timePeriodButtonActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    backgroundColor: 'rgba(110, 168, 254, 0.8)',
+    borderColor: 'rgba(110, 168, 254, 0.3)',
   },
   timePeriodText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     fontWeight: '600',
   },
   timePeriodTextActive: {
@@ -517,16 +517,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.glass.subtle,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.medium,
   },
   summaryLabel: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     flex: 1,
   },
   summaryValue: {
@@ -535,13 +535,13 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   chartCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.glass.subtle,
     borderRadius: 12,
     padding: 12,
     marginHorizontal: 15,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.medium,
   },
   chartTitle: {
     fontSize: 18,
@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
   topItemRank: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#007AFF',
+    color: COLORS.accent.blue,
     width: 30,
   },
   topItemName: {
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   },
   topItemCount: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     marginBottom: 2,
   },
   topItemTotal: {
@@ -605,16 +605,16 @@ const styles = StyleSheet.create({
   },
   storeDetailTrips: {
     fontSize: 13,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
   },
   storeDetailTotal: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007AFF',
+    color: COLORS.accent.blue,
   },
   storeDetailAverage: {
     fontSize: 13,
-    color: '#6E6E73',
+    color: COLORS.text.tertiary,
   },
   storeNameWithBadge: {
     flexDirection: 'row',
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   mostVisitedBadge: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    backgroundColor: 'rgba(110, 168, 254, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   mostVisitedText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#007AFF',
+    color: COLORS.accent.blue,
     textTransform: 'uppercase',
   },
   bottomPadding: {
@@ -655,12 +655,12 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
+    backgroundColor: 'rgba(110, 168, 254, 0.8)',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    borderColor: 'rgba(110, 168, 254, 0.3)',
   },
   retryButtonText: {
     color: '#fff',
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background.primary,
     paddingHorizontal: 40,
   },
   errorBoundaryIcon: {
@@ -687,13 +687,13 @@ const styles = StyleSheet.create({
   },
   errorBoundaryText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     marginBottom: 20,
   },
   sectionDivider: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
     marginTop: 20,
     paddingTop: 16,
     paddingHorizontal: 15,
@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     fontStyle: 'italic',
     marginVertical: 20,

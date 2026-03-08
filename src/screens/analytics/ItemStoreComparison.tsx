@@ -295,10 +295,10 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: 12,
     marginHorizontal: 15,
     marginTop: 10,
@@ -310,10 +310,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   pickerButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     padding: 12,
     marginBottom: 8,
   },
@@ -322,15 +322,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   pickerPlaceholder: {
-    color: '#6E6E73',
+    color: 'rgba(255,255,255,0.3)',
     fontSize: 15,
     fontStyle: 'italic',
   },
   pickerDropdown: {
-    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+    backgroundColor: '#1E1E2E',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 8,
     maxHeight: 220,
   },
@@ -372,11 +372,11 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   controlChipActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    backgroundColor: 'rgba(110, 168, 254, 0.25)',
+    borderColor: 'rgba(110, 168, 254, 0.5)',
   },
   controlChipText: {
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     fontStyle: 'italic',
     marginVertical: 20,
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.3)',
     marginTop: 12,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   insightText: {
-    color: '#d0d0d0',
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 13,
     marginBottom: 4,
     lineHeight: 18,

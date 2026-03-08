@@ -41,7 +41,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
   if (!consentChecked) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#6EA8FE" />
       </View>
     );
   }
@@ -88,7 +88,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -110,15 +110,17 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     marginBottom: 12,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#6EA8FE',
   },
   secondaryButton: {
-    backgroundColor: '#2c2c2e',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   disabledButton: {
     opacity: 0.6,

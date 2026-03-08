@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import database from '@react-native-firebase/database';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
@@ -82,14 +83,21 @@ const TermsAcceptanceScreen = () => {
 
       <View style={styles.buttonContainer}>
         <TouchableOpacity
-          style={[styles.acceptButton, loading && styles.buttonDisabled]}
+          style={loading && styles.buttonDisabled}
           onPress={handleAccept}
           disabled={loading}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <Text style={styles.acceptButtonText}>I Accept</Text>
-          )}
+          <LinearGradient
+            colors={['#6EA8FE', '#A78BFA']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.acceptButton}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.acceptButtonText}>I Accept</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -106,7 +114,7 @@ const TermsAcceptanceScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
   },
   title: {
     fontSize: 24,
@@ -118,7 +126,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 16,
@@ -127,10 +135,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     marginHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   scrollContent: {
     padding: 16,
@@ -146,7 +154,6 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   acceptButton: {
-    backgroundColor: '#007AFF',
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-03-08
+### Style
+- **Full app visual overhaul "Liquid Glass v2"** — Unified design system across all 37+ files on branch `ui/visual-overhaul-v2`:
+  - New background palette: `#0D0D14` primary, `#1E1E2E` secondary, `#181825` tertiary
+  - New accent palette: blue `#6EA8FE`, purple `#A78BFA` (replacing `#007AFF` / `#AF52DE`)
+  - Glass surfaces: reduced to `rgba(255,255,255,0.03)` bg / `rgba(255,255,255,0.05)` border (was 0.08/0.12)
+  - Text hierarchy: white primary, `rgba(255,255,255,0.45)` secondary, `rgba(255,255,255,0.3)` tertiary
+  - All primary/confirm buttons: blue→purple LinearGradient (`#6EA8FE` → `#A78BFA`)
+  - Bottom-sheet modals: gradient background + handle bar (40×4px pill)
+  - Tab bar: new blue active tint, `rgba(13,13,20,0.95)` bg, border opacity 0.05
+  - Navigation theme: updated `primary`, `background`, `card`, `border`, `notification`
+  - RADIUS: large=14, xlarge=16, added modal=24
+  - Added `COMMON_STYLES.label` (11px/700/uppercase), `modalHandle`, `modalHandleContainer`
+  - Added `COLORS.gradient` token group
+  - ItemEditModal: combined measurement input ("500ml"), grouped pills (Volume/Weight), suggestion chip
+  - All screens/components updated: auth, history, analytics, settings, subscription, receipts, budget, urgent items
+
 ## [1.8.8] - 2026-03-07
 ### Performance
 - **Stop CategoryItemList re-rendering on every keystroke** — Wrapped `handleToggleItem`, `handleItemTap`, and `handleCategoryDragEnd` in `useCallback([], [])`. Added `isListLockedRef` to avoid capturing `isListLocked` state in the `handleItemTap` closure, keeping all three deps arrays empty so `memo`-wrapped `CategoryItemList` instances no longer re-render when the "add item" input changes.

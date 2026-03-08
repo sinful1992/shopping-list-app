@@ -319,7 +319,7 @@ const BudgetScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
   },
   scrollContent: {
     paddingBottom: 30,
@@ -328,22 +328,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0D0D14',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   dateRangeContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   dateRangeLabel: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: 10,
   },
   dateRangeButtons: {
@@ -353,17 +353,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   dateRangeButtonActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
+    backgroundColor: 'rgba(110, 168, 254, 0.25)',
+    borderColor: 'rgba(110, 168, 254, 0.5)',
+    shadowColor: '#6EA8FE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -371,19 +371,19 @@ const styles = StyleSheet.create({
   },
   dateRangeButtonText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     fontWeight: '600',
   },
   dateRangeButtonTextActive: {
     color: '#fff',
   },
   summaryCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     margin: 15,
     padding: 20,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -392,12 +392,12 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: 5,
   },
   summaryPeriod: {
     fontSize: 14,
-    color: '#6E6E73',
+    color: 'rgba(255,255,255,0.3)',
     marginBottom: 10,
   },
   totalAmount: {
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.12)',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   statItem: {
     alignItems: 'center',
@@ -419,11 +419,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#6EA8FE',
   },
   statLabel: {
     fontSize: 12,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     marginTop: 5,
     textAlign: 'center',
   },
@@ -431,12 +431,12 @@ const styles = StyleSheet.create({
     marginTop: 15,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(110, 168, 254, 0.8)',
+    borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
+    borderColor: 'rgba(110, 168, 254, 0.3)',
+    shadowColor: '#6EA8FE',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -556,12 +556,12 @@ const styles = StyleSheet.create({
   },
   breakdownContainer: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     marginHorizontal: 15,
     marginBottom: 15,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: 15,
   },
   breakdownTitle: {
@@ -591,11 +591,11 @@ const styles = StyleSheet.create({
   },
   listDate: {
     fontSize: 13,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   merchantName: {
     fontSize: 13,
-    color: '#6E6E73',
+    color: 'rgba(255,255,255,0.3)',
     marginTop: 2,
   },
   breakdownRight: {
@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   },
   noReceipt: {
     fontSize: 14,
-    color: '#6E6E73',
+    color: 'rgba(255,255,255,0.3)',
     fontStyle: 'italic',
   },
   emptyContainer: {
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
 });
 
