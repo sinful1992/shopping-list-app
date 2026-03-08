@@ -209,7 +209,8 @@ const HistoryDetailScreen = () => {
   const { list, receiptUrl, receiptData } = listDetails;
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
+    <ScrollView style={styles.scrollView}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.listName}>{list.name}</Text>
@@ -352,6 +353,8 @@ const HistoryDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
+    </ScrollView>
+
       {/* Item Edit Modal — only for items without a price */}
       <ItemEditModal
         visible={editModalVisible}
@@ -371,7 +374,7 @@ const HistoryDetailScreen = () => {
         itemName={priceHistoryItem?.name ?? ''}
         onClose={() => setPriceHistoryItem(null)}
       />
-    </ScrollView>
+    </View>
   );
 };
 
@@ -379,6 +382,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background.primary,
+  },
+  scrollView: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,
