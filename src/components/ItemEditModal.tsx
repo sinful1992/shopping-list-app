@@ -263,6 +263,21 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {!priceOnly && (
+              <CategoryPicker
+                selectedCategory={category}
+                onSelectCategory={(newCategory) => {
+                  setCategory(newCategory);
+                  if (measurementUnit === null) {
+                    const suggested = MeasurementService.getStaticDefault(name, newCategory);
+                    if (suggested) {
+                      setMeasurementUnit(suggested.unit);
+                    }
+                  }
+                }}
+              />
+            )}
+
+            {!priceOnly && (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Name</Text>
                 <TextInput
@@ -288,21 +303,6 @@ const ItemEditModal: React.FC<ItemEditModalProps> = ({
                 keyboardType="numeric"
               />
             </View>
-
-            {!priceOnly && (
-              <CategoryPicker
-                selectedCategory={category}
-                onSelectCategory={(newCategory) => {
-                  setCategory(newCategory);
-                  if (measurementUnit === null) {
-                    const suggested = MeasurementService.getStaticDefault(name, newCategory);
-                    if (suggested) {
-                      setMeasurementUnit(suggested.unit);
-                    }
-                  }
-                }}
-              />
-            )}
 
             {!priceOnly && (
               <View style={styles.measurementSection}>
