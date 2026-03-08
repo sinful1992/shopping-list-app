@@ -60,7 +60,7 @@ const DarkNavigationTheme = {
   colors: {
     ...DefaultTheme.colors,
     primary: '#6EA8FE',
-    background: '#0D0D14',
+    background: '#12121C',
     card: '#1E1E2E',
     text: '#ffffff',
     border: 'rgba(255, 255, 255, 0.05)',
@@ -161,7 +161,7 @@ function MainTabNavigator() {
           paddingBottom: Math.max(insets.bottom, 5),
           paddingTop: 5,
           height: Math.max(insets.bottom + 60, 60),
-          backgroundColor: 'rgba(13, 13, 20, 0.95)',
+          backgroundColor: 'rgba(18, 18, 28, 0.95)',
           borderTopWidth: 1,
           borderTopColor: 'rgba(255, 255, 255, 0.05)',
         },
@@ -388,7 +388,7 @@ function App(): JSX.Element {
     <SafeAreaProvider>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#0a0a0a"
+        backgroundColor="#12121C"
         translucent={false}
       />
       <RevenueCatProvider user={user}>

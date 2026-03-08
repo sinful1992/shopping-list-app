@@ -319,7 +319,7 @@ const BudgetScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
   },
   scrollContent: {
     paddingBottom: 30,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
   },
   loadingText: {
     marginTop: 10,

@@ -355,13 +355,13 @@ const ReceiptViewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
   },
   loadingText: {
     marginTop: 10,

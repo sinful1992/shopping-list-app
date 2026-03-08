@@ -88,7 +88,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,

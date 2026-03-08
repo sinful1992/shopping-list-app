@@ -114,7 +114,7 @@ const TermsAcceptanceScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
   },
   title: {
     fontSize: 24,

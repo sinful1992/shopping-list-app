@@ -36,7 +36,7 @@ function AdBanner({ visible }: AdBannerProps) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#0D0D14',
+    backgroundColor: '#12121C',
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.05)',
     alignItems: 'center',
