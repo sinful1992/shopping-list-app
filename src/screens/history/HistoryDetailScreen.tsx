@@ -17,6 +17,7 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
 import { ListDetails, Item } from '../../models/types';
 import ItemEditModal from '../../components/ItemEditModal';
+import PriceHistoryModal from '../../components/PriceHistoryModal';
 
 /**
  * HistoryDetailScreen
@@ -33,6 +34,7 @@ const HistoryDetailScreen = () => {
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [priceHistoryItem, setPriceHistoryItem] = useState<Item | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [priceStats, setPriceStats] = useState<Map<string, PriceStats>>(new Map());
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
@@ -128,7 +130,10 @@ const HistoryDetailScreen = () => {
   };
 
   const handleItemPress = (item: Item) => {
-    if (item.price != null && item.price > 0) return;
+    if (item.price != null && item.price > 0) {
+      setPriceHistoryItem(item);
+      return;
+    }
     setSelectedItem(item);
     setEditModalVisible(true);
   };
@@ -246,8 +251,6 @@ const HistoryDetailScreen = () => {
                         key={item.id}
                         style={styles.itemRow}
                         onPress={() => handleItemPress(item)}
-                        activeOpacity={hasPrice ? 1 : 0.7}
-                        disabled={hasPrice}
                       >
                         <View style={styles.checkboxContainer}>
                           <View style={styles.checkboxUnchecked} />
@@ -293,8 +296,6 @@ const HistoryDetailScreen = () => {
                     key={item.id}
                     style={styles.itemRow}
                     onPress={() => handleItemPress(item)}
-                    activeOpacity={hasPrice ? 1 : 0.7}
-                    disabled={hasPrice}
                   >
                     <View style={styles.checkboxContainer}>
                       <Text style={styles.checkboxChecked}>✓</Text>
@@ -351,7 +352,7 @@ const HistoryDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Item Edit Modal */}
+      {/* Item Edit Modal — only for items without a price */}
       <ItemEditModal
         visible={editModalVisible}
         item={selectedItem}
@@ -362,6 +363,13 @@ const HistoryDetailScreen = () => {
         onSave={handleSaveItem}
         focusField="price"
         priceOnly={true}
+      />
+
+      {/* Price History Modal — for items that already have a price */}
+      <PriceHistoryModal
+        visible={priceHistoryItem !== null}
+        itemName={priceHistoryItem?.name ?? ''}
+        onClose={() => setPriceHistoryItem(null)}
       />
     </ScrollView>
   );
