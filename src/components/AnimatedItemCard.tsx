@@ -3,6 +3,8 @@ import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyl
 import { useColorShiftingBorder } from './ColorShiftingCard';
 import { COLORS, RADIUS } from '../styles/theme';
 
+const VOLUME_UNITS = ['ml', 'L'];
+
 interface AnimatedItemCardProps {
   index: number;
   item: {
@@ -193,10 +195,12 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
               {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
             </Text>
           </View>
-          {item.measurementUnit && (
-            <Text style={cardStyles.measurementText}>
+          {item.measurementUnit ? (
+            <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
               {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
             </Text>
+          ) : !isChecked && (
+            <Text style={cardStyles.addSizeText}>+ add size</Text>
           )}
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
@@ -275,9 +279,16 @@ const cardStyles = StyleSheet.create({
   },
   measurementText: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    fontWeight: '600',
     marginLeft: 4,
-    marginTop: 1,
+    marginTop: 2,
+  },
+  addSizeText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.2)',
+    fontStyle: 'italic',
+    marginLeft: 4,
+    marginTop: 2,
   },
 });
 

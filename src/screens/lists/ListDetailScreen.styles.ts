@@ -110,7 +110,9 @@ const styles = StyleSheet.create({
     padding: 15,
     marginHorizontal: 10,
     marginTop: 8,
-    borderRadius: RADIUS.medium,
+    borderRadius: RADIUS.xlarge,
+    borderWidth: 1,
+    borderColor: COLORS.border.subtle,
   },
   itemRowChecked: {
     backgroundColor: COLORS.glass.subtle,
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: COLORS.text.primary,
-    fontWeight: '400',
+    fontWeight: '600',
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
@@ -174,7 +176,7 @@ const styles = StyleSheet.create({
   itemPriceText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.accent.green,
+    color: 'rgba(255,255,255,0.5)',
     minWidth: 60,
     textAlign: 'right',
   },
