@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2026-03-09
+### Changed
+- **Split ItemEditModal into 3 focused modals** — Replaced the monolithic `ItemEditModal` with purpose-built `PriceEditModal`, `SizeEditModal`, and `DetailsEditModal`, each opening only the fields relevant to the tapped zone on the card:
+  - `PriceEditModal`: large £ price input, quick-fill chips from recent store history (up to 4), "View Price History" button that opens `PriceHistoryModal` as a sibling (no z-index stacking)
+  - `SizeEditModal`: combined measurement input with live unit badge, smart suggestion chip, Volume/Weight pill groups, "Clear" footer button
+  - `DetailsEditModal`: large auto-focused name input, 2-column category grid with per-category color selection, Delete button with confirmation
+  - Shared `ModalBottomSheet` wrapper (gradient + handle bar) extracted to avoid duplication
+  - `parseCombinedInput()` extracted to `src/utils/measurement.ts` (single source of truth)
+  - `ListDetailScreen` uses discriminated union `activeModal` state instead of separate `editModalVisible` / `selectedItem` / `editModalFocusField`
+  - Measurement auto-assign on category change moved to `handleDetailsSave` handler
+  - `HistoryDetailScreen` swapped to `PriceEditModal` (was `ItemEditModal priceOnly`)
+
 ## [1.9.0] - 2026-03-08
 ### Style
 - **Full app visual overhaul "Liquid Glass v2"** — Unified design system across all 37+ files on branch `ui/visual-overhaul-v2`:

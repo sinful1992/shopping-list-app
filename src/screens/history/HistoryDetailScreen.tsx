@@ -16,7 +16,7 @@ import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
 import { ListDetails, Item } from '../../models/types';
-import ItemEditModal from '../../components/ItemEditModal';
+import PriceEditModal from '../../components/PriceEditModal';
 import PriceHistoryModal from '../../components/PriceHistoryModal';
 
 /**
@@ -36,6 +36,7 @@ const HistoryDetailScreen = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [priceHistoryItem, setPriceHistoryItem] = useState<Item | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [priceHistoryModalItemName, setPriceHistoryModalItemName] = useState<string | null>(null);
   const [priceStats, setPriceStats] = useState<Map<string, PriceStats>>(new Map());
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const priceStatsLoadedRef = useRef(false);
@@ -140,8 +141,7 @@ const HistoryDetailScreen = () => {
 
   const handleSaveItem = async (
     itemId: string,
-    updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
-    _measurementChanged: boolean
+    updates: { price?: number | null }
   ) => {
     await ItemManager.updateItem(itemId, updates);
 
@@ -355,24 +355,30 @@ const HistoryDetailScreen = () => {
 
     </ScrollView>
 
-      {/* Item Edit Modal — only for items without a price */}
-      <ItemEditModal
+      {/* Price Edit Modal — for items without a price */}
+      <PriceEditModal
         visible={editModalVisible}
         item={selectedItem}
+        recentPrices={[]}
         onClose={() => {
           setEditModalVisible(false);
           setSelectedItem(null);
         }}
         onSave={handleSaveItem}
-        focusField="price"
-        priceOnly={true}
+        onViewPriceHistory={(itemName) => {
+          setEditModalVisible(false);
+          setPriceHistoryModalItemName(itemName);
+        }}
       />
 
-      {/* Price History Modal — for items that already have a price */}
+      {/* Price History Modal — for items that already have a price, or opened from PriceEditModal */}
       <PriceHistoryModal
-        visible={priceHistoryItem !== null}
-        itemName={priceHistoryItem?.name ?? ''}
-        onClose={() => setPriceHistoryItem(null)}
+        visible={priceHistoryItem !== null || priceHistoryModalItemName !== null}
+        itemName={priceHistoryItem?.name ?? priceHistoryModalItemName ?? ''}
+        onClose={() => {
+          setPriceHistoryItem(null);
+          setPriceHistoryModalItemName(null);
+        }}
       />
     </View>
   );
