@@ -59,12 +59,12 @@ const DarkNavigationTheme = {
   dark: true,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#007AFF',
-    background: '#0a0a0a',
-    card: '#1c1c1e',
+    primary: '#6EA8FE',
+    background: '#12121C',
+    card: '#1E1E2E',
     text: '#ffffff',
-    border: 'rgba(255, 255, 255, 0.1)',
-    notification: '#007AFF',
+    border: 'rgba(255, 255, 255, 0.05)',
+    notification: '#6EA8FE',
   },
 };
 
@@ -155,22 +155,22 @@ function MainTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#6E6E73',
+        tabBarActiveTintColor: '#6EA8FE',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.3)',
         tabBarStyle: {
           paddingBottom: Math.max(insets.bottom, 5),
           paddingTop: 5,
           height: Math.max(insets.bottom + 60, 60),
-          backgroundColor: 'rgba(18, 18, 18, 0.95)',
+          backgroundColor: 'rgba(18, 18, 28, 0.95)',
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255, 255, 255, 0.1)',
+          borderTopColor: 'rgba(255, 255, 255, 0.05)',
         },
         headerRight: () => (
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings' as never)}
             style={{ marginRight: 15 }}
           >
-            <Icon name="settings-outline" size={24} color="#007AFF" />
+            <Icon name="settings-outline" size={24} color="#6EA8FE" />
           </TouchableOpacity>
         ),
       }}
@@ -388,7 +388,7 @@ function App(): JSX.Element {
     <SafeAreaProvider>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#0a0a0a"
+        backgroundColor="#12121C"
         translucent={false}
       />
       <RevenueCatProvider user={user}>

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import StoreHistoryService from '../services/StoreHistoryService';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
@@ -86,7 +87,10 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <LinearGradient
+            colors={['#1E1E2E', '#181825']}
+            style={styles.modalContent}
+          >
             {/* Header */}
             <Text style={styles.title}>Store Name</Text>
             <Text style={styles.subtitle}>
@@ -137,17 +141,21 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.confirmButton,
-                  !inputValue.trim() && styles.confirmButtonDisabled,
-                ]}
+                style={[styles.confirmButtonWrapper, !inputValue.trim() && styles.confirmButtonDisabled]}
                 onPress={handleConfirm}
                 disabled={!inputValue.trim()}
               >
-                <Text style={styles.confirmButtonText}>Confirm</Text>
+                <LinearGradient
+                  colors={['#6EA8FE', '#A78BFA']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.confirmButton}
+                >
+                  <Text style={styles.confirmButtonText}>Confirm</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
+          </LinearGradient>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -166,11 +174,10 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modalContent: {
-    backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.xlarge,
     padding: SPACING.xxl,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderColor: COLORS.border.medium,
     ...SHADOWS.large,
   },
   title: {
@@ -187,7 +194,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   input: {
-    ...COMMON_STYLES.input,
+    backgroundColor: COLORS.glass.subtle,
+    borderWidth: 1.5,
+    borderColor: COLORS.border.medium,
+    borderRadius: RADIUS.large,
+    color: COLORS.text.primary,
+    padding: 14,
     fontSize: TYPOGRAPHY.fontSize.lg,
     marginBottom: SPACING.md,
   },
@@ -238,15 +250,15 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
-  confirmButton: {
+  confirmButtonWrapper: {
     flex: 1,
-    backgroundColor: COLORS.accent.green,
+  },
+  confirmButton: {
     padding: SPACING.lg,
     borderRadius: RADIUS.medium,
     alignItems: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: COLORS.accent.greenDim,
     opacity: 0.5,
   },
   confirmButtonText: {

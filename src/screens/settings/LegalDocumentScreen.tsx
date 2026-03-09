@@ -17,7 +17,7 @@ const LegalDocumentScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#12121C',
   },
   contentContainer: {
     padding: 20,

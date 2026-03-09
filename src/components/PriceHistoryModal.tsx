@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import AuthenticationModule from '../services/AuthenticationModule';
@@ -92,7 +93,14 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
+        <LinearGradient
+          colors={['#1E1E2E', '#181825']}
+          style={styles.modalContainer}
+        >
+          {/* Handle bar */}
+          <View style={COMMON_STYLES.modalHandleContainer}>
+            <View style={COMMON_STYLES.modalHandle} />
+          </View>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Price History</Text>
@@ -259,7 +267,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
               </View>
             </ScrollView>
           )}
-        </View>
+        </LinearGradient>
       </View>
     </Modal>
   );
@@ -272,8 +280,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    ...COMMON_STYLES.modal,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',

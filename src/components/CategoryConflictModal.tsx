@@ -7,8 +7,9 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import CategoryService from '../services/CategoryService';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
 interface CategoryConflictModalProps {
   visible: boolean;

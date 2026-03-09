@@ -9,6 +9,8 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS } from '../../styles/theme';
 import styles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
@@ -213,7 +215,6 @@ const HomeScreen = () => {
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
                   completedCardStyle={styles.completedCard}
-                  totalLists={lists.length}
                 />
               );
             })
@@ -221,7 +222,14 @@ const HomeScreen = () => {
       </ScrollView>
 
       <TouchableOpacity style={styles.fab} onPress={handleCreateList}>
-        <Text style={styles.fabText}>+</Text>
+        <LinearGradient
+          colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fabGradient}
+        >
+          <Text style={styles.fabText}>+</Text>
+        </LinearGradient>
       </TouchableOpacity>
 
       <Modal
@@ -231,7 +239,10 @@ const HomeScreen = () => {
         onRequestClose={() => setShowCreateModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <LinearGradient
+            colors={[COLORS.gradient.modalStart, COLORS.gradient.modalEnd]}
+            style={styles.modalContent}
+          >
             <Text style={styles.modalTitle}>New Shopping List</Text>
             <Text style={styles.modalSubtitle}>Select shopping date:</Text>
 
@@ -265,10 +276,17 @@ const HomeScreen = () => {
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={handleConfirmCreate}
               >
-                <Text style={styles.modalButtonText}>Create</Text>
+                <LinearGradient
+                  colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.modalButtonConfirmGradient}
+                >
+                  <Text style={styles.modalButtonText}>Create</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
-          </View>
+          </LinearGradient>
         </View>
       </Modal>
 
@@ -290,7 +308,14 @@ const HomeScreen = () => {
                 style={styles.iosPickerDone}
                 onPress={() => setShowIOSPicker(false)}
               >
-                <Text style={styles.iosPickerDoneText}>Done</Text>
+                <LinearGradient
+                  colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.iosPickerDoneGradient}
+                >
+                  <Text style={styles.iosPickerDoneText}>Done</Text>
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>

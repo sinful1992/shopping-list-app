@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import CategoryService, { CategoryType } from '../services/CategoryService';
+import { COLORS, RADIUS } from '../styles/theme';
 
 interface CategoryPickerProps {
   selectedCategory: CategoryType | null | undefined;
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
     marginBottom: 8,
   },
   categoriesContainer: {
@@ -99,14 +100,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 20,
+    backgroundColor: COLORS.glass.subtle,
+    borderRadius: RADIUS.xxlarge,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.medium,
   },
   categoryChipSelected: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
-    borderColor: '#007AFF',
+    backgroundColor: COLORS.accent.blueSubtle,
+    borderColor: COLORS.accent.blue,
   },
   categoryIcon: {
     fontSize: 16,
@@ -114,10 +115,10 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
   },
   categoryTextSelected: {
-    color: '#007AFF',
+    color: COLORS.accent.blue,
     fontWeight: '600',
   },
 });

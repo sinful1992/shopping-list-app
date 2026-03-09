@@ -1,30 +1,30 @@
 /**
  * Centralized Theme Constants
- * Liquid Glass Dark Theme with glassmorphism effects
+ * Liquid Glass Dark Theme with glassmorphism effects — v2
  */
 
 export const COLORS = {
   // Background colors
   background: {
-    primary: '#0a0a0a',
-    secondary: '#1c1c1e',
-    tertiary: '#2c2c2e',
+    primary: '#12121C',
+    secondary: '#1E1E2E',
+    tertiary: '#181825',
   },
 
   // Glass effect backgrounds (rgba with varying opacity)
   glass: {
-    subtle: 'rgba(255, 255, 255, 0.05)',
-    medium: 'rgba(255, 255, 255, 0.08)',
-    elevated: 'rgba(255, 255, 255, 0.12)',
-    strong: 'rgba(255, 255, 255, 0.15)',
+    subtle: 'rgba(255, 255, 255, 0.03)',
+    medium: 'rgba(255, 255, 255, 0.05)',
+    elevated: 'rgba(255, 255, 255, 0.08)',
+    strong: 'rgba(255, 255, 255, 0.12)',
   },
 
-  // Accent colors (iOS-inspired)
+  // Accent colors
   accent: {
-    blue: '#007AFF',
-    blueLight: 'rgba(0, 122, 255, 0.8)',
-    blueDim: 'rgba(0, 122, 255, 0.3)',
-    blueSubtle: 'rgba(0, 122, 255, 0.15)',
+    blue: '#6EA8FE',
+    blueLight: 'rgba(110, 168, 254, 0.8)',
+    blueDim: 'rgba(110, 168, 254, 0.3)',
+    blueSubtle: 'rgba(110, 168, 254, 0.15)',
     green: '#30D158',
     greenDim: 'rgba(48, 209, 88, 0.3)',
     yellow: '#FFD60A',
@@ -33,29 +33,37 @@ export const COLORS = {
     redDim: 'rgba(255, 69, 58, 0.3)',
     redSubtle: 'rgba(255, 59, 48, 0.15)',
     orange: '#FFB340',
-    purple: '#AF52DE',
+    purple: '#A78BFA',
   },
 
   // Text colors
   text: {
     primary: '#ffffff',
-    secondary: '#a0a0a0',
-    tertiary: '#6E6E73',
-    dim: '#8E8E93',
+    secondary: 'rgba(255, 255, 255, 0.45)',
+    tertiary: 'rgba(255, 255, 255, 0.3)',
+    dim: 'rgba(255, 255, 255, 0.2)',
   },
 
   // Border colors
   border: {
-    subtle: 'rgba(255, 255, 255, 0.06)',
-    medium: 'rgba(255, 255, 255, 0.1)',
-    strong: 'rgba(255, 255, 255, 0.12)',
+    subtle: 'rgba(255, 255, 255, 0.05)',
+    medium: 'rgba(255, 255, 255, 0.08)',
+    strong: 'rgba(255, 255, 255, 0.10)',
   },
 
   // Overlay colors
   overlay: {
-    dark: 'rgba(0, 0, 0, 0.5)',
-    darker: 'rgba(0, 0, 0, 0.8)',
+    dark: 'rgba(0, 0, 0, 0.6)',
+    darker: 'rgba(0, 0, 0, 0.75)',
     darkest: 'rgba(0, 0, 0, 0.85)',
+  },
+
+  // Gradient definitions
+  gradient: {
+    buttonStart: '#6EA8FE',
+    buttonEnd: '#A78BFA',
+    modalStart: '#1E1E2E',
+    modalEnd: '#181825',
   },
 } as const;
 
@@ -116,9 +124,10 @@ export const SHADOWS = {
 export const RADIUS = {
   small: 8,
   medium: 12,
-  large: 16,
-  xlarge: 20,
-  xxlarge: 24,
+  large: 14,
+  xlarge: 16,
+  xxlarge: 20,
+  modal: 24,
   pill: 25,
 } as const;
 
@@ -154,10 +163,10 @@ export const TYPOGRAPHY = {
 export const COMMON_STYLES = {
   // Standard glassmorphic card
   glassCard: {
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: COLORS.glass.subtle,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderColor: COLORS.border.subtle,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -170,7 +179,7 @@ export const COMMON_STYLES = {
     backgroundColor: COLORS.glass.elevated,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderColor: COLORS.border.medium,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -183,7 +192,7 @@ export const COMMON_STYLES = {
     backgroundColor: COLORS.accent.blueLight,
     borderWidth: 1,
     borderColor: COLORS.accent.blueDim,
-    borderRadius: RADIUS.medium,
+    borderRadius: RADIUS.large,
     shadowColor: COLORS.accent.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -193,34 +202,49 @@ export const COMMON_STYLES = {
 
   // Standard button
   button: {
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: COLORS.glass.subtle,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
-    borderRadius: RADIUS.medium,
+    borderColor: COLORS.border.medium,
+    borderRadius: RADIUS.large,
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
   },
 
   // Input field
   input: {
-    backgroundColor: COLORS.glass.medium,
-    borderWidth: 1,
-    borderColor: COLORS.border.strong,
-    borderRadius: RADIUS.medium,
+    backgroundColor: COLORS.glass.subtle,
+    borderWidth: 1.5,
+    borderColor: COLORS.border.medium,
+    borderRadius: RADIUS.large,
     color: COLORS.text.primary,
-    padding: SPACING.md,
+    padding: 14,
   },
 
   // Modal container
   modal: {
     backgroundColor: COLORS.background.secondary,
-    borderTopLeftRadius: RADIUS.xlarge,
-    borderTopRightRadius: RADIUS.xlarge,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
+  },
+
+  // Modal handle bar container
+  modalHandleContainer: {
+    alignItems: 'center' as const,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+
+  // Modal handle bar
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
 
   // Section header
@@ -231,12 +255,22 @@ export const COMMON_STYLES = {
     marginBottom: SPACING.lg,
   },
 
+  // Uppercase label
+  label: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1.2,
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.sm,
+  },
+
   // Card with colored accent
   accentCard: (color: string, dimColor: string) => ({
     backgroundColor: color,
     borderWidth: 1,
     borderColor: dimColor,
-    borderRadius: RADIUS.medium,
+    borderRadius: RADIUS.large,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,

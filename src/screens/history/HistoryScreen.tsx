@@ -475,24 +475,24 @@ const HistoryScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#12121C',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#12121C',
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   tab: {
     flex: 1,
@@ -502,30 +502,27 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#007AFF',
+    borderBottomColor: '#6EA8FE',
   },
   tabText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6E6E73',
+    color: 'rgba(255,255,255,0.3)',
   },
   tabTextActive: {
-    color: '#007AFF',
+    color: '#6EA8FE',
   },
   searchContainer: {
     padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   searchInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 14,
     padding: 12,
     fontSize: 16,
     color: '#ffffff',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: 10,
   },
   searchActions: {
@@ -535,12 +532,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   filterIconButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   filterIconText: {
     color: '#ffffff',
@@ -549,34 +546,27 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 15,
+    paddingBottom: 15,
   },
   filterButton: {
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   filterButtonActive: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: 'rgba(110, 168, 254, 0.25)',
+    borderColor: 'rgba(110, 168, 254, 0.5)',
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     fontWeight: '600',
   },
   filterButtonTextActive: {
@@ -587,12 +577,12 @@ const styles = StyleSheet.create({
   },
   listItem: {
     flexDirection: 'column',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     marginHorizontal: 15,
     marginTop: 10,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: 15,
   },
   listItemRow: {
@@ -607,7 +597,7 @@ const styles = StyleSheet.create({
   },
   listTotal: {
     fontSize: 16,
-    color: '#30D158',
+    color: 'rgba(255,255,255,0.5)',
     fontWeight: '600',
   },
   itemsNotBought: {
@@ -624,7 +614,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   footer: {
     paddingVertical: 20,

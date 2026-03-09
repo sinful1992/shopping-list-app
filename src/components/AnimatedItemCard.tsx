@@ -1,6 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
-import { useColorShiftingBorder } from './ColorShiftingCard';
+import { COLORS, RADIUS } from '../styles/theme';
+
+const VOLUME_UNITS = ['ml', 'L'];
 
 interface AnimatedItemCardProps {
   index: number;
@@ -25,7 +27,7 @@ interface AnimatedItemCardProps {
   isListLocked: boolean;
   onDrag?: () => void;
   onToggleItem: () => void;
-  onItemTap: () => void;
+  onItemTap: (focusField?: 'name' | 'price' | 'measurement') => void;
   onIncrement: (itemId: string) => void;
   onDecrement: (itemId: string) => void;
   itemRowStyle: StyleProp<ViewStyle>;
@@ -44,13 +46,11 @@ interface AnimatedItemCardProps {
   itemPriceCheckedStyle?: StyleProp<TextStyle>;
   suggestionRowStyle?: StyleProp<ViewStyle>;
   suggestionTextStyle?: StyleProp<TextStyle>;
-  totalItems: number;
 }
 
 const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   index,
   item,
-  totalItems,
   itemPrice,
   isPredicted,
   showSuggestion,
@@ -78,9 +78,6 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   suggestionRowStyle,
   suggestionTextStyle,
 }) => {
-  // Apply color-shifting border with wave effect
-  const borderStyles = useColorShiftingBorder(index, 1.5, 8, totalItems);
-
   const isChecked = item.checked === true;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
@@ -136,10 +133,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       style={[
         itemRowStyle,
         isChecked && itemRowCheckedStyle,
-        borderStyles,
-        // Reduce opacity for entire card when checked
         isChecked && { opacity: 0.5 },
-        // Apply scale animation
         { transform: [{ scale: scaleAnimation }] }
       ]}
     >
@@ -162,7 +156,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       {/* Item content */}
       <TouchableOpacity
         style={itemContentTouchableStyle}
-        onPress={onItemTap}
+        onPress={() => onItemTap('name')}
         onLongPress={onDrag}
         delayLongPress={250}
         disabled={isListLocked}
@@ -182,20 +176,17 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             >
               {item.name}
             </Text>
-            <Text
-              style={[
-                itemPriceTextStyle,
-                isPredicted && itemPricePredictedStyle,
-                isChecked && itemPriceCheckedStyle
-              ]}
-            >
-              {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
-            </Text>
           </View>
-          {item.measurementUnit && (
-            <Text style={cardStyles.measurementText}>
-              {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
-            </Text>
+          {item.measurementUnit ? (
+            <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
+                {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
+              </Text>
+            </TouchableOpacity>
+          ) : !isChecked && (
+            <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <Text style={cardStyles.addSizeText}>+ add size</Text>
+            </TouchableOpacity>
           )}
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
@@ -205,6 +196,19 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             </View>
           )}
         </View>
+      </TouchableOpacity>
+
+      {/* Price — tappable to open price field */}
+      <TouchableOpacity onPress={() => onItemTap('price')} disabled={isListLocked} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text
+          style={[
+            itemPriceTextStyle,
+            isPredicted && itemPricePredictedStyle,
+            isChecked && itemPriceCheckedStyle
+          ]}
+        >
+          {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
+        </Text>
       </TouchableOpacity>
 
       {/* Quantity buttons — hidden when checked */}
@@ -238,7 +242,7 @@ const cardStyles = StyleSheet.create({
   qtyPrefix: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: COLORS.text.secondary,
     marginRight: 4,
   },
   qtyBtnIncrement: {
@@ -246,18 +250,18 @@ const cardStyles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: RADIUS.small - 2,
     marginLeft: 4,
-    backgroundColor: 'rgba(52, 199, 89, 0.35)',
+    backgroundColor: COLORS.accent.greenDim,
   },
   qtyBtnDecrement: {
     width: 28,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 6,
+    borderRadius: RADIUS.small - 2,
     marginLeft: 4,
-    backgroundColor: 'rgba(255, 59, 48, 0.35)',
+    backgroundColor: COLORS.accent.redSubtle,
   },
   qtyBtnDisabled: {
     opacity: 0.3,
@@ -265,18 +269,25 @@ const cardStyles = StyleSheet.create({
   qtyBtnTextIncrement: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#34C759',
+    color: COLORS.accent.green,
   },
   qtyBtnTextDecrement: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FF3B30',
+    color: COLORS.accent.red,
   },
   measurementText: {
     fontSize: 12,
-    color: '#8E8E93',
+    fontWeight: '600',
     marginLeft: 4,
-    marginTop: 1,
+    marginTop: 2,
+  },
+  addSizeText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.2)',
+    fontStyle: 'italic',
+    marginLeft: 4,
+    marginTop: 2,
   },
 });
 

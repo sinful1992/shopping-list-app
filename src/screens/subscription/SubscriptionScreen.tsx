@@ -95,7 +95,7 @@ export const SubscriptionScreen: React.FC = () => {
   const getTierBadgeColor = (t: SubscriptionTier): string => {
     switch (t) {
       case 'free': return '#8E8E93';
-      case 'premium': return '#007AFF';
+      case 'premium': return '#6EA8FE';
       case 'family': return '#30D158';
       default: return '#8E8E93';
     }
@@ -104,7 +104,7 @@ export const SubscriptionScreen: React.FC = () => {
   if (loading || rcLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#6EA8FE" />
       </View>
     );
   }
@@ -246,17 +246,17 @@ export const SubscriptionScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#12121C',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#12121C',
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#12121C',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#6EA8FE',
     paddingVertical: 12,
     paddingHorizontal: 20,
     gap: 10,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: 'rgba(255,255,255,0.05)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -304,10 +304,10 @@ const styles = StyleSheet.create({
   section: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2E',
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   sectionTitle: {
-    color: '#8E8E93',
+    color: 'rgba(255,255,255,0.3)',
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -318,12 +318,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   tierCard: {
-    backgroundColor: '#1C1C1E',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#3A3A3C',
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   tierCardHeader: {
     flexDirection: 'row',
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   priceLabel: {
-    color: '#8E8E93',
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 12,
   },
   featuresContainer: {
@@ -363,12 +363,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   featureText: {
-    color: '#E5E5E7',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 14,
   },
   upgradeButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#6EA8FE',
+    borderRadius: 14,
     padding: 14,
     alignItems: 'center',
   },
@@ -399,13 +399,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   restoreButtonText: {
-    color: '#007AFF',
+    color: '#6EA8FE',
     fontSize: 16,
     fontWeight: '600',
   },
   manageButton: {
-    backgroundColor: '#2C2C2E',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
     padding: 14,
     alignItems: 'center',
     marginBottom: 8,
@@ -416,7 +418,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   manageHintText: {
-    color: '#8E8E93',
+    color: 'rgba(255,255,255,0.3)',
     fontSize: 13,
     textAlign: 'center',
   },

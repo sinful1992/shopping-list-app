@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { COLORS, RADIUS } from '../../styles/theme';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -15,7 +16,8 @@ import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
 import { ListDetails, Item } from '../../models/types';
-import ItemEditModal from '../../components/ItemEditModal';
+import PriceEditModal from '../../components/PriceEditModal';
+import PriceHistoryModal from '../../components/PriceHistoryModal';
 
 /**
  * HistoryDetailScreen
@@ -32,7 +34,9 @@ const HistoryDetailScreen = () => {
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [priceHistoryItem, setPriceHistoryItem] = useState<Item | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [priceHistoryModalItemName, setPriceHistoryModalItemName] = useState<string | null>(null);
   const [priceStats, setPriceStats] = useState<Map<string, PriceStats>>(new Map());
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const priceStatsLoadedRef = useRef(false);
@@ -127,14 +131,17 @@ const HistoryDetailScreen = () => {
   };
 
   const handleItemPress = (item: Item) => {
+    if (item.price != null && item.price > 0) {
+      setPriceHistoryItem(item);
+      return;
+    }
     setSelectedItem(item);
     setEditModalVisible(true);
   };
 
   const handleSaveItem = async (
     itemId: string,
-    updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
-    _measurementChanged: boolean
+    updates: { price?: number | null }
   ) => {
     await ItemManager.updateItem(itemId, updates);
 
@@ -202,7 +209,8 @@ const HistoryDetailScreen = () => {
   const { list, receiptUrl, receiptData } = listDetails;
 
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
+    <ScrollView style={styles.scrollView}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.listName}>{list.name}</Text>
@@ -237,32 +245,36 @@ const HistoryDetailScreen = () => {
                   </Text>
                 </View>
                 <View style={styles.itemsContainer}>
-                  {uncheckedItems.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.itemRow}
-                      onPress={() => handleItemPress(item)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.checkboxContainer}>
-                        <View style={styles.checkboxUnchecked} />
-                      </View>
-                      <View style={styles.itemContent}>
-                        <View style={styles.itemNameRow}>
-                          <Text style={[styles.itemName, styles.itemNameNotPurchased]}>
-                            {item.name}
-                          </Text>
+                  {uncheckedItems.map((item) => {
+                    const hasPrice = item.price != null && item.price > 0;
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.itemRow}
+                        onPress={() => handleItemPress(item)}
+                      >
+                        <View style={styles.checkboxContainer}>
+                          <View style={styles.checkboxUnchecked} />
                         </View>
-                        <View style={styles.priceRow}>
-                          {item.price !== null && item.price !== undefined && (
-                            <Text style={[styles.itemPrice, styles.itemPriceNotPurchased]}>
-                              £{item.price.toFixed(2)}
+                        <View style={styles.itemContent}>
+                          <View style={styles.itemNameRow}>
+                            <Text style={[styles.itemName, styles.itemNameNotPurchased]}>
+                              {item.name}
                             </Text>
-                          )}
+                          </View>
+                          <View style={styles.priceRow}>
+                            {hasPrice ? (
+                              <Text style={[styles.itemPrice, styles.itemPriceNotPurchased]}>
+                                £{item.price!.toFixed(2)}
+                              </Text>
+                            ) : (
+                              <Text style={styles.addPricePrompt}>+ set price</Text>
+                            )}
+                          </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  ))}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </>
             )}
@@ -279,12 +291,12 @@ const HistoryDetailScreen = () => {
                   ? item.price - stats.priceHistory[stats.priceHistory.length - 2]?.price
                   : null;
 
+                const hasPrice = item.price != null && item.price > 0;
                 return (
                   <TouchableOpacity
                     key={item.id}
                     style={styles.itemRow}
                     onPress={() => handleItemPress(item)}
-                    activeOpacity={0.7}
                   >
                     <View style={styles.checkboxContainer}>
                       <Text style={styles.checkboxChecked}>✓</Text>
@@ -299,10 +311,12 @@ const HistoryDetailScreen = () => {
                         )}
                       </View>
                       <View style={styles.priceRow}>
-                        {item.price !== null && item.price !== undefined && (
+                        {hasPrice ? (
                           <Text style={styles.itemPrice}>
-                            £{item.price.toFixed(2)}
+                            £{item.price!.toFixed(2)}
                           </Text>
+                        ) : (
+                          <Text style={styles.addPricePrompt}>+ set price</Text>
                         )}
                         {priceChange !== null && priceChange !== 0 && (
                           <Text style={[
@@ -339,47 +353,65 @@ const HistoryDetailScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Item Edit Modal */}
-      <ItemEditModal
+    </ScrollView>
+
+      {/* Price Edit Modal — for items without a price */}
+      <PriceEditModal
         visible={editModalVisible}
         item={selectedItem}
+        recentPrices={[]}
         onClose={() => {
           setEditModalVisible(false);
           setSelectedItem(null);
         }}
         onSave={handleSaveItem}
-        focusField="price"
-        priceOnly={true}
+        onViewPriceHistory={(itemName) => {
+          setEditModalVisible(false);
+          setPriceHistoryModalItemName(itemName);
+        }}
       />
-    </ScrollView>
+
+      {/* Price History Modal — for items that already have a price, or opened from PriceEditModal */}
+      <PriceHistoryModal
+        visible={priceHistoryItem !== null || priceHistoryModalItemName !== null}
+        itemName={priceHistoryItem?.name ?? priceHistoryModalItemName ?? ''}
+        onClose={() => {
+          setPriceHistoryItem(null);
+          setPriceHistoryModalItemName(null);
+        }}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background.primary,
+  },
+  scrollView: {
+    flex: 1,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: COLORS.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
   },
   errorText: {
     fontSize: 16,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
   },
   header: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.glass.subtle,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.medium,
     borderRadius: 20,
     marginHorizontal: 10,
     marginTop: 10,
@@ -393,7 +425,7 @@ const styles = StyleSheet.create({
   },
   listDate: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     marginBottom: 8,
   },
   totalAmount: {
@@ -402,11 +434,11 @@ const styles = StyleSheet.create({
     color: '#30D158',
   },
   section: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: COLORS.glass.subtle,
     marginBottom: 10,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: COLORS.border.medium,
     borderRadius: 20,
     marginHorizontal: 10,
   },
@@ -424,7 +456,7 @@ const styles = StyleSheet.create({
   },
   editLink: {
     fontSize: 16,
-    color: '#007AFF',
+    color: COLORS.accent.blue,
     fontWeight: '600',
   },
   receiptDataContainer: {
@@ -437,7 +469,7 @@ const styles = StyleSheet.create({
   },
   receiptLabel: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
   },
   receiptValue: {
     fontSize: 14,
@@ -457,7 +489,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: COLORS.border.subtle,
   },
   checkboxContainer: {
     marginRight: 12,
@@ -470,7 +502,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: COLORS.text.tertiary,
     borderRadius: 4,
   },
   itemContent: {
@@ -491,7 +523,7 @@ const styles = StyleSheet.create({
   },
   itemQuantity: {
     fontSize: 13,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   itemPrice: {
@@ -514,6 +546,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 6,
   },
+  addPricePrompt: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.2)',
+    fontStyle: 'italic',
+  },
   priceTrend: {
     fontSize: 14,
     fontWeight: '700',
@@ -529,10 +566,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    backgroundColor: 'rgba(110, 168, 254, 0.15)',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
+    borderColor: 'rgba(110, 168, 254, 0.3)',
   },
   receiptButtonIcon: {
     fontSize: 20,
@@ -541,11 +578,11 @@ const styles = StyleSheet.create({
   receiptButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
+    color: COLORS.accent.blue,
   },
   emptyText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: COLORS.text.secondary,
     fontStyle: 'italic',
   },
   deleteButton: {

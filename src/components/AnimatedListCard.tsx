@@ -1,6 +1,5 @@
 import React from 'react';
 import { Animated, TouchableOpacity, View, Text, StyleProp, ViewStyle } from 'react-native';
-import { useColorShiftingBorder } from './ColorShiftingCard';
 
 // Create animated version of TouchableOpacity
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -20,7 +19,6 @@ interface AnimatedListCardProps {
   onDelete: () => void;
   completedCardStyle?: StyleProp<ViewStyle>;
   listCardStyle: StyleProp<ViewStyle>;
-  totalLists: number;
 }
 
 const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
@@ -38,15 +36,11 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   onDelete,
   completedCardStyle,
   listCardStyle,
-  totalLists,
 }) => {
-  // Get animated border styles - called at component level (safe)
-  const borderStyles = useColorShiftingBorder(index, 3, 20, totalLists);
-
   return (
     <AnimatedTouchableOpacity
       key={listId}
-      style={[listCardStyle, isCompleted && completedCardStyle, borderStyles]}
+      style={[listCardStyle, isCompleted && completedCardStyle]}
       onPress={onPress}
     >
       {/* Sync Status Indicator - Top Right */}
@@ -151,17 +145,17 @@ const styles = {
   },
   listDateFormatted: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 4,
   },
   listDateSecondary: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.5)',
+    color: 'rgba(255, 255, 255, 0.3)',
     marginTop: 2,
   },
   storeName: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 2,
   },
 };

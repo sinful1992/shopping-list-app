@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { COLORS } from '../styles/theme';
 
 interface SimpleMarkdownProps {
   content: string;
@@ -106,33 +107,33 @@ const styles = StyleSheet.create({
   h1: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: COLORS.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   h2: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: COLORS.text.primary,
     marginTop: 14,
     marginBottom: 6,
   },
   h3: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#e0e0e0',
+    color: COLORS.text.secondary,
     marginTop: 12,
     marginBottom: 4,
   },
   paragraph: {
     fontSize: 14,
-    color: '#c0c0c0',
+    color: COLORS.text.secondary,
     lineHeight: 20,
     marginBottom: 4,
   },
   bold: {
     fontWeight: '700',
-    color: '#e0e0e0',
+    color: COLORS.text.secondary,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -142,13 +143,13 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: 14,
-    color: '#007AFF',
+    color: COLORS.accent.blue,
     marginRight: 8,
     lineHeight: 20,
   },
   bulletText: {
     fontSize: 14,
-    color: '#c0c0c0',
+    color: COLORS.text.secondary,
     lineHeight: 20,
     flex: 1,
   },

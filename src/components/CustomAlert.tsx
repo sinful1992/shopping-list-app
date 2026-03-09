@@ -117,16 +117,16 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: COLORS.overlay.dark,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
   modal: {
     backgroundColor: COLORS.background.secondary,
-    borderRadius: RADIUS.large,
+    borderRadius: RADIUS.modal,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: COLORS.border.subtle,
     width: '100%',
     maxWidth: 320,
     paddingTop: SPACING.xl,

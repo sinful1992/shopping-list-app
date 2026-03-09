@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import AuthenticationModule from '../services/AuthenticationModule';
@@ -88,7 +89,14 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.modal}>
+        <LinearGradient
+          colors={['#1E1E2E', '#181825']}
+          style={styles.modal}
+        >
+          {/* Handle bar */}
+          <View style={COMMON_STYLES.modalHandleContainer}>
+            <View style={COMMON_STYLES.modalHandle} />
+          </View>
           <View style={styles.header}>
             <Text style={styles.title}>Frequently Bought Items</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -138,7 +146,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
               ))}
             </ScrollView>
           )}
-        </View>
+        </LinearGradient>
       </View>
     </Modal>
   );
@@ -154,9 +162,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.overlay.dark,
   },
   modal: {
-    ...COMMON_STYLES.modal,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
     maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
@@ -216,8 +230,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.glass.subtle,
+    borderRadius: RADIUS.medium,
+    borderWidth: 1,
+    borderColor: COLORS.border.subtle,
+    marginBottom: SPACING.sm,
   },
   itemLeft: {
     flex: 1,
@@ -247,9 +265,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: RADIUS.pill,
-    backgroundColor: COLORS.accent.blueLight,
-    borderWidth: 1,
-    borderColor: COLORS.accent.blueDim,
+    backgroundColor: 'rgba(110,168,254,0.2)',
+    borderWidth: 1.5,
+    borderColor: '#6EA8FE',
     justifyContent: 'center',
     alignItems: 'center',
   },

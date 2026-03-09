@@ -24,10 +24,10 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
 
   // Determine color based on usage
   const getProgressColor = (): string => {
-    if (limit === null) return '#30D158'; // Green for unlimited
-    if (percentage >= 100) return '#FF453A'; // Red when at limit
-    if (percentage >= 80) return '#FF9F0A'; // Orange when near limit
-    return '#007AFF'; // Blue when normal
+    if (limit === null) return '#30D158';
+    if (percentage >= 100) return '#FF453A';
+    if (percentage >= 80) return '#FF9F0A';
+    return '#6EA8FE';
   };
 
   const progressColor = getProgressColor();
@@ -78,18 +78,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   label: {
-    color: '#E5E5E7',
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
   usageText: {
-    color: '#8E8E93',
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 14,
     fontWeight: '500',
   },
   progressBarBackground: {
     height: 8,
-    backgroundColor: '#3A3A3C',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 4,
     overflow: 'hidden',
   },

@@ -9,6 +9,7 @@ import {
   Platform,
   TextInput,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
@@ -126,7 +127,14 @@ const FilterModal: React.FC<FilterModalProps> = ({
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.modal}>
+        <LinearGradient
+          colors={['#1E1E2E', '#181825']}
+          style={styles.modal}
+        >
+          {/* Handle bar */}
+          <View style={COMMON_STYLES.modalHandleContainer}>
+            <View style={COMMON_STYLES.modalHandle} />
+          </View>
           <View style={styles.header}>
             <Text style={styles.title}>Filters</Text>
             {activeFilterCount > 0 && (
@@ -339,14 +347,18 @@ const FilterModal: React.FC<FilterModalProps> = ({
               <Text style={styles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.applyButton}
-              onPress={handleApply}
-            >
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            <TouchableOpacity onPress={handleApply} style={styles.applyButtonWrapper}>
+              <LinearGradient
+                colors={['#6EA8FE', '#A78BFA']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.applyButton}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
+        </LinearGradient>
       </View>
     </Modal>
   );
@@ -362,9 +374,15 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.overlay.dark,
   },
   modal: {
-    ...COMMON_STYLES.modal,
+    borderTopLeftRadius: RADIUS.modal,
+    borderTopRightRadius: RADIUS.modal,
     maxHeight: '90%',
     paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   header: {
     flexDirection: 'row',
@@ -469,7 +487,12 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   input: {
-    ...COMMON_STYLES.input,
+    backgroundColor: COLORS.glass.subtle,
+    borderWidth: 1.5,
+    borderColor: COLORS.border.medium,
+    borderRadius: RADIUS.large,
+    color: COLORS.text.primary,
+    padding: 14,
   },
   receiptRow: {
     flexDirection: 'row',
@@ -509,10 +532,14 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
-  applyButton: {
+  applyButtonWrapper: {
     flex: 1,
-    ...COMMON_STYLES.buttonActive,
+  },
+  applyButton: {
     alignItems: 'center',
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   applyButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,

@@ -85,10 +85,10 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     padding: 12,
     marginHorizontal: 15,
     marginTop: 10,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     fontStyle: 'italic',
     marginVertical: 20,
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   totalLabel: {
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
     fontSize: 13,
   },
   totalValue: {

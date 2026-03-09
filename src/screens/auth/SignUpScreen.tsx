@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
@@ -65,7 +66,7 @@ const SignUpScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Your Name"
-            placeholderTextColor="#6E6E73"
+            placeholderTextColor="rgba(255,255,255,0.3)"
             value={name}
             onChangeText={setName}
             autoCapitalize="words"
@@ -75,7 +76,7 @@ const SignUpScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#6E6E73"
+            placeholderTextColor="rgba(255,255,255,0.3)"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -86,7 +87,7 @@ const SignUpScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#6E6E73"
+            placeholderTextColor="rgba(255,255,255,0.3)"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -96,7 +97,7 @@ const SignUpScreen = () => {
           <TextInput
             style={styles.input}
             placeholder="Confirm Password"
-            placeholderTextColor="#6E6E73"
+            placeholderTextColor="rgba(255,255,255,0.3)"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
@@ -104,15 +105,22 @@ const SignUpScreen = () => {
           />
 
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={loading && styles.buttonDisabled}
             onPress={handleSignUp}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
+            <LinearGradient
+              colors={['#6EA8FE', '#A78BFA']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.button}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Sign Up</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -131,7 +139,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#12121C',
   },
   title: {
     fontSize: 36,
@@ -144,36 +152,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
-    color: '#a0a0a0',
+    color: 'rgba(255,255,255,0.45)',
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
     padding: 15,
-    borderRadius: 16,
+    borderRadius: 14,
     fontSize: 16,
     marginBottom: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     color: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
   button: {
-    backgroundColor: 'rgba(0, 122, 255, 0.8)',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
     marginBottom: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -184,7 +179,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   linkText: {
-    color: '#007AFF',
+    color: '#6EA8FE',
     textAlign: 'center',
     fontSize: 16,
     marginTop: 20,

@@ -9,6 +9,8 @@ import {
   InteractionManager,
   ActivityIndicator,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import { COLORS } from '../../styles/theme';
 import styles from './ListDetailScreen.styles';
 import {
   ScrollViewContainer,
@@ -36,7 +38,10 @@ import CategoryService, { CategoryType } from '../../services/CategoryService';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
 import StoreLayoutService from '../../services/StoreLayoutService';
-import ItemEditModal from '../../components/ItemEditModal';
+import PriceEditModal from '../../components/PriceEditModal';
+import SizeEditModal from '../../components/SizeEditModal';
+import DetailsEditModal from '../../components/DetailsEditModal';
+import PriceHistoryModal from '../../components/PriceHistoryModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
@@ -60,14 +65,13 @@ const DraggableItemRow: React.FC<DraggableItemRowProps> = ({ isListLocked, child
 
 interface CategoryItemListProps {
   catItems: Item[];
-  totalUnchecked: number;
   predictedPrices: Record<string, number>;
   smartSuggestions: Map<string, { bestStore: string; bestPrice: number; savings: number }>;
   storeName?: string;
   isListLocked: boolean;
   onReorder: (items: Item[]) => void;
   onToggleItem: (id: string) => void;
-  onItemTap: (item: Item) => void;
+  onItemTap: (item: Item, focusField?: 'name' | 'price' | 'measurement') => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   styles: any;
@@ -75,7 +79,6 @@ interface CategoryItemListProps {
 
 const CategoryItemList = memo(({
   catItems,
-  totalUnchecked,
   predictedPrices,
   smartSuggestions,
   storeName,
@@ -113,7 +116,7 @@ const CategoryItemList = memo(({
                 isListLocked={isListLocked}
                 onDrag={drag}
                 onToggleItem={() => !isListLocked && onToggleItem(item.id)}
-                onItemTap={() => onItemTap(item)}
+                onItemTap={(focusField) => onItemTap(item, focusField)}
                 onIncrement={onIncrement}
                 onDecrement={onDecrement}
                 itemRowStyle={styles.itemRow}
@@ -132,7 +135,6 @@ const CategoryItemList = memo(({
                 itemPriceCheckedStyle={styles.itemPriceChecked}
                 suggestionRowStyle={styles.suggestionRow}
                 suggestionTextStyle={styles.suggestionText}
-                totalItems={totalUnchecked}
               />
             )}
           </DraggableItemRow>
@@ -170,9 +172,14 @@ const ListDetailScreen = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Edit modal state
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  // Active modal state — discriminated union; null means all modals closed
+  const [activeModal, setActiveModal] = useState<
+    | { type: 'price'; item: Item; recentPrices: number[] }
+    | { type: 'size'; item: Item }
+    | { type: 'details'; item: Item }
+    | { type: 'priceHistory'; itemName: string }
+    | null
+  >(null);
 
   // Store picker modal state: null=closed, 'banner'=store warning, 'shopping'=start shopping
   const [storePickerMode, setStorePickerMode] = useState<null | 'banner' | 'shopping'>(null);
@@ -213,6 +220,13 @@ const ListDetailScreen = () => {
 
   // Ref to avoid isListLocked closure in useCallback handlers
   const isListLockedRef = useRef(false);
+
+  // Refs to avoid list closure in useCallback handlers
+  const listFamilyGroupIdRef = useRef<string | undefined>(undefined);
+  const listStoreNameRef = useRef<string | undefined>(undefined);
+  // Keep list refs in sync with list state
+  listFamilyGroupIdRef.current = list?.familyGroupId;
+  listStoreNameRef.current = list?.storeName ?? undefined;
 
   // Define calculateShoppingStats before useEffect
   const calculateShoppingStats = useCallback((itemsList: Item[]) => {
@@ -632,20 +646,27 @@ const ListDetailScreen = () => {
     ItemManager.updateItem(itemId, { unitQty: dbQty });
   }, []);
 
-  const handleUpdateItem = async (
+  const handlePriceSave = async (itemId: string, updates: { price?: number | null }) => {
+    try {
+      await ItemManager.updateItem(itemId, updates);
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+      throw error;
+    }
+  };
+
+  const handleSizeSave = async (
     itemId: string,
-    updates: { name?: string; price?: number | null; category?: string | null; measurementUnit?: string | null; measurementValue?: number | null },
+    updates: { measurementUnit?: string | null; measurementValue?: number | null },
     measurementChanged: boolean
   ) => {
     try {
       await ItemManager.updateItem(itemId, updates);
-
       if (measurementChanged && list?.familyGroupId) {
         const item = items.find(i => i.id === itemId);
-        const itemName = updates.name ?? item?.name ?? '';
         MeasurementService.savePreference(
           list.familyGroupId,
-          itemName,
+          item?.name ?? '',
           updates.measurementUnit ?? null,
           updates.measurementValue ?? null
         ).catch(() => {});
@@ -656,10 +677,56 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleItemTap = useCallback((item: Item) => {
+  const handleDetailsSave = async (
+    itemId: string,
+    updates: { name?: string; category?: string | null }
+  ) => {
+    try {
+      const item = items.find(i => i.id === itemId);
+      let finalUpdates: { name?: string; category?: string | null; measurementUnit?: string | null } = { ...updates };
+
+      // Auto-assign measurement unit if category changed and item has no measurement
+      if (updates.category !== undefined && !item?.measurementUnit && list?.familyGroupId) {
+        const itemName = updates.name ?? item?.name ?? '';
+        const suggested = MeasurementService.getStaticDefault(itemName, updates.category as any);
+        if (suggested) {
+          finalUpdates.measurementUnit = suggested.unit;
+        }
+      }
+
+      await ItemManager.updateItem(itemId, finalUpdates);
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+      throw error;
+    }
+  };
+
+  const handleItemTap = useCallback((item: Item, focusField: 'name' | 'price' | 'measurement' = 'name') => {
     if (isListLockedRef.current) return;
-    setSelectedItem(item);
-    setEditModalVisible(true);
+    if (focusField === 'price') {
+      // Fetch recent prices for quick-fill chips — use refs to avoid stale closures
+      const familyGroupId = listFamilyGroupIdRef.current;
+      const storeName = listStoreNameRef.current;
+      if (familyGroupId) {
+        PriceHistoryService.getPriceHistory(familyGroupId, item.name)
+          .then(history => {
+            const filtered = storeName
+              ? history.filter(p => p.storeName === storeName)
+              : [];
+            const unique = [...new Set(filtered.map(p => p.price))].slice(-4).reverse();
+            setActiveModal({ type: 'price', item, recentPrices: unique });
+          })
+          .catch(() => {
+            setActiveModal({ type: 'price', item, recentPrices: [] });
+          });
+      } else {
+        setActiveModal({ type: 'price', item, recentPrices: [] });
+      }
+    } else if (focusField === 'measurement') {
+      setActiveModal({ type: 'size', item });
+    } else {
+      setActiveModal({ type: 'details', item });
+    }
   }, []);
 
 
@@ -1128,7 +1195,14 @@ const ListDetailScreen = () => {
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonExpanded} onPress={handleDoneShopping}>
-                  <Text style={styles.doneButtonText}>Done Shopping</Text>
+                  <LinearGradient
+                    colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{ borderRadius: 8, alignItems: 'center', padding: 12, width: '100%' }}
+                  >
+                    <Text style={styles.doneButtonText}>Done Shopping</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1225,7 +1299,6 @@ const ListDetailScreen = () => {
             {visibleCategories.map((cat, idx) => {
                 const catItems = uncheckedGrouped[cat]!;
                 const category = CategoryService.getCategory(cat);
-                const totalUnchecked = items.filter(i => !i.checked).length;
                 return (
                   <View key={`cat-${cat}`}>
                     <View style={styles.categoryHeader}>
@@ -1253,7 +1326,6 @@ const ListDetailScreen = () => {
                     <CategoryItemList
                       key={catItems.map(i => i.id).sort().join(',')}
                       catItems={catItems}
-                      totalUnchecked={totalUnchecked}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
                       storeName={list?.storeName}
@@ -1275,7 +1347,6 @@ const ListDetailScreen = () => {
               .map(key => {
                 const catItems = uncheckedGrouped[key];
                 if (!catItems?.length) return null;
-                const totalUnchecked = items.filter(item => !item.checked).length;
                 return (
                   <View key={`custom-${key}`}>
                     <View style={styles.categoryHeader}>
@@ -1285,7 +1356,6 @@ const ListDetailScreen = () => {
                     <CategoryItemList
                       key={catItems.map(i => i.id).sort().join(',')}
                       catItems={catItems}
-                      totalUnchecked={totalUnchecked}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
                       storeName={list?.storeName}
@@ -1311,7 +1381,6 @@ const ListDetailScreen = () => {
                 {CategoryService.getCategories().map(cat => {
                   const catItems = checkedGrouped[cat.id];
                   if (!catItems?.length) return null;
-                  const totalUnchecked = items.filter(item => !item.checked).length;
                   return catItems.map((item, index) => {
                     const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
                     const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
@@ -1326,7 +1395,7 @@ const ListDetailScreen = () => {
                         suggestion={undefined}
                         isListLocked={isListLocked}
                         onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                        onItemTap={() => handleItemTap(item)}
+                        onItemTap={(focusField) => handleItemTap(item, focusField)}
                         onIncrement={handleIncrement}
                         onDecrement={handleDecrement}
                         itemRowStyle={styles.itemRow}
@@ -1345,7 +1414,6 @@ const ListDetailScreen = () => {
                         itemPriceCheckedStyle={styles.itemPriceChecked}
                         suggestionRowStyle={styles.suggestionRow}
                         suggestionTextStyle={styles.suggestionText}
-                        totalItems={totalUnchecked}
                       />
                     );
                   });
@@ -1356,7 +1424,6 @@ const ListDetailScreen = () => {
                   .map(key => {
                     const catItems = checkedGrouped[key];
                     if (!catItems?.length) return null;
-                    const totalUnchecked = items.filter(item => !item.checked).length;
                     return catItems.map((item, index) => {
                       const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
                       const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
@@ -1371,7 +1438,7 @@ const ListDetailScreen = () => {
                           suggestion={undefined}
                           isListLocked={isListLocked}
                           onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
-                          onItemTap={() => handleItemTap(item)}
+                          onItemTap={(focusField) => handleItemTap(item, focusField)}
                           onIncrement={handleIncrement}
                           onDecrement={handleDecrement}
                           itemRowStyle={styles.itemRow}
@@ -1390,7 +1457,6 @@ const ListDetailScreen = () => {
                           itemPriceCheckedStyle={styles.itemPriceChecked}
                           suggestionRowStyle={styles.suggestionRow}
                           suggestionTextStyle={styles.suggestionText}
-                          totalItems={totalUnchecked}
                         />
                       );
                     });
@@ -1436,15 +1502,34 @@ const ListDetailScreen = () => {
         />
       )}
 
-      <ItemEditModal
-        visible={editModalVisible}
-        item={selectedItem}
-        onClose={() => {
-          setEditModalVisible(false);
-          setSelectedItem(null);
-        }}
-        onSave={handleUpdateItem}
+      <PriceEditModal
+        visible={activeModal?.type === 'price'}
+        item={activeModal?.type === 'price' ? activeModal.item : null}
+        recentPrices={activeModal?.type === 'price' ? activeModal.recentPrices : []}
+        onClose={() => setActiveModal(null)}
+        onSave={handlePriceSave}
+        onViewPriceHistory={(itemName) => setActiveModal({ type: 'priceHistory', itemName })}
+      />
+
+      <SizeEditModal
+        visible={activeModal?.type === 'size'}
+        item={activeModal?.type === 'size' ? activeModal.item : null}
+        onClose={() => setActiveModal(null)}
+        onSave={handleSizeSave}
+      />
+
+      <DetailsEditModal
+        visible={activeModal?.type === 'details'}
+        item={activeModal?.type === 'details' ? activeModal.item : null}
+        onClose={() => setActiveModal(null)}
+        onSave={handleDetailsSave}
         onDelete={handleDeleteItem}
+      />
+
+      <PriceHistoryModal
+        visible={activeModal?.type === 'priceHistory'}
+        itemName={activeModal?.type === 'priceHistory' ? activeModal.itemName : ''}
+        onClose={() => setActiveModal(null)}
       />
 
       <StoreNamePicker
