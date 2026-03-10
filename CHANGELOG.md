@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1] - 2026-03-10
+### Style
+- **Category label on item card** — category name shown below item name in category colour, inline with size badge
+- **DetailsEditModal no autoFocus** — keyboard no longer opens on modal entry, category grid is fully visible; user taps name field explicitly to edit
+
 ## [1.9.1] - 2026-03-09
 ### Changed
 - **Split ItemEditModal into 3 focused modals** — Replaced the monolithic `ItemEditModal` with purpose-built `PriceEditModal`, `SizeEditModal`, and `DetailsEditModal`, each opening only the fields relevant to the tapped zone on the card:
