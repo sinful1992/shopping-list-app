@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import { COLORS, RADIUS } from '../styles/theme';
+import CategoryService from '../services/CategoryService';
 
 const VOLUME_UNITS = ['ml', 'L'];
 
@@ -14,6 +15,7 @@ interface AnimatedItemCardProps {
     unitQty?: number | null;
     measurementUnit?: string | null;
     measurementValue?: number | null;
+    category?: string | null;
   };
   /** Unit price — card multiplies by quantity for display */
   itemPrice: number;
@@ -81,6 +83,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const isChecked = item.checked === true;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
+  const categoryInfo = item.category ? CategoryService.getCategory(item.category as any) : null;
 
   // Animation refs for tick-off effects
   const checkAnimation = useRef(new Animated.Value(1)).current;
@@ -177,17 +180,24 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
               {item.name}
             </Text>
           </View>
-          {item.measurementUnit ? (
-            <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
-              <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
-                {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
+          <View style={cardStyles.subRow}>
+            {categoryInfo && (
+              <Text style={[cardStyles.categoryLabel, { color: categoryInfo.color }]}>
+                {categoryInfo.name}
               </Text>
-            </TouchableOpacity>
-          ) : !isChecked && (
-            <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
-              <Text style={cardStyles.addSizeText}>+ add size</Text>
-            </TouchableOpacity>
-          )}
+            )}
+            {item.measurementUnit ? (
+              <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+                <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
+                  {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
+                </Text>
+              </TouchableOpacity>
+            ) : !isChecked && (
+              <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+                <Text style={cardStyles.addSizeText}>+ size</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
               <Text style={suggestionTextStyle}>
@@ -276,18 +286,24 @@ const cardStyles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.accent.red,
   },
-  measurementText: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginTop: 2,
   },
+  categoryLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  measurementText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   addSizeText: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.2)',
     fontStyle: 'italic',
-    marginLeft: 4,
-    marginTop: 2,
   },
 });
 

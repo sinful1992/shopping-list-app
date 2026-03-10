@@ -94,7 +94,6 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
           onChangeText={setName}
           placeholder="Item name"
           placeholderTextColor={COLORS.text.tertiary}
-          autoFocus
         />
 
         {/* Category grid */}
