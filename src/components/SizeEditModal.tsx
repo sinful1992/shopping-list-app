@@ -48,8 +48,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
       setMeasurementValueText(item.measurementValue != null ? item.measurementValue.toString() : '');
       if (item.measurementUnit && item.measurementValue != null) {
         setCombinedInput(`${item.measurementValue}${item.measurementUnit}`);
-      } else if (item.measurementUnit) {
-        setCombinedInput(item.measurementUnit);
       } else {
         setCombinedInput('');
       }
@@ -142,15 +140,9 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
   const category = item.category ? CategoryService.getCategory(item.category as any) : null;
   const hasExistingMeasurement = originalUnitRef.current !== null;
 
-  const saveLabelParts = [];
-  if (measurementUnit) {
-    if (measurementValueText.trim()) {
-      saveLabelParts.push(`${measurementValueText.trim()}${measurementUnit}`);
-    } else {
-      saveLabelParts.push(measurementUnit);
-    }
-  }
-  const saveLabel = saveLabelParts.length > 0 ? `Set ${saveLabelParts[0]}` : 'Done';
+  const saveLabel = (measurementUnit && measurementValueText.trim())
+    ? `Set ${measurementValueText.trim()}${measurementUnit}`
+    : 'Done';
 
   return (
     <ModalBottomSheet visible={visible} onClose={onClose}>
