@@ -220,7 +220,7 @@ export interface QueuedOperation {
 export interface SyncResult {
   success: boolean;
   syncedCount: number;
-  failedCount: number;
+  failedCount: number | null;
   errors: SyncError[];
 }
 

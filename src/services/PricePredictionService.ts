@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Item } from '../models/types';
 import ShoppingListManager from './ShoppingListManager';
-import ItemManager from './ItemManager';
+import LocalStorageManager from './LocalStorageManager';
 
 /**
  * PricePredictionService
@@ -81,20 +81,9 @@ class PricePredictionService {
         return {};
       }
 
-      // Collect all items from completed lists
-      // Note: This could be further optimized with a bulk query if WatermelonDB supports it
-      const historicalItems: Item[] = [];
-
-      for (const completedList of completedLists) {
-        try {
-          const items = await ItemManager.getItemsForList(completedList.id);
-          if (items && Array.isArray(items)) {
-            historicalItems.push(...items);
-          }
-        } catch {
-          // Continue with other lists
-        }
-      }
+      // Collect all items from completed lists in a single query
+      const listIds = completedLists.map(l => l.id);
+      const historicalItems = await LocalStorageManager.getItemsForLists(listIds);
 
       // Calculate average prices for each item name
       const priceMap: { [key: string]: number[] } = {};

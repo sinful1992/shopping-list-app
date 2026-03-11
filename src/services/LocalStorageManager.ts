@@ -99,15 +99,7 @@ class LocalStorageManager {
         }
       });
 
-      // Force a fresh read from SQLite to ensure write is persisted
-      // This prevents the race condition where observer sees the in-memory cache
-      // but fetch() reads stale SQLite data before the write is fully visible
-      const verifiedRecord = await listsCollection.find(list.id);
-      if (!verifiedRecord) {
-        throw new Error('Failed to persist list to database');
-      }
-
-      return this.listModelToType(verifiedRecord);
+      return this.listModelToType(listRecord!);
     } catch (error: any) {
       throw new Error(`Failed to save list: ${error.message}`);
     }
@@ -344,6 +336,22 @@ class LocalStorageManager {
   }
 
   /**
+   * Get items for multiple lists in a single query
+   */
+  async getItemsForLists(listIds: string[]): Promise<Item[]> {
+    if (listIds.length === 0) return [];
+    try {
+      const itemsCollection = this.database.get<ItemModel>('items');
+      const items = await itemsCollection
+        .query(Q.where('list_id', Q.oneOf(listIds)))
+        .fetch();
+      return items.map(item => this.itemModelToType(item));
+    } catch (error: any) {
+      throw new Error(`Failed to get items for lists: ${error.message}`);
+    }
+  }
+
+  /**
    * Update item
    */
   async updateItem(itemId: string, updates: Partial<Item>): Promise<Item> {
@@ -371,6 +379,44 @@ class LocalStorageManager {
     } catch (error: any) {
       throw new Error(`Failed to update item: ${error.message}`);
     }
+  }
+
+  /**
+   * Batch update multiple items in a single DB transaction
+   */
+  async updateItemsBatch(updates: Array<{ id: string; updates: Partial<Item> }>): Promise<Item[]> {
+    if (updates.length === 0) return [];
+    const itemsCollection = this.database.get<ItemModel>('items');
+    const ids = updates.map(u => u.id);
+    const updatedItems: Item[] = [];
+
+    await this.database.write(async () => {
+      const records = await itemsCollection
+        .query(Q.where('id', Q.oneOf(ids)))
+        .fetch();
+      const recordMap = new Map(records.map(r => [r.id, r]));
+
+      for (const { id, updates: itemUpdates } of updates) {
+        const record = recordMap.get(id);
+        if (!record) continue;
+        await record.update(r => {
+          if (itemUpdates.name !== undefined) r.name = itemUpdates.name;
+          if (itemUpdates.quantity !== undefined) r.quantity = itemUpdates.quantity;
+          if (itemUpdates.price !== undefined) r.price = itemUpdates.price;
+          if (itemUpdates.checked !== undefined) r.checked = itemUpdates.checked;
+          if (itemUpdates.updatedAt !== undefined) r.updatedAt = itemUpdates.updatedAt;
+          if (itemUpdates.syncStatus !== undefined) r.syncStatus = itemUpdates.syncStatus;
+          if (itemUpdates.category !== undefined) r.category = itemUpdates.category;
+          if (itemUpdates.sortOrder !== undefined) r.sortOrder = itemUpdates.sortOrder;
+          if (itemUpdates.unitQty !== undefined) r.unitQty = itemUpdates.unitQty;
+          if (itemUpdates.measurementUnit !== undefined) r.measurementUnit = itemUpdates.measurementUnit;
+          if (itemUpdates.measurementValue !== undefined) r.measurementValue = itemUpdates.measurementValue;
+        });
+        updatedItems.push(this.itemModelToType(record));
+      }
+    });
+
+    return updatedItems;
   }
 
   /**

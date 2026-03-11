@@ -56,7 +56,7 @@ class ShoppingListManager {
     await UsageTracker.incrementListCounter(userId);
 
     // Trigger sync
-    await SyncEngine.pushChange('list', list.id, 'create');
+    await SyncEngine.pushChange('list', list.id, 'create', list);
 
     return list;
   }
@@ -168,7 +168,7 @@ class ShoppingListManager {
     });
 
     // Trigger sync in background (fire-and-forget for instant local updates)
-    SyncEngine.pushChange('list', listId, 'update').catch(() => {
+    SyncEngine.pushChange('list', listId, 'update', list).catch(() => {
       // Background sync failed, will retry later
     });
 

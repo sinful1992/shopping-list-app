@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.3] - 2026-03-11
+### Performance
+- **Fix 1 — Haptic ref cache:** `handleToggleItem` no longer calls `AsyncStorage.getItem('hapticFeedbackEnabled')` on every toggle; value is cached in `hapticEnabledRef` via `useFocusEffect`, refreshed each time the screen gains focus
+- **Fix 2 — Batch DB write for drag reorder:** `LocalStorageManager.updateItemsBatch` now runs all N item updates in a single WatermelonDB transaction (was N separate transactions); `ItemManager.updateItemsBatch` fires sync pushes in parallel; `addItemsBatch`/`deleteItemsBatch` also parallelised
+- **Fix 3 — addItem sort order:** Replaced full table scan (`getItemsForList` + reduce) with `Date.now()` as monotonically-increasing sort key; saves N DB rows loaded on every item add
+- **Fix 4 — SyncEngine skip redundant reads:** `pushChange` accepts optional `data` param; callers thread their freshly-written data through, eliminating 1 DB read per create/update; delete no longer reads entity (data unused by `.remove()`)
+- **Fix 5 — PricePredictionService N+1:** `calculatePredictions` now issues a single `getItemsForLists(listIds)` query instead of one `getItemsForList` per completed list
+- **Fix 6 — Remove dead verify-find:** `saveList` post-write `find()` verify removed (WatermelonDB `find` throws on missing record, so the null guard was permanently unreachable)
+- **Fix 7 — syncPendingChanges double queue read:** `processOperationQueue` returns `QueueProcessResult` with processed/deferred counts; `syncPendingChanges` uses those counts directly (1 queue read normal path, 0 reads busy path); `ListDetailScreen` now calls `syncPendingChanges` on connectivity restore
+
 ## [1.10.2] - 2026-03-11
 ### Fixed
 - **SizeEditModal text field shows unit** — when an item had a unit but no value, the text input was pre-filled with the unit string (e.g. "g"); it now stays empty and the unit is reflected via the pill selection and badge only

@@ -23,12 +23,6 @@ class ItemManager {
       throw new Error('Item name is required');
     }
 
-    // Get current items to determine next sort order
-    const existingItems = await LocalStorageManager.getItemsForList(listId);
-    const maxSortOrder = existingItems.reduce((max, item) => {
-      return Math.max(max, item.sortOrder || 0);
-    }, 0);
-
     const item: Item = {
       id: uuidv4(),
       listId,
@@ -41,7 +35,7 @@ class ItemManager {
       updatedAt: Date.now(),
       syncStatus: 'pending',
       category: category != null ? sanitizeCategory(category) : null,
-      sortOrder: maxSortOrder + 1,
+      sortOrder: Date.now(),
       measurementUnit: measurementUnit ?? null,
       measurementValue: measurementValue ?? null,
     };
@@ -50,7 +44,7 @@ class ItemManager {
     await LocalStorageManager.saveItem(item);
 
     // Trigger sync
-    await SyncEngine.pushChange('item', item.id, 'create');
+    await SyncEngine.pushChange('item', item.id, 'create', item);
 
     return item;
   }
@@ -86,7 +80,7 @@ class ItemManager {
     });
 
     // Trigger sync in background (fire-and-forget for instant local updates)
-    SyncEngine.pushChange('item', itemId, 'update').catch(error => {
+    SyncEngine.pushChange('item', itemId, 'update', item).catch(error => {
       CrashReporting.recordError(error as Error, 'ItemManager.updateItem sync');
     });
 
@@ -192,10 +186,12 @@ class ItemManager {
     // Save all items in a single batch transaction
     await LocalStorageManager.saveItemsBatch(items);
 
-    // Trigger sync for each item (SyncEngine handles batching internally)
-    for (const item of items) {
-      await SyncEngine.pushChange('item', item.id, 'create');
-    }
+    // Trigger sync for each item in parallel
+    await Promise.all(items.map(item =>
+      SyncEngine.pushChange('item', item.id, 'create', item).catch(error => {
+        CrashReporting.recordError(error as Error, 'ItemManager.addItemsBatch sync');
+      })
+    ));
 
     return items;
   }
@@ -208,10 +204,12 @@ class ItemManager {
     // Delete all items in a single batch transaction
     await LocalStorageManager.deleteItemsBatch(itemIds);
 
-    // Trigger sync for each item
-    for (const itemId of itemIds) {
-      await SyncEngine.pushChange('item', itemId, 'delete');
-    }
+    // Trigger sync for each item in parallel
+    await Promise.all(itemIds.map(itemId =>
+      SyncEngine.pushChange('item', itemId, 'delete').catch(error => {
+        CrashReporting.recordError(error as Error, 'ItemManager.deleteItemsBatch sync');
+      })
+    ));
   }
 
   /**
@@ -219,22 +217,19 @@ class ItemManager {
    * More efficient than calling updateItem() multiple times
    */
   async updateItemsBatch(updates: Array<{ id: string; updates: Partial<Item> }>): Promise<Item[]> {
-    const updatedItems: Item[] = [];
+    const timestampedUpdates = updates.map(u => ({
+      id: u.id,
+      updates: { ...u.updates, updatedAt: Date.now(), syncStatus: 'pending' as const },
+    }));
 
-    // Update all items in a single batch transaction
-    for (const { id, updates: itemUpdates } of updates) {
-      const item = await LocalStorageManager.updateItem(id, {
-        ...itemUpdates,
-        updatedAt: Date.now(),
-        syncStatus: 'pending',
-      });
-      updatedItems.push(item);
-    }
+    const updatedItems = await LocalStorageManager.updateItemsBatch(timestampedUpdates);
 
-    // Trigger sync for each item
-    for (const { id } of updates) {
-      await SyncEngine.pushChange('item', id, 'update');
-    }
+    // Fire sync pushes in parallel
+    await Promise.all(updatedItems.map(item =>
+      SyncEngine.pushChange('item', item.id, 'update', item).catch(error => {
+        CrashReporting.recordError(error as Error, 'ItemManager.updateItemsBatch sync');
+      })
+    ));
 
     return updatedItems;
   }

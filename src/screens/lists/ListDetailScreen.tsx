@@ -31,6 +31,7 @@ import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
+import SyncEngine from '../../services/SyncEngine';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
 import PriceHistoryService from '../../services/PriceHistoryService';
@@ -221,12 +222,32 @@ const ListDetailScreen = () => {
   // Ref to avoid isListLocked closure in useCallback handlers
   const isListLockedRef = useRef(false);
 
+  // Cache haptic setting to avoid AsyncStorage read on every toggle
+  const hapticEnabledRef = useRef(false);
+
   // Refs to avoid list closure in useCallback handlers
   const listFamilyGroupIdRef = useRef<string | undefined>(undefined);
   const listStoreNameRef = useRef<string | undefined>(undefined);
   // Keep list refs in sync with list state
   listFamilyGroupIdRef.current = list?.familyGroupId;
   listStoreNameRef.current = list?.storeName ?? undefined;
+
+  // Load haptic setting on focus so the ref stays fresh if user changes it in Settings
+  useFocusEffect(useCallback(() => {
+    AsyncStorage.getItem('hapticFeedbackEnabled').then(v => {
+      hapticEnabledRef.current = v === 'true';
+    });
+  }, []));
+
+  // Trigger sync when coming back online
+  useEffect(() => {
+    if (!isOnline) return;
+    SyncEngine.syncPendingChanges().then(result => {
+      if (result.failedCount !== null && result.failedCount > 0) {
+        // TODO: show sync failure banner — separate task (sync failure recovery UI)
+      }
+    });
+  }, [isOnline]);
 
   // Define calculateShoppingStats before useEffect
   const calculateShoppingStats = useCallback((itemsList: Item[]) => {
@@ -584,8 +605,7 @@ const ListDetailScreen = () => {
       toggleInProgressRef.current.add(itemId);
 
       // Trigger haptic feedback if enabled (before toggle for instant feedback)
-      const hapticEnabled = await AsyncStorage.getItem('hapticFeedbackEnabled');
-      if (hapticEnabled === 'true' && Vibration && typeof Vibration.vibrate === 'function') {
+      if (hapticEnabledRef.current && Vibration && typeof Vibration.vibrate === 'function') {
         try {
           Vibration.vibrate(50); // Short vibration (50ms)
         } catch (vibrationError) {

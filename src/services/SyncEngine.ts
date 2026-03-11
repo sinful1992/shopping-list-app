@@ -8,9 +8,18 @@ import {
   SyncResult,
   SyncStatus,
   SyncEngineStatus,
+  ShoppingList,
+  Item,
+  StoreLayout,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
+
+interface QueueProcessResult {
+  processed: number;
+  deferred: number;
+  skipReason: null | 'offline' | 'busy';
+}
 
 /**
  * SyncEngine
@@ -99,23 +108,28 @@ class SyncEngine {
    * Push a change to Firebase (or queue if offline)
    * Implements Req 4.1, 4.2, 4.3
    */
-  async pushChange(entityType: EntityType, entityId: string, operation: Operation): Promise<void> {
+  async pushChange(
+    entityType: EntityType,
+    entityId: string,
+    operation: Operation,
+    data?: ShoppingList | Item | StoreLayout | null
+  ): Promise<void> {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
     }
 
-    let data: any;
-    if (entityType === 'list') {
-      data = await LocalStorageManager.getList(entityId);
-    } else if (entityType === 'item') {
-      data = await LocalStorageManager.getItem(entityId);
-    } else if (entityType === 'storeLayout') {
-      data = await LocalStorageManager.getStoreLayoutById(entityId);
+    // Delete doesn't need data — syncToFirebase calls .remove()
+    // For create/update: use provided data, fall back to DB read only if not provided
+    let syncData: any = data ?? null;
+    if (operation !== 'delete' && syncData == null) {
+      if (entityType === 'list') syncData = await LocalStorageManager.getList(entityId);
+      else if (entityType === 'item') syncData = await LocalStorageManager.getItem(entityId);
+      else if (entityType === 'storeLayout') syncData = await LocalStorageManager.getStoreLayoutById(entityId);
     }
 
     if (this.isOnline) {
       try {
-        await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, data));
+        await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, syncData));
         if (entityType === 'list') {
           await LocalStorageManager.updateList(entityId, { syncStatus: 'synced' });
         } else if (entityType === 'item') {
@@ -125,10 +139,10 @@ class SyncEngine {
         }
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
-        await this.queueOperation(entityType, entityId, operation, data);
+        await this.queueOperation(entityType, entityId, operation, syncData);
       }
     } else {
-      await this.queueOperation(entityType, entityId, operation, data);
+      await this.queueOperation(entityType, entityId, operation, syncData);
     }
   }
 
@@ -208,12 +222,17 @@ class SyncEngine {
    * Exponential backoff: 1s → 2s → 4s → 8s → 16s (max 5 retries)
    * Includes jitter (random 0-1000ms) to prevent thundering herd
    */
-  async processOperationQueue(): Promise<void> {
-    if (this.syncInProgress || !this.isOnline) {
-      return;
+  async processOperationQueue(): Promise<QueueProcessResult> {
+    if (this.syncInProgress) {
+      return { processed: 0, deferred: 0, skipReason: 'busy' };
+    }
+    if (!this.isOnline) {
+      return { processed: 0, deferred: 0, skipReason: 'offline' };
     }
 
     this.syncInProgress = true;
+    let processed = 0;
+    let deferred = 0;
 
     try {
       const queue = await LocalStorageManager.getSyncQueue();
@@ -221,6 +240,7 @@ class SyncEngine {
 
       for (const operation of queue) {
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
+          deferred++;
           continue;
         }
 
@@ -243,6 +263,7 @@ class SyncEngine {
           } else if (operation.entityType === 'storeLayout') {
             await LocalStorageManager.updateStoreLayout(operation.entityId, { syncStatus: 'synced' });
           }
+          processed++;
         } catch (error) {
           CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);
 
@@ -270,12 +291,15 @@ class SyncEngine {
               retryCount: newRetryCount,
               nextRetryAt,
             });
+            deferred++;
           }
         }
       }
     } finally {
       this.syncInProgress = false;
     }
+
+    return { processed, deferred, skipReason: null };
   }
 
   /**
@@ -283,14 +307,31 @@ class SyncEngine {
    * Implements Req 4.3
    */
   async syncPendingChanges(): Promise<SyncResult> {
-    await this.processOperationQueue();
+    const result = await this.processOperationQueue();
 
-    const queue = await LocalStorageManager.getSyncQueue();
+    if (result.skipReason === 'offline') {
+      const queue = await LocalStorageManager.getSyncQueue();
+      return {
+        success: queue.length === 0,
+        syncedCount: 0,
+        failedCount: queue.length,
+        errors: [],
+      };
+    }
+
+    if (result.skipReason === 'busy') {
+      return {
+        success: false,
+        syncedCount: 0,
+        failedCount: null,
+        errors: [],
+      };
+    }
 
     return {
-      success: queue.length === 0,
-      syncedCount: 0,
-      failedCount: queue.length,
+      success: result.deferred === 0,
+      syncedCount: result.processed,
+      failedCount: result.deferred,
       errors: [],
     };
   }
