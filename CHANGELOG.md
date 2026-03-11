@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.2] - 2026-03-11
+### Fixed
+- **SizeEditModal text field shows unit** — when an item had a unit but no value, the text input was pre-filled with the unit string (e.g. "g"); it now stays empty and the unit is reflected via the pill selection and badge only
+- **SizeEditModal "Set g" save button** — save button incorrectly showed "Set g" when a unit was selected but no value was entered; it now shows "Done" unless both a value and unit are present
+
 ## [1.10.1] - 2026-03-10
 ### Style
 - **Category label on item card** — category name shown below item name in category colour, inline with size badge
