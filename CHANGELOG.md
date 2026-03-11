@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Fixed
+- **SizeEditModal size value lost on split entry** — entering unit via pill then typing a number (or vice versa) saved `null` for the value (e.g. card showed "kg" instead of "1kg"); both pill→type and type→pill paths now capture the numeric value via `parseFloat` fallback
+
 ## [1.10.3] - 2026-03-11
 ### Performance
 - **Fix 1 — Haptic ref cache:** `handleToggleItem` no longer calls `AsyncStorage.getItem('hapticFeedbackEnabled')` on every toggle; value is cached in `hapticEnabledRef` via `useFocusEffect`, refreshed each time the screen gains focus
