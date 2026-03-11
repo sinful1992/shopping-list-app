@@ -91,6 +91,12 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
     } else if (text.trim() === '') {
       setMeasurementUnit(null);
       setMeasurementValueText('');
+    } else if (measurementUnit) {
+      // Unit already selected via pill — treat plain number as the value
+      const num = parseFloat(text.trim());
+      if (!isNaN(num)) {
+        setMeasurementValueText(num.toString());
+      }
     }
   };
 
@@ -216,6 +222,13 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
                         setCombinedInput('');
                       } else if (measurementValueText) {
                         setCombinedInput(`${measurementValueText}${newUnit}`);
+                      } else {
+                        // Type-first path: user typed a number before selecting pill
+                        const num = parseFloat(combinedInput.trim());
+                        if (!isNaN(num)) {
+                          setMeasurementValueText(num.toString());
+                          setCombinedInput(`${num}${newUnit}`);
+                        }
                       }
                     }}
                   >
