@@ -22,6 +22,7 @@ import NotificationManager from './src/services/NotificationManager';
 import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
+import { useInAppUpdate } from './src/hooks';
 import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 import { AdMobProvider } from './src/contexts/AdMobContext';
 import AdBanner from './src/components/AdBanner';
@@ -151,6 +152,8 @@ function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('Lists');
+  const { showAlert } = useAlert();
+  useInAppUpdate(showAlert);
 
   return (
     <Tab.Navigator

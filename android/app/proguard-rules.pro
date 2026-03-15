@@ -56,3 +56,7 @@
 # Google Mobile Ads
 -keep class com.google.android.gms.ads.** { *; }
 -dontwarn com.google.android.gms.ads.**
+
+# Google Play Core (In-App Updates)
+-keep class com.google.android.play.** { *; }
+-dontwarn com.google.android.play.**

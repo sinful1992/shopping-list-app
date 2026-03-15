@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.10.5",
+  "version": "1.11.0",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -50,6 +50,7 @@
     "react-native-svg": "^15.15.0",
     "react-native-url-polyfill": "^3.0.0",
     "react-native-vector-icons": "^10.3.0",
+    "sp-react-native-in-app-updates": "^1.5.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -88,6 +89,7 @@
   },
   "overrides": {
     "fast-xml-parser": ">=5.3.8",
-    "@babel/runtime@<7.26.10": "7.26.10"
+    "@babel/runtime@<7.26.10": "7.26.10",
+    "underscore": ">=1.13.8"
   }
 }
