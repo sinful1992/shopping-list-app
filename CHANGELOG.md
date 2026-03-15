@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.11.0] - 2026-03-15
 ### Added
-- **In-app update prompt** — checks Google Play for available updates on app launch using Play Core In-App Updates API; downloads flexibly in the background; prompts user to restart when download completes; silently degrades on non-Play-Store installs
+- **In-app update prompt** — checks Google Play for available updates on app launch; shows "Update Available" popup; tapping "Update" opens the Play Store listing; silently degrades on non-Play-Store installs
 - **Proguard rules for Play Core** — added keep rules for `com.google.android.play.**` to prevent release-build stripping
 - **Security: 0 npm audit vulnerabilities** — added `underscore>=1.13.8` override (DoS via unbounded recursion), fixed `flatted<3.4.0` (DoS via unbounded recursion in parse)
 

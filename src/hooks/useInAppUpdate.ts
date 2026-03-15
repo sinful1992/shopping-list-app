@@ -1,10 +1,9 @@
-import { useEffect, useRef } from 'react';
-import SpInAppUpdates, {
-  IAUUpdateKind,
-  AndroidInstallStatus,
-  StatusUpdateEvent,
-} from 'sp-react-native-in-app-updates';
+import { useEffect } from 'react';
+import { Linking } from 'react-native';
+import SpInAppUpdates from 'sp-react-native-in-app-updates';
 import { AlertButton } from '../components/CustomAlert';
+
+const PLAY_STORE_URL = 'market://details?id=com.familyshoppinglist.app';
 
 type ShowAlert = (
   title: string,
@@ -14,40 +13,27 @@ type ShowAlert = (
 ) => void;
 
 export function useInAppUpdate(showAlert: ShowAlert) {
-  const updaterRef = useRef<SpInAppUpdates | null>(null);
-
   useEffect(() => {
-    const inAppUpdates = new SpInAppUpdates(false);
-    updaterRef.current = inAppUpdates;
-
-    const onStatusUpdate = (event: StatusUpdateEvent) => {
-      if (event.status === AndroidInstallStatus.DOWNLOADED) {
-        showAlert(
-          'Update Ready',
-          'A new version has been downloaded. Restart the app to apply the update.',
-          [
-            { text: 'Later', style: 'cancel' },
-            {
-              text: 'Restart',
-              style: 'default',
-              onPress: () => {
-                inAppUpdates.installUpdate();
-              },
-            },
-          ],
-          { icon: 'info' }
-        );
-      }
-    };
-
     const checkForUpdate = async () => {
       try {
+        const inAppUpdates = new SpInAppUpdates(false);
         const result = await inAppUpdates.checkNeedsUpdate();
         if (result.shouldUpdate) {
-          inAppUpdates.addStatusUpdateListener(onStatusUpdate);
-          await inAppUpdates.startUpdate({
-            updateType: IAUUpdateKind.FLEXIBLE,
-          });
+          showAlert(
+            'Update Available',
+            'A new version of the app is available on the Play Store.',
+            [
+              { text: 'Not Now', style: 'cancel' },
+              {
+                text: 'Update',
+                style: 'default',
+                onPress: () => {
+                  Linking.openURL(PLAY_STORE_URL);
+                },
+              },
+            ],
+            { icon: 'info' }
+          );
         }
       } catch {
         // Silently fail — update check should never block the app
@@ -55,13 +41,5 @@ export function useInAppUpdate(showAlert: ShowAlert) {
     };
 
     checkForUpdate();
-
-    return () => {
-      try {
-        inAppUpdates.removeStatusUpdateListener(onStatusUpdate);
-      } catch {
-        // Listener may not have been added if update wasn't available
-      }
-    };
   }, [showAlert]);
 }
