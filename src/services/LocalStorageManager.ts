@@ -2,6 +2,8 @@ import { Database, Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, ItemPreference } from '../models/types';
+import { CategoryType } from './CategoryService';
+import CrashReporting from './CrashReporting';
 import { schema } from '../database/schema';
 import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
@@ -27,9 +29,8 @@ class LocalStorageManager {
       migrations, // Enable schema migrations
       jsi: true, // Use JSI for better performance
       onSetUpError: (error) => {
-        // Database setup errors are critical - log to Crashlytics
-        // Note: CrashReporting may not be initialized yet at this point
-        // so we catch silently and let the app handle the failure
+        // Crashlytics native SDK is active by default — no JS init required
+        CrashReporting.recordError(error, 'WatermelonDB onSetUpError');
       },
     });
 
@@ -1010,6 +1011,11 @@ class LocalStorageManager {
 
   // ===== HELPER METHODS =====
 
+  private safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+    if (!value) return fallback;
+    try { return JSON.parse(value) as T; } catch { return fallback; }
+  }
+
   private listModelToType(model: ShoppingListModel): ShoppingList {
     return {
       id: model.id,
@@ -1021,7 +1027,7 @@ class LocalStorageManager {
       completedAt: model.completedAt,
       completedBy: model.completedBy,
       receiptUrl: model.receiptUrl,
-      receiptData: model.receiptData ? JSON.parse(model.receiptData) : null,
+      receiptData: this.safeJsonParse<ReceiptData | null>(model.receiptData, null),
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
       isLocked: model.isLocked,
       lockedBy: model.lockedBy,
@@ -1399,7 +1405,7 @@ class LocalStorageManager {
       id: model.id,
       familyGroupId: model.familyGroupId,
       storeName: model.storeName,
-      categoryOrder: JSON.parse(model.categoryOrder),
+      categoryOrder: this.safeJsonParse<CategoryType[]>(model.categoryOrder, []),
       createdBy: model.createdBy,
       createdAt: Number(model.createdAt), // @date decorator returns Date object; must convert
       updatedAt: model.updatedAt,
