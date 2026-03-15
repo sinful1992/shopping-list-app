@@ -205,7 +205,7 @@ class FirebaseSyncListener {
         lockedByName: firebaseData.lockedByName || null,
         lockedByRole: firebaseData.lockedByRole || null,
         lockedAt: firebaseData.lockedAt || null,
-        budget: firebaseData.budget || null,
+        budget: firebaseData.budget ?? null,
         storeName: firebaseData.storeName || null,
         archived: firebaseData.archived || false,
         layoutApplied: firebaseData.layoutApplied ?? false,
@@ -432,7 +432,7 @@ class FirebaseSyncListener {
         resolvedBy: firebaseData.resolvedBy || null,
         resolvedByName: firebaseData.resolvedByName || null,
         resolvedAt: firebaseData.resolvedAt || null,
-        price: firebaseData.price || null,
+        price: firebaseData.price ?? null,
         status: firebaseData.status || 'active',
         syncStatus: 'synced',
       };
@@ -492,6 +492,7 @@ class FirebaseSyncListener {
       const itemHash = itemSnapshot.key;
       if (itemHash) {
         const categoriesForItem = itemSnapshot.val();
+        if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
           const data = categoriesForItem[category];
           await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
@@ -503,6 +504,7 @@ class FirebaseSyncListener {
       const itemHash = itemSnapshot.key;
       if (itemHash) {
         const categoriesForItem = itemSnapshot.val();
+        if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
           const data = categoriesForItem[category];
           await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
