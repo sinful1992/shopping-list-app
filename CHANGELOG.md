@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.10.5] - 2026-03-15
+### Fixed
+- **Crash on first open with category history data** — `snapshot.val()` returns `null` when a Firebase node is empty/deleted between event dispatch and processing; `Object.keys(null)` threw a TypeError in both `child_added` and `child_changed` callbacks in the category history listener; added `!categoriesForItem || typeof categoriesForItem !== 'object'` guard before the loop
+- **$0.00 budget silently lost on sync** — `firebaseData.budget || null` coerced `0` to `null`; changed to `?? null` so a zero budget syncs correctly
+- **$0.00 urgent item price silently lost on sync** — same `||` vs `??` bug in the urgent item mapper; `firebaseData.price ?? null` now preserves zero prices
+- **WatermelonDB observer killed by JSON.parse throw** — `receiptData` and `categoryOrder` fields parsed with bare `JSON.parse`; an invalid value (e.g. empty string from WatermelonDB default on a non-optional column) throws and kills the observer; replaced both with `safeJsonParse<T>()` helper that returns a typed fallback on error
+- **WatermelonDB setup errors silently swallowed** — `onSetUpError` callback was empty; now logs via `CrashReporting.recordError`; existing comment claiming Crashlytics requires JS init was wrong — the native SDK is always active
+
 ## [1.10.4] - 2026-03-12
 ### Fixed
 - **SizeEditModal size value lost on split entry** — entering unit via pill then typing a number (or vice versa) saved `null` for the value (e.g. card showed "kg" instead of "1kg"); both pill→type and type→pill paths now capture the numeric value via `parseFloat` fallback
