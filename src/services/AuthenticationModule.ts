@@ -334,8 +334,17 @@ class AuthenticationModule {
     let userDataUnsubscribe: (() => void) | null = null;
     let claimsUnsubscribe: (() => void) | null = null;
     let lastClaimsUpdatedAt: number | null = null;
+    let lastProcessedUid: string | null = null;
+    let latestFirebaseUser: any = null;
 
     const authUnsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+      latestFirebaseUser = firebaseUser;
+
+      if (firebaseUser && firebaseUser.uid === lastProcessedUid) {
+        return;
+      }
+      lastProcessedUid = firebaseUser?.uid ?? null;
+
       // Clean up previous listeners
       if (userDataUnsubscribe) {
         userDataUnsubscribe();
@@ -355,7 +364,6 @@ class AuthenticationModule {
         const onUserDataChanged = (snapshot: any) => {
           const userData = snapshot.val();
           if (userData) {
-            // Update local cache
             EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
             callback(userData);
           }
@@ -366,11 +374,10 @@ class AuthenticationModule {
         const onClaimsUpdated = async (snapshot: any) => {
           const claimsUpdatedAt = snapshot.val();
           if (claimsUpdatedAt && lastClaimsUpdatedAt !== null && claimsUpdatedAt !== lastClaimsUpdatedAt) {
-            // Claims have been updated by Cloud Function, refresh the token
             try {
-              await firebaseUser.getIdToken(true);
+              await latestFirebaseUser?.getIdToken(true);
             } catch {
-              // Token refresh failed, ignore - next API call will retry
+              // Token refresh failed — will retry on next claims update
             }
           }
           lastClaimsUpdatedAt = claimsUpdatedAt;
