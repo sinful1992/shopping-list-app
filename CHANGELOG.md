@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- **Crash: `NativeModule.RNDeviceInfo is null`** — `sp-react-native-in-app-updates` static import triggered native module resolution at JS load time before try/catch could catch it; replaced with `NativeModules.RNDeviceInfo` guard + dynamic `require()` inside try/catch so the app launches gracefully even if native module is unlinked
+- **Predicted prices not showing on list open** — `loadPredictions` captured `list?.familyGroupId` from a stale render closure; with the writer queue clear (batching fix), the timing race became deterministic and the closure was always null; switched to `listFamilyGroupIdRef.current` which always reads the latest value
+
+### Performance
+- **197 queued WatermelonDB writers on startup** — all Firebase listeners (lists, urgent items, category history, item preferences, store layouts) each fired a separate `database.write()` per `child_added` event on attach; applied the buffered `child_added` + `once('value')` sentinel pattern so all initial records are batch-upserted in a single writer per listener
+
 ## [1.11.0] - 2026-03-15
 ### Added
 - **In-app update prompt** — checks Google Play for available updates on app launch; shows "Update Available" popup; tapping "Update" opens the Play Store listing; silently degrades on non-Play-Store installs

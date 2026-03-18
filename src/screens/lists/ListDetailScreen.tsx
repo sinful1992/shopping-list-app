@@ -467,8 +467,9 @@ const ListDetailScreen = () => {
   };
 
   const loadPredictions = async () => {
-    if (!list?.familyGroupId || itemsRef.current.length === 0) return;
-    await predictPricesFromHistory(itemsRef.current, list.familyGroupId);
+    const familyGroupId = listFamilyGroupIdRef.current;
+    if (!familyGroupId || itemsRef.current.length === 0) return;
+    await predictPricesFromHistory(itemsRef.current, familyGroupId);
   };
 
   const predictPricesFromHistory = useCallback(async (itemsList: Item[], familyGroupId: string) => {
