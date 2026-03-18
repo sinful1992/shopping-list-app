@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.11.2] - 2026-03-18
+### Fixed
+- **Auth fires twice on cold start** — `onAuthStateChanged` fires twice (cached credential then server validation), tearing down and re-creating Firebase RTDB listeners each time; now tracks `lastProcessedUid` to skip duplicate setup and uses `latestFirebaseUser` mutable ref so the claims listener always calls `getIdToken` on the freshest instance
+- **ListDetail double observer setup** — main useEffect depended on `[listId, currentUserId]`; when `currentUserId` resolved async, React tore down all observers and re-set them up; now depends only on `[listId]` with a `currentUserIdRef` for the observer callback and a dedicated effect for lock/mode state
+- **Firebase initial load race (lists & items)** — `child_added` buffer + `once('value')` sentinel had a race where the sentinel fired before all `child_added` events arrived; replaced with `once('value')` as sole initial load path; `child_added` is a no-op until `once()` completes, then handles only genuinely new records
+- **Lost quantity increments on rapid tap** — observer could overwrite in-flight optimistic values; added `optimisticQtyRef` that preserves user's intended quantity until DB confirms the value matches; added 300ms per-item debounce to coalesce rapid taps into a single WMDB+Firebase write, flushed on unmount
+
+### Chores
+- Removed race condition diagnostic logger (`raceConditionLogger.ts`) and all `[RACE]` log calls
+
 ## [1.11.1] - 2026-03-18
 ### Fixed
 - **Crash: `NativeModule.RNDeviceInfo is null`** — `sp-react-native-in-app-updates` static import triggered native module resolution at JS load time before try/catch could catch it; replaced with `NativeModules.RNDeviceInfo` guard + dynamic `require()` inside try/catch so the app launches gracefully even if native module is unlinked
