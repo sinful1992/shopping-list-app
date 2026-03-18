@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { Linking } from 'react-native';
-import SpInAppUpdates from 'sp-react-native-in-app-updates';
+import { Linking, NativeModules } from 'react-native';
 import { AlertButton } from '../components/CustomAlert';
 
 const PLAY_STORE_URL = 'market://details?id=com.familyshoppinglist.app';
@@ -16,6 +15,11 @@ export function useInAppUpdate(showAlert: ShowAlert) {
   useEffect(() => {
     const checkForUpdate = async () => {
       try {
+        if (!NativeModules.RNDeviceInfo) {
+          // Native module not linked — skip update check
+          return;
+        }
+        const SpInAppUpdates = require('sp-react-native-in-app-updates').default;
         const inAppUpdates = new SpInAppUpdates(false);
         const result = await inAppUpdates.checkNeedsUpdate();
         if (result.shouldUpdate) {
