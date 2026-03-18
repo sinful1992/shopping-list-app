@@ -278,7 +278,9 @@ function App(): JSX.Element {
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Initialize SyncEngine with family group ID when user has one
@@ -298,8 +300,6 @@ function App(): JSX.Element {
 
       const onFamilyGroupChange = async (snapshot: any) => {
         if (!snapshot.exists()) {
-          // Family group was deleted
-
           // Clear user's familyGroupId
           await database().ref(`/users/${user.uid}`).update({
             familyGroupId: null,

@@ -4,7 +4,6 @@ import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { v4 as uuidv4 } from 'uuid';
-import RC from '../utils/raceConditionLogger';
 
 /**
  * FirebaseSyncListener
@@ -357,7 +356,6 @@ class FirebaseSyncListener {
    * Stop all active listeners
    */
   stopAllListeners(): void {
-    RC.log('FBSync', `stopAllListeners — ${this.activeListeners.size} active`);
     this.activeListeners.forEach((unsubscribe) => unsubscribe());
     this.activeListeners.clear();
   }
@@ -391,22 +389,15 @@ class FirebaseSyncListener {
     const key = `urgent_items_${familyGroupId}`;
 
     if (this.activeListeners.has(key)) {
-      RC.warn('FBSync:UrgentItems', 'Already has active listener', { key });
       return this.activeListeners.get(key)!;
     }
-
-    RC.listenerStart('FBSync:UrgentItems', key);
     const urgentItemsRef = database().ref(`urgentItems/${familyGroupId}`);
     const initialBuffer: { itemId: string; data: any }[] = [];
     let initialLoadDone = false;
 
     const flushBuffer = async () => {
-      if (initialLoadDone) {
-        RC.warn('FBSync:UrgentItems', 'Double flush detected', { key });
-        return;
-      }
+      if (initialLoadDone) return;
       initialLoadDone = true;
-      RC.bufferState('UrgentItems', 'flush_start', { bufferedCount: initialBuffer.length });
       if (initialBuffer.length === 0) return;
 
       const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) => ({
@@ -703,16 +694,12 @@ class FirebaseSyncListener {
   startListeningToPriceHistory(familyGroupId: string): Unsubscribe {
     const key = `price_history_${familyGroupId}`;
     if (this.activeListeners.has(key)) {
-      RC.warn('FBSync:PriceHistory', 'Already has active listener', { key });
       return this.activeListeners.get(key)!;
     }
-
-    RC.listenerStart('FBSync:PriceHistory', key);
     const baseRef = database().ref(`familyGroups/${familyGroupId}/priceHistory`);
     const sessionStart = Date.now();
     let batchLoadDone = false;
 
-    RC.log('FBSync:PriceHistory', 'Starting batch load via once(value)', { sessionStart });
     baseRef.once('value').then(async (snapshot) => {
       const records: PriceHistoryRecord[] = [];
       snapshot.forEach(child => {
@@ -722,10 +709,8 @@ class FirebaseSyncListener {
           if (record) records.push(record);
         }
       });
-      RC.log('FBSync:PriceHistory', `Batch load complete: ${records.length} records`);
       await LocalStorageManager.savePriceHistoryBatch(records);
       batchLoadDone = true;
-      RC.log('FBSync:PriceHistory', 'Batch save complete');
     }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
 
     const ongoingRef = baseRef.orderByChild('recordedAt').startAt(sessionStart);
@@ -733,9 +718,6 @@ class FirebaseSyncListener {
       try {
         const data = snapshot.val();
         if (data) {
-          if (!batchLoadDone) {
-            RC.warn('FBSync:PriceHistory', 'child_added arrived BEFORE batch load finished — possible duplicate', { recordId: data?.id });
-          }
           const record = this.mapToPriceRecord(data);
           if (record) await LocalStorageManager.savePriceHistoryRecord(record);
         }

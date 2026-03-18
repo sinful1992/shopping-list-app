@@ -62,7 +62,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
 
     const initAds = async () => {
-      if (isConsentInFlightRef.current) return;
+      if (isConsentInFlightRef.current) {
+        return;
+      }
       isConsentInFlightRef.current = true;
 
       try {
@@ -112,7 +114,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   }, [isLoading, tier, hasEntitlement]);
 
   const retryConsent = useCallback(async () => {
-    if (isConsentInFlightRef.current) return;
+    if (isConsentInFlightRef.current) {
+      return;
+    }
     isConsentInFlightRef.current = true;
 
     setConsentChecked(false);
