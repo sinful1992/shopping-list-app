@@ -107,6 +107,74 @@ class LocalStorageManager {
   }
 
   /**
+   * Batch upsert lists in a single database.write() transaction.
+   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
+   */
+  async saveListsBatch(lists: ShoppingList[]): Promise<void> {
+    if (lists.length === 0) return;
+
+    const collection = this.database.get<ShoppingListModel>('shopping_lists');
+
+    const existingRecords = await collection
+      .query(Q.where('id', Q.oneOf(lists.map(l => l.id))))
+      .fetch();
+
+    const existingMap = new Map(existingRecords.map(r => [r.id, r]));
+
+    await this.database.write(async () => {
+      for (const list of lists) {
+        const existing = existingMap.get(list.id);
+
+        if (existing) {
+          const local = this.listModelToType(existing);
+          if (!this.hasListChanged(local, list)) continue;
+
+          await existing.update(record => {
+            record.name = list.name;
+            record.status = list.status;
+            record.completedAt = list.completedAt;
+            record.completedBy = list.completedBy;
+            record.receiptUrl = list.receiptUrl;
+            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+            record.syncStatus = list.syncStatus || 'pending';
+            record.isLocked = list.isLocked;
+            record.lockedBy = list.lockedBy;
+            record.lockedByName = list.lockedByName;
+            record.lockedByRole = list.lockedByRole;
+            record.lockedAt = list.lockedAt;
+            record.budget = list.budget;
+            record.storeName = list.storeName || null;
+            record.archived = list.archived || null;
+            record.layoutApplied = list.layoutApplied ?? null;
+          });
+        } else {
+          await collection.create(record => {
+            record._raw.id = list.id;
+            record.name = list.name;
+            record.familyGroupId = list.familyGroupId;
+            record.createdBy = list.createdBy;
+            record.status = list.status;
+            record.completedAt = list.completedAt;
+            record.completedBy = list.completedBy;
+            record.receiptUrl = list.receiptUrl;
+            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+            record.syncStatus = list.syncStatus || 'pending';
+            record.isLocked = list.isLocked;
+            record.lockedBy = list.lockedBy;
+            record.lockedByName = list.lockedByName;
+            record.lockedByRole = list.lockedByRole;
+            record.lockedAt = list.lockedAt;
+            record.budget = list.budget;
+            record.storeName = list.storeName || null;
+            record.archived = list.archived || null;
+            record.layoutApplied = list.layoutApplied ?? null;
+          });
+        }
+      }
+    });
+  }
+
+  /**
    * Get shopping list by ID
    */
   async getList(listId: string): Promise<ShoppingList | null> {
@@ -756,6 +824,66 @@ class LocalStorageManager {
   }
 
   /**
+   * Batch upsert urgent items in a single database.write() transaction.
+   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
+   */
+  async saveUrgentItemsBatch(urgentItems: UrgentItem[]): Promise<void> {
+    if (urgentItems.length === 0) return;
+
+    const collection = this.database.get<UrgentItemModel>('urgent_items');
+
+    const existingRecords = await collection
+      .query(Q.where('id', Q.oneOf(urgentItems.map(i => i.id))))
+      .fetch();
+
+    const existingMap = new Map(existingRecords.map(r => [r.id, r]));
+
+    await this.database.write(async () => {
+      for (const item of urgentItems) {
+        const existing = existingMap.get(item.id);
+
+        if (existing) {
+          const local = this.urgentItemModelToType(existing);
+          if (!this.hasUrgentItemChanged(local, item)) continue;
+
+          await existing.update(record => {
+            record.name = item.name;
+            record.resolvedBy = item.resolvedBy;
+            record.resolvedByName = item.resolvedByName;
+            record.resolvedAt = item.resolvedAt;
+            record.price = item.price;
+            record.status = item.status;
+          });
+        } else {
+          await collection.create(record => {
+            record._raw.id = item.id;
+            record.name = item.name;
+            record.familyGroupId = item.familyGroupId;
+            record.createdBy = item.createdBy;
+            record.createdByName = item.createdByName;
+            record.resolvedBy = item.resolvedBy;
+            record.resolvedByName = item.resolvedByName;
+            record.resolvedAt = item.resolvedAt;
+            record.price = item.price;
+            record.status = item.status;
+          });
+        }
+      }
+    });
+  }
+
+  private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
+    return (
+      local.name !== incoming.name ||
+      local.status !== incoming.status ||
+      local.resolvedBy !== incoming.resolvedBy ||
+      local.resolvedByName !== incoming.resolvedByName ||
+      local.resolvedAt !== incoming.resolvedAt ||
+      local.price !== incoming.price
+    );
+  }
+
+  /**
    * Get urgent item by ID
    */
   async getUrgentItem(itemId: string): Promise<UrgentItem | null> {
@@ -1016,6 +1144,22 @@ class LocalStorageManager {
     try { return JSON.parse(value) as T; } catch { return fallback; }
   }
 
+  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
+    return (
+      local.name !== incoming.name ||
+      local.status !== incoming.status ||
+      local.isLocked !== incoming.isLocked ||
+      local.lockedBy !== incoming.lockedBy ||
+      local.completedAt !== incoming.completedAt ||
+      local.completedBy !== incoming.completedBy ||
+      local.budget !== incoming.budget ||
+      local.storeName !== incoming.storeName ||
+      local.archived !== incoming.archived ||
+      local.receiptUrl !== incoming.receiptUrl ||
+      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
+    );
+  }
+
   private listModelToType(model: ShoppingListModel): ShoppingList {
     return {
       id: model.id,
@@ -1177,6 +1321,52 @@ class LocalStorageManager {
     } catch (error: any) {
       throw new Error(`Failed to delete category history: ${error.message}`);
     }
+  }
+
+  /**
+   * Batch upsert category history records in a single database.write() transaction.
+   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
+   */
+  async saveCategoryHistoryBatch(
+    familyGroupId: string,
+    entries: Array<{ itemHash: string; data: any }>
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const collection = this.database.get<CategoryHistoryModel>('category_history');
+
+    const existingRecords = await collection
+      .query(Q.where('family_group_id', familyGroupId))
+      .fetch();
+
+    const existingMap = new Map<string, CategoryHistoryModel>();
+    for (const record of existingRecords) {
+      existingMap.set(`${record.itemNameNormalized}|${record.category}`, record);
+    }
+
+    await this.database.write(async () => {
+      for (const { itemHash, data } of entries) {
+        const itemNameNormalized = itemHash.replace(/_/g, '.');
+        const key = `${itemNameNormalized}|${data.category}`;
+        const existing = existingMap.get(key);
+
+        if (existing) {
+          await existing.update(r => {
+            r.usageCount = data.usageCount || 1;
+            r.lastUsedAt = data.lastUsedAt || Date.now();
+          });
+        } else {
+          await collection.create(r => {
+            r._raw.id = uuidv4();
+            r.familyGroupId = familyGroupId;
+            r.itemNameNormalized = itemNameNormalized;
+            r.category = data.category;
+            r.usageCount = data.usageCount || 1;
+            r.lastUsedAt = data.lastUsedAt || Date.now();
+          });
+        }
+      }
+    });
   }
 
   private categoryHistoryModelToType(model: CategoryHistoryModel): CategoryHistory {
@@ -1388,6 +1578,52 @@ class LocalStorageManager {
     }
   }
 
+  /**
+   * Batch upsert store layouts in a single database.write() transaction.
+   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
+   */
+  async saveStoreLayoutsBatch(
+    familyGroupId: string,
+    entries: Array<{ layoutId: string; data: any }>
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const collection = this.database.get<StoreLayoutModel>('store_layouts');
+
+    const existingRecords = await collection
+      .query(Q.where('family_group_id', familyGroupId))
+      .fetch();
+
+    const existingMap = new Map<string, StoreLayoutModel>();
+    for (const record of existingRecords) {
+      existingMap.set(record.id, record);
+    }
+
+    await this.database.write(async () => {
+      for (const { layoutId, data } of entries) {
+        const existing = existingMap.get(layoutId);
+
+        if (existing) {
+          await existing.update(r => {
+            if (data.categoryOrder !== undefined) r.categoryOrder = JSON.stringify(data.categoryOrder);
+            if (data.updatedAt !== undefined) r.updatedAt = data.updatedAt;
+            r.syncStatus = 'synced';
+          });
+        } else {
+          await collection.create(r => {
+            r._raw.id = layoutId;
+            r.familyGroupId = data.familyGroupId || familyGroupId;
+            r.storeName = data.storeName || '';
+            r.categoryOrder = JSON.stringify(data.categoryOrder);
+            r.createdBy = data.createdBy || '';
+            r.updatedAt = data.updatedAt || Date.now();
+            r.syncStatus = 'synced';
+          });
+        }
+      }
+    });
+  }
+
   async deleteStoreLayout(id: string): Promise<void> {
     try {
       const collection = this.database.get<StoreLayoutModel>('store_layouts');
@@ -1462,6 +1698,52 @@ class LocalStorageManager {
           r.updatedAt = Date.now();
           r.createdAt = Date.now();
         });
+      }
+    });
+  }
+
+  /**
+   * Batch upsert item preferences in a single database.write() transaction.
+   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
+   */
+  async saveItemPreferencesBatch(
+    familyGroupId: string,
+    entries: Array<{ itemNameNormalized: string; unit: string; value: number | null }>
+  ): Promise<void> {
+    if (entries.length === 0) return;
+
+    const collection = this.database.get<ItemPreferenceModel>('item_preferences');
+
+    const existingRecords = await collection
+      .query(Q.where('family_group_id', familyGroupId))
+      .fetch();
+
+    const existingMap = new Map<string, ItemPreferenceModel>();
+    for (const record of existingRecords) {
+      existingMap.set(record.itemNameNormalized, record);
+    }
+
+    await this.database.write(async () => {
+      for (const { itemNameNormalized, unit, value } of entries) {
+        const existing = existingMap.get(itemNameNormalized);
+
+        if (existing) {
+          await existing.update(r => {
+            r.measurementUnit = unit;
+            r.measurementValue = value ?? null;
+            r.updatedAt = Date.now();
+          });
+        } else {
+          await collection.create(r => {
+            r._raw.id = uuidv4();
+            r.familyGroupId = familyGroupId;
+            r.itemNameNormalized = itemNameNormalized;
+            r.measurementUnit = unit;
+            r.measurementValue = value ?? null;
+            r.updatedAt = Date.now();
+            r.createdAt = Date.now();
+          });
+        }
       }
     });
   }

@@ -21,24 +21,68 @@ class FirebaseSyncListener {
   startListeningToLists(familyGroupId: string): Unsubscribe {
     const key = `lists_${familyGroupId}`;
 
-    // Don't create duplicate listeners
     if (this.activeListeners.has(key)) {
       return this.activeListeners.get(key)!;
     }
 
     const listsRef = database().ref(`familyGroups/${familyGroupId}/lists`);
+    const initialBuffer: { listId: string; data: any }[] = [];
+    let initialLoadDone = false;
 
-    // Listen for new lists (child_added fires for existing children on attach)
+    const flushBuffer = async () => {
+      if (initialLoadDone) return;
+      initialLoadDone = true;
+      if (initialBuffer.length === 0) return;
+
+      const lists: ShoppingList[] = initialBuffer.map(({ listId, data }) => ({
+        id: listId,
+        name: data.name || '',
+        familyGroupId: data.familyGroupId || familyGroupId,
+        createdBy: data.createdBy || '',
+        createdAt: data.createdAt || Date.now(),
+        status: data.status || 'active',
+        completedAt: data.completedAt || null,
+        completedBy: data.completedBy || null,
+        receiptUrl: data.receiptUrl || null,
+        receiptData: data.receiptData || null,
+        syncStatus: 'synced' as const,
+        isLocked: data.isLocked || false,
+        lockedBy: data.lockedBy || null,
+        lockedByName: data.lockedByName || null,
+        lockedByRole: data.lockedByRole || null,
+        lockedAt: data.lockedAt || null,
+        budget: data.budget ?? null,
+        storeName: data.storeName || null,
+        archived: data.archived || false,
+        layoutApplied: data.layoutApplied ?? false,
+      }));
+
+      await LocalStorageManager.saveListsBatch(lists);
+    };
+
+    const safeFlush = async () => {
+      try { await flushBuffer(); }
+      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener lists flush'); }
+    };
+
     const onChildAdded = listsRef.on('child_added', async (snapshot) => {
       const listId = snapshot.key;
       const listData = snapshot.val();
+      if (!listId || !listData) return;
 
-      if (listId && listData) {
-        await this.syncListToLocal(listId, listData, familyGroupId);
+      if (!initialLoadDone) {
+        initialBuffer.push({ listId, data: listData });
+        return;
       }
+
+      await this.syncListToLocal(listId, listData, familyGroupId);
     });
 
-    // Listen for updated lists
+    listsRef.once('value').then(safeFlush, async (err) => {
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener lists value sentinel');
+      await safeFlush();
+    });
+
     const onChildChanged = listsRef.on('child_changed', async (snapshot) => {
       const listId = snapshot.key;
       const listData = snapshot.val();
@@ -48,12 +92,10 @@ class FirebaseSyncListener {
       }
     });
 
-    // Listen for deleted lists
     const onChildRemoved = listsRef.on('child_removed', async (snapshot) => {
       const listId = snapshot.key;
 
       if (listId) {
-        // Mark as deleted in local DB
         try {
           await LocalStorageManager.updateList(listId, {
             status: 'deleted',
@@ -65,7 +107,6 @@ class FirebaseSyncListener {
       }
     });
 
-    // Create unsubscribe function
     const unsubscribe = () => {
       listsRef.off('child_added', onChildAdded);
       listsRef.off('child_changed', onChildChanged);
@@ -361,24 +402,60 @@ class FirebaseSyncListener {
   startListeningToUrgentItems(familyGroupId: string): Unsubscribe {
     const key = `urgent_items_${familyGroupId}`;
 
-    // Don't create duplicate listeners
     if (this.activeListeners.has(key)) {
       return this.activeListeners.get(key)!;
     }
 
     const urgentItemsRef = database().ref(`urgentItems/${familyGroupId}`);
+    const initialBuffer: { itemId: string; data: any }[] = [];
+    let initialLoadDone = false;
 
-    // Listen for new urgent items
+    const flushBuffer = async () => {
+      if (initialLoadDone) return;
+      initialLoadDone = true;
+      if (initialBuffer.length === 0) return;
+
+      const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) => ({
+        id: itemId,
+        name: data.name || '',
+        familyGroupId: data.familyGroupId || familyGroupId,
+        createdBy: data.createdBy || '',
+        createdByName: data.createdByName || '',
+        createdAt: data.createdAt || Date.now(),
+        resolvedBy: data.resolvedBy || null,
+        resolvedByName: data.resolvedByName || null,
+        resolvedAt: data.resolvedAt || null,
+        price: data.price ?? null,
+        status: data.status || 'active',
+        syncStatus: 'synced' as const,
+      }));
+
+      await LocalStorageManager.saveUrgentItemsBatch(urgentItems);
+    };
+
+    const safeFlush = async () => {
+      try { await flushBuffer(); }
+      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener urgentItems flush'); }
+    };
+
     const onChildAdded = urgentItemsRef.on('child_added', async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
+      if (!itemId || !itemData) return;
 
-      if (itemId && itemData) {
-        await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
+      if (!initialLoadDone) {
+        initialBuffer.push({ itemId, data: itemData });
+        return;
       }
+
+      await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
     });
 
-    // Listen for updated urgent items
+    urgentItemsRef.once('value').then(safeFlush, async (err) => {
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener urgentItems value sentinel');
+      await safeFlush();
+    });
+
     const onChildChanged = urgentItemsRef.on('child_changed', async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
@@ -388,7 +465,6 @@ class FirebaseSyncListener {
       }
     });
 
-    // Listen for deleted urgent items
     const onChildRemoved = urgentItemsRef.on('child_removed', async (snapshot) => {
       const itemId = snapshot.key;
 
@@ -401,7 +477,6 @@ class FirebaseSyncListener {
       }
     });
 
-    // Create unsubscribe function
     const unsubscribe = () => {
       urgentItemsRef.off('child_added', onChildAdded);
       urgentItemsRef.off('child_changed', onChildChanged);
@@ -480,24 +555,48 @@ class FirebaseSyncListener {
   startListeningToCategoryHistory(familyGroupId: string): Unsubscribe {
     const key = `category_history_${familyGroupId}`;
 
-    // Don't create duplicate listeners
     if (this.activeListeners.has(key)) {
       return this.activeListeners.get(key)!;
     }
 
     const categoryHistoryRef = database().ref(`familyGroups/${familyGroupId}/categoryHistory`);
+    const initialBuffer: { itemHash: string; data: any }[] = [];
+    let initialLoadDone = false;
 
-    // Listen for new/updated category history (child_added fires for existing children on attach)
+    const flushBuffer = async () => {
+      if (initialLoadDone) return;
+      initialLoadDone = true;
+      if (initialBuffer.length > 0) {
+        await LocalStorageManager.saveCategoryHistoryBatch(familyGroupId, initialBuffer);
+      }
+    };
+
+    const safeFlush = async () => {
+      try { await flushBuffer(); }
+      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener categoryHistory flush'); }
+    };
+
     const onChildAdded = categoryHistoryRef.on('child_added', async (itemSnapshot) => {
       const itemHash = itemSnapshot.key;
-      if (itemHash) {
-        const categoriesForItem = itemSnapshot.val();
-        if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
+      if (!itemHash) return;
+      const categoriesForItem = itemSnapshot.val();
+      if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
+
+      if (!initialLoadDone) {
         for (const category of Object.keys(categoriesForItem)) {
-          const data = categoriesForItem[category];
-          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
+          initialBuffer.push({ itemHash, data: categoriesForItem[category] });
         }
+        return;
       }
+
+      for (const category of Object.keys(categoriesForItem)) {
+        await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, categoriesForItem[category]);
+      }
+    });
+
+    categoryHistoryRef.once('value').then(safeFlush, async (err) => {
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener categoryHistory value sentinel');
+      await safeFlush();
     });
 
     const onChildChanged = categoryHistoryRef.on('child_changed', async (itemSnapshot) => {
@@ -512,7 +611,6 @@ class FirebaseSyncListener {
       }
     });
 
-    // Create unsubscribe function
     const unsubscribe = () => {
       categoryHistoryRef.off('child_added', onChildAdded);
       categoryHistoryRef.off('child_changed', onChildChanged);
@@ -659,13 +757,38 @@ class FirebaseSyncListener {
     }
 
     const layoutsRef = database().ref(`familyGroups/${familyGroupId}/storeLayouts`);
+    const initialBuffer: { layoutId: string; data: any }[] = [];
+    let initialLoadDone = false;
+
+    const flushBuffer = async () => {
+      if (initialLoadDone) return;
+      initialLoadDone = true;
+      if (initialBuffer.length > 0) {
+        await LocalStorageManager.saveStoreLayoutsBatch(familyGroupId, initialBuffer);
+      }
+    };
+
+    const safeFlush = async () => {
+      try { await flushBuffer(); }
+      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener storeLayouts flush'); }
+    };
 
     const onChildAdded = layoutsRef.on('child_added', async (snapshot) => {
       const layoutId = snapshot.key;
       const data = snapshot.val();
-      if (layoutId && data) {
-        await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
+      if (!layoutId || !data) return;
+
+      if (!initialLoadDone) {
+        initialBuffer.push({ layoutId, data });
+        return;
       }
+
+      await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
+    });
+
+    layoutsRef.once('value').then(safeFlush, async (err) => {
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener storeLayouts value sentinel');
+      await safeFlush();
     });
 
     const onChildChanged = layoutsRef.on('child_changed', async (snapshot) => {
@@ -763,14 +886,40 @@ class FirebaseSyncListener {
     if (this.activeListeners.has(key)) return this.activeListeners.get(key)!;
 
     const prefsRef = database().ref(`familyGroups/${familyGroupId}/itemPreferences`);
+    const initialBuffer: { itemNameNormalized: string; unit: string; value: number | null }[] = [];
+    let initialLoadDone = false;
+
+    const flushBuffer = async () => {
+      if (initialLoadDone) return;
+      initialLoadDone = true;
+      if (initialBuffer.length > 0) {
+        await LocalStorageManager.saveItemPreferencesBatch(familyGroupId, initialBuffer);
+      }
+    };
+
+    const safeFlush = async () => {
+      try { await flushBuffer(); }
+      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener itemPreferences flush'); }
+    };
 
     const onChildAdded = prefsRef.on('child_added', async (snapshot) => {
       const itemKey = snapshot.key;
       const data = snapshot.val();
-      if (itemKey && data?.unit) {
-        const normalized = itemKey.replace(/_/g, '.');
-        await LocalStorageManager.saveItemPreference(familyGroupId, normalized, data.unit, data.value ?? null);
+      if (!itemKey || !data?.unit) return;
+
+      const normalized = itemKey.replace(/_/g, '.');
+
+      if (!initialLoadDone) {
+        initialBuffer.push({ itemNameNormalized: normalized, unit: data.unit, value: data.value ?? null });
+        return;
       }
+
+      await LocalStorageManager.saveItemPreference(familyGroupId, normalized, data.unit, data.value ?? null);
+    });
+
+    prefsRef.once('value').then(safeFlush, async (err) => {
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener itemPreferences value sentinel');
+      await safeFlush();
     });
 
     const onChildChanged = prefsRef.on('child_changed', async (snapshot) => {
