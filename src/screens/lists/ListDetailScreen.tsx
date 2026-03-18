@@ -226,6 +226,12 @@ const ListDetailScreen = () => {
   // Ref to avoid currentUserId closure in main useEffect
   const currentUserIdRef = useRef<string | null>(null);
 
+  // Optimistic quantity tracking — prevents observer from overwriting rapid tap values
+  const optimisticQtyRef = useRef<Map<string, number | null>>(new Map());
+
+  // Per-item debounce timers for quantity writes
+  const qtyDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
   // Cache haptic setting to avoid AsyncStorage read on every toggle
   const hapticEnabledRef = useRef(false);
 
@@ -344,13 +350,29 @@ const ListDetailScreen = () => {
       if (!isMountedRef.current) return;
       if (!updatedItems) return;
 
-      itemsRef.current = updatedItems;
+      // Merge optimistic quantity values — prevents observer from overwriting rapid taps
+      let mergedItems = updatedItems;
+      if (optimisticQtyRef.current.size > 0) {
+        mergedItems = updatedItems.map(item => {
+          const optimistic = optimisticQtyRef.current.get(item.id);
+          if (optimistic !== undefined) {
+            if (item.unitQty === optimistic) {
+              optimisticQtyRef.current.delete(item.id);
+              return item;
+            }
+            return { ...item, unitQty: optimistic };
+          }
+          return item;
+        });
+      }
+
+      itemsRef.current = mergedItems;
       if (!isReorderingRef.current) {
-        setItems(updatedItems);
+        setItems(mergedItems);
       }
 
       try {
-        calculateShoppingStats(updatedItems);
+        calculateShoppingStats(mergedItems);
       } catch (error) {
         // Silently handle error
       }
@@ -371,6 +393,16 @@ const ListDetailScreen = () => {
       unsubscribeNetInfo();
       setPredictedPrices({});
       setSmartSuggestions(new Map());
+
+      // Flush pending qty writes on unmount — don't lose data
+      for (const [itemId, timer] of qtyDebounceRef.current.entries()) {
+        clearTimeout(timer);
+        const targetQty = optimisticQtyRef.current.get(itemId);
+        if (targetQty !== undefined) {
+          ItemManager.updateItem(itemId, { unitQty: targetQty });
+        }
+      }
+      qtyDebounceRef.current.clear();
     };
   }, [listId]);
 
@@ -662,16 +694,21 @@ const ListDetailScreen = () => {
     if (!currentItem) return;
     const currentQty = currentItem.unitQty ?? 1;
     const newQty = currentQty + 1;
-    const dbQty = newQty > 1 ? newQty : null;
+    const targetQty = newQty > 1 ? newQty : null;
 
-    RC.log('ListDetail:Qty', `INCREMENT`, { itemId, from: currentQty, to: newQty, refLength: itemsRef.current.length });
     const updatedItems = itemsRef.current.map(i =>
-      i.id === itemId ? { ...i, unitQty: dbQty } : i
+      i.id === itemId ? { ...i, unitQty: targetQty } : i
     );
     itemsRef.current = updatedItems;
     setItems(updatedItems);
 
-    ItemManager.updateItem(itemId, { unitQty: dbQty });
+    optimisticQtyRef.current.set(itemId, targetQty);
+    const existingTimer = qtyDebounceRef.current.get(itemId);
+    if (existingTimer) clearTimeout(existingTimer);
+    qtyDebounceRef.current.set(itemId, setTimeout(() => {
+      qtyDebounceRef.current.delete(itemId);
+      ItemManager.updateItem(itemId, { unitQty: targetQty });
+    }, 300));
   }, []);
 
   const handleDecrement = useCallback((itemId: string) => {
@@ -680,16 +717,21 @@ const ListDetailScreen = () => {
     const currentQty = currentItem.unitQty ?? 1;
     const newQty = Math.max(1, currentQty - 1);
     if (newQty === currentQty) return;
-    const dbQty = newQty > 1 ? newQty : null;
+    const targetQty = newQty > 1 ? newQty : null;
 
-    RC.log('ListDetail:Qty', `DECREMENT`, { itemId, from: currentQty, to: newQty });
     const updatedItems = itemsRef.current.map(i =>
-      i.id === itemId ? { ...i, unitQty: dbQty } : i
+      i.id === itemId ? { ...i, unitQty: targetQty } : i
     );
     itemsRef.current = updatedItems;
     setItems(updatedItems);
 
-    ItemManager.updateItem(itemId, { unitQty: dbQty });
+    optimisticQtyRef.current.set(itemId, targetQty);
+    const existingTimer = qtyDebounceRef.current.get(itemId);
+    if (existingTimer) clearTimeout(existingTimer);
+    qtyDebounceRef.current.set(itemId, setTimeout(() => {
+      qtyDebounceRef.current.delete(itemId);
+      ItemManager.updateItem(itemId, { unitQty: targetQty });
+    }, 300));
   }, []);
 
   const handlePriceSave = async (itemId: string, updates: { price?: number | null }) => {
