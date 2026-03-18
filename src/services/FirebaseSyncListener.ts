@@ -4,6 +4,7 @@ import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { v4 as uuidv4 } from 'uuid';
+import RC from '../utils/raceConditionLogger';
 
 /**
  * FirebaseSyncListener
@@ -26,61 +27,55 @@ class FirebaseSyncListener {
     }
 
     const listsRef = database().ref(`familyGroups/${familyGroupId}/lists`);
-    const initialBuffer: { listId: string; data: any }[] = [];
+    const initialIds = new Set<string>();
     let initialLoadDone = false;
 
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
-      initialLoadDone = true;
-      if (initialBuffer.length === 0) return;
-
-      const lists: ShoppingList[] = initialBuffer.map(({ listId, data }) => ({
-        id: listId,
-        name: data.name || '',
-        familyGroupId: data.familyGroupId || familyGroupId,
-        createdBy: data.createdBy || '',
-        createdAt: data.createdAt || Date.now(),
-        status: data.status || 'active',
-        completedAt: data.completedAt || null,
-        completedBy: data.completedBy || null,
-        receiptUrl: data.receiptUrl || null,
-        receiptData: data.receiptData || null,
-        syncStatus: 'synced' as const,
-        isLocked: data.isLocked || false,
-        lockedBy: data.lockedBy || null,
-        lockedByName: data.lockedByName || null,
-        lockedByRole: data.lockedByRole || null,
-        lockedAt: data.lockedAt || null,
-        budget: data.budget ?? null,
-        storeName: data.storeName || null,
-        archived: data.archived || false,
-        layoutApplied: data.layoutApplied ?? false,
-      }));
-
-      await LocalStorageManager.saveListsBatch(lists);
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener lists flush'); }
-    };
-
+    // child_added: no-op during initial load, handles new records after
     const onChildAdded = listsRef.on('child_added', async (snapshot) => {
-      const listId = snapshot.key;
-      const listData = snapshot.val();
-      if (!listId || !listData) return;
-
-      if (!initialLoadDone) {
-        initialBuffer.push({ listId, data: listData });
-        return;
-      }
-
-      await this.syncListToLocal(listId, listData, familyGroupId);
+      if (!snapshot.key || !snapshot.val()) return;
+      if (!initialLoadDone) return;
+      if (initialIds.has(snapshot.key)) return;
+      await this.syncListToLocal(snapshot.key, snapshot.val(), familyGroupId);
     });
 
-    listsRef.once('value').then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener lists value sentinel');
-      await safeFlush();
+    // once('value'): sole initial load path
+    listsRef.once('value').then(async (snapshot) => {
+      const lists: ShoppingList[] = [];
+      snapshot.forEach(child => {
+        if (child.key && child.val()) {
+          initialIds.add(child.key);
+          const data = child.val();
+          lists.push({
+            id: child.key,
+            name: data.name || '',
+            familyGroupId: data.familyGroupId || familyGroupId,
+            createdBy: data.createdBy || '',
+            createdAt: data.createdAt || Date.now(),
+            status: data.status || 'active',
+            completedAt: data.completedAt || null,
+            completedBy: data.completedBy || null,
+            receiptUrl: data.receiptUrl || null,
+            receiptData: data.receiptData || null,
+            syncStatus: 'synced' as const,
+            isLocked: data.isLocked || false,
+            lockedBy: data.lockedBy || null,
+            lockedByName: data.lockedByName || null,
+            lockedByRole: data.lockedByRole || null,
+            lockedAt: data.lockedAt || null,
+            budget: data.budget ?? null,
+            storeName: data.storeName || null,
+            archived: data.archived || false,
+            layoutApplied: data.layoutApplied ?? false,
+          });
+        }
+      });
+      initialLoadDone = true;
+      if (lists.length > 0) {
+        await LocalStorageManager.saveListsBatch(lists);
+      }
+    }).catch(err => {
+      initialLoadDone = true;
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener lists initial load');
     });
 
     const onChildChanged = listsRef.on('child_changed', async (snapshot) => {
@@ -123,29 +118,42 @@ class FirebaseSyncListener {
    */
   startListeningToItems(familyGroupId: string, listId: string): Unsubscribe {
     const key = `items_${familyGroupId}_${listId}`;
-    if (this.activeListeners.has(key)) return this.activeListeners.get(key)!;
+    if (this.activeListeners.has(key)) {
+      return this.activeListeners.get(key)!;
+    }
 
     const itemsRef = database().ref(`familyGroups/${familyGroupId}/items`);
     let isCancelled = false;
-    let offChildAdded: (() => void) | null = null;
     const initialItemIds = new Set<string>();
 
     const filteredRef = itemsRef.orderByChild('listId').equalTo(listId);
-    const initialBuffer: { id: string; data: any }[] = [];
     let initialLoadDone = false;
 
-    // Batch-write buffered items to local DB once all initial child_added events arrive.
-    // initialLoadDone is set synchronously before async work to guard against double-flush.
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
+    // child_added: no-op during initial load, handles new records after
+    const childAddedCb = filteredRef.on('child_added', async (snap) => {
+      if (!snap.key) return;
+      if (!initialLoadDone) return;
+      if (initialItemIds.has(snap.key)) return;
+      await this.syncItemToLocal(listId, snap.key, snap.val());
+    });
+
+    // once('value'): sole initial load path
+    filteredRef.once('value').then(async (snapshot) => {
       if (isCancelled) return;
+      const entries: { id: string; data: any }[] = [];
+      snapshot.forEach(child => {
+        if (child.key && child.val()) {
+          initialItemIds.add(child.key);
+          entries.push({ id: child.key, data: child.val() });
+        }
+      });
       initialLoadDone = true;
-      initialBuffer.forEach(({ id }) => initialItemIds.add(id));
+
       const localItems = await LocalStorageManager.getItemsForList(listId);
       if (isCancelled) return;
       const localMap = new Map(localItems.map(i => [i.id, i]));
       const toSync: Item[] = [];
-      for (const { id, data } of initialBuffer) {
+      for (const { id, data } of entries) {
         const item = this.buildItemFromFirebase(id, listId, data);
         const existing = localMap.get(id);
         if (existing && !this.hasItemChanged(existing, item)) continue;
@@ -155,30 +163,9 @@ class FirebaseSyncListener {
       if (toSync.length > 0) {
         await LocalStorageManager.saveItemsBatchUpsert(toSync);
       }
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener items flush'); }
-    };
-
-    // Collect initial items via child_added; after initialLoadDone, route new items individually.
-    const childAddedCb = filteredRef.on('child_added', async (snap) => {
-      if (!snap.key) return;
-      if (!initialLoadDone) {
-        initialBuffer.push({ id: snap.key, data: snap.val() });
-        return;
-      }
-      if (initialItemIds.has(snap.key)) return;
-      await this.syncItemToLocal(listId, snap.key, snap.val());
-    });
-    offChildAdded = () => filteredRef.off('child_added', childAddedCb);
-
-    // value fires after all initial child_added events — use as "done" sentinel.
-    // Second argument catches once('value') rejections without swallowing safeFlush errors.
-    filteredRef.once('value').then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener items value sentinel');
-      await safeFlush();
+    }).catch(err => {
+      initialLoadDone = true;
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener items initial load');
     });
 
     const onChildChanged = filteredRef.on('child_changed', async (snapshot) => {
@@ -194,7 +181,7 @@ class FirebaseSyncListener {
       if (!itemId) return;
       try {
         const snap = await itemsRef.child(itemId).once('value');
-        if (snap.exists()) return; // ghost event — item still in Firebase
+        if (snap.exists()) return;
         await LocalStorageManager.deleteItem(itemId);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'FirebaseSyncListener item deletion');
@@ -203,7 +190,7 @@ class FirebaseSyncListener {
 
     const unsubscribe = () => {
       isCancelled = true;
-      offChildAdded?.();
+      filteredRef.off('child_added', childAddedCb);
       filteredRef.off('child_changed', onChildChanged);
       filteredRef.off('child_removed', onChildRemoved);
       this.activeListeners.delete(key);
@@ -370,6 +357,7 @@ class FirebaseSyncListener {
    * Stop all active listeners
    */
   stopAllListeners(): void {
+    RC.log('FBSync', `stopAllListeners — ${this.activeListeners.size} active`);
     this.activeListeners.forEach((unsubscribe) => unsubscribe());
     this.activeListeners.clear();
   }
@@ -403,16 +391,22 @@ class FirebaseSyncListener {
     const key = `urgent_items_${familyGroupId}`;
 
     if (this.activeListeners.has(key)) {
+      RC.warn('FBSync:UrgentItems', 'Already has active listener', { key });
       return this.activeListeners.get(key)!;
     }
 
+    RC.listenerStart('FBSync:UrgentItems', key);
     const urgentItemsRef = database().ref(`urgentItems/${familyGroupId}`);
     const initialBuffer: { itemId: string; data: any }[] = [];
     let initialLoadDone = false;
 
     const flushBuffer = async () => {
-      if (initialLoadDone) return;
+      if (initialLoadDone) {
+        RC.warn('FBSync:UrgentItems', 'Double flush detected', { key });
+        return;
+      }
       initialLoadDone = true;
+      RC.bufferState('UrgentItems', 'flush_start', { bufferedCount: initialBuffer.length });
       if (initialBuffer.length === 0) return;
 
       const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) => ({
@@ -708,11 +702,17 @@ class FirebaseSyncListener {
    */
   startListeningToPriceHistory(familyGroupId: string): Unsubscribe {
     const key = `price_history_${familyGroupId}`;
-    if (this.activeListeners.has(key)) return this.activeListeners.get(key)!;
+    if (this.activeListeners.has(key)) {
+      RC.warn('FBSync:PriceHistory', 'Already has active listener', { key });
+      return this.activeListeners.get(key)!;
+    }
 
+    RC.listenerStart('FBSync:PriceHistory', key);
     const baseRef = database().ref(`familyGroups/${familyGroupId}/priceHistory`);
     const sessionStart = Date.now();
+    let batchLoadDone = false;
 
+    RC.log('FBSync:PriceHistory', 'Starting batch load via once(value)', { sessionStart });
     baseRef.once('value').then(async (snapshot) => {
       const records: PriceHistoryRecord[] = [];
       snapshot.forEach(child => {
@@ -722,7 +722,10 @@ class FirebaseSyncListener {
           if (record) records.push(record);
         }
       });
+      RC.log('FBSync:PriceHistory', `Batch load complete: ${records.length} records`);
       await LocalStorageManager.savePriceHistoryBatch(records);
+      batchLoadDone = true;
+      RC.log('FBSync:PriceHistory', 'Batch save complete');
     }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
 
     const ongoingRef = baseRef.orderByChild('recordedAt').startAt(sessionStart);
@@ -730,6 +733,9 @@ class FirebaseSyncListener {
       try {
         const data = snapshot.val();
         if (data) {
+          if (!batchLoadDone) {
+            RC.warn('FBSync:PriceHistory', 'child_added arrived BEFORE batch load finished — possible duplicate', { recordId: data?.id });
+          }
           const record = this.mapToPriceRecord(data);
           if (record) await LocalStorageManager.savePriceHistoryRecord(record);
         }
