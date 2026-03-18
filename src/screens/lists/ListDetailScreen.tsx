@@ -51,6 +51,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import MeasurementService from '../../services/MeasurementService';
 import { useAdMob } from '../../contexts/AdMobContext';
+import RC from '../../utils/raceConditionLogger';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
 // Renders children as a render prop, passing drag() so AnimatedItemCard can
@@ -222,15 +223,19 @@ const ListDetailScreen = () => {
   // Ref to avoid isListLocked closure in useCallback handlers
   const isListLockedRef = useRef(false);
 
+  // Ref to avoid currentUserId closure in main useEffect
+  const currentUserIdRef = useRef<string | null>(null);
+
   // Cache haptic setting to avoid AsyncStorage read on every toggle
   const hapticEnabledRef = useRef(false);
 
   // Refs to avoid list closure in useCallback handlers
   const listFamilyGroupIdRef = useRef<string | undefined>(undefined);
   const listStoreNameRef = useRef<string | undefined>(undefined);
-  // Keep list refs in sync with list state
+  // Keep refs in sync with state
   listFamilyGroupIdRef.current = list?.familyGroupId;
   listStoreNameRef.current = list?.storeName ?? undefined;
+  currentUserIdRef.current = currentUserId;
 
   // Load haptic setting on focus so the ref stays fresh if user changes it in Settings
   useFocusEffect(useCallback(() => {
@@ -295,7 +300,6 @@ const ListDetailScreen = () => {
 
     // Eager: fast local DB reads needed immediately
     loadListMetadata();
-    loadCurrentUser();
 
     // Deferred: expensive predictions after navigation animation completes
     const interactionHandle = InteractionManager.runAfterInteractions(() => {
@@ -308,30 +312,26 @@ const ListDetailScreen = () => {
     const unsubscribeList = ShoppingListManager.subscribeToSingleList(
       listId,
       async (updatedList) => {
-        if (!isMountedRef.current) {
-          return;
-        }
+        if (!isMountedRef.current) return;
+        const userId = currentUserIdRef.current;
 
-        if (updatedList && currentUserId) {
+        if (updatedList && userId) {
           setList(updatedList);
           setListName(updatedList.name);
           setIsListCompleted(updatedList.status === 'completed');
 
-          // Check if list is locked
-          const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
+          const locked = await ShoppingListManager.isListLockedForUser(listId, userId);
           isListLockedRef.current = locked;
           setIsListLocked(locked);
 
-          // If locked by current user, enable shopping mode
-          if (updatedList.isLocked && updatedList.lockedBy === currentUserId) {
+          if (updatedList.isLocked && updatedList.lockedBy === userId) {
             setIsShoppingMode(true);
           } else {
             setIsShoppingMode(false);
           }
 
-          // If list is completed, only the person who completed it can add items
           if (updatedList.status === 'completed') {
-            setCanAddItems(updatedList.completedBy === currentUserId);
+            setCanAddItems(updatedList.completedBy === userId);
           } else {
             setCanAddItems(!locked);
           }
@@ -341,20 +341,14 @@ const ListDetailScreen = () => {
 
     // Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
     const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
-      if (!isMountedRef.current) {
-        return;
-      }
-
-      if (!updatedItems) {
-        return;
-      }
+      if (!isMountedRef.current) return;
+      if (!updatedItems) return;
 
       itemsRef.current = updatedItems;
       if (!isReorderingRef.current) {
         setItems(updatedItems);
       }
 
-      // Calculate shopping mode stats - wrap in try-catch to prevent observer crashes
       try {
         calculateShoppingStats(updatedItems);
       } catch (error) {
@@ -375,11 +369,34 @@ const ListDetailScreen = () => {
       unsubscribeList();
       unsubscribeItems();
       unsubscribeNetInfo();
-      // Memory cleanup: clear cached data
       setPredictedPrices({});
       setSmartSuggestions(new Map());
     };
-  }, [listId, currentUserId]);
+  }, [listId]);
+
+  // One-shot: load current user (separate from main effect to avoid double observer setup)
+  useEffect(() => { loadCurrentUser(); }, []);
+
+  // Compute lock/mode state once userId becomes available
+  useEffect(() => {
+    if (!currentUserId || !list) return;
+    ShoppingListManager.isListLockedForUser(listId, currentUserId).then(locked => {
+      if (!isMountedRef.current) return;
+      isListLockedRef.current = locked;
+      setIsListLocked(locked);
+      if (list.isLocked && list.lockedBy === currentUserId) {
+        setIsShoppingMode(true);
+      } else {
+        setIsShoppingMode(false);
+      }
+      if (list.status === 'completed') {
+        setCanAddItems(list.completedBy === currentUserId);
+      } else {
+        setCanAddItems(!locked);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId, list?.id]);
 
   // Show interstitial ad on list open (with retry for cold starts)
   useEffect(() => {
@@ -399,7 +416,6 @@ const ListDetailScreen = () => {
   useEffect(() => {
     if (!list?.familyGroupId) return;
 
-    // Start listening to Firebase for remote changes to items in this list
     const unsubscribeFirebaseItems = FirebaseSyncListener.startListeningToItems(
       list.familyGroupId,
       listId
@@ -598,12 +614,17 @@ const ListDetailScreen = () => {
   const handleToggleItem = useCallback(async (itemId: string) => {
     // CRITICAL: Prevent multiple simultaneous toggles on same item
     if (toggleInProgressRef.current.has(itemId)) {
+      RC.warn('ListDetail:Toggle', `BLOCKED — toggle already in progress`, { itemId });
       return;
     }
 
     try {
       // Mark as in progress
+      if (!RC.guard('ListDetail:Toggle', itemId)) {
+        RC.warn('ListDetail:Toggle', `RC.guard detected concurrent toggle attempt`, { itemId });
+      }
       toggleInProgressRef.current.add(itemId);
+      RC.log('ListDetail:Toggle', `Toggle START`, { itemId, inProgressCount: toggleInProgressRef.current.size });
 
       // Trigger haptic feedback if enabled (before toggle for instant feedback)
       if (hapticEnabledRef.current && Vibration && typeof Vibration.vibrate === 'function') {
@@ -622,6 +643,8 @@ const ListDetailScreen = () => {
     } finally {
       // Always clear the in-progress flag
       toggleInProgressRef.current.delete(itemId);
+      RC.release('ListDetail:Toggle', itemId);
+      RC.log('ListDetail:Toggle', `Toggle DONE`, { itemId, inProgressCount: toggleInProgressRef.current.size });
     }
   }, []);
 
@@ -641,6 +664,7 @@ const ListDetailScreen = () => {
     const newQty = currentQty + 1;
     const dbQty = newQty > 1 ? newQty : null;
 
+    RC.log('ListDetail:Qty', `INCREMENT`, { itemId, from: currentQty, to: newQty, refLength: itemsRef.current.length });
     const updatedItems = itemsRef.current.map(i =>
       i.id === itemId ? { ...i, unitQty: dbQty } : i
     );
@@ -658,6 +682,7 @@ const ListDetailScreen = () => {
     if (newQty === currentQty) return;
     const dbQty = newQty > 1 ? newQty : null;
 
+    RC.log('ListDetail:Qty', `DECREMENT`, { itemId, from: currentQty, to: newQty });
     const updatedItems = itemsRef.current.map(i =>
       i.id === itemId ? { ...i, unitQty: dbQty } : i
     );
@@ -976,6 +1001,7 @@ const ListDetailScreen = () => {
   );
 
   const handleCategoryDragEnd = useCallback((reorderedItems: Item[]) => {
+    RC.log('ListDetail:Reorder', `Drag end START`, { reorderedCount: reorderedItems.length, totalItems: itemsRef.current.length });
     // Optimistically update UI immediately — onReorder fires synchronously on the UI thread
     const reorderedIds = new Set(reorderedItems.map(i => i.id));
     const optimistic = [
@@ -986,7 +1012,9 @@ const ListDetailScreen = () => {
     setItems(optimistic);
     // Write to DB in background, suppressing observer fires during batch writes
     isReorderingRef.current = true;
+    RC.log('ListDetail:Reorder', 'isReorderingRef=true — observers suppressed');
     ItemManager.reorderItems(reorderedItems).finally(() => {
+      RC.log('ListDetail:Reorder', 'Reorder DB write done — restoring observer rendering');
       isReorderingRef.current = false;
       setItems([...itemsRef.current]);
     });
