@@ -51,7 +51,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import MeasurementService from '../../services/MeasurementService';
 import { useAdMob } from '../../contexts/AdMobContext';
-
+import RC from '../../utils/raceConditionLogger';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
 // Renders children as a render prop, passing drag() so AnimatedItemCard can
@@ -646,12 +646,17 @@ const ListDetailScreen = () => {
   const handleToggleItem = useCallback(async (itemId: string) => {
     // CRITICAL: Prevent multiple simultaneous toggles on same item
     if (toggleInProgressRef.current.has(itemId)) {
+      RC.warn('ListDetail:Toggle', `BLOCKED — toggle already in progress`, { itemId });
       return;
     }
 
     try {
       // Mark as in progress
+      if (!RC.guard('ListDetail:Toggle', itemId)) {
+        RC.warn('ListDetail:Toggle', `RC.guard detected concurrent toggle attempt`, { itemId });
+      }
       toggleInProgressRef.current.add(itemId);
+      RC.log('ListDetail:Toggle', `Toggle START`, { itemId, inProgressCount: toggleInProgressRef.current.size });
 
       // Trigger haptic feedback if enabled (before toggle for instant feedback)
       if (hapticEnabledRef.current && Vibration && typeof Vibration.vibrate === 'function') {
@@ -670,6 +675,8 @@ const ListDetailScreen = () => {
     } finally {
       // Always clear the in-progress flag
       toggleInProgressRef.current.delete(itemId);
+      RC.release('ListDetail:Toggle', itemId);
+      RC.log('ListDetail:Toggle', `Toggle DONE`, { itemId, inProgressCount: toggleInProgressRef.current.size });
     }
   }, []);
 
@@ -1036,6 +1043,7 @@ const ListDetailScreen = () => {
   );
 
   const handleCategoryDragEnd = useCallback((reorderedItems: Item[]) => {
+    RC.log('ListDetail:Reorder', `Drag end START`, { reorderedCount: reorderedItems.length, totalItems: itemsRef.current.length });
     // Optimistically update UI immediately — onReorder fires synchronously on the UI thread
     const reorderedIds = new Set(reorderedItems.map(i => i.id));
     const optimistic = [
@@ -1046,7 +1054,9 @@ const ListDetailScreen = () => {
     setItems(optimistic);
     // Write to DB in background, suppressing observer fires during batch writes
     isReorderingRef.current = true;
+    RC.log('ListDetail:Reorder', 'isReorderingRef=true — observers suppressed');
     ItemManager.reorderItems(reorderedItems).finally(() => {
+      RC.log('ListDetail:Reorder', 'Reorder DB write done — restoring observer rendering');
       isReorderingRef.current = false;
       setItems([...itemsRef.current]);
     });

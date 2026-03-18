@@ -81,6 +81,9 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       })
       .catch(() => setLoading(false));
 
+    // Helper to start Firebase listeners
+    // price history listener is intentionally NOT here — startListeningToPriceHistory() runs
+    // once('value') on start. Including it here would re-download all records on every foreground.
     const startFirebaseListeners = () => {
       FirebaseSyncListener.stopListeningToLists(familyGroupId);
       FirebaseSyncListener.stopListeningToCategoryHistory(familyGroupId);
@@ -136,9 +139,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
 
   // Create list - save to DB, observer will pick it up
   const createList = useCallback(async (listName: string): Promise<ShoppingList | null> => {
-    if (creatingRef.current) {
-      return null;
-    }
+    if (creatingRef.current) return null;
     if (!user) return null;
     if (!familyGroupId) {
       if (user.familyGroupId) {

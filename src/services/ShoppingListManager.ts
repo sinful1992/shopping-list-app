@@ -102,7 +102,9 @@ class ShoppingListManager {
     await LocalStorageManager.saveList(list);
 
     // Run Firebase operations in background (fire-and-forget)
-    this.performBackgroundCreationTasks(userId, user, list.id).catch(() => {});
+    this.performBackgroundCreationTasks(userId, user, list.id).catch(() => {
+      // Background task failed silently
+    });
 
     return list;
   }
@@ -166,7 +168,9 @@ class ShoppingListManager {
     });
 
     // Trigger sync in background (fire-and-forget for instant local updates)
-    SyncEngine.pushChange('list', listId, 'update', list).catch(() => {});
+    SyncEngine.pushChange('list', listId, 'update', list).catch(() => {
+      // Background sync failed, will retry later
+    });
 
     return list;
   }
