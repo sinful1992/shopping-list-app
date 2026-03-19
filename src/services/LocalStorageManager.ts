@@ -1,7 +1,7 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, ItemPreference } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
 import { CategoryType } from './CategoryService';
 import CrashReporting from './CrashReporting';
 import { schema } from '../database/schema';
@@ -1646,135 +1646,6 @@ class LocalStorageManager {
       createdAt: Number(model.createdAt), // @date decorator returns Date object; must convert
       updatedAt: model.updatedAt,
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-    };
-  }
-
-  // ===== ITEM PREFERENCE METHODS =====
-
-  async getItemPreference(familyGroupId: string, itemNameNormalized: string): Promise<ItemPreference | null> {
-    try {
-      const collection = this.database.get<ItemPreferenceModel>('item_preferences');
-      const records = await collection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('item_name_normalized', itemNameNormalized)
-        )
-        .fetch();
-      if (records.length === 0) return null;
-      return this.itemPreferenceModelToType(records[0]);
-    } catch {
-      return null;
-    }
-  }
-
-  async saveItemPreference(
-    familyGroupId: string,
-    itemNameNormalized: string,
-    measurementUnit: string,
-    measurementValue: number | null
-  ): Promise<void> {
-    const collection = this.database.get<ItemPreferenceModel>('item_preferences');
-    await this.database.write(async () => {
-      const existing = await collection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('item_name_normalized', itemNameNormalized)
-        )
-        .fetch();
-
-      if (existing.length > 0) {
-        await existing[0].update(r => {
-          r.measurementUnit = measurementUnit;
-          r.measurementValue = measurementValue ?? null;
-          r.updatedAt = Date.now();
-        });
-      } else {
-        await collection.create(r => {
-          r._raw.id = uuidv4();
-          r.familyGroupId = familyGroupId;
-          r.itemNameNormalized = itemNameNormalized;
-          r.measurementUnit = measurementUnit;
-          r.measurementValue = measurementValue ?? null;
-          r.updatedAt = Date.now();
-          r.createdAt = Date.now();
-        });
-      }
-    });
-  }
-
-  /**
-   * Batch upsert item preferences in a single database.write() transaction.
-   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
-   */
-  async saveItemPreferencesBatch(
-    familyGroupId: string,
-    entries: Array<{ itemNameNormalized: string; unit: string; value: number | null }>
-  ): Promise<void> {
-    if (entries.length === 0) return;
-
-    const collection = this.database.get<ItemPreferenceModel>('item_preferences');
-
-    const existingRecords = await collection
-      .query(Q.where('family_group_id', familyGroupId))
-      .fetch();
-
-    const existingMap = new Map<string, ItemPreferenceModel>();
-    for (const record of existingRecords) {
-      existingMap.set(record.itemNameNormalized, record);
-    }
-
-    await this.database.write(async () => {
-      for (const { itemNameNormalized, unit, value } of entries) {
-        const existing = existingMap.get(itemNameNormalized);
-
-        if (existing) {
-          await existing.update(r => {
-            r.measurementUnit = unit;
-            r.measurementValue = value ?? null;
-            r.updatedAt = Date.now();
-          });
-        } else {
-          await collection.create(r => {
-            r._raw.id = uuidv4();
-            r.familyGroupId = familyGroupId;
-            r.itemNameNormalized = itemNameNormalized;
-            r.measurementUnit = unit;
-            r.measurementValue = value ?? null;
-            r.updatedAt = Date.now();
-            r.createdAt = Date.now();
-          });
-        }
-      }
-    });
-  }
-
-  async deleteItemPreference(familyGroupId: string, itemNameNormalized: string): Promise<void> {
-    try {
-      const collection = this.database.get<ItemPreferenceModel>('item_preferences');
-      const records = await collection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('item_name_normalized', itemNameNormalized)
-        )
-        .fetch();
-      if (records.length === 0) return;
-      await this.database.write(async () => {
-        await records[0].destroyPermanently();
-      });
-    } catch {
-      // already gone — ignore
-    }
-  }
-
-  private itemPreferenceModelToType(model: ItemPreferenceModel): ItemPreference {
-    return {
-      id: model.id,
-      familyGroupId: model.familyGroupId,
-      itemNameNormalized: model.itemNameNormalized,
-      measurementUnit: model.measurementUnit,
-      measurementValue: model.measurementValue,
-      updatedAt: model.updatedAt,
-      createdAt: model.createdAt,
     };
   }
 

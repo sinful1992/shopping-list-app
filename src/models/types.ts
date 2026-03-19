@@ -377,18 +377,6 @@ export interface StoreLayout {
   syncStatus: SyncStatus;
 }
 
-// Item Preference Types
-
-export interface ItemPreference {
-  id: string;
-  familyGroupId: string;
-  itemNameNormalized: string;
-  measurementUnit: string | null;
-  measurementValue: number | null;
-  updatedAt: number;
-  createdAt: number;
-}
-
 // Utility Types
 
 export type Unsubscribe = () => void;

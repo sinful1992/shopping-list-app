@@ -49,7 +49,6 @@ import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
-import MeasurementService from '../../services/MeasurementService';
 import { useAdMob } from '../../contexts/AdMobContext';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
@@ -595,19 +594,7 @@ const ListDetailScreen = () => {
 
   const addItemWithCategory = async (name: string, category: string | null) => {
     if (!currentUserId) return;
-
-    let measurementUnit: string | null = null;
-    let measurementValue: number | null = null;
-
-    if (list?.familyGroupId) {
-      const suggestion = await MeasurementService.suggestMeasurement(list.familyGroupId, name, category);
-      if (suggestion) {
-        measurementUnit = suggestion.unit;
-        measurementValue = suggestion.value;
-      }
-    }
-
-    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category, measurementUnit, measurementValue);
+    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category);
   };
 
   const handleConflictResolved = async (selectedCategory: string) => {
@@ -622,19 +609,12 @@ const ListDetailScreen = () => {
 
     try {
       let category: string | null = null;
-      let measurementUnit: string | null = null;
-      let measurementValue: number | null = null;
 
       if (list?.familyGroupId) {
         category = await CategoryHistoryService.getSuggestedCategory(list.familyGroupId, itemName);
-        const suggestion = await MeasurementService.suggestMeasurement(list.familyGroupId, itemName, category);
-        if (suggestion) {
-          measurementUnit = suggestion.unit;
-          measurementValue = suggestion.value;
-        }
       }
 
-      await ItemManager.addItem(listId, itemName, currentUserId, undefined, undefined, category, measurementUnit, measurementValue);
+      await ItemManager.addItem(listId, itemName, currentUserId, undefined, undefined, category);
       showAlert('Added', `${itemName} added to list`, undefined, { icon: 'success' });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -737,19 +717,9 @@ const ListDetailScreen = () => {
   const handleSizeSave = async (
     itemId: string,
     updates: { measurementUnit?: string | null; measurementValue?: number | null },
-    measurementChanged: boolean
   ) => {
     try {
       await ItemManager.updateItem(itemId, updates);
-      if (measurementChanged && list?.familyGroupId) {
-        const item = items.find(i => i.id === itemId);
-        MeasurementService.savePreference(
-          list.familyGroupId,
-          item?.name ?? '',
-          updates.measurementUnit ?? null,
-          updates.measurementValue ?? null
-        ).catch(() => {});
-      }
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;
@@ -761,19 +731,7 @@ const ListDetailScreen = () => {
     updates: { name?: string; category?: string | null }
   ) => {
     try {
-      const item = items.find(i => i.id === itemId);
-      let finalUpdates: { name?: string; category?: string | null; measurementUnit?: string | null } = { ...updates };
-
-      // Auto-assign measurement unit if category changed and item has no measurement
-      if (updates.category !== undefined && !item?.measurementUnit && list?.familyGroupId) {
-        const itemName = updates.name ?? item?.name ?? '';
-        const suggested = MeasurementService.getStaticDefault(itemName, updates.category as any);
-        if (suggested) {
-          finalUpdates.measurementUnit = suggested.unit;
-        }
-      }
-
-      await ItemManager.updateItem(itemId, finalUpdates);
+      await ItemManager.updateItem(itemId, updates);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       throw error;

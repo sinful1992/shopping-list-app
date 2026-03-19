@@ -9,7 +9,6 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { Item } from '../models/types';
 import CategoryService from '../services/CategoryService';
-import MeasurementService from '../services/MeasurementService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { parseCombinedInput } from '../utils/measurement';
 import { useAlert } from '../contexts/AlertContext';
@@ -27,7 +26,6 @@ interface SizeEditModalProps {
   onSave: (
     itemId: string,
     updates: { measurementUnit?: string | null; measurementValue?: number | null },
-    measurementChanged: boolean
   ) => Promise<void>;
 }
 
@@ -36,11 +34,8 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
   const [combinedInput, setCombinedInput] = useState('');
   const [measurementUnit, setMeasurementUnit] = useState<string | null>(null);
   const [measurementValueText, setMeasurementValueText] = useState('');
-  const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [showSuggestion, setShowSuggestion] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const originalUnitRef = useRef<string | null>(null);
-  const originalValueRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (item) {
@@ -52,28 +47,8 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
         setCombinedInput('');
       }
       originalUnitRef.current = item.measurementUnit ?? null;
-      originalValueRef.current = item.measurementValue ?? null;
     }
   }, [item]);
-
-  useEffect(() => {
-    if (item && measurementUnit === null) {
-      const staticDefault = MeasurementService.getStaticDefault(item.name, item.category as any);
-      if (staticDefault) {
-        const suggested = staticDefault.value != null
-          ? `${staticDefault.value}${staticDefault.unit}`
-          : staticDefault.unit;
-        setSuggestion(suggested);
-        setShowSuggestion(true);
-      } else {
-        setSuggestion(null);
-        setShowSuggestion(false);
-      }
-    } else {
-      setSuggestion(null);
-      setShowSuggestion(false);
-    }
-  }, [item, measurementUnit]);
 
   useEffect(() => {
     if (visible) {
@@ -100,29 +75,11 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
     }
   };
 
-  const handleAcceptSuggestion = () => {
-    if (!suggestion) return;
-    const parsed = parseCombinedInput(suggestion);
-    if (parsed) {
-      setMeasurementUnit(parsed.unit);
-      setMeasurementValueText(parsed.value.toString());
-      setCombinedInput(suggestion);
-    } else {
-      setMeasurementUnit(suggestion);
-      setCombinedInput(suggestion);
-    }
-    setShowSuggestion(false);
-    setSuggestion(null);
-  };
-
   const handleSave = async () => {
     if (!item) return;
     try {
       const measurementValue = measurementValueText.trim() ? parseFloat(measurementValueText) : null;
-      const measurementChanged =
-        measurementUnit !== originalUnitRef.current ||
-        (measurementValue ?? null) !== originalValueRef.current;
-      await onSave(item.id, { measurementUnit, measurementValue }, measurementChanged);
+      await onSave(item.id, { measurementUnit, measurementValue });
       onClose();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to save measurement', undefined, { icon: 'error' });
@@ -132,9 +89,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
   const handleClear = async () => {
     if (!item) return;
     try {
-      const measurementChanged =
-        originalUnitRef.current !== null || originalValueRef.current !== null;
-      await onSave(item.id, { measurementUnit: null, measurementValue: null }, measurementChanged);
+      await onSave(item.id, { measurementUnit: null, measurementValue: null });
       onClose();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to clear measurement', undefined, { icon: 'error' });
@@ -162,19 +117,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
       </View>
 
       <View style={styles.content}>
-        {/* Smart suggestion chip */}
-        {showSuggestion && suggestion && (
-          <View style={styles.suggestionChip}>
-            <Text style={styles.suggestionText}>Suggested: {suggestion}</Text>
-            <TouchableOpacity onPress={handleAcceptSuggestion} style={styles.suggestionAction}>
-              <Text style={styles.suggestionAccept}>✓</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setShowSuggestion(false); setSuggestion(null); }} style={styles.suggestionAction}>
-              <Text style={styles.suggestionDismiss}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Combined input */}
         <View style={styles.inputRow}>
           <TextInput
@@ -298,35 +240,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
-  },
-  suggestionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    borderStyle: 'dashed',
-    borderRadius: RADIUS.medium,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
-  },
-  suggestionAction: {
-    padding: SPACING.xs,
-  },
-  suggestionAccept: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.accent.blue,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  suggestionDismiss: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.tertiary,
   },
   inputRow: {
     flexDirection: 'row',

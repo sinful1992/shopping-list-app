@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-03-19
+### Removed
+- **Automatic measurement assignment** — items no longer get auto-assigned measurement units (ml, g, kg, L) on add or category change; manual measurement editing via SizeEditModal is unchanged
+- Deleted `MeasurementService.ts` and `normalize.ts` (unused utility)
+- Removed Firebase item preferences sync listener (`startListeningToItemPreferences`/`stopListeningToItemPreferences`)
+- Removed `ItemPreference` type and all `LocalStorageManager` item preference methods (`getItemPreference`, `saveItemPreference`, `saveItemPreferencesBatch`, `deleteItemPreference`)
+- Removed suggestion chip UI from SizeEditModal
+
 ## [1.11.2] - 2026-03-18
 ### Fixed
 - **Auth fires twice on cold start** — `onAuthStateChanged` fires twice (cached credential then server validation), tearing down and re-creating Firebase RTDB listeners each time; now tracks `lastProcessedUid` to skip duplicate setup and uses `latestFirebaseUser` mutable ref so the claims listener always calls `getIdToken` on the freshest instance
