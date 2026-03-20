@@ -52,9 +52,9 @@ class LocalStorageManager {
       let listRecord: ShoppingListModel | undefined;
 
       await this.database.write(async () => {
-        try {
-          listRecord = await listsCollection.find(list.id);
-          // Update existing
+        const existing = await listsCollection.query(Q.where('id', list.id)).fetch();
+        if (existing.length > 0) {
+          listRecord = existing[0];
           await listRecord.update((record) => {
             record.name = list.name;
             record.status = list.status;
@@ -73,14 +73,12 @@ class LocalStorageManager {
             record.archived = list.archived || null;
             record.layoutApplied = list.layoutApplied ?? null;
           });
-        } catch {
-          // Create new
+        } else {
           listRecord = await listsCollection.create((record) => {
             record._raw.id = list.id;
             record.name = list.name;
             record.familyGroupId = list.familyGroupId;
             record.createdBy = list.createdBy;
-            // createdAt is @readonly and automatically set by WatermelonDB
             record.status = list.status;
             record.completedAt = list.completedAt;
             record.completedBy = list.completedBy;
@@ -121,54 +119,79 @@ class LocalStorageManager {
 
     const existingMap = new Map(existingRecords.map(r => [r.id, r]));
 
+    const applyUpdate = (record: ShoppingListModel, list: ShoppingList) => {
+      record.name = list.name;
+      record.status = list.status;
+      record.completedAt = list.completedAt;
+      record.completedBy = list.completedBy;
+      record.receiptUrl = list.receiptUrl;
+      record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+      record.syncStatus = list.syncStatus || 'pending';
+      record.isLocked = list.isLocked;
+      record.lockedBy = list.lockedBy;
+      record.lockedByName = list.lockedByName;
+      record.lockedByRole = list.lockedByRole;
+      record.lockedAt = list.lockedAt;
+      record.budget = list.budget;
+      record.storeName = list.storeName || null;
+      record.archived = list.archived || null;
+      record.layoutApplied = list.layoutApplied ?? null;
+    };
+
+    const applyCreate = (record: ShoppingListModel, list: ShoppingList) => {
+      record._raw.id = list.id;
+      record.name = list.name;
+      record.familyGroupId = list.familyGroupId;
+      record.createdBy = list.createdBy;
+      record.status = list.status;
+      record.completedAt = list.completedAt;
+      record.completedBy = list.completedBy;
+      record.receiptUrl = list.receiptUrl;
+      record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+      record.syncStatus = list.syncStatus || 'pending';
+      record.isLocked = list.isLocked;
+      record.lockedBy = list.lockedBy;
+      record.lockedByName = list.lockedByName;
+      record.lockedByRole = list.lockedByRole;
+      record.lockedAt = list.lockedAt;
+      record.budget = list.budget;
+      record.storeName = list.storeName || null;
+      record.archived = list.archived || null;
+      record.layoutApplied = list.layoutApplied ?? null;
+    };
+
     await this.database.write(async () => {
+      const ops: any[] = [];
       for (const list of lists) {
         const existing = existingMap.get(list.id);
-
         if (existing) {
           const local = this.listModelToType(existing);
           if (!this.hasListChanged(local, list)) continue;
-
-          await existing.update(record => {
-            record.name = list.name;
-            record.status = list.status;
-            record.completedAt = list.completedAt;
-            record.completedBy = list.completedBy;
-            record.receiptUrl = list.receiptUrl;
-            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            record.syncStatus = list.syncStatus || 'pending';
-            record.isLocked = list.isLocked;
-            record.lockedBy = list.lockedBy;
-            record.lockedByName = list.lockedByName;
-            record.lockedByRole = list.lockedByRole;
-            record.lockedAt = list.lockedAt;
-            record.budget = list.budget;
-            record.storeName = list.storeName || null;
-            record.archived = list.archived || null;
-            record.layoutApplied = list.layoutApplied ?? null;
-          });
+          ops.push(existing.prepareUpdate(r => applyUpdate(r as ShoppingListModel, list)));
         } else {
-          await collection.create(record => {
-            record._raw.id = list.id;
-            record.name = list.name;
-            record.familyGroupId = list.familyGroupId;
-            record.createdBy = list.createdBy;
-            record.status = list.status;
-            record.completedAt = list.completedAt;
-            record.completedBy = list.completedBy;
-            record.receiptUrl = list.receiptUrl;
-            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            record.syncStatus = list.syncStatus || 'pending';
-            record.isLocked = list.isLocked;
-            record.lockedBy = list.lockedBy;
-            record.lockedByName = list.lockedByName;
-            record.lockedByRole = list.lockedByRole;
-            record.lockedAt = list.lockedAt;
-            record.budget = list.budget;
-            record.storeName = list.storeName || null;
-            record.archived = list.archived || null;
-            record.layoutApplied = list.layoutApplied ?? null;
-          });
+          ops.push(collection.prepareCreate(r => applyCreate(r, list)));
+        }
+      }
+      if (ops.length === 0) return;
+
+      try {
+        await this.database.batch(ops);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'saveListsBatch batch failed, falling back to individual writes');
+        for (const list of lists) {
+          try {
+            const records = await collection.query(Q.where('id', list.id)).fetch();
+            const rec = records[0];
+            if (rec) {
+              const local = this.listModelToType(rec);
+              if (!this.hasListChanged(local, list)) continue;
+              await rec.update(r => applyUpdate(r, list));
+            } else {
+              await collection.create(r => applyCreate(r, list));
+            }
+          } catch (e) {
+            CrashReporting.recordError(e as Error, `saveListsBatch individual write failed for ${list.id}`);
+          }
         }
       }
     });
@@ -324,24 +347,22 @@ class LocalStorageManager {
       let itemRecord: ItemModel | undefined;
 
       await this.database.write(async () => {
-        try {
-          itemRecord = await itemsCollection.find(item.id);
-          // Update existing
+        const existing = await itemsCollection.query(Q.where('id', item.id)).fetch();
+        if (existing.length > 0) {
+          itemRecord = existing[0];
           await itemRecord.update((record) => {
             record.name = item.name;
             record.quantity = item.quantity;
             record.price = item.price;
             record.checked = item.checked;
             record.updatedAt = item.updatedAt;
-            // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
             record.measurementUnit = item.measurementUnit ?? null;
             record.measurementValue = item.measurementValue ?? null;
           });
-        } catch {
-          // Create new
+        } else {
           itemRecord = await itemsCollection.create((record) => {
             record._raw.id = item.id;
             record.listId = item.listId;
@@ -350,9 +371,7 @@ class LocalStorageManager {
             record.price = item.price;
             record.checked = item.checked;
             record.createdBy = item.createdBy;
-            // createdAt is @readonly and automatically set by WatermelonDB
             record.updatedAt = item.updatedAt;
-            // syncStatus is managed by WatermelonDB sync system
             record.category = item.category || null;
             record.sortOrder = item.sortOrder ?? null;
             record.unitQty = item.unitQty ?? null;
@@ -507,28 +526,41 @@ class LocalStorageManager {
    * Batch save multiple items (more efficient than individual saves)
    */
   async saveItemsBatch(items: Item[]): Promise<void> {
+    if (items.length === 0) return;
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
 
+      const applyCreate = (record: ItemModel, item: Item) => {
+        record._raw.id = item.id;
+        record.listId = item.listId;
+        record.name = item.name;
+        record.quantity = item.quantity;
+        record.price = item.price;
+        record.checked = item.checked;
+        record.createdBy = item.createdBy;
+        record.updatedAt = item.updatedAt;
+        record.category = item.category || null;
+        record.sortOrder = item.sortOrder ?? null;
+        record.unitQty = item.unitQty ?? null;
+        record.measurementUnit = item.measurementUnit ?? null;
+        record.measurementValue = item.measurementValue ?? null;
+      };
+
       await this.database.write(async () => {
-        for (const item of items) {
-          await itemsCollection.create((record) => {
-            record._raw.id = item.id;
-            record.listId = item.listId;
-            record.name = item.name;
-            record.quantity = item.quantity;
-            record.price = item.price;
-            record.checked = item.checked;
-            record.createdBy = item.createdBy;
-            // createdAt is @readonly and automatically set by WatermelonDB
-            record.updatedAt = item.updatedAt;
-            // syncStatus is managed by WatermelonDB sync system
-            record.category = item.category || null;
-            record.sortOrder = item.sortOrder ?? null;
-            record.unitQty = item.unitQty ?? null;
-            record.measurementUnit = item.measurementUnit ?? null;
-            record.measurementValue = item.measurementValue ?? null;
-          });
+        const ops: any[] = items.map(item =>
+          itemsCollection.prepareCreate(r => applyCreate(r, item))
+        );
+        try {
+          await this.database.batch(ops);
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'saveItemsBatch batch failed, falling back to individual writes');
+          for (const item of items) {
+            try {
+              await itemsCollection.create(r => applyCreate(r, item));
+            } catch (e) {
+              CrashReporting.recordError(e as Error, `saveItemsBatch individual create failed for ${item.id}`);
+            }
+          }
         }
       });
     } catch (error: any) {
@@ -547,44 +579,70 @@ class LocalStorageManager {
         await this.database.adapter.destroyDeletedRecords('items', staleIds);
       }
 
+      const applyUpdate = (record: ItemModel, item: Item) => {
+        record.name = item.name;
+        record.quantity = item.quantity;
+        record.price = item.price;
+        record.checked = item.checked;
+        record.updatedAt = item.updatedAt;
+        record.category = item.category || null;
+        record.sortOrder = item.sortOrder ?? null;
+        record.unitQty = item.unitQty ?? null;
+        record.measurementUnit = item.measurementUnit ?? null;
+        record.measurementValue = item.measurementValue ?? null;
+      };
+
+      const applyCreate = (record: ItemModel, item: Item) => {
+        record._raw.id = item.id;
+        record.listId = item.listId;
+        record.name = item.name;
+        record.quantity = item.quantity;
+        record.price = item.price;
+        record.checked = item.checked;
+        record.createdBy = item.createdBy;
+        record.updatedAt = item.updatedAt;
+        record.category = item.category || null;
+        record.sortOrder = item.sortOrder ?? null;
+        record.unitQty = item.unitQty ?? null;
+        record.measurementUnit = item.measurementUnit ?? null;
+        record.measurementValue = item.measurementValue ?? null;
+      };
+
       await this.database.write(async () => {
         const existingRecords = await itemsCollection
           .query(Q.where('id', Q.oneOf(items.map(i => i.id))))
           .fetch();
         const existingMap = new Map(existingRecords.map(r => [r.id, r]));
 
+        const ops: any[] = [];
         for (const item of items) {
           const existing = existingMap.get(item.id);
           if (existing) {
             if (existing.updatedAt > (item.updatedAt ?? 0)) continue;
-            await existing.update(record => {
-              record.name = item.name;
-              record.quantity = item.quantity;
-              record.price = item.price;
-              record.checked = item.checked;
-              record.updatedAt = item.updatedAt;
-              record.category = item.category || null;
-              record.sortOrder = item.sortOrder ?? null;
-              record.unitQty = item.unitQty ?? null;
-              record.measurementUnit = item.measurementUnit ?? null;
-              record.measurementValue = item.measurementValue ?? null;
-            });
+            ops.push(existing.prepareUpdate(r => applyUpdate(r as ItemModel, item)));
           } else {
-            await itemsCollection.create(record => {
-              record._raw.id = item.id;
-              record.listId = item.listId;
-              record.name = item.name;
-              record.quantity = item.quantity;
-              record.price = item.price;
-              record.checked = item.checked;
-              record.createdBy = item.createdBy;
-              record.updatedAt = item.updatedAt;
-              record.category = item.category || null;
-              record.sortOrder = item.sortOrder ?? null;
-              record.unitQty = item.unitQty ?? null;
-              record.measurementUnit = item.measurementUnit ?? null;
-              record.measurementValue = item.measurementValue ?? null;
-            });
+            ops.push(itemsCollection.prepareCreate(r => applyCreate(r, item)));
+          }
+        }
+        if (ops.length === 0) return;
+
+        try {
+          await this.database.batch(ops);
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'saveItemsBatchUpsert batch failed, falling back to individual writes');
+          for (const item of items) {
+            try {
+              const records = await itemsCollection.query(Q.where('id', item.id)).fetch();
+              const rec = records[0];
+              if (rec) {
+                if (rec.updatedAt > (item.updatedAt ?? 0)) continue;
+                await rec.update(r => applyUpdate(r, item));
+              } else {
+                await itemsCollection.create(r => applyCreate(r, item));
+              }
+            } catch (e) {
+              CrashReporting.recordError(e as Error, `saveItemsBatchUpsert individual write failed for ${item.id}`);
+            }
           }
         }
       });
@@ -604,15 +662,12 @@ class LocalStorageManager {
       const itemsCollection = this.database.get<ItemModel>('items');
 
       await this.database.write(async () => {
-        // Fetch all items in one query using Q.oneOf
         const itemRecords = await itemsCollection
           .query(Q.where('id', Q.oneOf(itemIds)))
           .fetch();
-
-        // Mark all found items as deleted
-        await Promise.all(itemRecords.map(item => item.markAsDeleted()));
-
-        // Items that weren't found were likely already deleted - no action needed
+        if (itemRecords.length === 0) return;
+        const ops: any[] = itemRecords.map(item => item.prepareMarkAsDeleted());
+        await this.database.batch(ops);
       });
     } catch (error: any) {
       throw new Error(`Failed to batch delete items: ${error.message}`);
@@ -838,35 +893,60 @@ class LocalStorageManager {
 
     const existingMap = new Map(existingRecords.map(r => [r.id, r]));
 
+    const applyUpdate = (record: UrgentItemModel, item: UrgentItem) => {
+      record.name = item.name;
+      record.resolvedBy = item.resolvedBy;
+      record.resolvedByName = item.resolvedByName;
+      record.resolvedAt = item.resolvedAt;
+      record.price = item.price;
+      record.status = item.status;
+    };
+
+    const applyCreate = (record: UrgentItemModel, item: UrgentItem) => {
+      record._raw.id = item.id;
+      record.name = item.name;
+      record.familyGroupId = item.familyGroupId;
+      record.createdBy = item.createdBy;
+      record.createdByName = item.createdByName;
+      record.resolvedBy = item.resolvedBy;
+      record.resolvedByName = item.resolvedByName;
+      record.resolvedAt = item.resolvedAt;
+      record.price = item.price;
+      record.status = item.status;
+    };
+
     await this.database.write(async () => {
+      const ops: any[] = [];
       for (const item of urgentItems) {
         const existing = existingMap.get(item.id);
-
         if (existing) {
           const local = this.urgentItemModelToType(existing);
           if (!this.hasUrgentItemChanged(local, item)) continue;
-
-          await existing.update(record => {
-            record.name = item.name;
-            record.resolvedBy = item.resolvedBy;
-            record.resolvedByName = item.resolvedByName;
-            record.resolvedAt = item.resolvedAt;
-            record.price = item.price;
-            record.status = item.status;
-          });
+          ops.push(existing.prepareUpdate(r => applyUpdate(r as UrgentItemModel, item)));
         } else {
-          await collection.create(record => {
-            record._raw.id = item.id;
-            record.name = item.name;
-            record.familyGroupId = item.familyGroupId;
-            record.createdBy = item.createdBy;
-            record.createdByName = item.createdByName;
-            record.resolvedBy = item.resolvedBy;
-            record.resolvedByName = item.resolvedByName;
-            record.resolvedAt = item.resolvedAt;
-            record.price = item.price;
-            record.status = item.status;
-          });
+          ops.push(collection.prepareCreate(r => applyCreate(r, item)));
+        }
+      }
+      if (ops.length === 0) return;
+
+      try {
+        await this.database.batch(ops);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'saveUrgentItemsBatch batch failed, falling back to individual writes');
+        for (const item of urgentItems) {
+          try {
+            const records = await collection.query(Q.where('id', item.id)).fetch();
+            const rec = records[0];
+            if (rec) {
+              const local = this.urgentItemModelToType(rec);
+              if (!this.hasUrgentItemChanged(local, item)) continue;
+              await rec.update(r => applyUpdate(r, item));
+            } else {
+              await collection.create(r => applyCreate(r, item));
+            }
+          } catch (e) {
+            CrashReporting.recordError(e as Error, `saveUrgentItemsBatch individual write failed for ${item.id}`);
+          }
         }
       }
     });
@@ -1344,26 +1424,59 @@ class LocalStorageManager {
       existingMap.set(`${record.itemNameNormalized}|${record.category}`, record);
     }
 
+    const applyUpdate = (r: CategoryHistoryModel, data: any) => {
+      r.usageCount = data.usageCount || 1;
+      r.lastUsedAt = data.lastUsedAt || Date.now();
+    };
+
+    const applyCreate = (r: CategoryHistoryModel, itemNameNormalized: string, data: any) => {
+      r._raw.id = uuidv4();
+      r.familyGroupId = familyGroupId;
+      r.itemNameNormalized = itemNameNormalized;
+      r.category = data.category;
+      r.usageCount = data.usageCount || 1;
+      r.lastUsedAt = data.lastUsedAt || Date.now();
+    };
+
     await this.database.write(async () => {
+      const ops: any[] = [];
       for (const { itemHash, data } of entries) {
         const itemNameNormalized = itemHash.replace(/_/g, '.');
         const key = `${itemNameNormalized}|${data.category}`;
         const existing = existingMap.get(key);
 
         if (existing) {
-          await existing.update(r => {
-            r.usageCount = data.usageCount || 1;
-            r.lastUsedAt = data.lastUsedAt || Date.now();
-          });
+          ops.push(existing.prepareUpdate(r => applyUpdate(r as CategoryHistoryModel, data)));
         } else {
-          await collection.create(r => {
-            r._raw.id = uuidv4();
-            r.familyGroupId = familyGroupId;
-            r.itemNameNormalized = itemNameNormalized;
-            r.category = data.category;
-            r.usageCount = data.usageCount || 1;
-            r.lastUsedAt = data.lastUsedAt || Date.now();
-          });
+          ops.push(collection.prepareCreate(r => applyCreate(r, itemNameNormalized, data)));
+        }
+      }
+      if (ops.length === 0) return;
+
+      try {
+        await this.database.batch(ops);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'saveCategoryHistoryBatch batch failed, falling back to individual writes');
+        for (const { itemHash, data } of entries) {
+          try {
+            const itemNameNormalized = itemHash.replace(/_/g, '.');
+            const key = `${itemNameNormalized}|${data.category}`;
+            const freshRecords = await collection
+              .query(
+                Q.where('family_group_id', familyGroupId),
+                Q.where('item_name_normalized', itemNameNormalized),
+                Q.where('category', data.category)
+              )
+              .fetch();
+            const rec = freshRecords[0];
+            if (rec) {
+              await rec.update(r => applyUpdate(r, data));
+            } else {
+              await collection.create(r => applyCreate(r, itemNameNormalized, data));
+            }
+          } catch (e) {
+            CrashReporting.recordError(e as Error, `saveCategoryHistoryBatch individual write failed for ${itemHash}`);
+          }
         }
       }
     });
@@ -1429,21 +1542,34 @@ class LocalStorageManager {
     const toCreate = records.filter(r => !existingIds.has(r.id));
     if (toCreate.length === 0) return;
 
+    const applyCreate = (r: PriceHistoryModel, record: PriceHistoryRecord) => {
+      r._raw.id = record.id;
+      r.itemName = record.itemName;
+      r.itemNameNormalized = record.itemNameNormalized;
+      r.price = record.price;
+      r.storeName = record.storeName;
+      r.listId = record.listId;
+      r.recordedAt = record.recordedAt;
+      r.familyGroupId = record.familyGroupId;
+    };
+
     await this.database.write(async () => {
-      for (const record of toCreate) {
-        try {
-          await collection.find(record.id);
-        } catch {
-          await collection.create(r => {
-            r._raw.id = record.id;
-            r.itemName = record.itemName;
-            r.itemNameNormalized = record.itemNameNormalized;
-            r.price = record.price;
-            r.storeName = record.storeName;
-            r.listId = record.listId;
-            r.recordedAt = record.recordedAt;
-            r.familyGroupId = record.familyGroupId;
-          });
+      const ops: any[] = toCreate.map(record =>
+        collection.prepareCreate(r => applyCreate(r, record))
+      );
+
+      try {
+        await this.database.batch(ops);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'savePriceHistoryBatch batch failed, falling back');
+        for (const record of toCreate) {
+          try {
+            const exists = await collection.query(Q.where('id', record.id)).fetch();
+            if (exists.length > 0) continue;
+            await collection.create(r => applyCreate(r, record));
+          } catch (e) {
+            CrashReporting.recordError(e as Error, `savePriceHistoryBatch individual create failed for ${record.id}`);
+          }
         }
       }
     });
@@ -1599,26 +1725,50 @@ class LocalStorageManager {
       existingMap.set(record.id, record);
     }
 
+    const applyUpdate = (r: StoreLayoutModel, data: any) => {
+      if (data.categoryOrder !== undefined) r.categoryOrder = JSON.stringify(data.categoryOrder);
+      if (data.updatedAt !== undefined) r.updatedAt = data.updatedAt;
+      r.syncStatus = 'synced';
+    };
+
+    const applyCreate = (r: StoreLayoutModel, layoutId: string, data: any) => {
+      r._raw.id = layoutId;
+      r.familyGroupId = data.familyGroupId || familyGroupId;
+      r.storeName = data.storeName || '';
+      r.categoryOrder = JSON.stringify(data.categoryOrder);
+      r.createdBy = data.createdBy || '';
+      r.updatedAt = data.updatedAt || Date.now();
+      r.syncStatus = 'synced';
+    };
+
     await this.database.write(async () => {
+      const ops: any[] = [];
       for (const { layoutId, data } of entries) {
         const existing = existingMap.get(layoutId);
-
         if (existing) {
-          await existing.update(r => {
-            if (data.categoryOrder !== undefined) r.categoryOrder = JSON.stringify(data.categoryOrder);
-            if (data.updatedAt !== undefined) r.updatedAt = data.updatedAt;
-            r.syncStatus = 'synced';
-          });
+          ops.push(existing.prepareUpdate(r => applyUpdate(r as StoreLayoutModel, data)));
         } else {
-          await collection.create(r => {
-            r._raw.id = layoutId;
-            r.familyGroupId = data.familyGroupId || familyGroupId;
-            r.storeName = data.storeName || '';
-            r.categoryOrder = JSON.stringify(data.categoryOrder);
-            r.createdBy = data.createdBy || '';
-            r.updatedAt = data.updatedAt || Date.now();
-            r.syncStatus = 'synced';
-          });
+          ops.push(collection.prepareCreate(r => applyCreate(r, layoutId, data)));
+        }
+      }
+      if (ops.length === 0) return;
+
+      try {
+        await this.database.batch(ops);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'saveStoreLayoutsBatch batch failed, falling back to individual writes');
+        for (const { layoutId, data } of entries) {
+          try {
+            const records = await collection.query(Q.where('id', layoutId)).fetch();
+            const rec = records[0];
+            if (rec) {
+              await rec.update(r => applyUpdate(r, data));
+            } else {
+              await collection.create(r => applyCreate(r, layoutId, data));
+            }
+          } catch (e) {
+            CrashReporting.recordError(e as Error, `saveStoreLayoutsBatch individual write failed for ${layoutId}`);
+          }
         }
       }
     });
