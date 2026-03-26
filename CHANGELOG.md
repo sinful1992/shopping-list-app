@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-03-26
+### Fixed
+- **Android edge-to-edge support (SDK 35)** — added `EdgeToEdge.enable()` in `MainActivity.java` with `androidx.activity:activity:1.9.0` dependency to handle Android 15 enforced edge-to-edge display and migrate away from deprecated `statusBarColor`/`navigationBarColor` APIs; set `StatusBar translucent={true}` with transparent background in `App.tsx`; wrapped 4 headerless auth screens (`LoginScreen`, `SignUpScreen`, `FamilyGroupScreen`, `TermsAcceptanceScreen`) in `SafeAreaView` to prevent content rendering behind system bars
+
 ## [1.13.0] - 2026-03-26
 ### Added
 - **Shopping started push notification** — when a user starts shopping (selects a store), all other family members receive a push notification: "🛒 [Name] is shopping at [Store]"; new `notify-shopping-started` Supabase Edge Function sends FCM V1 notifications to family group device tokens; fire-and-forget from `ListDetailScreen` via `NotificationManager.notifyShoppingStarted()`

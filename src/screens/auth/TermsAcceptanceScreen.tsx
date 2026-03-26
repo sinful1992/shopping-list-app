@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import database from '@react-native-firebase/database';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
@@ -66,6 +67,7 @@ const TermsAcceptanceScreen = () => {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#12121C' }}>
     <View style={styles.container}>
       <Text style={styles.title}>Terms & Privacy Policy</Text>
       <Text style={styles.subtitle}>
@@ -108,6 +110,7 @@ const TermsAcceptanceScreen = () => {
         </TouchableOpacity>
       </View>
     </View>
+    </SafeAreaView>
   );
 };
 

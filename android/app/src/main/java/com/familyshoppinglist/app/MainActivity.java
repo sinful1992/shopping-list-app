@@ -1,6 +1,7 @@
 package com.familyshoppinglist.app;
 
 import android.os.Bundle;
+import androidx.activity.EdgeToEdge;
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
@@ -11,6 +12,7 @@ public class MainActivity extends ReactActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    EdgeToEdge.enable(this);
     SplashScreen.show(this);
     super.onCreate(savedInstanceState);
   }

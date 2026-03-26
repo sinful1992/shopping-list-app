@@ -391,8 +391,8 @@ function App(): JSX.Element {
     <SafeAreaProvider>
       <StatusBar
         barStyle="light-content"
-        backgroundColor="#12121C"
-        translucent={false}
+        backgroundColor="transparent"
+        translucent={true}
       />
       <RevenueCatProvider user={user}>
       <NavigationContainer theme={DarkNavigationTheme} linking={linking}>
