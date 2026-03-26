@@ -50,6 +50,7 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
+import NotificationManager from '../../services/NotificationManager';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
 // Renders children as a render prop, passing drag() so AnimatedItemCard can
@@ -833,6 +834,18 @@ const ListDetailScreen = () => {
       setIsShoppingMode(true);
       isListLockedRef.current = false;
       setIsListLocked(false); // Not locked for current user
+
+      // Notify family members (fire-and-forget)
+      if (list?.familyGroupId) {
+        NotificationManager.notifyShoppingStarted(
+          list.familyGroupId,
+          currentUserId,
+          currentUser.displayName || currentUser.email || 'A family member',
+          storeName,
+          listName
+        ).catch(() => {});
+      }
+
       // WatermelonDB observer will automatically update the list state
       showAlert('Shopping Mode', 'You are now shopping. Other family members can only view this list.', undefined, { icon: 'info' });
     } catch (error: any) {

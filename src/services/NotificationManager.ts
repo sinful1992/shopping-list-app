@@ -178,6 +178,32 @@ class NotificationManager {
   }
 
   /**
+   * Notify family members that a user has started shopping
+   * Fire-and-forget — errors are silently caught
+   */
+  async notifyShoppingStarted(
+    familyGroupId: string,
+    userId: string,
+    userName: string,
+    storeName: string,
+    listName: string
+  ): Promise<void> {
+    try {
+      await supabase.functions.invoke('notify-shopping-started', {
+        body: {
+          family_group_id: familyGroupId,
+          user_id: userId,
+          user_name: userName,
+          store_name: storeName,
+          list_name: listName,
+        },
+      });
+    } catch (error) {
+      // Non-critical — shopping flow continues regardless
+    }
+  }
+
+  /**
    * Clear FCM token (on logout)
    */
   async clearToken(): Promise<void> {
