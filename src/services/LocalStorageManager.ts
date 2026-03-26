@@ -96,7 +96,7 @@ class LocalStorageManager {
             record.layoutApplied = list.layoutApplied ?? null;
           });
         }
-      });
+      }, 'saveList');
 
       return this.listModelToType(listRecord!);
     } catch (error: any) {
@@ -160,6 +160,7 @@ class LocalStorageManager {
       record.layoutApplied = list.layoutApplied ?? null;
     };
 
+    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const list of lists) {
@@ -194,7 +195,8 @@ class LocalStorageManager {
           }
         }
       }
-    });
+    }, 'saveListsBatch');
+    console.log(`[Perf] saveListsBatch: ${lists.length} lists, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   /**
@@ -311,7 +313,7 @@ class LocalStorageManager {
           if (updates.layoutApplied !== undefined) record.layoutApplied = updates.layoutApplied;
           if (updates.uncheckedItemsCount !== undefined) record.uncheckedItemsCount = updates.uncheckedItemsCount;
         });
-      });
+      }, 'updateList');
 
       return this.listModelToType(listRecord);
     } catch (error: any) {
@@ -328,7 +330,7 @@ class LocalStorageManager {
       const listRecord = await listsCollection.find(listId);
       await this.database.write(async () => {
         await listRecord.markAsDeleted();
-      });
+      }, 'deleteList');
     } catch (error: any) {
       throw new Error(`Failed to delete list: ${error.message}`);
     }
@@ -379,7 +381,7 @@ class LocalStorageManager {
             record.measurementValue = item.measurementValue ?? null;
           });
         }
-      });
+      }, 'saveItem');
 
       if (!itemRecord) {
         throw new Error('Failed to create or update item record');
@@ -461,7 +463,7 @@ class LocalStorageManager {
           if (updates.measurementUnit !== undefined) record.measurementUnit = updates.measurementUnit;
           if (updates.measurementValue !== undefined) record.measurementValue = updates.measurementValue;
         });
-      });
+      }, 'updateItem');
 
       return this.itemModelToType(itemRecord);
     } catch (error: any) {
@@ -478,16 +480,18 @@ class LocalStorageManager {
     const ids = updates.map(u => u.id);
     const updatedItems: Item[] = [];
 
+    const t0 = performance.now();
     await this.database.write(async () => {
       const records = await itemsCollection
         .query(Q.where('id', Q.oneOf(ids)))
         .fetch();
       const recordMap = new Map(records.map(r => [r.id, r]));
 
+      const ops: any[] = [];
       for (const { id, updates: itemUpdates } of updates) {
         const record = recordMap.get(id);
         if (!record) continue;
-        await record.update(r => {
+        ops.push(record.prepareUpdate((r: ItemModel) => {
           if (itemUpdates.name !== undefined) r.name = itemUpdates.name;
           if (itemUpdates.quantity !== undefined) r.quantity = itemUpdates.quantity;
           if (itemUpdates.price !== undefined) r.price = itemUpdates.price;
@@ -499,10 +503,14 @@ class LocalStorageManager {
           if (itemUpdates.unitQty !== undefined) r.unitQty = itemUpdates.unitQty;
           if (itemUpdates.measurementUnit !== undefined) r.measurementUnit = itemUpdates.measurementUnit;
           if (itemUpdates.measurementValue !== undefined) r.measurementValue = itemUpdates.measurementValue;
-        });
+        }));
         updatedItems.push(this.itemModelToType(record));
       }
-    });
+      if (ops.length > 0) {
+        await this.database.batch(ops);
+      }
+    }, 'updateItemsBatch');
+    console.log(`[Perf] updateItemsBatch: ${updates.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
 
     return updatedItems;
   }
@@ -516,7 +524,7 @@ class LocalStorageManager {
       const itemRecord = await itemsCollection.find(itemId);
       await this.database.write(async () => {
         await itemRecord.markAsDeleted();
-      });
+      }, 'deleteItem');
     } catch (error: any) {
       throw new Error(`Failed to delete item: ${error.message}`);
     }
@@ -546,6 +554,7 @@ class LocalStorageManager {
         record.measurementValue = item.measurementValue ?? null;
       };
 
+      const t0 = performance.now();
       await this.database.write(async () => {
         const ops: any[] = items.map(item =>
           itemsCollection.prepareCreate(r => applyCreate(r, item))
@@ -562,7 +571,8 @@ class LocalStorageManager {
             }
           }
         }
-      });
+      }, 'saveItemsBatch');
+      console.log(`[Perf] saveItemsBatch: ${items.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
     } catch (error: any) {
       throw new Error(`Failed to batch save items: ${error.message}`);
     }
@@ -608,6 +618,7 @@ class LocalStorageManager {
         record.measurementValue = item.measurementValue ?? null;
       };
 
+      const t0 = performance.now();
       await this.database.write(async () => {
         const existingRecords = await itemsCollection
           .query(Q.where('id', Q.oneOf(items.map(i => i.id))))
@@ -645,7 +656,8 @@ class LocalStorageManager {
             }
           }
         }
-      });
+      }, 'saveItemsBatchUpsert');
+      console.log(`[Perf] saveItemsBatchUpsert: ${items.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
     } catch (error: any) {
       throw new Error(`Failed to batch upsert items: ${error.message}`);
     }
@@ -668,7 +680,7 @@ class LocalStorageManager {
         if (itemRecords.length === 0) return;
         const ops: any[] = itemRecords.map(item => item.prepareMarkAsDeleted());
         await this.database.batch(ops);
-      });
+      }, 'deleteItemsBatch');
     } catch (error: any) {
       throw new Error(`Failed to batch delete items: ${error.message}`);
     }
@@ -694,7 +706,7 @@ class LocalStorageManager {
           record.retryCount = operation.retryCount;
           record.nextRetryAt = operation.nextRetryAt || null;
         });
-      });
+      }, 'addToSyncQueue');
     } catch (error: any) {
       throw new Error(`Failed to add to sync queue: ${error.message}`);
     }
@@ -734,7 +746,7 @@ class LocalStorageManager {
       const operation = await syncQueueCollection.find(operationId);
       await this.database.write(async () => {
         await operation.markAsDeleted();
-      });
+      }, 'removeFromSyncQueue');
     } catch (error: any) {
       throw new Error(`Failed to remove from sync queue: ${error.message}`);
     }
@@ -752,7 +764,7 @@ class LocalStorageManager {
           if (updates.retryCount !== undefined) record.retryCount = updates.retryCount;
           if (updates.nextRetryAt !== undefined) record.nextRetryAt = updates.nextRetryAt;
         });
-      });
+      }, 'updateSyncQueueOp');
     } catch (error: any) {
       throw new Error(`Failed to update sync queue operation: ${error.message}`);
     }
@@ -765,9 +777,11 @@ class LocalStorageManager {
     try {
       const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
       const operations = await syncQueueCollection.query().fetch();
+      if (operations.length === 0) return;
       await this.database.write(async () => {
-        await Promise.all(operations.map((op) => op.markAsDeleted()));
-      });
+        const ops = operations.map(op => op.prepareMarkAsDeleted());
+        await this.database.batch(ops);
+      }, 'clearSyncQueue');
     } catch (error: any) {
       throw new Error(`Failed to clear sync queue: ${error.message}`);
     }
@@ -840,7 +854,6 @@ class LocalStorageManager {
       await this.database.write(async () => {
         try {
           itemRecord = await urgentItemsCollection.find(urgentItem.id);
-          // Update existing
           await itemRecord.update((record) => {
             record.name = urgentItem.name;
             record.resolvedBy = urgentItem.resolvedBy;
@@ -848,10 +861,8 @@ class LocalStorageManager {
             record.resolvedAt = urgentItem.resolvedAt;
             record.price = urgentItem.price;
             record.status = urgentItem.status;
-            // syncStatus is managed by WatermelonDB sync system
           });
         } catch {
-          // Create new
           itemRecord = await urgentItemsCollection.create((record) => {
             record._raw.id = urgentItem.id;
             record.name = urgentItem.name;
@@ -863,10 +874,9 @@ class LocalStorageManager {
             record.resolvedAt = urgentItem.resolvedAt;
             record.price = urgentItem.price;
             record.status = urgentItem.status;
-            // syncStatus is managed by WatermelonDB sync system
           });
         }
-      });
+      }, 'saveUrgentItem');
 
       if (!itemRecord) {
         throw new Error('Failed to create or update urgent item record');
@@ -915,6 +925,7 @@ class LocalStorageManager {
       record.status = item.status;
     };
 
+    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const item of urgentItems) {
@@ -949,7 +960,8 @@ class LocalStorageManager {
           }
         }
       }
-    });
+    }, 'saveUrgentItemsBatch');
+    console.log(`[Perf] saveUrgentItemsBatch: ${urgentItems.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
@@ -1062,9 +1074,8 @@ class LocalStorageManager {
           if (updates.resolvedAt !== undefined) record.resolvedAt = updates.resolvedAt;
           if (updates.price !== undefined) record.price = updates.price;
           if (updates.status !== undefined) record.status = updates.status;
-          // syncStatus is managed by WatermelonDB sync system
         });
-      });
+      }, 'updateUrgentItem');
 
       return this.urgentItemModelToType(itemRecord);
     } catch (error: any) {
@@ -1081,7 +1092,7 @@ class LocalStorageManager {
       const itemRecord = await urgentItemsCollection.find(itemId);
       await this.database.write(async () => {
         await itemRecord.markAsDeleted();
-      });
+      }, 'deleteUrgentItem');
     } catch (error: any) {
       throw new Error(`Failed to delete urgent item: ${error.message}`);
     }
@@ -1096,7 +1107,7 @@ class LocalStorageManager {
   async executeTransaction(callback: () => Promise<void>): Promise<void> {
     await this.database.write(async () => {
       await callback();
-    });
+    }, 'executeTransaction');
   }
 
   // ===== REAL-TIME OBSERVERS =====
@@ -1317,13 +1328,11 @@ class LocalStorageManager {
       await this.database.write(async () => {
         try {
           historyRecord = await categoryHistoryCollection.find(categoryHistory.id);
-          // Update existing
           await historyRecord.update((record) => {
             record.usageCount = categoryHistory.usageCount;
             record.lastUsedAt = categoryHistory.lastUsedAt;
           });
         } catch {
-          // Create new
           historyRecord = await categoryHistoryCollection.create((record) => {
             record._raw.id = categoryHistory.id;
             record.familyGroupId = categoryHistory.familyGroupId;
@@ -1333,7 +1342,7 @@ class LocalStorageManager {
             record.lastUsedAt = categoryHistory.lastUsedAt;
           });
         }
-      });
+      }, 'saveCategoryHistory');
 
       if (!historyRecord) {
         throw new Error('Failed to create or update category history record');
@@ -1382,7 +1391,7 @@ class LocalStorageManager {
           if (updates.usageCount !== undefined) r.usageCount = updates.usageCount;
           if (updates.lastUsedAt !== undefined) r.lastUsedAt = updates.lastUsedAt;
         });
-      });
+      }, 'updateCategoryHistory');
     } catch (error: any) {
       throw new Error(`Failed to update category history: ${error.message}`);
     }
@@ -1397,7 +1406,7 @@ class LocalStorageManager {
       const record = await categoryHistoryCollection.find(id);
       await this.database.write(async () => {
         await record.markAsDeleted();
-      });
+      }, 'deleteCategoryHistory');
     } catch (error: any) {
       throw new Error(`Failed to delete category history: ${error.message}`);
     }
@@ -1438,6 +1447,7 @@ class LocalStorageManager {
       r.lastUsedAt = data.lastUsedAt || Date.now();
     };
 
+    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const { itemHash, data } of entries) {
@@ -1460,7 +1470,6 @@ class LocalStorageManager {
         for (const { itemHash, data } of entries) {
           try {
             const itemNameNormalized = itemHash.replace(/_/g, '.');
-            const key = `${itemNameNormalized}|${data.category}`;
             const freshRecords = await collection
               .query(
                 Q.where('family_group_id', familyGroupId),
@@ -1479,7 +1488,8 @@ class LocalStorageManager {
           }
         }
       }
-    });
+    }, 'saveCategoryHistoryBatch');
+    console.log(`[Perf] saveCategoryHistoryBatch: ${entries.length} entries, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   private categoryHistoryModelToType(model: CategoryHistoryModel): CategoryHistory {
@@ -1506,7 +1516,7 @@ class LocalStorageManager {
     await this.database.write(async () => {
       try {
         await collection.find(record.id);
-        return; // already exists — idempotent skip
+        return;
       } catch {
         await collection.create(r => {
           r._raw.id = record.id;
@@ -1519,7 +1529,7 @@ class LocalStorageManager {
           r.familyGroupId = record.familyGroupId;
         });
       }
-    });
+    }, 'savePriceHistoryRecord');
   }
 
   /**
@@ -1553,6 +1563,7 @@ class LocalStorageManager {
       r.familyGroupId = record.familyGroupId;
     };
 
+    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = toCreate.map(record =>
         collection.prepareCreate(r => applyCreate(r, record))
@@ -1572,7 +1583,8 @@ class LocalStorageManager {
           }
         }
       }
-    });
+    }, 'savePriceHistoryBatch');
+    console.log(`[Perf] savePriceHistoryBatch: ${toCreate.length} records, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   /**
@@ -1649,7 +1661,7 @@ class LocalStorageManager {
           r.updatedAt = layout.updatedAt;
           r.syncStatus = layout.syncStatus;
         });
-      });
+      }, 'saveStoreLayout');
 
       if (!record) throw new Error('Failed to create store layout record');
       return this.storeLayoutModelToType(record);
@@ -1696,7 +1708,7 @@ class LocalStorageManager {
           if (updates.updatedAt !== undefined) r.updatedAt = updates.updatedAt;
           if (updates.syncStatus !== undefined) r.syncStatus = updates.syncStatus;
         });
-      });
+      }, 'updateStoreLayout');
 
       return this.storeLayoutModelToType(record);
     } catch (error: any) {
@@ -1741,6 +1753,7 @@ class LocalStorageManager {
       r.syncStatus = 'synced';
     };
 
+    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const { layoutId, data } of entries) {
@@ -1771,7 +1784,8 @@ class LocalStorageManager {
           }
         }
       }
-    });
+    }, 'saveStoreLayoutsBatch');
+    console.log(`[Perf] saveStoreLayoutsBatch: ${entries.length} entries, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   async deleteStoreLayout(id: string): Promise<void> {
@@ -1780,7 +1794,7 @@ class LocalStorageManager {
       const record = await collection.find(id);
       await this.database.write(async () => {
         await record.destroyPermanently();
-      });
+      }, 'deleteStoreLayout');
     } catch (error: any) {
       throw new Error(`Failed to delete store layout: ${error.message}`);
     }
@@ -1806,22 +1820,21 @@ class LocalStorageManager {
   async clearAllData(): Promise<void> {
     try {
       await this.database.write(async () => {
-        // Delete all shopping lists
         const lists = await this.database.collections.get('shopping_lists').query().fetch();
-        await Promise.all(lists.map((list: ShoppingListModel) => list.markAsDeleted()));
-
-        // Delete all items
         const items = await this.database.collections.get('items').query().fetch();
-        await Promise.all(items.map((item: ItemModel) => item.markAsDeleted()));
-
-        // Delete all sync queue entries
         const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
-        await Promise.all(syncQueue.map((entry: SyncQueueModel) => entry.markAsDeleted()));
-
-        // Delete all price history
         const priceHistory = await this.database.collections.get('price_history').query().fetch();
-        await Promise.all(priceHistory.map((record: PriceHistoryModel) => record.markAsDeleted()));
-      });
+
+        const ops = [
+          ...lists.map((r: ShoppingListModel) => r.prepareMarkAsDeleted()),
+          ...items.map((r: ItemModel) => r.prepareMarkAsDeleted()),
+          ...syncQueue.map((r: SyncQueueModel) => r.prepareMarkAsDeleted()),
+          ...priceHistory.map((r: PriceHistoryModel) => r.prepareMarkAsDeleted()),
+        ];
+        if (ops.length > 0) {
+          await this.database.batch(ops);
+        }
+      }, 'clearAllData');
 
       // Data cleared successfully - no logging needed
     } catch (error: any) {
