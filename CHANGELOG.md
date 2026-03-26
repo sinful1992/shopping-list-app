@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-03-26
+### Added
+- **Shopping started push notification** — when a user starts shopping (selects a store), all other family members receive a push notification: "🛒 [Name] is shopping at [Store]"; new `notify-shopping-started` Supabase Edge Function sends FCM V1 notifications to family group device tokens; fire-and-forget from `ListDetailScreen` via `NotificationManager.notifyShoppingStarted()`
+
 ## [1.12.1] - 2026-03-20
 ### Performance
 - **WatermelonDB batch write optimization** — converted 8 batch methods + 2 singular upsert methods in `LocalStorageManager` from sequential `await update()`/`await create()` to `prepareUpdate`/`prepareCreate` + `database.batch()`, collapsing N native bridge round-trips per write block down to 1; each method has a try/catch fallback that re-queries fresh models and falls back to individual writes if `batch()` fails; `deleteItemsBatch` uses `prepareMarkAsDeleted` + batch (no fallback — dirty model invariant); `saveList`/`saveItem` singular replaced try-find/catch-create with query-based upsert to avoid JS exception overhead on the create path
