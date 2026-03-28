@@ -307,6 +307,8 @@ export function fromFirebaseError(error: { code?: string; message?: string }): A
         return AuthError.invalidCredentials();
       case 'auth/email-already-in-use':
         return AuthError.emailInUse();
+      case 'auth/account-exists-with-different-credential':
+        return new AuthError('An account already exists with this email using a different sign-in method.', code);
       case 'auth/weak-password':
         return AuthError.weakPassword();
       case 'auth/user-not-found':

@@ -3,6 +3,14 @@ import database from '@react-native-firebase/database';
 import storage from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isCancelledResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
+import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 
@@ -80,14 +88,86 @@ class AuthenticationModule {
     }
   }
 
+  private googleConfigured = false;
+
+  private ensureGoogleConfigured(): void {
+    if (!this.googleConfigured) {
+      GoogleSignin.configure({
+        webClientId: GOOGLE_WEB_CLIENT_ID,
+      });
+      this.googleConfigured = true;
+    }
+  }
+
   /**
    * Sign in with Google
-   * Implements Req 1.2
+   * Returns null if the user cancelled the flow.
    */
-  async signInWithGoogle(): Promise<UserCredential> {
-    // Note: Requires Google Sign-In configuration
-    // Implementation would use @react-native-google-signin/google-signin
-    throw new Error('Google Sign-In not yet implemented. Configure Google Sign-In first.');
+  async signInWithGoogle(): Promise<UserCredential | null> {
+    try {
+      this.ensureGoogleConfigured();
+
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      const response = await GoogleSignin.signIn();
+
+      if (isCancelledResponse(response)) {
+        return null;
+      }
+
+      if (!isSuccessResponse(response)) {
+        throw new Error('Google Sign-In failed');
+      }
+
+      const idToken = response.data?.idToken;
+      if (!idToken) {
+        throw new Error('Google Sign-In failed: no ID token returned');
+      }
+
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const firebaseUserCredential = await auth().signInWithCredential(googleCredential);
+      const firebaseUser = firebaseUserCredential.user;
+      const token = await firebaseUser.getIdToken();
+
+      // Check if this user already exists in RTDB (returning user)
+      const userSnapshot = await database().ref(`/users/${firebaseUser.uid}`).once('value');
+      const existingUser: User | null = userSnapshot.val();
+
+      if (existingUser) {
+        await this.storeAuthData(existingUser, token);
+        return { user: existingUser, token };
+      }
+
+      // New Google user — create RTDB record (same pattern as signUp)
+      const user: User = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || firebaseUser.email || null,
+        familyGroupId: null,
+        createdAt: Date.now(),
+        usageCounters: {
+          listsCreated: 0,
+          ocrProcessed: 0,
+          urgentItemsCreated: 0,
+          lastResetDate: Date.now(),
+        },
+      };
+
+      await database().ref(`/users/${user.uid}`).set(user);
+      await this.storeAuthData(user, token);
+
+      return { user, token };
+    } catch (error: unknown) {
+      if (isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.IN_PROGRESS:
+            throw new Error('Google Sign-In is already in progress');
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            throw new Error('Google Play Services is not available. Please update Google Play Services.');
+        }
+      }
+      throw new Error(`Google Sign-In failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
@@ -103,6 +183,15 @@ class AuthenticationModule {
    */
   async signOut(): Promise<void> {
     try {
+      // Revoke Google access if signed in with Google
+      try {
+        this.ensureGoogleConfigured();
+        await GoogleSignin.revokeAccess();
+        await GoogleSignin.signOut();
+      } catch {
+        // Not a Google user or already signed out — ignore
+      }
+
       await auth().signOut();
       // Clear user data and token from encrypted storage
       await EncryptedStorage.removeItem(this.USER_KEY);
@@ -552,7 +641,16 @@ class AuthenticationModule {
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(() => {});
 
-      // Step 8: Delete user from Firebase Authentication (must be last)
+      // Step 8: Revoke Google access if signed in with Google
+      try {
+        this.ensureGoogleConfigured();
+        await GoogleSignin.revokeAccess();
+        await GoogleSignin.signOut();
+      } catch {
+        // Not a Google user — ignore
+      }
+
+      // Step 9: Delete user from Firebase Authentication (must be last)
       await currentUser.delete();
 
     } catch (error: unknown) {

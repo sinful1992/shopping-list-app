@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-03-28
+### Added
+- **Google Sign-In** — users can now register and log in with their Google account on both LoginScreen and SignUpScreen; uses `@react-native-google-signin/google-signin` v16 with Firebase Auth credential linking; handles new users (creates RTDB record) and returning users (fetches existing record); `signOut()` and `deleteUserAccount()` revoke Google access; added `auth/account-exists-with-different-credential` error handling; requires Firebase Console setup (SHA-1 fingerprint + Google provider enabled) and `GOOGLE_WEB_CLIENT_ID` env variable
+
 ## [1.13.2] - 2026-03-26
 ### Performance
 - **Complete WatermelonDB batching** — converted remaining sequential writes (`updateItemsBatch`, `clearSyncQueue`, `clearAllData`) to `prepareUpdate`/`prepareMarkAsDeleted` + `database.batch()`; added descriptive labels to all `database.write()` calls for easier debugging; added perf timing logs to batch methods

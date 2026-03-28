@@ -139,7 +139,10 @@ export function sanitizeError(error: unknown): string {
       msg.startsWith('Cannot create list') ||
       msg.startsWith('User must belong') ||
       msg.startsWith('No receipt found') ||
-      msg.startsWith('Item not found')
+      msg.startsWith('Item not found') ||
+      msg.startsWith('Google Sign-In') ||
+      msg.startsWith('Google Play Services') ||
+      msg.startsWith('An account already exists')
     ) {
       return msg;
     }

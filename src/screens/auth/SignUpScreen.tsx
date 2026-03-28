@@ -13,6 +13,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -29,6 +30,20 @@ const SignUpScreen = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    try {
+      const result = await AuthenticationModule.signInWithGoogle();
+      if (!result) {
+        // User cancelled — do nothing
+      }
+    } catch (error: unknown) {
+      showAlert('Sign Up Failed', error instanceof Error ? error.message : 'Something went wrong. Please try again.', undefined, { icon: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignUp = async () => {
     if (!name || !email || !password || !confirmPassword) {
@@ -126,6 +141,17 @@ const SignUpScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.buttonSecondary, loading && styles.buttonDisabled]}
+            onPress={handleGoogleSignUp}
+            disabled={loading}
+          >
+            <View style={styles.googleButtonContent}>
+              <Icon name="logo-google" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonSecondaryText}>Sign up with Google</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => navigation.goBack()}
             disabled={loading}
           >
@@ -178,6 +204,25 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonSecondary: {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: 16,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSecondaryText: {
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },

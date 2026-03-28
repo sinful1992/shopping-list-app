@@ -13,6 +13,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
@@ -46,7 +47,17 @@ const LoginScreen = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    showAlert('Coming Soon', 'Google Sign-In will be available soon', undefined, { icon: 'info' });
+    setLoading(true);
+    try {
+      const result = await AuthenticationModule.signInWithGoogle();
+      if (!result) {
+        // User cancelled — do nothing
+      }
+    } catch (error: unknown) {
+      showAlert('Login Failed', error instanceof Error ? error.message : 'Something went wrong. Please try again.', undefined, { icon: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -102,7 +113,10 @@ const LoginScreen = () => {
             onPress={handleGoogleSignIn}
             disabled={loading}
           >
-            <Text style={styles.buttonSecondaryText}>Sign in with Google</Text>
+            <View style={styles.googleButtonContent}>
+              <Icon name="logo-google" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonSecondaryText}>Sign in with Google</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -169,6 +183,11 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  googleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonSecondaryText: {
     color: '#ffffff',
