@@ -13,6 +13,7 @@ import {
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import NotificationManager from './NotificationManager';
 
 /**
  * AuthenticationModule
@@ -629,19 +630,22 @@ class AuthenticationModule {
         }
       }
 
-      // Step 5: Delete user profile from Realtime Database
+      // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)
+      await NotificationManager.clearToken();
+
+      // Step 6: Delete user profile from Realtime Database
       await database().ref(`/users/${userId}`).remove();
 
-      // Step 6: Clear all local WatermelonDB data
+      // Step 7: Clear all local WatermelonDB data
       await LocalStorageManager.clearAllData();
 
-      // Step 7: Clear storage (user data and token from encrypted storage)
+      // Step 8: Clear storage (user data and token from encrypted storage)
       await EncryptedStorage.removeItem(this.USER_KEY);
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(() => {});
 
-      // Step 8: Revoke Google access if signed in with Google
+      // Step 9: Revoke Google access if signed in with Google
       try {
         this.ensureGoogleConfigured();
         await GoogleSignin.revokeAccess();
@@ -650,7 +654,7 @@ class AuthenticationModule {
         // Not a Google user — ignore
       }
 
-      // Step 9: Delete user from Firebase Authentication (must be last)
+      // Step 10: Delete user from Firebase Authentication (must be last)
       await currentUser.delete();
 
     } catch (error: unknown) {

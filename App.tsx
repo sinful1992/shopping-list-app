@@ -373,7 +373,7 @@ function App(): JSX.Element {
       // Create notification channel (Android)
       NotificationManager.createNotificationChannel();
     }
-  }, [user]);
+  }, [user?.uid, user?.familyGroupId]);
 
   // Hide splash screen when app is ready
   useEffect(() => {

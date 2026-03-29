@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import database from '@react-native-firebase/database';
 import { User, FamilyGroup, FamilyRole } from '../models/types';
 import AuthenticationModule from '../services/AuthenticationModule';
+import NotificationManager from '../services/NotificationManager';
 
 // Role to avatar mapping
 const getRoleAvatar = (role: FamilyRole): string => {
@@ -155,6 +156,7 @@ export function useSettings() {
   }, [user]);
 
   const logout = useCallback(async (): Promise<void> => {
+    await NotificationManager.clearToken();
     await AuthenticationModule.signOut();
   }, []);
 

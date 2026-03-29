@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-03-29
+### Fixed
+- **Stale FCM token cleanup** — notification Edge Functions (`notify-shopping-started`, `notify-urgent-item`) now delete device tokens that FCM reports as UNREGISTERED/NOT_FOUND; `clearToken()` called on sign-out and account deletion to remove server-side tokens; tightened App.tsx FCM registration useEffect dependency to `[user?.uid, user?.familyGroupId]` to prevent redundant re-registrations
+
 ## [1.14.0] - 2026-03-28
 ### Added
 - **Google Sign-In** — users can now register and log in with their Google account on both LoginScreen and SignUpScreen; uses `@react-native-google-signin/google-signin` v16 with Firebase Auth credential linking; handles new users (creates RTDB record) and returning users (fetches existing record); `signOut()` and `deleteUserAccount()` revoke Google access; added `auth/account-exists-with-different-credential` error handling; requires Firebase Console setup (SHA-1 fingerprint + Google provider enabled) and `GOOGLE_WEB_CLIENT_ID` env variable

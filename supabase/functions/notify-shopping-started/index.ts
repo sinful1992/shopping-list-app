@@ -173,25 +173,47 @@ serve(async (req) => {
 
     const responses = await Promise.all(fcmPromises)
 
-    // Check for errors
+    // Check for errors and collect stale tokens
     let successCount = 0
     let errorCount = 0
-    for (const response of responses) {
+    const staleTokens: string[] = []
+
+    for (let i = 0; i < responses.length; i++) {
+      const response = responses[i]
       if (response.ok) {
         successCount++
       } else {
         errorCount++
         const errorText = await response.text()
         console.error('FCM error:', errorText)
+
+        if (errorText.includes('UNREGISTERED') || errorText.includes('NOT_FOUND') || errorText.includes('not a valid FCM registration token')) {
+          staleTokens.push(tokens[i].fcm_token)
+        }
+      }
+    }
+
+    // Delete stale tokens
+    if (staleTokens.length > 0) {
+      const { error: deleteError } = await supabase
+        .from('device_tokens')
+        .delete()
+        .in('fcm_token', staleTokens)
+
+      if (deleteError) {
+        console.error('Failed to delete stale tokens:', deleteError)
+      } else {
+        console.log(`Deleted ${staleTokens.length} stale tokens`)
       }
     }
 
     return new Response(
       JSON.stringify({
-        message: `Sent notifications to ${successCount} devices (${errorCount} failed)`,
+        message: `Sent notifications to ${successCount} devices (${errorCount} failed, ${staleTokens.length} stale tokens deleted)`,
         total: tokens.length,
         success: successCount,
         failed: errorCount,
+        staleDeleted: staleTokens.length,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
