@@ -85,6 +85,10 @@ class AuthenticationModule {
 
       return { user, token };
     } catch (error: unknown) {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/invalid-credential' || firebaseError.code === 'auth/wrong-password' || firebaseError.code === 'auth/user-not-found') {
+        throw new Error('Incorrect email or password. If you signed up with Google, go back and use "Sign in with Google" instead.');
+      }
       throw new Error(`Sign in failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -159,6 +163,9 @@ class AuthenticationModule {
 
       return { user, token };
     } catch (error: unknown) {
+      // Clear stale Google session so the next attempt starts fresh
+      try { await GoogleSignin.signOut(); } catch (_) { /* ignore */ }
+
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.IN_PROGRESS:
@@ -167,6 +174,12 @@ class AuthenticationModule {
             throw new Error('Google Play Services is not available. Please update Google Play Services.');
         }
       }
+
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === 'auth/account-exists-with-different-credential') {
+        throw new Error('This email is already registered with a password. Please use "Sign in with Email" instead.');
+      }
+
       throw new Error(`Google Sign-In failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

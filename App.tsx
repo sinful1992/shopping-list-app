@@ -72,6 +72,8 @@ const DarkNavigationTheme = {
 // Import screens
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SignUpScreen from './src/screens/auth/SignUpScreen';
+import EmailLoginScreen from './src/screens/auth/EmailLoginScreen';
+import EmailSignUpScreen from './src/screens/auth/EmailSignUpScreen';
 import FamilyGroupScreen from './src/screens/auth/FamilyGroupScreen';
 import HomeScreen from './src/screens/lists/HomeScreen';
 import ListDetailScreen from './src/screens/lists/ListDetailScreen';
@@ -400,7 +402,9 @@ function App(): JSX.Element {
           // Authentication Stack
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="EmailLogin" component={EmailLoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
+            <Stack.Screen name="EmailSignUp" component={EmailSignUpScreen} />
             <Stack.Screen name="FamilyGroup" component={FamilyGroupScreen} />
           </Stack.Navigator>
         ) : (
