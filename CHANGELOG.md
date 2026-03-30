@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-03-30
+### Changed
+- **Redesigned login & signup screens** — replaced inline email/password form with two clear buttons: "Sign in with Google" and "Sign in with Email"; email/password forms moved to dedicated `EmailLoginScreen` and `EmailSignUpScreen`; added multicolor Google logo SVG component
+- **Improved auth error messages** — email/password login failure now suggests Google Sign-In if the user may have signed up with Google; Google Sign-In on an existing email/password account shows a clear "use email instead" message
+
 ## [1.14.1] - 2026-03-29
 ### Fixed
 - **Stale FCM token cleanup** — notification Edge Functions (`notify-shopping-started`, `notify-urgent-item`) now delete device tokens that FCM reports as UNREGISTERED/NOT_FOUND; `clearToken()` called on sign-out and account deletion to remove server-side tokens; tightened App.tsx FCM registration useEffect dependency to `[user?.uid, user?.familyGroupId]` to prevent redundant re-registrations
