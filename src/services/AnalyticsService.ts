@@ -86,8 +86,9 @@ class AnalyticsService {
       for (const list of recentLists) {
         const items = await ItemManager.getItemsForList(list.id);
 
-        // Calculate list total
-        const listTotal = items.reduce((sum, item) => sum + (item.price || 0), 0);
+        // Use receipt total when available (ground truth), fall back to summing item prices
+        const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
+        const listTotal = list.receiptData?.totalAmount ?? itemPriceSum;
         totalSpent += listTotal;
         itemsPurchased += items.filter(item => item.price !== null).length;
 
@@ -186,7 +187,8 @@ class AnalyticsService {
 
     for (const list of lists) {
       const items = await ItemManager.getItemsForList(list.id);
-      const listTotal = items.reduce((sum, item) => sum + (item.price || 0), 0);
+      const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
+      const listTotal = list.receiptData?.totalAmount ?? itemPriceSum;
 
       const date = new Date(list.completedAt || list.createdAt);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -235,7 +237,8 @@ class AnalyticsService {
       for (const list of recentLists) {
         if (list.budget) {
           const items = await ItemManager.getItemsForList(list.id);
-          const total = items.reduce((sum, item) => sum + (item.price || 0), 0);
+          const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
+          const total = list.receiptData?.totalAmount ?? itemPriceSum;
 
           if (total <= list.budget) {
             withinBudget++;
