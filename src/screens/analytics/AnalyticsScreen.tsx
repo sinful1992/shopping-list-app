@@ -13,14 +13,15 @@ import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import PriceHistoryService from '../../services/PriceHistoryService';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
 import ItemStoreComparison from './ItemStoreComparison';
 import VolatileItemsChart from './VolatileItemsChart';
 import SmartSavingsCard from './SmartSavingsCard';
 
 const screenWidth = Dimensions.get('window').width;
 
-// Error Boundary Component
+// ─── Error Boundary ──────────────────────────────────────────────────────────
+
 class ErrorBoundary extends Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
@@ -29,57 +30,63 @@ class ErrorBoundary extends Component<
     super(props);
     this.state = { hasError: false, error: null };
   }
-
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
-
-  componentDidCatch(error: Error, _errorInfo: ErrorInfo) {
-    // Error caught by boundary - handled in render
-  }
-
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {}
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.errorBoundaryContainer}>
-          <Text style={styles.errorBoundaryIcon}>⚠️</Text>
-          <Text style={styles.errorBoundaryTitle}>Something went wrong</Text>
-          <Text style={styles.errorBoundaryText}>
-            {this.state.error?.message || 'Unknown error occurred'}
-          </Text>
+        <View style={styles.centered}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorSub}>{this.state.error?.message}</Text>
           <TouchableOpacity
-            style={styles.retryButton}
+            style={styles.retryBtn}
             onPress={() => this.setState({ hasError: false, error: null })}
           >
-            <Text style={styles.retryButtonText}>Retry</Text>
+            <Text style={styles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
       );
     }
-
     return this.props.children;
   }
 }
 
-/**
- * AnalyticsScreen
- * Displays shopping analytics with charts and insights
- * Implements Sprint 7: Analytics dashboard
- */
+// ─── Tab definition ───────────────────────────────────────────────────────────
+
+type Tab = 'overview' | 'items' | 'stores' | 'prices';
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'overview', label: 'Overview', icon: '📊' },
+  { id: 'items',    label: 'Items',    icon: '🛒' },
+  { id: 'stores',   label: 'Stores',   icon: '🏪' },
+  { id: 'prices',   label: 'Prices',   icon: '💰' },
+];
+
+// ─── Stat card config ─────────────────────────────────────────────────────────
+
+const STAT_CONFIG = [
+  { key: 'totalSpent',      label: 'Total Spent',    icon: '£',  color: '#6EA8FE', bg: 'rgba(110,168,254,0.12)' },
+  { key: 'totalTrips',      label: 'Shopping Trips', icon: '🛍', color: '#30D158', bg: 'rgba(48,209,88,0.12)'   },
+  { key: 'averagePerTrip',  label: 'Avg per Trip',   icon: '~',  color: '#A78BFA', bg: 'rgba(167,139,250,0.12)' },
+  { key: 'itemsPurchased',  label: 'Items Bought',   icon: '#',  color: '#FFD60A', bg: 'rgba(255,214,10,0.12)'  },
+] as const;
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 const AnalyticsScreen = () => {
   const { showAlert } = useAlert();
-  const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
-  const [timePeriod, setTimePeriod] = useState<30 | 90 | 365>(30);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [analytics, setAnalytics]     = useState<AnalyticsSummary | null>(null);
+  const [timePeriod, setTimePeriod]   = useState<30 | 90 | 365>(30);
+  const [error, setError]             = useState<string | null>(null);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
-  const [trackedItems, setTrackedItems] = useState<{ itemName: string; itemNameNormalized: string }[]>([]);
+  const [trackedItems, setTrackedItems]   = useState<{ itemName: string; itemNameNormalized: string }[]>([]);
+  const [activeTab, setActiveTab]     = useState<Tab>('overview');
 
   useEffect(() => {
-    // Wrap in try-catch to prevent white screen
-    try {
-      loadAnalytics();
-    } catch (err: any) {
+    try { loadAnalytics(); } catch (err: any) {
       setError(err?.message || 'Failed to initialize');
       setLoading(false);
     }
@@ -93,86 +100,47 @@ const AnalyticsScreen = () => {
         setFamilyGroupId(user.familyGroupId);
         const items = await PriceHistoryService.getAllTrackedItems(user.familyGroupId);
         setTrackedItems(items);
-      } catch {
-        // tracked items load failure is non-critical
-      }
+      } catch {}
     })();
   }, []);
 
   const loadAnalytics = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const user = await AuthenticationModule.getCurrentUser();
-      if (!user?.familyGroupId) {
-        setError('No family group found');
-        setLoading(false);
-        return;
-      }
-
-      const data = await AnalyticsService.getAnalyticsSummary(
-        user.familyGroupId,
-        timePeriod
-      );
-
+      if (!user?.familyGroupId) { setError('No family group found'); setLoading(false); return; }
+      const data = await AnalyticsService.getAnalyticsSummary(user.familyGroupId, timePeriod);
       setAnalytics(data);
-    } catch (error: any) {
-      setError(error?.message || 'Failed to load analytics');
-      showAlert('Error', error?.message || 'Failed to load analytics', undefined, { icon: 'error' });
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load analytics');
+      showAlert('Error', err?.message || 'Failed to load analytics', undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  const formatCurrency = (amount: number) => `£${amount.toFixed(2)}`;
+  const fmt = (n: number) => `£${n.toFixed(2)}`;
 
-  const renderTimePeriodSelector = () => (
-    <View style={styles.timePeriodContainer}>
-      <TouchableOpacity
-        style={[styles.timePeriodButton, timePeriod === 30 && styles.timePeriodButtonActive]}
-        onPress={() => setTimePeriod(30)}
-      >
-        <Text style={[styles.timePeriodText, timePeriod === 30 && styles.timePeriodTextActive]}>
-          30 Days
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.timePeriodButton, timePeriod === 90 && styles.timePeriodButtonActive]}
-        onPress={() => setTimePeriod(90)}
-      >
-        <Text style={[styles.timePeriodText, timePeriod === 90 && styles.timePeriodTextActive]}>
-          90 Days
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.timePeriodButton, timePeriod === 365 && styles.timePeriodButtonActive]}
-        onPress={() => setTimePeriod(365)}
-      >
-        <Text style={[styles.timePeriodText, timePeriod === 365 && styles.timePeriodTextActive]}>
-          1 Year
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+  // ── Loading / Error / Empty ────────────────────────────────────────────────
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.centered}>
         <ActivityIndicator size="large" color={COLORS.accent.blue} />
-        <Text style={styles.loadingText}>Loading analytics...</Text>
+        <Text style={styles.loadingText}>Loading analytics…</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>⚠️</Text>
-        <Text style={styles.emptyText}>Error loading analytics</Text>
-        <Text style={styles.emptySubtext}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadAnalytics}>
-          <Text style={styles.retryButtonText}>Retry</Text>
+      <View style={styles.centered}>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorTitle}>Error loading analytics</Text>
+        <Text style={styles.errorSub}>{error}</Text>
+        <TouchableOpacity style={styles.retryBtn} onPress={loadAnalytics}>
+          <Text style={styles.retryBtnText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -180,539 +148,486 @@ const AnalyticsScreen = () => {
 
   if (!analytics || analytics.totalTrips === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyIcon}>📊</Text>
-        <Text style={styles.emptyText}>No shopping data available</Text>
-        <Text style={styles.emptySubtext}>Complete some shopping trips to see analytics</Text>
+      <View style={styles.centered}>
+        <Text style={{ fontSize: 52, marginBottom: 12 }}>📊</Text>
+        <Text style={styles.errorTitle}>No data yet</Text>
+        <Text style={styles.errorSub}>Complete some shopping trips to see analytics</Text>
       </View>
     );
   }
 
-  // Prepare chart data for gifted-charts with safe checks
+  // ── Chart data ─────────────────────────────────────────────────────────────
+
   let monthlyChartData: any[] = [];
-  let storeChartData: any[] = [];
-  let categoryPieData: any[] = [];
+  let storeChartData:   any[] = [];
+  let categoryPieData:  any[] = [];
 
   try {
     if (Array.isArray(analytics.monthlyTrend)) {
-      monthlyChartData = analytics.monthlyTrend.map((trend, index) => {
-        const date = new Date(trend.date);
-        const label = date.toLocaleDateString('en-US', { month: 'short' });
-        return {
-          value: trend.amount,
-          label: label,
-          labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
-        };
-      });
+      monthlyChartData = analytics.monthlyTrend.map(trend => ({
+        value: trend.amount,
+        label: new Date(trend.date).toLocaleDateString('en-US', { month: 'short' }),
+        labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
+      }));
     }
-
     if (Array.isArray(analytics.spendingByStore)) {
       storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
         value: store.totalSpent,
-        label: store.storeName.length > 8 ? store.storeName.substring(0, 8) + '...' : store.storeName,
+        label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
         labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
         frontColor: COLORS.accent.blue,
       }));
     }
-
     if (Array.isArray(analytics.categoryBreakdown)) {
-      const categoryColors = [COLORS.accent.blue, COLORS.accent.green, '#FFD60A', '#FF453A', COLORS.accent.purple];
-      categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, index) => ({
+      const PIE_COLORS = [COLORS.accent.blue, COLORS.accent.green, '#FFD60A', '#FF453A', COLORS.accent.purple];
+      categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, i) => ({
         value: cat.totalSpent,
         text: cat.category,
-        color: categoryColors[index] || '#6E6E73',
+        color: PIE_COLORS[i] || '#6E6E73',
       }));
     }
-  } catch (err: any) {
-    // Chart data preparation failed - will show empty charts
-  }
+  } catch {}
 
-  return (
-    <View style={styles.container}>
-      {renderTimePeriodSelector()}
+  const CHART_W = screenWidth - 62;
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Summary Cards */}
-        <View style={styles.summaryGrid}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(analytics.totalSpent)}</Text>
-          </View>
+  // ── Tab content renderers ─────────────────────────────────────────────────
 
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Shopping Trips</Text>
-            <Text style={styles.summaryValue}>{analytics.totalTrips}</Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Avg per Trip</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(analytics.averagePerTrip)}</Text>
-          </View>
-
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Items Purchased</Text>
-            <Text style={styles.summaryValue}>{analytics.itemsPurchased}</Text>
-          </View>
-        </View>
-
-        {/* Monthly Spending Trend */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Monthly Spending Trend</Text>
-          {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 ? (
+  const renderOverviewTab = () => (
+    <>
+      {/* Monthly trend */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Spending Trend</Text>
+        <Text style={styles.cardSub}>Monthly spend over the selected period</Text>
+        {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 ? (
+          <View style={{ marginTop: 12 }}>
             <LineChart
               data={monthlyChartData}
-              width={screenWidth - 62 - 40}
-              height={220}
-              adjustToWidth={true}
+              width={CHART_W - 24}
+              height={180}
+              adjustToWidth
               initialSpacing={0}
               endSpacing={0}
               color={COLORS.accent.blue}
               thickness={3}
-              startFillColor="rgba(110, 168, 254, 0.3)"
-              endFillColor="rgba(110, 168, 254, 0.01)"
-              startOpacity={0.9}
-              endOpacity={0.2}
+              startFillColor="rgba(110,168,254,0.3)"
+              endFillColor="rgba(110,168,254,0.01)"
               areaChart
               curved
               isAnimated
               animateOnDataChange
-              animationDuration={800}
+              animationDuration={700}
               rulesType="solid"
-              rulesColor="rgba(255, 255, 255, 0.1)"
-              rulesThickness={1}
-              xAxisColor="rgba(255, 255, 255, 0.1)"
-              yAxisColor="rgba(255, 255, 255, 0.1)"
-              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              rulesColor="rgba(255,255,255,0.07)"
+              xAxisColor="transparent"
+              yAxisColor="transparent"
+              yAxisTextStyle={{ color: COLORS.text.secondary, fontSize: 10 }}
               yAxisLabelPrefix="£"
-              yAxisLabelWidth={40}
+              yAxisLabelWidth={38}
               hideDataPoints={false}
-              dataPointsColor="#6EA8FE"
+              dataPointsColor={COLORS.accent.blue}
               dataPointsRadius={4}
-              textColor="#ffffff"
-              textFontSize={10}
             />
-          ) : (
-            <Text style={styles.noDataText}>Not enough data to display trend</Text>
-          )}
-        </View>
+          </View>
+        ) : (
+          <Text style={styles.noData}>Not enough data to display trend</Text>
+        )}
+      </View>
 
-        {/* Spending by Store */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Spending by Store</Text>
-          {storeChartData.length > 0 ? (
+      {/* Category breakdown */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Spending by Category</Text>
+        <Text style={styles.cardSub}>What you spend most on</Text>
+        {categoryPieData.length > 0 ? (
+          <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+            <PieChart
+              data={categoryPieData}
+              donut
+              radius={72}
+              innerRadius={46}
+              innerCircleColor="#12121C"
+              centerLabelComponent={() => (
+                <View style={{ alignItems: 'center' }}>
+                  <Text style={{ fontSize: 14, color: '#fff', fontWeight: '700' }}>
+                    £{analytics.totalSpent.toFixed(0)}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: COLORS.text.secondary }}>total</Text>
+                </View>
+              )}
+              focusOnPress
+              sectionAutoFocus={false}
+            />
+            {/* Legend */}
+            <View style={{ flex: 1, gap: 8 }}>
+              {categoryPieData.map((item: any) => (
+                <View key={item.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
+                  <Text style={{ flex: 1, fontSize: 12, color: COLORS.text.secondary }} numberOfLines={1}>
+                    {item.text}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600' }}>
+                    £{item.value.toFixed(0)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.noData}>No category data available</Text>
+        )}
+      </View>
+    </>
+  );
+
+  const renderItemsTab = () => (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Most Purchased</Text>
+      <Text style={styles.cardSub}>Your top items by frequency</Text>
+      <View style={{ marginTop: 12, gap: 2 }}>
+        {analytics.topItems.slice(0, 8).map((item, index) => {
+          const RANK_COLORS = ['#FFD60A', '#C0C0C0', '#CD7F32'];
+          const rankColor = RANK_COLORS[index] ?? COLORS.text.secondary;
+          return (
+            <View key={item.name} style={styles.itemRow}>
+              {/* Rank badge */}
+              <View style={[styles.rankBadge, { borderColor: rankColor + '60' }]}>
+                <Text style={[styles.rankText, { color: rankColor }]}>{index + 1}</Text>
+              </View>
+              {/* Name */}
+              <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+              {/* Stats */}
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.itemCount}>{item.purchaseCount}× bought</Text>
+                <Text style={styles.itemSpend}>{fmt(item.totalSpent)}</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+
+  const renderStoresTab = () => (
+    <>
+      {/* Bar chart */}
+      {storeChartData.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Spend by Store</Text>
+          <Text style={styles.cardSub}>Total spent at each location</Text>
+          <View style={{ marginTop: 12 }}>
             <BarChart
               data={storeChartData}
-              width={screenWidth - 62 - 40}
-              height={220}
-              adjustToWidth={true}
+              width={CHART_W - 24}
+              height={180}
+              adjustToWidth
               initialSpacing={0}
-              barBorderRadius={8}
+              barBorderRadius={6}
               isAnimated
-              animationDuration={800}
+              animationDuration={700}
               showValuesAsTopLabel
-              topLabelTextStyle={{
-                color: '#ffffff',
-                fontSize: 12,
-                fontWeight: '600',
-              }}
-              rulesColor="rgba(255, 255, 255, 0.1)"
-              rulesThickness={1}
-              xAxisColor="rgba(255, 255, 255, 0.1)"
-              yAxisColor="rgba(255, 255, 255, 0.1)"
-              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              topLabelTextStyle={{ color: '#fff', fontSize: 11, fontWeight: '600' }}
+              rulesColor="rgba(255,255,255,0.07)"
+              xAxisColor="transparent"
+              yAxisColor="transparent"
+              yAxisTextStyle={{ color: COLORS.text.secondary, fontSize: 10 }}
               yAxisLabelPrefix="£"
-              yAxisLabelWidth={40}
-              hideYAxisText={false}
-              noOfSections={5}
+              yAxisLabelWidth={38}
+              noOfSections={4}
             />
-          ) : (
-            <Text style={styles.noDataText}>No store data available</Text>
-          )}
+          </View>
         </View>
+      )}
 
-        {/* Category Breakdown */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Spending by Category</Text>
-          {categoryPieData.length > 0 ? (
-            <View style={{ alignItems: 'center', marginTop: 10 }}>
-              <PieChart
-                data={categoryPieData}
-                donut
-                radius={100}
-                innerRadius={65}
-                innerCircleColor="#1c1c1e"
-                centerLabelComponent={() => (
-                  <View style={{ alignItems: 'center' }}>
-                    <Text style={{ fontSize: 20, color: '#ffffff', fontWeight: '700' }}>
-                      £{analytics.totalSpent.toFixed(0)}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: '#a0a0a0' }}>Total</Text>
-                  </View>
-                )}
-                showText
-                textColor="#ffffff"
-                textSize={13}
-                fontWeight="600"
-                focusOnPress
-                toggleFocusOnPress
-                sectionAutoFocus={false}
-              />
-            </View>
-          ) : (
-            <Text style={styles.noDataText}>No category data available</Text>
-          )}
-        </View>
-
-        {/* Top Items */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Most Purchased Items</Text>
-          {analytics.topItems.slice(0, 5).map((item, index) => (
-            <View key={item.name} style={styles.topItemRow}>
-              <View style={styles.topItemLeft}>
-                <Text style={styles.topItemRank}>{index + 1}</Text>
-                <Text style={styles.topItemName}>{item.name}</Text>
-              </View>
-              <View style={styles.topItemRight}>
-                <Text style={styles.topItemCount}>{item.purchaseCount}x</Text>
-                <Text style={styles.topItemTotal}>{formatCurrency(item.totalSpent)}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Store Details with Best Value Indicators */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Store Breakdown</Text>
-          {analytics.spendingByStore.map((store, index) => {
-            const lowestAverage = Math.min(
-              ...analytics.spendingByStore.map(s => s.averagePerTrip)
-            );
-            const isBestValue = store.averagePerTrip === lowestAverage && analytics.spendingByStore.length > 1;
-            const mostVisited = Math.max(
-              ...analytics.spendingByStore.map(s => s.tripCount)
-            );
-            const isMostVisited = store.tripCount === mostVisited && analytics.spendingByStore.length > 1;
+      {/* Store detail list */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Store Breakdown</Text>
+        <Text style={styles.cardSub}>Trips, totals, and averages</Text>
+        <View style={{ marginTop: 12, gap: 12 }}>
+          {analytics.spendingByStore.map((store) => {
+            const lowestAvg = Math.min(...analytics.spendingByStore.map(s => s.averagePerTrip));
+            const mostVisited = Math.max(...analytics.spendingByStore.map(s => s.tripCount));
+            const isBest    = store.averagePerTrip === lowestAvg && analytics.spendingByStore.length > 1;
+            const isMost    = store.tripCount === mostVisited && analytics.spendingByStore.length > 1;
 
             return (
-              <View key={store.storeName} style={styles.storeDetailRow}>
-                <View style={styles.storeNameWithBadge}>
-                  <Text style={styles.storeDetailName}>{store.storeName}</Text>
-                  {isBestValue && (
-                    <View style={styles.bestValueBadge}>
-                      <Text style={styles.bestValueText}>Best Avg</Text>
-                    </View>
-                  )}
-                  {isMostVisited && !isBestValue && (
-                    <View style={styles.mostVisitedBadge}>
-                      <Text style={styles.mostVisitedText}>Most Visited</Text>
-                    </View>
-                  )}
+              <View key={store.storeName} style={styles.storeRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <Text style={styles.storeName}>{store.storeName}</Text>
+                    {isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: COLORS.accent.green }]}>Best avg</Text></View>}
+                    {isMost && !isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: COLORS.accent.blue }]}>Most visited</Text></View>}
+                  </View>
+                  {/* Progress bar: proportion of total spend */}
+                  <View style={styles.progressBg}>
+                    <View style={[styles.progressFill, {
+                      width: `${(store.totalSpent / analytics.totalSpent) * 100}%` as any,
+                      backgroundColor: isBest ? COLORS.accent.green : COLORS.accent.blue,
+                    }]} />
+                  </View>
                 </View>
-                <View style={styles.storeDetailStats}>
-                  <Text style={styles.storeDetailTrips}>{store.tripCount} trips</Text>
-                  <Text style={styles.storeDetailTotal}>{formatCurrency(store.totalSpent)}</Text>
-                  <Text style={[styles.storeDetailAverage, isBestValue && styles.bestValuePrice]}>
-                    Avg: {formatCurrency(store.averagePerTrip)}
-                  </Text>
+                <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
+                  <Text style={styles.storeTotal}>{fmt(store.totalSpent)}</Text>
+                  <Text style={styles.storeMeta}>{store.tripCount} trips · avg {fmt(store.averagePerTrip)}</Text>
                 </View>
               </View>
             );
           })}
         </View>
+      </View>
+    </>
+  );
 
-        {familyGroupId && (
-          <>
-            <View style={styles.sectionDivider}>
-              <Text style={styles.sectionTitle}>Price Analytics</Text>
+  const renderPricesTab = () => (
+    <>
+      {familyGroupId ? (
+        <>
+          <ItemStoreComparison familyGroupId={familyGroupId} trackedItems={trackedItems} />
+          <VolatileItemsChart familyGroupId={familyGroupId} />
+          <SmartSavingsCard familyGroupId={familyGroupId} trackedItems={trackedItems} />
+        </>
+      ) : (
+        <View style={styles.card}>
+          <Text style={styles.noData}>No price data available yet</Text>
+        </View>
+      )}
+    </>
+  );
+
+  // ── Main render ───────────────────────────────────────────────────────────
+
+  return (
+    <View style={styles.screen}>
+
+      {/* ── Time period selector ─────────────────────────────────────────── */}
+      <View style={styles.periodRow}>
+        {([30, 90, 365] as const).map(p => (
+          <TouchableOpacity
+            key={p}
+            style={[styles.periodBtn, timePeriod === p && styles.periodBtnActive]}
+            onPress={() => setTimePeriod(p)}
+          >
+            <Text style={[styles.periodText, timePeriod === p && styles.periodTextActive]}>
+              {p === 365 ? '1 Year' : `${p} Days`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ── 2×2 Stat grid ────────────────────────────────────────────────── */}
+      <View style={styles.statGrid}>
+        {STAT_CONFIG.map(cfg => {
+          const raw  = analytics[cfg.key as keyof AnalyticsSummary] as number;
+          const value = cfg.key === 'totalSpent' || cfg.key === 'averagePerTrip'
+            ? fmt(raw)
+            : String(raw);
+          return (
+            <View key={cfg.key} style={[styles.statCard, { backgroundColor: cfg.bg, borderColor: cfg.color + '30' }]}>
+              <Text style={[styles.statIcon, { color: cfg.color }]}>{cfg.icon}</Text>
+              <Text style={styles.statValue}>{value}</Text>
+              <Text style={styles.statLabel}>{cfg.label}</Text>
             </View>
-            <ItemStoreComparison familyGroupId={familyGroupId} trackedItems={trackedItems} />
-            <VolatileItemsChart familyGroupId={familyGroupId} />
-            <SmartSavingsCard familyGroupId={familyGroupId} trackedItems={trackedItems} />
-          </>
-        )}
+          );
+        })}
+      </View>
 
-        <View style={styles.bottomPadding} />
+      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
+      <View style={styles.tabBar}>
+        {TABS.map(tab => (
+          <TouchableOpacity
+            key={tab.id}
+            style={[styles.tab, activeTab === tab.id && styles.tabActive]}
+            onPress={() => setActiveTab(tab.id)}
+          >
+            <Text style={styles.tabIcon}>{tab.icon}</Text>
+            <Text style={[styles.tabLabel, activeTab === tab.id && styles.tabLabelActive]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* ── Tab content ──────────────────────────────────────────────────── */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {activeTab === 'overview' && renderOverviewTab()}
+        {activeTab === 'items'    && renderItemsTab()}
+        {activeTab === 'stores'   && renderStoresTab()}
+        {activeTab === 'prices'   && renderPricesTab()}
+        <View style={{ height: 32 }} />
       </ScrollView>
     </View>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: COLORS.background.primary,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: COLORS.text.secondary,
-  },
-  emptyContainer: {
+
+  // ── Loading / Error / Empty ───────────────────────────────────────────────
+  centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.background.primary,
     paddingHorizontal: 40,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 16,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-  },
-  timePeriodContainer: {
+  loadingText: { marginTop: 14, fontSize: 15, color: COLORS.text.secondary },
+  errorIcon:  { fontSize: 52, marginBottom: 12 },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 6, textAlign: 'center' },
+  errorSub:   { fontSize: 14, color: COLORS.text.secondary, textAlign: 'center', marginBottom: 20 },
+  retryBtn:   { backgroundColor: 'rgba(110,168,254,0.8)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+
+  // ── Period row ────────────────────────────────────────────────────────────
+  periodRow: {
     flexDirection: 'row',
-    padding: 15,
-    backgroundColor: COLORS.glass.subtle,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border.subtle,
   },
-  timePeriodButton: {
+  periodBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    borderRadius: RADIUS.large,
+    alignItems: 'center',
+    backgroundColor: COLORS.glass.subtle,
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
+  },
+  periodBtnActive: {
+    backgroundColor: 'rgba(110,168,254,0.2)',
+    borderColor: COLORS.accent.blue,
+  },
+  periodText:       { fontSize: 13, fontWeight: '600', color: COLORS.text.secondary },
+  periodTextActive: { color: COLORS.accent.blue },
+
+  // ── 2×2 Stat grid ─────────────────────────────────────────────────────────
+  statGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 12,
-    backgroundColor: COLORS.glass.medium,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-  },
-  timePeriodButtonActive: {
-    backgroundColor: 'rgba(110, 168, 254, 0.8)',
-    borderColor: 'rgba(110, 168, 254, 0.3)',
-  },
-  timePeriodText: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    fontWeight: '600',
-  },
-  timePeriodTextActive: {
-    color: '#fff',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  summaryGrid: {
-    paddingHorizontal: 15,
-    paddingTop: 10,
-  },
-  summaryCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: COLORS.glass.subtle,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    flex: 1,
-  },
-  summaryValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  chartCard: {
-    backgroundColor: COLORS.glass.subtle,
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 15,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 15,
-  },
-  chart: {
-    borderRadius: 16,
-  },
-  topItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  topItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  topItemRank: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.accent.blue,
-    width: 30,
-  },
-  topItemName: {
-    fontSize: 15,
-    color: '#ffffff',
-    flex: 1,
-  },
-  topItemRight: {
-    alignItems: 'flex-end',
-  },
-  topItemCount: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    marginBottom: 2,
-  },
-  topItemTotal: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#30D158',
-  },
-  storeDetailRow: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  storeDetailName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  storeDetailStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  storeDetailTrips: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-  },
-  storeDetailTotal: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.accent.blue,
-  },
-  storeDetailAverage: {
-    fontSize: 13,
-    color: COLORS.text.tertiary,
-  },
-  storeNameWithBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingTop: 14,
+    paddingBottom: 6,
     gap: 8,
-    marginBottom: 8,
   },
-  bestValueBadge: {
-    backgroundColor: 'rgba(48, 209, 88, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  bestValueText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#30D158',
-    textTransform: 'uppercase',
-  },
-  bestValuePrice: {
-    color: '#30D158',
-    fontWeight: '700',
-  },
-  mostVisitedBadge: {
-    backgroundColor: 'rgba(110, 168, 254, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  mostVisitedText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.accent.blue,
-    textTransform: 'uppercase',
-  },
-  bottomPadding: {
-    height: 40,
-  },
-  retryButton: {
-    marginTop: 20,
-    backgroundColor: 'rgba(110, 168, 254, 0.8)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+  statCard: {
+    width: (screenWidth - 32) / 2 - 4,
+    borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  statIcon:  { fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  statValue: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 2 },
+  statLabel: { fontSize: 12, color: COLORS.text.secondary },
+
+  // ── Tab bar ───────────────────────────────────────────────────────────────
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: 12,
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: COLORS.glass.subtle,
+    borderRadius: RADIUS.large,
+    borderWidth: 1,
+    borderColor: COLORS.border.medium,
+    padding: 4,
   },
-  errorBoundaryContainer: {
+  tab: {
     flex: 1,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
-    paddingHorizontal: 40,
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    borderRadius: RADIUS.medium,
   },
-  errorBoundaryIcon: {
-    fontSize: 64,
-    marginBottom: 16,
+  tabActive: {
+    backgroundColor: 'rgba(110,168,254,0.18)',
   },
-  errorBoundaryTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
-    textAlign: 'center',
+  tabIcon:  { fontSize: 13 },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.secondary },
+  tabLabelActive: { color: COLORS.accent.blue },
+
+  // ── Scroll area ───────────────────────────────────────────────────────────
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    gap: 12,
   },
-  errorBoundaryText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
-    textAlign: 'center',
-    marginBottom: 20,
+
+  // ── Shared card ───────────────────────────────────────────────────────────
+  card: {
+    backgroundColor: COLORS.glass.subtle,
+    borderRadius: RADIUS.xlarge,
+    borderWidth: 1,
+    borderColor: COLORS.border.subtle,
+    padding: 16,
   },
-  sectionDivider: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    marginTop: 20,
-    paddingTop: 16,
-    paddingHorizontal: 15,
+  cardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  cardSub:   { fontSize: 12, color: COLORS.text.secondary, marginTop: 2 },
+  noData:    { fontSize: 13, color: COLORS.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
+
+  // ── Items tab ─────────────────────────────────────────────────────────────
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.subtle,
+    gap: 10,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
+  rankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  noDataText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    marginVertical: 20,
+  rankText:  { fontSize: 12, fontWeight: '700' },
+  itemName:  { flex: 1, fontSize: 14, color: '#fff', fontWeight: '500' },
+  itemCount: { fontSize: 11, color: COLORS.text.secondary },
+  itemSpend: { fontSize: 14, fontWeight: '700', color: COLORS.accent.green, marginTop: 1 },
+
+  // ── Stores tab ────────────────────────────────────────────────────────────
+  storeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  storeName:  { fontSize: 15, fontWeight: '600', color: '#fff' },
+  storeTotal: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  storeMeta:  { fontSize: 11, color: COLORS.text.secondary, marginTop: 2 },
+  pill: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  pillText: { fontSize: 10, fontWeight: '700' },
+  progressBg: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
   },
 });
 
-// Wrap with Error Boundary
+// ─── Export ───────────────────────────────────────────────────────────────────
+
 const AnalyticsScreenWithErrorBoundary = () => (
   <ErrorBoundary>
     <AnalyticsScreen />

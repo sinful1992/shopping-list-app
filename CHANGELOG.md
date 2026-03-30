@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-03-30
+### Changed
+- **Redesigned analytics screen** — added tab navigation (Overview, Items, Stores, Prices); replaced flat summary list with 2×2 colored stat grid; items tab now shows top 8 with gold/silver/bronze rank badges; stores tab has spend-proportion progress bars; price analytics (store comparison, volatile items, smart savings) moved to dedicated Prices tab; smaller pie chart with inline legend
+
 ## [1.15.1] - 2026-03-30
 ### Fixed
 - **Analytics showing wrong spending totals** — store totals, overall spending, monthly trends, and budget comparisons now use `receiptData.totalAmount` (the actual receipt total) when available, falling back to summing individual item prices; previously only summed item prices which produced incorrect/zero totals when items lacked individual prices
