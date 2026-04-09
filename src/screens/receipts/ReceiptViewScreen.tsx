@@ -13,7 +13,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ImageStorageManager from '../../services/ImageStorageManager';
-import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
+import ReceiptOCRService from '../../services/ReceiptOCRService';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import { ReceiptData, ReceiptLineItem } from '../../models/types';
 
@@ -69,7 +69,7 @@ const ReceiptViewScreen = () => {
   const handleRetryOCR = async () => {
     try {
       setRetrying(true);
-      const result = await ReceiptOCRProcessor.retryFailedOCR(listId);
+      const result = await ReceiptOCRService.retryOCR(listId);
 
       if (result.success) {
         showAlert('Success', 'Receipt processed successfully!', undefined, { icon: 'success' });

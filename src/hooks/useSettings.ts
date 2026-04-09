@@ -4,6 +4,7 @@ import database from '@react-native-firebase/database';
 import { User, FamilyGroup, FamilyRole } from '../models/types';
 import AuthenticationModule from '../services/AuthenticationModule';
 import NotificationManager from '../services/NotificationManager';
+import ReceiptOCRService from '../services/ReceiptOCRService';
 
 // Role to avatar mapping
 const getRoleAvatar = (role: FamilyRole): string => {
@@ -46,10 +47,12 @@ export function useSettings() {
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [invitationCode, setInvitationCode] = useState<string | null>(null);
   const [hapticFeedbackEnabled, setHapticFeedbackEnabled] = useState(false);
+  const [ocrServerUrl, setOcrServerUrlState] = useState('');
 
   useEffect(() => {
     loadSettingsData();
     loadHapticFeedbackSetting();
+    loadOcrServerUrl();
   }, []);
 
   const loadHapticFeedbackSetting = async () => {
@@ -66,6 +69,20 @@ export function useSettings() {
   const toggleHapticFeedback = useCallback(async (value: boolean): Promise<void> => {
     await AsyncStorage.setItem('hapticFeedbackEnabled', value.toString());
     setHapticFeedbackEnabled(value);
+  }, []);
+
+  const loadOcrServerUrl = async () => {
+    try {
+      const url = await ReceiptOCRService.getServerUrl();
+      if (url) setOcrServerUrlState(url);
+    } catch {
+      // Failed to load OCR server URL
+    }
+  };
+
+  const updateOcrServerUrl = useCallback(async (url: string): Promise<void> => {
+    await ReceiptOCRService.setServerUrl(url);
+    setOcrServerUrlState(url.replace(/\/+$/, ''));
   }, []);
 
   const loadSettingsData = async () => {
@@ -177,6 +194,8 @@ export function useSettings() {
     familyMembers,
     invitationCode,
     hapticFeedbackEnabled,
+    ocrServerUrl,
+    updateOcrServerUrl,
     availableRoles: AVAILABLE_ROLES,
     getRoleAvatar,
     toggleHapticFeedback,

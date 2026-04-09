@@ -11,8 +11,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
-// OCR DISABLED - import removed
-// import ReceiptOCRProcessor from '../../services/ReceiptOCRProcessor';
+import ReceiptOCRService from '../../services/ReceiptOCRService';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 
@@ -69,13 +68,28 @@ const ReceiptCameraScreen = () => {
         throw new Error('User not authenticated');
       }
 
-      // Save receipt image path to list (local storage only)
+      // Save receipt image path to list
       await ShoppingListManager.updateList(listId, {
         receiptUrl: capturedImage,
       });
 
-      // OCR DISABLED - just save photo for memory
-      showAlert('Success', 'Receipt photo saved!', undefined, { icon: 'success' });
+      // Send to OCR server
+      const serverUrl = await ReceiptOCRService.getServerUrl();
+      if (serverUrl) {
+        setUploadProgress(30);
+        const result = await ReceiptOCRService.processReceipt(capturedImage, listId);
+        setUploadProgress(100);
+
+        if (result.success) {
+          showAlert('Success', 'Receipt processed successfully!', undefined, { icon: 'success' });
+        } else if (result.receiptData) {
+          showAlert('Processed', result.error || 'Low confidence - you can edit the data', undefined, { icon: 'warning' });
+        } else {
+          showAlert('Saved', result.error || 'OCR failed - photo saved, you can retry later', undefined, { icon: 'warning' });
+        }
+      } else {
+        showAlert('Saved', 'Receipt photo saved. Set up OCR server in Settings to extract data.', undefined, { icon: 'success' });
+      }
 
       navigation.goBack();
     } catch (error: any) {

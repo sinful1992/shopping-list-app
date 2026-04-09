@@ -37,6 +37,8 @@ const SettingsScreen = () => {
     familyMembers,
     invitationCode,
     hapticFeedbackEnabled,
+    ocrServerUrl,
+    updateOcrServerUrl,
     availableRoles,
     getRoleAvatar,
     toggleHapticFeedback: toggleHapticFeedbackHook,
@@ -52,12 +54,29 @@ const SettingsScreen = () => {
   const [newName, setNewName] = useState('');
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<FamilyRole | null>(null);
+  const [showOcrUrlModal, setShowOcrUrlModal] = useState(false);
+  const [newOcrUrl, setNewOcrUrl] = useState('');
 
   const handleToggleHapticFeedback = async (value: boolean) => {
     try {
       await toggleHapticFeedbackHook(value);
     } catch {
       showAlert('Error', 'Failed to save setting', undefined, { icon: 'error' });
+    }
+  };
+
+  const handleEditOcrUrl = () => {
+    setNewOcrUrl(ocrServerUrl || '');
+    setShowOcrUrlModal(true);
+  };
+
+  const handleSaveOcrUrl = async () => {
+    try {
+      await updateOcrServerUrl(newOcrUrl.trim());
+      setShowOcrUrlModal(false);
+      showAlert('Success', 'OCR server URL updated', undefined, { icon: 'success' });
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -239,6 +258,15 @@ const SettingsScreen = () => {
             ios_backgroundColor="#3A3A3C"
           />
         </View>
+        <TouchableOpacity style={styles.settingRow} onPress={handleEditOcrUrl}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>OCR Server</Text>
+            <Text style={styles.settingDescription}>
+              {ocrServerUrl || 'Not configured - tap to set'}
+            </Text>
+          </View>
+          <Icon name="chevron-forward-outline" size={20} color="#6E6E73" />
+        </TouchableOpacity>
       </View>
 
       {/* Family Group Section */}
@@ -416,6 +444,48 @@ const SettingsScreen = () => {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={handleSaveName}
+              >
+                <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* OCR Server URL Modal */}
+      <Modal
+        visible={showOcrUrlModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowOcrUrlModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>OCR Server URL</Text>
+            <Text style={[styles.settingDescription, { marginBottom: 12 }]}>
+              Enter the address of your receipt OCR server
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="http://192.168.1.100:8000"
+              placeholderTextColor="#6E6E73"
+              value={newOcrUrl}
+              onChangeText={setNewOcrUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowOcrUrlModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleSaveOcrUrl}
               >
                 <Text style={styles.modalButtonText}>Save</Text>
               </TouchableOpacity>
