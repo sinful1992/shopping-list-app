@@ -251,6 +251,7 @@ const styles = StyleSheet.create({
   modalButtonConfirm: {
     borderWidth: 0,
     overflow: 'hidden',
+    padding: 0,
   },
   modalButtonConfirmGradient: {
     paddingVertical: 12,
