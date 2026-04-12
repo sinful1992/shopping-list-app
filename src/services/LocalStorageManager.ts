@@ -40,6 +40,11 @@ class LocalStorageManager {
     });
   }
 
+  /** Expose the database instance for direct access (e.g. backfill migrations). */
+  getDatabase(): Database {
+    return this.database;
+  }
+
   // ===== SHOPPING LIST METHODS =====
 
   /**

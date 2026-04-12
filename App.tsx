@@ -18,6 +18,7 @@ import database from '@react-native-firebase/database';
 import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
+import { runReceiptSyncBackfill } from './src/services/receiptSyncBackfill';
 import NotificationManager from './src/services/NotificationManager';
 import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
@@ -289,6 +290,13 @@ function App(): JSX.Element {
       SyncEngine.setFamilyGroupId(user.familyGroupId);
     }
   }, [user?.familyGroupId]);
+
+  // Backfill orphan receiptData rows that were written before the sync fix
+  useEffect(() => {
+    if (user) {
+      runReceiptSyncBackfill().catch(e => console.warn('Receipt sync backfill failed:', e));
+    }
+  }, [user?.uid]);
 
   // Get showAlert from context
   const { showAlert } = useAlert();
