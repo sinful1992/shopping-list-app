@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 - **Receipt data not syncing across devices** — `receiptData` writes from OCR processing, retry, and manual edits now route through `ShoppingListManager.updateList` (which sets `syncStatus: 'pending'` and triggers `SyncEngine.pushChange`); previously went through `LocalStorageManager.saveReceiptData` which bypassed sync entirely
 - **Backfill for pre-fix receipt data** — one-shot migration marks orphan `receiptData` rows as `sync_status: 'pending'` so they sync on next launch; batched in a single WatermelonDB transaction, deferred via `InteractionManager.runAfterInteractions`, capped at 3 retry attempts
 
+### Changed
+- **Split `extractReceipt` from `processReceipt`** — new `extractReceipt(localFilePath, signal?)` method performs OCR without persisting, accepts `AbortSignal` for cancellation; `processReceipt` now delegates to `extractReceipt` then persists via `ShoppingListManager`; removed dead `RNFS.readFile` base64 read and `react-native-fs` import from `ReceiptOCRService`
+
 ## [1.16.0] - 2026-03-30
 ### Changed
 - **Redesigned analytics screen** — added tab navigation (Overview, Items, Stores, Prices); replaced flat summary list with 2×2 colored stat grid; items tab now shows top 8 with gold/silver/bronze rank badges; stores tab has spend-proportion progress bars; price analytics (store comparison, volatile items, smart savings) moved to dedicated Prices tab; smaller pie chart with inline legend

@@ -1,4 +1,3 @@
-import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
@@ -76,12 +75,10 @@ class ReceiptOCRService {
   }
 
   /**
-   * Process a receipt image and return structured data.
-   *
-   * @param localFilePath Path to the receipt image on device
-   * @param listId Shopping list ID to save results against
+   * Extract receipt data from an image without persisting.
+   * Forwards AbortSignal to fetch for cancellation support.
    */
-  async processReceipt(localFilePath: string, listId: string): Promise<OCRResult> {
+  async extractReceipt(localFilePath: string, signal?: AbortSignal): Promise<OCRResult> {
     const serverUrl = await this.getServerUrl();
     if (!serverUrl) {
       return {
@@ -94,11 +91,6 @@ class ReceiptOCRService {
     }
 
     try {
-      // Read image file as base64, then convert to blob for multipart upload
-      const cleanPath = localFilePath.replace('file://', '');
-      const base64 = await RNFS.readFile(cleanPath, 'base64');
-
-      // Build multipart form data
       const formData = new FormData();
       formData.append('file', {
         uri: localFilePath.startsWith('file://') ? localFilePath : `file://${localFilePath}`,
@@ -112,6 +104,7 @@ class ReceiptOCRService {
         headers: {
           'Accept': 'application/json',
         },
+        signal,
       });
 
       if (!response.ok) {
@@ -127,9 +120,6 @@ class ReceiptOCRService {
 
       const serverData: OCRServerResponse = await response.json();
       const receiptData = this.mapToReceiptData(serverData);
-
-      // Save receipt data and trigger sync
-      await ShoppingListManager.updateList(listId, { receiptData });
 
       return {
         success: receiptData.confidence >= 50,
@@ -147,6 +137,19 @@ class ReceiptOCRService {
         apiUsageCount: 0,
       };
     }
+  }
+
+  /**
+   * Process a receipt image: extract OCR data and persist to the list.
+   */
+  async processReceipt(localFilePath: string, listId: string): Promise<OCRResult> {
+    const result = await this.extractReceipt(localFilePath);
+
+    if (result.receiptData) {
+      await ShoppingListManager.updateList(listId, { receiptData: result.receiptData });
+    }
+
+    return result;
   }
 
   /**
