@@ -168,12 +168,7 @@ The Family Shopping List app foundation has been successfully implemented with *
    - Upload progress tracking
    - Upload queue for offline mode
 
-3. `ReceiptOCRProcessor.ts`
-   - Google Cloud Vision API integration
-   - Receipt data extraction (merchant, date, total, items)
-   - OCR request queue
-
-4. `ReceiptCameraScreen.tsx`
+3. `ReceiptCameraScreen.tsx`
    - Camera interface
    - Receipt preview
    - Upload progress UI

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Removed
+- **Unused `ReceiptOCRProcessor` service** — dead Google Cloud Vision code path; OCR has routed through `ReceiptOCRService` (self-hosted PaddleOCR) since v1.x
+- **`react-native-fs` dependency** — last consumer removed alongside `ReceiptOCRProcessor`; file uploads now stream from URI via FormData
+
 ## [1.17.0] - 2026-04-12
 ### Added
 - **In-camera OCR preview overlay** — receipt scan now auto-triggers OCR immediately after capture, showing parsed fields (merchant, date, total, item count, confidence) in a bottom overlay before the user confirms; supports retake during loading with fetch cancellation via AbortController; single atomic write on confirm saves both `receiptUrl` and `receiptData` together
