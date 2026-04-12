@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [1.17.0] - 2026-04-12
+### Added
+- **In-camera OCR preview overlay** — receipt scan now auto-triggers OCR immediately after capture, showing parsed fields (merchant, date, total, item count, confidence) in a bottom overlay before the user confirms; supports retake during loading with fetch cancellation via AbortController; single atomic write on confirm saves both `receiptUrl` and `receiptData` together
+
 ### Fixed
 - **Receipt data not syncing across devices** — `receiptData` writes from OCR processing, retry, and manual edits now route through `ShoppingListManager.updateList` (which sets `syncStatus: 'pending'` and triggers `SyncEngine.pushChange`); previously went through `LocalStorageManager.saveReceiptData` which bypassed sync entirely
 - **Backfill for pre-fix receipt data** — one-shot migration marks orphan `receiptData` rows as `sync_status: 'pending'` so they sync on next launch; batched in a single WatermelonDB transaction, deferred via `InteractionManager.runAfterInteractions`, capped at 3 retry attempts

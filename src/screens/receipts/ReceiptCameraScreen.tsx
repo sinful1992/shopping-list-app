@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Image,
+  Text,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
@@ -14,12 +13,9 @@ import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
+import { ReceiptData } from '../../models/types';
 
-/**
- * ReceiptCameraScreen
- * Capture receipt photo with camera
- * Implements Req 5.1, 5.2, 5.3, 5.4, 5.6, 10.3, 10.4
- */
 const ReceiptCameraScreen = () => {
   const route = useRoute();
   const navigation = useNavigation();
@@ -27,13 +23,51 @@ const ReceiptCameraScreen = () => {
   const { listId } = route.params as { listId: string };
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [ocrState, setOcrState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    // Auto-open camera on mount
     handleCapture();
   }, []);
+
+  // Auto-trigger OCR when an image is captured
+  useEffect(() => {
+    if (!capturedImage) return;
+
+    let mounted = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setOcrState('loading');
+    setReceiptData(null);
+    setOcrError(null);
+
+    ReceiptOCRService.extractReceipt(capturedImage, controller.signal)
+      .then((result) => {
+        if (!mounted) return;
+        if (result.receiptData) {
+          setReceiptData(result.receiptData);
+          setOcrState('success');
+        } else {
+          setOcrError(result.error ?? 'Failed to parse receipt');
+          setOcrState('error');
+        }
+      })
+      .catch((e: any) => {
+        if (!mounted) return;
+        if (e.name === 'AbortError') return;
+        setOcrError(e.message || 'Failed to process receipt');
+        setOcrState('error');
+      });
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [capturedImage]);
 
   const handleCapture = async () => {
     try {
@@ -58,49 +92,35 @@ const ReceiptCameraScreen = () => {
   };
 
   const handleConfirm = async () => {
-    if (!capturedImage) return;
+    if (!capturedImage || !receiptData || confirming) return;
 
-    setUploading(true);
-
+    setConfirming(true);
     try {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user || !user.familyGroupId) {
         throw new Error('User not authenticated');
       }
 
-      // Save receipt image path to list
+      // Single atomic write: receipt image + OCR data
       await ShoppingListManager.updateList(listId, {
         receiptUrl: capturedImage,
+        receiptData,
       });
-
-      // Send to OCR server
-      const serverUrl = await ReceiptOCRService.getServerUrl();
-      if (serverUrl) {
-        setUploadProgress(30);
-        const result = await ReceiptOCRService.processReceipt(capturedImage, listId);
-        setUploadProgress(100);
-
-        if (result.success) {
-          showAlert('Success', 'Receipt processed successfully!', undefined, { icon: 'success' });
-        } else if (result.receiptData) {
-          showAlert('Processed', result.error || 'Low confidence - you can edit the data', undefined, { icon: 'warning' });
-        } else {
-          showAlert('Saved', result.error || 'OCR failed - photo saved, you can retry later', undefined, { icon: 'warning' });
-        }
-      } else {
-        showAlert('Saved', 'Receipt photo saved. Set up OCR server in Settings to extract data.', undefined, { icon: 'success' });
-      }
 
       navigation.goBack();
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
-      setUploading(false);
+      setConfirming(false);
     }
   };
 
   const handleRetake = () => {
+    abortRef.current?.abort();
     setCapturedImage(null);
+    setOcrState('idle');
+    setReceiptData(null);
+    setOcrError(null);
     handleCapture();
   };
 
@@ -108,29 +128,22 @@ const ReceiptCameraScreen = () => {
     <View style={styles.container}>
       {capturedImage ? (
         <>
-          <Image source={{ uri: `file://${capturedImage}` }} style={styles.preview} resizeMode="contain" />
-
-          {uploading ? (
-            <View style={styles.uploadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.uploadingText}>
-                Uploading... {Math.round(uploadProgress)}%
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity style={styles.retakeButton} onPress={handleRetake}>
-                <Text style={styles.retakeButtonText}>Retake</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-                <Text style={styles.confirmButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <Image
+            source={{ uri: `file://${capturedImage}` }}
+            style={styles.preview}
+            resizeMode="contain"
+          />
+          <ReceiptPreviewOverlay
+            state={confirming ? 'loading' : ocrState}
+            receiptData={receiptData}
+            error={ocrError}
+            onConfirm={handleConfirm}
+            onRetake={handleRetake}
+          />
         </>
       ) : (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#6EA8FE" />
           <Text style={styles.loadingText}>Opening camera...</Text>
         </View>
       )}
@@ -146,45 +159,6 @@ const styles = StyleSheet.create({
   preview: {
     flex: 1,
     width: '100%',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    padding: 20,
-    backgroundColor: '#000',
-  },
-  retakeButton: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#666',
-    borderRadius: 8,
-    marginRight: 10,
-    alignItems: 'center',
-  },
-  retakeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmButton: {
-    flex: 1,
-    padding: 15,
-    backgroundColor: '#30D158',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  confirmButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  uploadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  uploadingText: {
-    color: '#fff',
-    fontSize: 16,
-    marginTop: 10,
   },
   loadingContainer: {
     flex: 1,
