@@ -2,6 +2,7 @@ import RNFS from 'react-native-fs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import ShoppingListManager from './ShoppingListManager';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 
@@ -127,8 +128,8 @@ class ReceiptOCRService {
       const serverData: OCRServerResponse = await response.json();
       const receiptData = this.mapToReceiptData(serverData);
 
-      // Save receipt data locally
-      await LocalStorageManager.saveReceiptData(listId, receiptData);
+      // Save receipt data and trigger sync
+      await ShoppingListManager.updateList(listId, { receiptData });
 
       return {
         success: receiptData.confidence >= 50,

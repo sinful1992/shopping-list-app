@@ -15,6 +15,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import LocalStorageManager from '../../services/LocalStorageManager';
+import ShoppingListManager from '../../services/ShoppingListManager';
 import { ReceiptData, ReceiptLineItem } from '../../models/types';
 
 /**
@@ -94,7 +95,7 @@ const ReceiptViewScreen = () => {
     if (!editedData) return;
 
     try {
-      await LocalStorageManager.saveReceiptData(listId, editedData);
+      await ShoppingListManager.updateList(listId, { receiptData: editedData });
       setReceiptData(editedData);
       setEditing(false);
       showAlert('Success', 'Receipt data updated', undefined, { icon: 'success' });
