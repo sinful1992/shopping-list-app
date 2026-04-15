@@ -86,6 +86,9 @@ tmp/
 # VS Code
 .vscode/
 
+# Claude Code local settings (per-developer permissions)
+.claude/settings.local.json
+
 # macOS
 .AppleDouble
 .LSOverride
