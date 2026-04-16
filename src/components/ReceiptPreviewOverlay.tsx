@@ -18,6 +18,8 @@ interface ReceiptPreviewOverlayProps {
   error: string | null;
   onConfirm: () => void;
   onRetake: () => void;
+  onRetryOCR?: () => void;
+  onPickGallery?: () => void;
 }
 
 const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
@@ -26,6 +28,8 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
   error,
   onConfirm,
   onRetake,
+  onRetryOCR,
+  onPickGallery,
 }) => {
   const insets = useSafeAreaInsets();
   const slideAnim = React.useRef(new Animated.Value(300)).current;
@@ -80,10 +84,21 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
               </Text>
             </View>
             <View style={styles.buttonRow}>
+              {onRetryOCR && (
+                <TouchableOpacity style={styles.retakeButton} onPress={onRetryOCR}>
+                  <Text style={styles.retakeButtonText}>Try again</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.retakeButton} onPress={onRetake}>
                 <Text style={styles.retakeButtonText}>Retake</Text>
               </TouchableOpacity>
             </View>
+            {onPickGallery && (
+              <TouchableOpacity style={styles.galleryLink} onPress={onPickGallery}>
+                <Icon name="images-outline" size={14} color={COLORS.text.tertiary} />
+                <Text style={styles.galleryLinkText}>or pick from gallery</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
 
@@ -291,6 +306,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  galleryLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.xs,
+  },
+  galleryLinkText: {
+    color: COLORS.text.tertiary,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    textDecorationLine: 'underline',
   },
 });
 

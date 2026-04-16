@@ -27,13 +27,16 @@ const ReceiptCameraScreen = () => {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     handleCapture();
   }, []);
 
-  // Auto-trigger OCR when an image is captured
+  // Auto-trigger OCR when a fresh image is set or when the user retries.
+  // retryToken lets us re-run OCR on the same image (network blip recovery)
+  // without forcing a rescan that would discard a good photo.
   useEffect(() => {
     if (!capturedImage) return;
 
@@ -48,10 +51,11 @@ const ReceiptCameraScreen = () => {
     ReceiptOCRService.extractReceipt(capturedImage, controller.signal)
       .then((result) => {
         if (!mounted) return;
-        if (result.receiptData) {
+        if (result.success && result.receiptData) {
           setReceiptData(result.receiptData);
           setOcrState('success');
         } else {
+          setReceiptData(result.receiptData);
           setOcrError(result.error ?? 'Failed to parse receipt');
           setOcrState('error');
         }
@@ -67,7 +71,7 @@ const ReceiptCameraScreen = () => {
       mounted = false;
       controller.abort();
     };
-  }, [capturedImage]);
+  }, [capturedImage, retryToken]);
 
   const handleCapture = async () => {
     try {
@@ -124,6 +128,31 @@ const ReceiptCameraScreen = () => {
     handleCapture();
   };
 
+  const handleRetryOCR = () => {
+    if (!capturedImage) return;
+    setRetryToken(t => t + 1);
+  };
+
+  const handlePickGallery = async () => {
+    try {
+      const result = await ReceiptCaptureModule.pickFromGallery();
+      if (result.cancelled) return;
+
+      if (!result.success || !result.filePath) {
+        showAlert('Error', result.error || 'Failed to pick image', undefined, { icon: 'error' });
+        return;
+      }
+
+      abortRef.current?.abort();
+      setOcrState('idle');
+      setReceiptData(null);
+      setOcrError(null);
+      setCapturedImage(result.filePath);
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+    }
+  };
+
   return (
     <View style={styles.container}>
       {capturedImage ? (
@@ -139,6 +168,8 @@ const ReceiptCameraScreen = () => {
             error={ocrError}
             onConfirm={handleConfirm}
             onRetake={handleRetake}
+            onRetryOCR={handleRetryOCR}
+            onPickGallery={handlePickGallery}
           />
         </>
       ) : (

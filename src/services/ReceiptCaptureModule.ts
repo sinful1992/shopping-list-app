@@ -1,17 +1,17 @@
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import DocumentScanner from 'react-native-document-scanner-plugin';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { CaptureResult } from '../models/types';
 
 /**
- * ReceiptCaptureModule
- * Interfaces with device camera to capture receipt photos
- * Implements Requirements: 5.1, 5.2, 5.3, 10.3, 10.4
+ * JPEG quality for captured receipts. Thermal print is pixel-sensitive —
+ * aggressive compression erodes dim characters that the OCR parser needs.
+ * 92 is a deliberate tradeoff: ~30% larger upload than 85, measurably
+ * better OCR on faded Lidl/Aldi receipts per the server-side contrast work.
  */
+const CAPTURE_JPEG_QUALITY = 92;
+
 class ReceiptCaptureModule {
-  /**
-   * Request camera permission
-   * Implements Req 10.3, 10.4
-   */
   async requestCameraPermission(): Promise<boolean> {
     try {
       if (Platform.OS === 'android') {
@@ -26,41 +26,29 @@ class ReceiptCaptureModule {
           }
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } else {
-        // iOS permissions are handled via Info.plist
-        return true;
       }
+      return true;
     } catch {
       return false;
     }
   }
 
-  /**
-   * Check if camera permission is granted
-   */
   async hasCameraPermission(): Promise<boolean> {
     try {
       if (Platform.OS === 'android') {
-        const hasPermission = await PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.CAMERA
-        );
-        return hasPermission;
-      } else {
-        // For iOS, assume permission is granted if app is running
-        return true;
+        return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
       }
+      return true;
     } catch {
       return false;
     }
   }
 
   /**
-   * Capture receipt photo with automatic boundary detection
-   * Implements Req 5.1, 5.2, 5.3
+   * Capture receipt via the native document scanner (with boundary detection).
    */
   async captureReceipt(): Promise<CaptureResult> {
     try {
-      // Check permission first
       const hasPermission = await this.hasCameraPermission();
       if (!hasPermission) {
         const granted = await this.requestCameraPermission();
@@ -75,21 +63,21 @@ class ReceiptCaptureModule {
         }
       }
 
-      // Scan document with automatic boundary detection
-      const { scannedImages } = await DocumentScanner.scanDocument({
+      const { scannedImages, status } = await DocumentScanner.scanDocument({
         maxNumDocuments: 1,
-        responseType: 'imageFilePath', // Get file path, not base64
-        croppedImageQuality: 85, // 0-100 scale
+        responseType: 'imageFilePath' as any,
+        croppedImageQuality: CAPTURE_JPEG_QUALITY,
       });
 
+      // Status enum string value is 'cancel' — see ScanDocumentResponseStatus
+      // in the plugin's NativeDocumentScanner types. Keeping as a string literal
+      // because the enum isn't re-exported from the package root.
+      if (status && String(status) === 'cancel') {
+        return { success: false, filePath: null, base64: null, error: null, cancelled: true };
+      }
+
       if (!scannedImages || scannedImages.length === 0) {
-        return {
-          success: false,
-          filePath: null,
-          base64: null,
-          error: null,
-          cancelled: true,
-        };
+        return { success: false, filePath: null, base64: null, error: null, cancelled: true };
       }
 
       return {
@@ -100,21 +88,68 @@ class ReceiptCaptureModule {
         cancelled: false,
       };
     } catch (error: any) {
-      if (error.message && error.message.includes('cancel')) {
-        return {
-          success: false,
-          filePath: null,
-          base64: null,
-          error: null,
-          cancelled: true,
-        };
-      }
-
       return {
         success: false,
         filePath: null,
         base64: null,
-        error: error.message || 'Failed to capture receipt',
+        error: error?.message || 'Failed to capture receipt',
+        cancelled: false,
+      };
+    }
+  }
+
+  /**
+   * Pick an existing receipt photo from the gallery. Escape hatch for when
+   * the scanner fails to detect boundaries on creased/curled receipts or
+   * when the user took the photo before opening the app.
+   */
+  async pickFromGallery(): Promise<CaptureResult> {
+    try {
+      const response = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 1,
+        // react-native-image-picker quantises quality to 0.1 steps.
+        // 0.9 is the closest match to the scanner's JPEG quality (92).
+        quality: 0.9,
+        includeBase64: false,
+      });
+
+      if (response.didCancel) {
+        return { success: false, filePath: null, base64: null, error: null, cancelled: true };
+      }
+
+      if (response.errorCode) {
+        return {
+          success: false,
+          filePath: null,
+          base64: null,
+          error: response.errorMessage || response.errorCode,
+          cancelled: false,
+        };
+      }
+
+      const asset = response.assets?.[0];
+      if (!asset?.uri) {
+        return { success: false, filePath: null, base64: null, error: null, cancelled: true };
+      }
+
+      // react-native-image-picker returns file:// URIs on both platforms;
+      // strip the scheme so the OCR service's existing file:// prefix logic works.
+      const path = asset.uri.startsWith('file://') ? asset.uri.slice(7) : asset.uri;
+
+      return {
+        success: true,
+        filePath: path,
+        base64: null,
+        error: null,
+        cancelled: false,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        filePath: null,
+        base64: null,
+        error: error?.message || 'Failed to pick image',
         cancelled: false,
       };
     }
