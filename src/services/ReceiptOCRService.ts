@@ -6,6 +6,19 @@ import ShoppingListManager from './ShoppingListManager';
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 
 /**
+ * Parse a numeric string from the OCR server into a money-valued number.
+ * Returns null for empty, non-finite, or unparseable input. Rounds to 2dp
+ * so discount arithmetic downstream doesn't accumulate float noise.
+ * Accepts negatives (used for discount rows).
+ */
+function parseNumber(input: string | null | undefined): number | null {
+  if (input === null || input === undefined || input === '') return null;
+  const n = parseFloat(input);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100) / 100;
+}
+
+/**
  * Response shape from our self-hosted PaddleOCR server (POST /ocr).
  */
 interface OCRServerResponse {
@@ -120,12 +133,18 @@ class ReceiptOCRService {
 
       const serverData: OCRServerResponse = await response.json();
       const receiptData = this.mapToReceiptData(serverData);
+      const success = receiptData.lineItems.length > 0;
+      const lowConfidence = receiptData.confidence < 60;
 
       return {
-        success: receiptData.confidence >= 50,
+        success,
         receiptData,
         confidence: receiptData.confidence,
-        error: receiptData.confidence < 50 ? 'Low confidence result - please verify' : null,
+        error: !success
+          ? 'No items detected — please retake the photo'
+          : lowConfidence
+            ? 'Low confidence result — please verify'
+            : null,
         apiUsageCount: 0,
       };
     } catch (error: any) {
@@ -179,34 +198,34 @@ class ReceiptOCRService {
       .map(item => ({
         description: item.description!,
         quantity: item.quantity ?? null,
-        unitPrice: item.unit_price ? parseFloat(item.unit_price) : null,
-        price: item.total_price ? parseFloat(item.total_price) : null,
+        unitPrice: parseNumber(item.unit_price),
+        price: parseNumber(item.total_price),
         vatCode: null,
       }));
 
-    const totalAmount = data.total ? parseFloat(data.total) : null;
-    const subtotal = data.subtotal ? parseFloat(data.subtotal) : null;
+    const totalAmount = parseNumber(data.total);
+    const subtotal = parseNumber(data.subtotal);
 
-    // Build discounts from line items that have them
     const discounts = (data.line_items || [])
-      .filter(item => item.discount)
-      .map(item => ({
-        description: item.description || 'Discount',
-        amount: parseFloat(item.discount!),
+      .map(item => ({ raw: parseNumber(item.discount), desc: item.description }))
+      .filter((d): d is { raw: number; desc: string | null } => d.raw !== null)
+      .map(({ raw, desc }) => ({
+        description: desc || 'Discount',
+        amount: raw,
         type: 'loyalty' as const,
       }));
 
-    const totalDiscount = data.savings ? parseFloat(data.savings) : null;
+    const totalDiscount = parseNumber(data.savings);
 
-    // Calculate confidence based on what was detected
-    let confidence = 50;
+    // Confidence scored on real evidence only — no base padding.
+    // Line items are the headline signal; everything else is corroboration.
+    let confidence = 0;
+    if (lineItems.length > 0) confidence += 50;
+    if (totalAmount !== null) confidence += 20;
     if (data.merchant_name) confidence += 15;
     if (data.date) confidence += 10;
-    if (totalAmount) confidence += 10;
-    if (lineItems.length > 0) confidence += 15;
-    if (subtotal) confidence += 5;
+    if (subtotal !== null) confidence += 5;
 
-    // Detect store from merchant name
     const store = this.detectStore(data.merchant_name);
 
     return {
