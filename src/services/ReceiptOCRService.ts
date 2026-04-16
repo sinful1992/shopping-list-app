@@ -6,6 +6,28 @@ import ShoppingListManager from './ShoppingListManager';
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 
 /**
+ * Upper bound on the server round-trip. PaddleOCR cold-start can take
+ * ~20s when the model isn't resident; warm requests are a few seconds.
+ * 45s is generous for cold-start without letting a truly stuck request
+ * spinner the UI indefinitely.
+ */
+const OCR_REQUEST_TIMEOUT_MS = 45_000;
+
+/**
+ * Build a fetch-compatible URI from a local file path. Handles three inputs:
+ *   - Already-schemed URI (file://, content://, http(s)://) → pass through.
+ *     Android gallery picks often return content:// URIs and RN's fetch
+ *     resolves them natively; the previous code turned them into
+ *     "file://content://..." which broke uploads.
+ *   - Unschemed absolute path (/data/…) → prepend file://.
+ *   - Anything else → prepend file:// defensively.
+ */
+function toFetchUri(path: string): string {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
+  return `file://${path}`;
+}
+
+/**
  * Parse a numeric string from the OCR server into a money-valued number.
  * Returns null for empty, non-finite, or unparseable input. Rounds to 2dp
  * so discount arithmetic downstream doesn't accumulate float noise.
@@ -103,10 +125,18 @@ class ReceiptOCRService {
       };
     }
 
+    // Compose the caller's AbortSignal with a local timeout so a stuck
+    // server round-trip surfaces as an actionable error instead of an
+    // indefinite spinner. If the caller aborts first, the timeout is a no-op.
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), OCR_REQUEST_TIMEOUT_MS);
+    const onCallerAbort = () => timeoutController.abort();
+    signal?.addEventListener('abort', onCallerAbort);
+
     try {
       const formData = new FormData();
       formData.append('file', {
-        uri: localFilePath.startsWith('file://') ? localFilePath : `file://${localFilePath}`,
+        uri: toFetchUri(localFilePath),
         type: 'image/jpeg',
         name: 'receipt.jpg',
       } as any);
@@ -117,7 +147,7 @@ class ReceiptOCRService {
         headers: {
           'Accept': 'application/json',
         },
-        signal,
+        signal: timeoutController.signal,
       });
 
       if (!response.ok) {
@@ -148,13 +178,23 @@ class ReceiptOCRService {
         apiUsageCount: 0,
       };
     } catch (error: any) {
+      // Caller-initiated abort: re-throw so the caller (e.g. React cleanup)
+      // can ignore it. Timeout-initiated abort: surface a distinct message.
+      if (signal?.aborted) throw error;
+
+      const timedOut = error?.name === 'AbortError';
       return {
         success: false,
         receiptData: null,
         confidence: 0,
-        error: error.message || 'Failed to process receipt',
+        error: timedOut
+          ? 'OCR server took too long — try again in a moment'
+          : error.message || 'Failed to process receipt',
         apiUsageCount: 0,
       };
+    } finally {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', onCallerAbort);
     }
   }
 
