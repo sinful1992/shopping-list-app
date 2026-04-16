@@ -82,6 +82,7 @@ import BudgetScreen from './src/screens/budget/BudgetScreen';
 import HistoryScreen from './src/screens/history/HistoryScreen';
 import HistoryDetailScreen from './src/screens/history/HistoryDetailScreen';
 import ReceiptCameraScreen from './src/screens/receipts/ReceiptCameraScreen';
+import ReceiptMatchScreen from './src/screens/receipts/ReceiptMatchScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import LegalDocumentScreen from './src/screens/settings/LegalDocumentScreen';
@@ -117,6 +118,11 @@ function ListsStack() {
         name="ReceiptCamera"
         component={ReceiptCameraScreen}
         options={{ title: 'Capture Receipt' }}
+      />
+      <Stack.Screen
+        name="ReceiptMatch"
+        component={ReceiptMatchScreen}
+        options={{ title: 'Match Receipt' }}
       />
       <Stack.Screen
         name="ReceiptView"

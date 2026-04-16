@@ -107,7 +107,7 @@ const ReceiptCameraScreen = () => {
         receiptData,
       });
 
-      navigation.goBack();
+      (navigation as any).replace('ReceiptMatch', { listId });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
