@@ -5,7 +5,7 @@ export interface MatchCandidate {
   receiptItem: ReceiptLineItem;
   receiptIndex: number;
   score: number;
-  method: 'token' | 'dice';
+  method: 'token' | 'dice' | 'manual';
 }
 
 export interface UnmatchedReceiptEntry {
