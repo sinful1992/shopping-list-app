@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   LayoutAnimation,
+  Modal,
   Platform,
   UIManager,
 } from 'react-native';
@@ -38,6 +39,8 @@ const ReceiptMatchScreen = () => {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [eligibleCount, setEligibleCount] = useState(0);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
+  const [manualMatches, setManualMatches] = useState<MatchCandidate[]>([]);
+  const [pickerReceiptIndex, setPickerReceiptIndex] = useState<number | null>(null);
   const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [unmatchedReceiptOpen, setUnmatchedReceiptOpen] = useState(false);
   const [unmatchedListOpen, setUnmatchedListOpen] = useState(false);
@@ -57,7 +60,7 @@ const ReceiptMatchScreen = () => {
 
         const items = await ItemManager.getItemsForList(listId);
         if (!mounted) return;
-        const eligible = items.filter(i => i.checked && i.price == null);
+        const eligible = items.filter(i => i.price == null);
         setEligibleCount(eligible.length);
 
         if (list.receiptData && eligible.length > 0) {
@@ -72,10 +75,31 @@ const ReceiptMatchScreen = () => {
     return () => { mounted = false; };
   }, [listId, showAlert]);
 
-  const acceptedMatches = useMemo(() => {
+  const allMatches = useMemo(() => {
     if (!matchResult) return [] as MatchCandidate[];
-    return matchResult.matches.filter(m => !rejected.has(m.listItem.id));
-  }, [matchResult, rejected]);
+    return [...matchResult.matches, ...manualMatches];
+  }, [matchResult, manualMatches]);
+
+  const visibleUnmatchedReceipt = useMemo(() => {
+    if (!matchResult) return [];
+    const takenIndices = new Set(manualMatches.map(m => m.receiptIndex));
+    return matchResult.unmatchedReceipt.filter(e => !takenIndices.has(e.index));
+  }, [matchResult, manualMatches]);
+
+  const visibleUnmatchedList = useMemo(() => {
+    if (!matchResult) return [] as Item[];
+    const takenIds = new Set(manualMatches.map(m => m.listItem.id));
+    return matchResult.unmatchedList.filter(i => !takenIds.has(i.id));
+  }, [matchResult, manualMatches]);
+
+  const acceptedMatches = useMemo(() => {
+    return allMatches.filter(m => !rejected.has(m.listItem.id));
+  }, [allMatches, rejected]);
+
+  const pickerReceiptItem = useMemo(() => {
+    if (pickerReceiptIndex == null || !matchResult) return null;
+    return matchResult.unmatchedReceipt.find(e => e.index === pickerReceiptIndex)?.item ?? null;
+  }, [pickerReceiptIndex, matchResult]);
 
   const toggleReject = (listItemId: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -87,14 +111,46 @@ const ReceiptMatchScreen = () => {
     });
   };
 
+  const assignManual = (listItem: Item) => {
+    if (pickerReceiptIndex == null || !matchResult) return;
+    const entry = matchResult.unmatchedReceipt.find(e => e.index === pickerReceiptIndex);
+    if (!entry) return;
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setManualMatches(prev => [
+      ...prev,
+      {
+        listItem,
+        receiptItem: entry.item,
+        receiptIndex: entry.index,
+        score: 1,
+        method: 'manual',
+      },
+    ]);
+    setPickerReceiptIndex(null);
+  };
+
+  const removeManual = (listItemId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setManualMatches(prev => prev.filter(m => m.listItem.id !== listItemId));
+    setRejected(prev => {
+      if (!prev.has(listItemId)) return prev;
+      const next = new Set(prev);
+      next.delete(listItemId);
+      return next;
+    });
+  };
+
   const handleApply = async () => {
     if (applyingRef.current) return;
     const updates = acceptedMatches
-      .map(m => ({
-        id: m.listItem.id,
-        updates: { price: sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice) },
-      }))
-      .filter(u => u.updates.price != null);
+      .map(m => {
+        const price = sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice);
+        if (price == null) return null;
+        const patch: Partial<Item> = { price };
+        if (!m.listItem.checked) patch.checked = true;
+        return { id: m.listItem.id, updates: patch };
+      })
+      .filter((u): u is { id: string; updates: Partial<Item> } => u !== null);
 
     if (updates.length === 0) return;
 
@@ -143,7 +199,7 @@ const ReceiptMatchScreen = () => {
       <EmptyState
         icon="checkmark-done-outline"
         title="Nothing to price"
-        message="No checked items are missing a price."
+        message="No items are missing a price."
         onSkip={handleSkip}
       />
     );
@@ -161,8 +217,9 @@ const ReceiptMatchScreen = () => {
   }
 
   const currency = receiptData.currency || '£';
-  const matchCount = matchResult.matches.length;
+  const matchCount = allMatches.length;
   const acceptedCount = acceptedMatches.length;
+  const canPickFor = visibleUnmatchedList.length > 0;
 
   return (
     <View style={styles.container}>
@@ -170,54 +227,72 @@ const ReceiptMatchScreen = () => {
         <Text style={styles.summary}>
           {matchCount === 0
             ? 'No matches found'
-            : `Found ${matchCount} match${matchCount === 1 ? '' : 'es'} · ${matchResult.unmatchedList.length} unmatched`}
+            : `Found ${matchCount} match${matchCount === 1 ? '' : 'es'} · ${visibleUnmatchedList.length} unmatched`}
         </Text>
 
-        {matchResult.matches.length > 0 && (
+        {allMatches.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Matched</Text>
-            {matchResult.matches.map(m => (
-              <MatchRow
-                key={m.listItem.id}
-                match={m}
-                currency={currency}
-                rejected={rejected.has(m.listItem.id)}
-                onToggleReject={() => toggleReject(m.listItem.id)}
-              />
-            ))}
+            {allMatches.map(m => {
+              const isManual = m.method === 'manual';
+              return (
+                <MatchRow
+                  key={m.listItem.id}
+                  match={m}
+                  currency={currency}
+                  rejected={!isManual && rejected.has(m.listItem.id)}
+                  isManual={isManual}
+                  onToggleReject={() => (isManual ? removeManual(m.listItem.id) : toggleReject(m.listItem.id))}
+                />
+              );
+            })}
           </View>
         )}
 
-        {matchResult.unmatchedReceipt.length > 0 && (
+        {visibleUnmatchedReceipt.length > 0 && (
           <CollapsibleSection
-            title={`Unmatched receipt items (${matchResult.unmatchedReceipt.length})`}
+            title={`Unmatched receipt items (${visibleUnmatchedReceipt.length})`}
             open={unmatchedReceiptOpen}
             onToggle={() => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               setUnmatchedReceiptOpen(v => !v);
             }}
           >
-            {matchResult.unmatchedReceipt.map(({ item, index }) => (
-              <UnmatchedReceiptRow key={index} item={item} currency={currency} />
+            {visibleUnmatchedReceipt.map(({ item, index }) => (
+              <UnmatchedReceiptRow
+                key={index}
+                item={item}
+                currency={currency}
+                onAssign={canPickFor ? () => setPickerReceiptIndex(index) : undefined}
+              />
             ))}
           </CollapsibleSection>
         )}
 
-        {matchResult.unmatchedList.length > 0 && (
+        {visibleUnmatchedList.length > 0 && (
           <CollapsibleSection
-            title={`Unmatched list items (${matchResult.unmatchedList.length})`}
+            title={`Unmatched list items (${visibleUnmatchedList.length})`}
             open={unmatchedListOpen}
             onToggle={() => {
               LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
               setUnmatchedListOpen(v => !v);
             }}
           >
-            {matchResult.unmatchedList.map(item => (
+            {visibleUnmatchedList.map(item => (
               <UnmatchedListRow key={item.id} item={item} />
             ))}
           </CollapsibleSection>
         )}
       </ScrollView>
+
+      <AssignPickerModal
+        visible={pickerReceiptIndex != null}
+        receiptItem={pickerReceiptItem}
+        currency={currency}
+        options={visibleUnmatchedList}
+        onPick={assignManual}
+        onClose={() => setPickerReceiptIndex(null)}
+      />
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip} disabled={applying}>
@@ -253,12 +328,13 @@ interface MatchRowProps {
   match: MatchCandidate;
   currency: string;
   rejected: boolean;
+  isManual: boolean;
   onToggleReject: () => void;
 }
 
-const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, onToggleReject }) => {
+const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, isManual, onToggleReject }) => {
   const price = match.receiptItem.price ?? match.receiptItem.unitPrice;
-  const badge = scoreBadge(match.score);
+  const badge = badgeStyle(match);
   return (
     <View style={[styles.matchCard, rejected && styles.matchCardRejected]}>
       <View style={styles.matchTop}>
@@ -273,7 +349,7 @@ const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, onToggle
       <View style={styles.matchBottom}>
         <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
           <Text style={[styles.badgeText, { color: badge.fg }]}>
-            {Math.round(match.score * 100)}% · {match.method}
+            {isManual ? 'manual' : `${Math.round(match.score * 100)}% · ${match.method}`}
           </Text>
         </View>
         <Text style={[styles.priceText, rejected && styles.strikethrough]}>
@@ -281,9 +357,9 @@ const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, onToggle
         </Text>
         <TouchableOpacity onPress={onToggleReject} style={styles.rejectButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Icon
-            name={rejected ? 'add-circle-outline' : 'close-circle-outline'}
+            name={isManual ? 'close-circle-outline' : (rejected ? 'add-circle-outline' : 'close-circle-outline')}
             size={22}
-            color={rejected ? COLORS.accent.green : COLORS.accent.red}
+            color={isManual ? COLORS.text.secondary : (rejected ? COLORS.accent.green : COLORS.accent.red)}
           />
         </TouchableOpacity>
       </View>
@@ -291,13 +367,81 @@ const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, onToggle
   );
 };
 
-const UnmatchedReceiptRow: React.FC<{ item: ReceiptLineItem; currency: string }> = ({ item, currency }) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoText} numberOfLines={2}>{item.description}</Text>
-    <Text style={styles.infoPrice}>
-      {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
-    </Text>
-  </View>
+interface UnmatchedReceiptRowProps {
+  item: ReceiptLineItem;
+  currency: string;
+  onAssign?: () => void;
+}
+
+const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({ item, currency, onAssign }) => {
+  const content = (
+    <>
+      <Text style={styles.infoText} numberOfLines={2}>{item.description}</Text>
+      <Text style={styles.infoPrice}>
+        {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
+      </Text>
+      {onAssign && (
+        <Icon name="add-circle-outline" size={20} color={COLORS.accent.blue} style={styles.assignIcon} />
+      )}
+    </>
+  );
+  if (onAssign) {
+    return (
+      <TouchableOpacity style={styles.infoRow} onPress={onAssign} activeOpacity={0.6}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={styles.infoRow}>{content}</View>;
+};
+
+interface AssignPickerModalProps {
+  visible: boolean;
+  receiptItem: ReceiptLineItem | null;
+  currency: string;
+  options: Item[];
+  onPick: (item: Item) => void;
+  onClose: () => void;
+}
+
+const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptItem, currency, options, onPick, onClose }) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+      <TouchableOpacity style={styles.modalCard} activeOpacity={1}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle} numberOfLines={2}>
+            Assign to list item
+          </Text>
+          {receiptItem && (
+            <Text style={styles.modalSubtitle} numberOfLines={2}>
+              {receiptItem.description}
+              {receiptItem.price != null ? `  ·  ${currency}${receiptItem.price.toFixed(2)}` : ''}
+            </Text>
+          )}
+        </View>
+        <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
+          {options.length === 0 ? (
+            <Text style={styles.modalEmpty}>No unmatched list items to pick from.</Text>
+          ) : (
+            options.map(item => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.modalOption}
+                onPress={() => onPick(item)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalOptionText} numberOfLines={2}>{item.name}</Text>
+                <Icon name="chevron-forward" size={18} color={COLORS.text.tertiary} />
+              </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+        <TouchableOpacity style={styles.modalCancel} onPress={onClose} activeOpacity={0.7}>
+          <Text style={styles.modalCancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  </Modal>
 );
 
 const UnmatchedListRow: React.FC<{ item: Item }> = ({ item }) => (
@@ -341,11 +485,14 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message, onSkip })
   </View>
 );
 
-function scoreBadge(score: number): { bg: string; border: string; fg: string } {
-  if (score >= 0.9) {
+function badgeStyle(match: MatchCandidate): { bg: string; border: string; fg: string } {
+  if (match.method === 'manual') {
+    return { bg: COLORS.accent.blueSubtle, border: COLORS.accent.blueDim, fg: COLORS.accent.blue };
+  }
+  if (match.score >= 0.9) {
     return { bg: 'rgba(48, 209, 88, 0.18)', border: COLORS.accent.greenDim, fg: COLORS.accent.green };
   }
-  if (score >= 0.7) {
+  if (match.score >= 0.7) {
     return { bg: 'rgba(255, 179, 64, 0.18)', border: 'rgba(255, 179, 64, 0.35)', fg: COLORS.accent.orange };
   }
   return { bg: 'rgba(255, 214, 10, 0.18)', border: COLORS.accent.yellowDim, fg: COLORS.accent.yellow };
@@ -462,6 +609,79 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.md,
     color: COLORS.text.tertiary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  assignIcon: {
+    marginLeft: SPACING.xs,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: COLORS.overlay.dark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '80%',
+    backgroundColor: COLORS.background.secondary,
+    borderRadius: RADIUS.large,
+    borderWidth: 1,
+    borderColor: COLORS.border.subtle,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    padding: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.subtle,
+  },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+  },
+  modalSubtitle: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.xs,
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalScrollContent: {
+    paddingVertical: SPACING.xs,
+  },
+  modalEmpty: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    padding: SPACING.xl,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.subtle,
+    gap: SPACING.md,
+  },
+  modalOptionText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  modalCancel: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    backgroundColor: COLORS.glass.subtle,
+  },
+  modalCancelText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   footer: {
     position: 'absolute',
