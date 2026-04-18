@@ -57,7 +57,7 @@ const ReceiptMatchScreen = () => {
 
         const items = await ItemManager.getItemsForList(listId);
         if (!mounted) return;
-        const eligible = items.filter(i => i.checked && i.price == null);
+        const eligible = items.filter(i => i.price == null);
         setEligibleCount(eligible.length);
 
         if (list.receiptData && eligible.length > 0) {
@@ -90,11 +90,14 @@ const ReceiptMatchScreen = () => {
   const handleApply = async () => {
     if (applyingRef.current) return;
     const updates = acceptedMatches
-      .map(m => ({
-        id: m.listItem.id,
-        updates: { price: sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice) },
-      }))
-      .filter(u => u.updates.price != null);
+      .map(m => {
+        const price = sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice);
+        if (price == null) return null;
+        const patch: Partial<Item> = { price };
+        if (!m.listItem.checked) patch.checked = true;
+        return { id: m.listItem.id, updates: patch };
+      })
+      .filter((u): u is { id: string; updates: Partial<Item> } => u !== null);
 
     if (updates.length === 0) return;
 
@@ -143,7 +146,7 @@ const ReceiptMatchScreen = () => {
       <EmptyState
         icon="checkmark-done-outline"
         title="Nothing to price"
-        message="No checked items are missing a price."
+        message="No items are missing a price."
         onSkip={handleSkip}
       />
     );
