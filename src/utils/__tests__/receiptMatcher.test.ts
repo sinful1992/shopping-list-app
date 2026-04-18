@@ -190,6 +190,15 @@ describe('matchReceiptToList', () => {
     expect(result.unmatchedList).toEqual([]);
   });
 
+  test('partial token match with near-match variant scores high ("chocolate" vs "chocolat")', () => {
+    const list = [makeItem({ id: '1', name: 'pains au chocolate' })];
+    const receipt = [makeReceiptItem({ description: 'Pains au Chocolat', price: 1.5 })];
+    const result = matchReceiptToList(receipt, list);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0].score).toBeGreaterThan(0.9);
+    expect(result.matches[0].method).toBe('token');
+  });
+
   test('receiptIndex preserved as original input index', () => {
     const list = [makeItem({ id: '1', name: 'coffee' })];
     const receipt = [

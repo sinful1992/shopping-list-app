@@ -129,7 +129,25 @@ function scorePair(listTokens: string[], receiptTokens: string[]): PairScore {
   }
   if (matched >= 1) {
     const denom = Math.min(listTokens.length, receiptTokens.length);
-    return { score: matched / denom, method: 'token', matched };
+    const exactScore = matched / denom;
+
+    // For unmatched tokens, check dice to handle typos/variants ("chocolate" vs "chocolat")
+    const unmatchedList = listTokens.filter(t => !receiptSet.has(t));
+    const matchedReceiptTokens = new Set(listTokens.filter(t => receiptSet.has(t)));
+    const unusedReceipt = receiptTokens.filter(t => !matchedReceiptTokens.has(t));
+    let diceBonus = 0;
+    for (const lt of unmatchedList) {
+      if (lt.length < MIN_DICE_TOKEN_LEN) continue;
+      let best = 0;
+      for (const rt of unusedReceipt) {
+        if (rt.length < MIN_DICE_TOKEN_LEN) continue;
+        const s = dice(lt, rt);
+        if (s > best) best = s;
+      }
+      if (best >= DICE_THRESHOLD) diceBonus += best / denom;
+    }
+
+    return { score: Math.min(1, exactScore + diceBonus), method: 'token', matched };
   }
   return { score: bestDice(listTokens, receiptTokens), method: 'dice', matched: 0 };
 }
