@@ -92,9 +92,10 @@ const ReceiptMatchScreen = () => {
     const updates = acceptedMatches
       .map(m => {
         const price = sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice);
-        if (price == null) return null;
-        const patch: Partial<Item> = { price };
+        const patch: Partial<Item> = {};
+        if (price != null) patch.price = price;
         if (!m.listItem.checked) patch.checked = true;
+        if (Object.keys(patch).length === 0) return null;
         return { id: m.listItem.id, updates: patch };
       })
       .filter((u): u is { id: string; updates: Partial<Item> } => u !== null);

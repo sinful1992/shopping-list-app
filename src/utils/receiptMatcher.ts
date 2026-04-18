@@ -140,7 +140,7 @@ export function matchReceiptToList(
 ): MatchResult {
   const eligibleReceipt = receiptItems
     .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.price != null && item.description.trim().length > 0);
+    .filter(({ item }) => item.description.trim().length > 0);
 
   const receiptPrep = eligibleReceipt.map(({ item, index }) => ({
     item,
