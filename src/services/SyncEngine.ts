@@ -130,13 +130,8 @@ class SyncEngine {
     if (this.isOnline) {
       try {
         await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, syncData));
-        if (entityType === 'list') {
-          await LocalStorageManager.updateList(entityId, { syncStatus: 'synced' });
-        } else if (entityType === 'item') {
-          await LocalStorageManager.updateItem(entityId, { syncStatus: 'synced' });
-        } else if (entityType === 'storeLayout') {
-          await LocalStorageManager.updateStoreLayout(entityId, { syncStatus: 'synced' });
-        }
+        const updatedAt = (syncData as any)?.updatedAt ?? null;
+        await LocalStorageManager.markSyncedIfUnchanged(entityType, entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
         await this.queueOperation(entityType, entityId, operation, syncData);
@@ -256,13 +251,8 @@ class SyncEngine {
 
           await LocalStorageManager.removeFromSyncQueue(operation.id);
 
-          if (operation.entityType === 'list') {
-            await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'synced' });
-          } else if (operation.entityType === 'item') {
-            await LocalStorageManager.updateItem(operation.entityId, { syncStatus: 'synced' });
-          } else if (operation.entityType === 'storeLayout') {
-            await LocalStorageManager.updateStoreLayout(operation.entityId, { syncStatus: 'synced' });
-          }
+          const queuedUpdatedAt = (operation.data as any)?.updatedAt ?? null;
+          await LocalStorageManager.markSyncedIfUnchanged(operation.entityType, operation.entityId, queuedUpdatedAt);
           processed++;
         } catch (error) {
           CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);
