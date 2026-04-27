@@ -255,13 +255,15 @@ class LocalStorageManager {
   async getCompletedLists(
     familyGroupId: string,
     startDate?: number,
-    endDate?: number
+    endDate?: number,
+    limit?: number,
+    offset?: number
   ): Promise<ShoppingList[]> {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const conditions = [
+      const conditions: any[] = [
         Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'completed')
+        Q.where('status', 'completed'),
       ];
 
       if (startDate) {
@@ -273,10 +275,34 @@ class LocalStorageManager {
 
       conditions.push(Q.sortBy('completed_at', Q.desc));
 
+      if (limit !== undefined) {
+        conditions.push(Q.skip(offset ?? 0));
+        conditions.push(Q.take(limit));
+      }
+
       const lists = await listsCollection.query(...conditions).fetch();
       return lists.map((list) => this.listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get completed lists: ${error.message}`);
+    }
+  }
+
+  async countCompletedLists(
+    familyGroupId: string,
+    startDate?: number,
+    endDate?: number
+  ): Promise<number> {
+    try {
+      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
+      const conditions: any[] = [
+        Q.where('family_group_id', familyGroupId),
+        Q.where('status', 'completed'),
+      ];
+      if (startDate) conditions.push(Q.where('completed_at', Q.gte(startDate)));
+      if (endDate) conditions.push(Q.where('completed_at', Q.lte(endDate)));
+      return await listsCollection.query(...conditions).fetchCount();
+    } catch (error: any) {
+      throw new Error(`Failed to count completed lists: ${error.message}`);
     }
   }
 
@@ -1048,7 +1074,10 @@ class LocalStorageManager {
    */
   observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
     const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-    const query = listsCollection.query(Q.where('family_group_id', familyGroupId));
+    const query = listsCollection.query(
+      Q.where('family_group_id', familyGroupId),
+      Q.where('status', Q.notEq('deleted')),
+    );
 
     // Observe key fields so status/sync changes update the UI without a manual refresh.
     const subscription = query.observeWithColumns([
@@ -1769,6 +1798,35 @@ class LocalStorageManager {
       // Data cleared successfully - no logging needed
     } catch (error: any) {
       throw new Error(`Failed to clear local data: ${error.message}`);
+    }
+  }
+  async markSyncedIfUnchanged(
+    entityType: 'list' | 'item' | 'storeLayout',
+    entityId: string,
+    expectedUpdatedAt: number | null
+  ): Promise<void> {
+    try {
+      await this.database.write(async () => {
+        if (entityType === 'item') {
+          const collection = this.database.get<ItemModel>('items');
+          const record = await collection.find(entityId);
+          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
+            await record.update(r => { r.syncStatus = 'synced'; });
+          }
+        } else if (entityType === 'storeLayout') {
+          const collection = this.database.get<StoreLayoutModel>('store_layouts');
+          const record = await collection.find(entityId);
+          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
+            await record.update(r => { r.syncStatus = 'synced'; });
+          }
+        } else {
+          const collection = this.database.get<ShoppingListModel>('shopping_lists');
+          const record = await collection.find(entityId);
+          await record.update(r => { r.syncStatus = 'synced'; });
+        }
+      }, 'markSyncedIfUnchanged');
+    } catch {
+      // Record may have been deleted; sync status update is no longer relevant
     }
   }
 }
