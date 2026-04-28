@@ -159,11 +159,10 @@ class HistoryTracker {
     limit: number = 20
   ): Promise<PaginatedHistory> {
     try {
-      const allLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-      const total = allLists.length;
-
-      // Slice for pagination
-      const lists = allLists.slice(offset, offset + limit);
+      const [lists, total] = await Promise.all([
+        LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, limit, offset),
+        LocalStorageManager.countCompletedLists(familyGroupId),
+      ]);
 
       return {
         lists,

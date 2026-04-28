@@ -29,21 +29,25 @@ class ArchiveService {
       const now = Date.now();
       const thresholdDate = now - (this.ARCHIVE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
 
-      // Get all completed lists
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+      const PAGE = 100;
+      let offset = 0;
+      let archivedCount = 0;
 
-      // Find lists older than threshold and not yet archived
-      const listsToArchive = completedLists.filter(list => {
-        const completedAt = list.completedAt || 0;
-        return completedAt < thresholdDate && !list.archived;
-      });
-
-      // Archive each list
-      for (const list of listsToArchive) {
-        await ShoppingListManager.updateList(list.id, { archived: true });
+      while (true) {
+        const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        const toArchive = page.filter(list => {
+          const completedAt = list.completedAt || 0;
+          return completedAt < thresholdDate && !list.archived;
+        });
+        for (const list of toArchive) {
+          await ShoppingListManager.updateList(list.id, { archived: true });
+          archivedCount++;
+        }
+        if (page.length < PAGE) break;
+        offset += PAGE;
       }
 
-      return listsToArchive.length;
+      return archivedCount;
     } catch {
       return 0;
     }
@@ -54,14 +58,15 @@ class ArchiveService {
    */
   async getArchivedLists(familyGroupId: string): Promise<ShoppingList[]> {
     try {
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+      // TODO: replace with a dedicated archived=true DB query when an archived-list UI screen exists
+      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, 200);
 
       return completedLists
         .filter(list => list.archived === true)
         .sort((a, b) => {
           const dateA = a.completedAt || 0;
           const dateB = b.completedAt || 0;
-          return dateB - dateA; // Most recent first
+          return dateB - dateA;
         });
     } catch {
       return [];
@@ -73,14 +78,15 @@ class ArchiveService {
    */
   async getNonArchivedLists(familyGroupId: string): Promise<ShoppingList[]> {
     try {
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+      // TODO: replace with a dedicated archived=false DB query when non-archived list pagination is needed
+      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, 200);
 
       return completedLists
         .filter(list => !list.archived)
         .sort((a, b) => {
           const dateA = a.completedAt || 0;
           const dateB = b.completedAt || 0;
-          return dateB - dateA; // Most recent first
+          return dateB - dateA;
         });
     } catch {
       return [];

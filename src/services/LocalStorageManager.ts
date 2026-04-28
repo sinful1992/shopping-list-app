@@ -15,6 +15,76 @@ import { PriceHistoryModel } from '../database/models/PriceHistory';
 import StoreLayoutModel from '../database/models/StoreLayout';
 import { ItemPreferenceModel } from '../database/models/ItemPreference';
 
+function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
+  record._raw.id = list.id;
+  record.name = list.name;
+  record.familyGroupId = list.familyGroupId;
+  record.createdBy = list.createdBy;
+  record.status = list.status;
+  record.completedAt = list.completedAt;
+  record.completedBy = list.completedBy;
+  record.receiptUrl = list.receiptUrl;
+  record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+  record.syncStatus = list.syncStatus || 'pending';
+  record.isLocked = list.isLocked;
+  record.lockedBy = list.lockedBy;
+  record.lockedByName = list.lockedByName;
+  record.lockedByRole = list.lockedByRole;
+  record.lockedAt = list.lockedAt;
+  record.budget = list.budget;
+  record.storeName = list.storeName || null;
+  record.archived = list.archived || null;
+  record.layoutApplied = list.layoutApplied ?? null;
+}
+
+function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
+  record.name = list.name;
+  record.status = list.status;
+  record.completedAt = list.completedAt;
+  record.completedBy = list.completedBy;
+  record.receiptUrl = list.receiptUrl;
+  record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
+  record.syncStatus = list.syncStatus || 'pending';
+  record.isLocked = list.isLocked;
+  record.lockedBy = list.lockedBy;
+  record.lockedByName = list.lockedByName;
+  record.lockedByRole = list.lockedByRole;
+  record.lockedAt = list.lockedAt;
+  record.budget = list.budget;
+  record.storeName = list.storeName || null;
+  record.archived = list.archived || null;
+  record.layoutApplied = list.layoutApplied ?? null;
+}
+
+function applyItemCreate(record: ItemModel, item: Item): void {
+  record._raw.id = item.id;
+  record.listId = item.listId;
+  record.name = item.name;
+  record.quantity = item.quantity;
+  record.price = item.price;
+  record.checked = item.checked;
+  record.createdBy = item.createdBy;
+  record.updatedAt = item.updatedAt;
+  record.category = item.category || null;
+  record.sortOrder = item.sortOrder ?? null;
+  record.unitQty = item.unitQty ?? null;
+  record.measurementUnit = item.measurementUnit ?? null;
+  record.measurementValue = item.measurementValue ?? null;
+}
+
+function applyItemFullUpdate(record: ItemModel, item: Item): void {
+  record.name = item.name;
+  record.quantity = item.quantity;
+  record.price = item.price;
+  record.checked = item.checked;
+  record.updatedAt = item.updatedAt;
+  record.category = item.category || null;
+  record.sortOrder = item.sortOrder ?? null;
+  record.unitQty = item.unitQty ?? null;
+  record.measurementUnit = item.measurementUnit ?? null;
+  record.measurementValue = item.measurementValue ?? null;
+}
+
 /**
  * LocalStorageManager
  * Persists data locally using WatermelonDB for offline access
@@ -60,46 +130,9 @@ class LocalStorageManager {
         const existing = await listsCollection.query(Q.where('id', list.id)).fetch();
         if (existing.length > 0) {
           listRecord = existing[0];
-          await listRecord.update((record) => {
-            record.name = list.name;
-            record.status = list.status;
-            record.completedAt = list.completedAt;
-            record.completedBy = list.completedBy;
-            record.receiptUrl = list.receiptUrl;
-            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            record.syncStatus = list.syncStatus || 'pending';
-            record.isLocked = list.isLocked;
-            record.lockedBy = list.lockedBy;
-            record.lockedByName = list.lockedByName;
-            record.lockedByRole = list.lockedByRole;
-            record.lockedAt = list.lockedAt;
-            record.budget = list.budget;
-            record.storeName = list.storeName || null;
-            record.archived = list.archived || null;
-            record.layoutApplied = list.layoutApplied ?? null;
-          });
+          await listRecord.update((record) => { applyListFullUpdate(record, list); });
         } else {
-          listRecord = await listsCollection.create((record) => {
-            record._raw.id = list.id;
-            record.name = list.name;
-            record.familyGroupId = list.familyGroupId;
-            record.createdBy = list.createdBy;
-            record.status = list.status;
-            record.completedAt = list.completedAt;
-            record.completedBy = list.completedBy;
-            record.receiptUrl = list.receiptUrl;
-            record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-            record.syncStatus = list.syncStatus || 'pending';
-            record.isLocked = list.isLocked;
-            record.lockedBy = list.lockedBy;
-            record.lockedByName = list.lockedByName;
-            record.lockedByRole = list.lockedByRole;
-            record.lockedAt = list.lockedAt;
-            record.budget = list.budget;
-            record.storeName = list.storeName || null;
-            record.archived = list.archived || null;
-            record.layoutApplied = list.layoutApplied ?? null;
-          });
+          listRecord = await listsCollection.create((record) => { applyListCreate(record, list); });
         }
       }, 'saveList');
 
@@ -124,47 +157,6 @@ class LocalStorageManager {
 
     const existingMap = new Map(existingRecords.map(r => [r.id, r]));
 
-    const applyUpdate = (record: ShoppingListModel, list: ShoppingList) => {
-      record.name = list.name;
-      record.status = list.status;
-      record.completedAt = list.completedAt;
-      record.completedBy = list.completedBy;
-      record.receiptUrl = list.receiptUrl;
-      record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-      record.syncStatus = list.syncStatus || 'pending';
-      record.isLocked = list.isLocked;
-      record.lockedBy = list.lockedBy;
-      record.lockedByName = list.lockedByName;
-      record.lockedByRole = list.lockedByRole;
-      record.lockedAt = list.lockedAt;
-      record.budget = list.budget;
-      record.storeName = list.storeName || null;
-      record.archived = list.archived || null;
-      record.layoutApplied = list.layoutApplied ?? null;
-    };
-
-    const applyCreate = (record: ShoppingListModel, list: ShoppingList) => {
-      record._raw.id = list.id;
-      record.name = list.name;
-      record.familyGroupId = list.familyGroupId;
-      record.createdBy = list.createdBy;
-      record.status = list.status;
-      record.completedAt = list.completedAt;
-      record.completedBy = list.completedBy;
-      record.receiptUrl = list.receiptUrl;
-      record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-      record.syncStatus = list.syncStatus || 'pending';
-      record.isLocked = list.isLocked;
-      record.lockedBy = list.lockedBy;
-      record.lockedByName = list.lockedByName;
-      record.lockedByRole = list.lockedByRole;
-      record.lockedAt = list.lockedAt;
-      record.budget = list.budget;
-      record.storeName = list.storeName || null;
-      record.archived = list.archived || null;
-      record.layoutApplied = list.layoutApplied ?? null;
-    };
-
     const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
@@ -173,9 +165,9 @@ class LocalStorageManager {
         if (existing) {
           const local = this.listModelToType(existing);
           if (!this.hasListChanged(local, list)) continue;
-          ops.push(existing.prepareUpdate(r => applyUpdate(r as ShoppingListModel, list)));
+          ops.push(existing.prepareUpdate(r => applyListFullUpdate(r, list)));
         } else {
-          ops.push(collection.prepareCreate(r => applyCreate(r, list)));
+          ops.push(collection.prepareCreate(r => applyListCreate(r, list)));
         }
       }
       if (ops.length === 0) return;
@@ -191,9 +183,9 @@ class LocalStorageManager {
             if (rec) {
               const local = this.listModelToType(rec);
               if (!this.hasListChanged(local, list)) continue;
-              await rec.update(r => applyUpdate(r, list));
+              await rec.update(r => applyListFullUpdate(r, list));
             } else {
-              await collection.create(r => applyCreate(r, list));
+              await collection.create(r => applyListCreate(r, list));
             }
           } catch (e) {
             CrashReporting.recordError(e as Error, `saveListsBatch individual write failed for ${list.id}`);
@@ -263,13 +255,15 @@ class LocalStorageManager {
   async getCompletedLists(
     familyGroupId: string,
     startDate?: number,
-    endDate?: number
+    endDate?: number,
+    limit?: number,
+    offset?: number
   ): Promise<ShoppingList[]> {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const conditions = [
+      const conditions: any[] = [
         Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'completed')
+        Q.where('status', 'completed'),
       ];
 
       if (startDate) {
@@ -281,10 +275,34 @@ class LocalStorageManager {
 
       conditions.push(Q.sortBy('completed_at', Q.desc));
 
+      if (limit !== undefined) {
+        conditions.push(Q.skip(offset ?? 0));
+        conditions.push(Q.take(limit));
+      }
+
       const lists = await listsCollection.query(...conditions).fetch();
       return lists.map((list) => this.listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get completed lists: ${error.message}`);
+    }
+  }
+
+  async countCompletedLists(
+    familyGroupId: string,
+    startDate?: number,
+    endDate?: number
+  ): Promise<number> {
+    try {
+      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
+      const conditions: any[] = [
+        Q.where('family_group_id', familyGroupId),
+        Q.where('status', 'completed'),
+      ];
+      if (startDate) conditions.push(Q.where('completed_at', Q.gte(startDate)));
+      if (endDate) conditions.push(Q.where('completed_at', Q.lte(endDate)));
+      return await listsCollection.query(...conditions).fetchCount();
+    } catch (error: any) {
+      throw new Error(`Failed to count completed lists: ${error.message}`);
     }
   }
 
@@ -357,34 +375,9 @@ class LocalStorageManager {
         const existing = await itemsCollection.query(Q.where('id', item.id)).fetch();
         if (existing.length > 0) {
           itemRecord = existing[0];
-          await itemRecord.update((record) => {
-            record.name = item.name;
-            record.quantity = item.quantity;
-            record.price = item.price;
-            record.checked = item.checked;
-            record.updatedAt = item.updatedAt;
-            record.category = item.category || null;
-            record.sortOrder = item.sortOrder ?? null;
-            record.unitQty = item.unitQty ?? null;
-            record.measurementUnit = item.measurementUnit ?? null;
-            record.measurementValue = item.measurementValue ?? null;
-          });
+          await itemRecord.update((record) => { applyItemFullUpdate(record, item); });
         } else {
-          itemRecord = await itemsCollection.create((record) => {
-            record._raw.id = item.id;
-            record.listId = item.listId;
-            record.name = item.name;
-            record.quantity = item.quantity;
-            record.price = item.price;
-            record.checked = item.checked;
-            record.createdBy = item.createdBy;
-            record.updatedAt = item.updatedAt;
-            record.category = item.category || null;
-            record.sortOrder = item.sortOrder ?? null;
-            record.unitQty = item.unitQty ?? null;
-            record.measurementUnit = item.measurementUnit ?? null;
-            record.measurementValue = item.measurementValue ?? null;
-          });
+          itemRecord = await itemsCollection.create((record) => { applyItemCreate(record, item); });
         }
       }, 'saveItem');
 
@@ -543,26 +536,10 @@ class LocalStorageManager {
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
 
-      const applyCreate = (record: ItemModel, item: Item) => {
-        record._raw.id = item.id;
-        record.listId = item.listId;
-        record.name = item.name;
-        record.quantity = item.quantity;
-        record.price = item.price;
-        record.checked = item.checked;
-        record.createdBy = item.createdBy;
-        record.updatedAt = item.updatedAt;
-        record.category = item.category || null;
-        record.sortOrder = item.sortOrder ?? null;
-        record.unitQty = item.unitQty ?? null;
-        record.measurementUnit = item.measurementUnit ?? null;
-        record.measurementValue = item.measurementValue ?? null;
-      };
-
       const t0 = performance.now();
       await this.database.write(async () => {
         const ops: any[] = items.map(item =>
-          itemsCollection.prepareCreate(r => applyCreate(r, item))
+          itemsCollection.prepareCreate(r => applyItemCreate(r, item))
         );
         try {
           await this.database.batch(ops);
@@ -570,7 +547,7 @@ class LocalStorageManager {
           CrashReporting.recordError(error as Error, 'saveItemsBatch batch failed, falling back to individual writes');
           for (const item of items) {
             try {
-              await itemsCollection.create(r => applyCreate(r, item));
+              await itemsCollection.create(r => applyItemCreate(r, item));
             } catch (e) {
               CrashReporting.recordError(e as Error, `saveItemsBatch individual create failed for ${item.id}`);
             }
@@ -588,45 +565,19 @@ class LocalStorageManager {
     const itemsCollection = this.database.get<ItemModel>('items');
     try {
       const ids = items.map(i => i.id);
-      const deletedIds = await this.database.adapter.getDeletedRecords('items');
-      const staleIds = ids.filter(id => deletedIds.includes(id));
-      if (staleIds.length > 0) {
-        await this.database.adapter.destroyDeletedRecords('items', staleIds);
-      }
-
-      const applyUpdate = (record: ItemModel, item: Item) => {
-        record.name = item.name;
-        record.quantity = item.quantity;
-        record.price = item.price;
-        record.checked = item.checked;
-        record.updatedAt = item.updatedAt;
-        record.category = item.category || null;
-        record.sortOrder = item.sortOrder ?? null;
-        record.unitQty = item.unitQty ?? null;
-        record.measurementUnit = item.measurementUnit ?? null;
-        record.measurementValue = item.measurementValue ?? null;
-      };
-
-      const applyCreate = (record: ItemModel, item: Item) => {
-        record._raw.id = item.id;
-        record.listId = item.listId;
-        record.name = item.name;
-        record.quantity = item.quantity;
-        record.price = item.price;
-        record.checked = item.checked;
-        record.createdBy = item.createdBy;
-        record.updatedAt = item.updatedAt;
-        record.category = item.category || null;
-        record.sortOrder = item.sortOrder ?? null;
-        record.unitQty = item.unitQty ?? null;
-        record.measurementUnit = item.measurementUnit ?? null;
-        record.measurementValue = item.measurementValue ?? null;
-      };
 
       const t0 = performance.now();
       await this.database.write(async () => {
+        // Destroy tombstones inside the transaction to prevent a race where a concurrent
+        // markAsDeleted() could soft-delete a record between the fetch and the upsert.
+        const deletedIds = await this.database.adapter.getDeletedRecords('items');
+        const staleIds = ids.filter(id => deletedIds.includes(id));
+        if (staleIds.length > 0) {
+          await this.database.adapter.destroyDeletedRecords('items', staleIds);
+        }
+
         const existingRecords = await itemsCollection
-          .query(Q.where('id', Q.oneOf(items.map(i => i.id))))
+          .query(Q.where('id', Q.oneOf(ids)))
           .fetch();
         const existingMap = new Map(existingRecords.map(r => [r.id, r]));
 
@@ -635,9 +586,9 @@ class LocalStorageManager {
           const existing = existingMap.get(item.id);
           if (existing) {
             if (existing.updatedAt > (item.updatedAt ?? 0)) continue;
-            ops.push(existing.prepareUpdate(r => applyUpdate(r as ItemModel, item)));
+            ops.push(existing.prepareUpdate(r => applyItemFullUpdate(r as ItemModel, item)));
           } else {
-            ops.push(itemsCollection.prepareCreate(r => applyCreate(r, item)));
+            ops.push(itemsCollection.prepareCreate(r => applyItemCreate(r, item)));
           }
         }
         if (ops.length === 0) return;
@@ -652,9 +603,9 @@ class LocalStorageManager {
               const rec = records[0];
               if (rec) {
                 if (rec.updatedAt > (item.updatedAt ?? 0)) continue;
-                await rec.update(r => applyUpdate(r, item));
+                await rec.update(r => applyItemFullUpdate(r, item));
               } else {
-                await itemsCollection.create(r => applyCreate(r, item));
+                await itemsCollection.create(r => applyItemCreate(r, item));
               }
             } catch (e) {
               CrashReporting.recordError(e as Error, `saveItemsBatchUpsert individual write failed for ${item.id}`);
@@ -1123,7 +1074,10 @@ class LocalStorageManager {
    */
   observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
     const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-    const query = listsCollection.query(Q.where('family_group_id', familyGroupId));
+    const query = listsCollection.query(
+      Q.where('family_group_id', familyGroupId),
+      Q.where('status', Q.notEq('deleted')),
+    );
 
     // Observe key fields so status/sync changes update the UI without a manual refresh.
     const subscription = query.observeWithColumns([
@@ -1844,6 +1798,35 @@ class LocalStorageManager {
       // Data cleared successfully - no logging needed
     } catch (error: any) {
       throw new Error(`Failed to clear local data: ${error.message}`);
+    }
+  }
+  async markSyncedIfUnchanged(
+    entityType: 'list' | 'item' | 'storeLayout',
+    entityId: string,
+    expectedUpdatedAt: number | null
+  ): Promise<void> {
+    try {
+      await this.database.write(async () => {
+        if (entityType === 'item') {
+          const collection = this.database.get<ItemModel>('items');
+          const record = await collection.find(entityId);
+          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
+            await record.update(r => { r.syncStatus = 'synced'; });
+          }
+        } else if (entityType === 'storeLayout') {
+          const collection = this.database.get<StoreLayoutModel>('store_layouts');
+          const record = await collection.find(entityId);
+          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
+            await record.update(r => { r.syncStatus = 'synced'; });
+          }
+        } else {
+          const collection = this.database.get<ShoppingListModel>('shopping_lists');
+          const record = await collection.find(entityId);
+          await record.update(r => { r.syncStatus = 'synced'; });
+        }
+      }, 'markSyncedIfUnchanged');
+    } catch {
+      // Record may have been deleted; sync status update is no longer relevant
     }
   }
 }

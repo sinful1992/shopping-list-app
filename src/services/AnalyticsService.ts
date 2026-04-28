@@ -69,12 +69,7 @@ class AnalyticsService {
   ): Promise<AnalyticsSummary> {
     try {
       const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
-      // Filter lists from specified time period
-      const recentLists = completedLists.filter(
-        list => (list.completedAt || list.createdAt) >= cutoffDate
-      );
+      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
 
       // Calculate total spending and trips
       let totalSpent = 0;
@@ -151,7 +146,7 @@ class AnalyticsService {
         .slice(0, 10);
 
       // Monthly trend (group by month)
-      const monthlyTrend = this.calculateMonthlyTrend(recentLists);
+      const monthlyTrend = await this.calculateMonthlyTrend(recentLists);
 
       // Category breakdown
       const categoryBreakdown: CategorySpending[] = Object.entries(categoryData)
@@ -224,11 +219,7 @@ class AnalyticsService {
   ): Promise<{ withinBudget: number; overBudget: number; noBudget: number }> {
     try {
       const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
-      const recentLists = completedLists.filter(
-        list => (list.completedAt || list.createdAt) >= cutoffDate
-      );
+      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
 
       let withinBudget = 0;
       let overBudget = 0;
@@ -265,11 +256,7 @@ class AnalyticsService {
   ): Promise<{ dayOfWeek: { [day: string]: number }; timeOfDay: { [hour: string]: number } }> {
     try {
       const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
-      const recentLists = completedLists.filter(
-        list => (list.completedAt || list.createdAt) >= cutoffDate
-      );
+      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
 
       const dayOfWeek: { [day: string]: number } = {
         Sunday: 0,

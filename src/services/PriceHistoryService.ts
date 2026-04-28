@@ -122,25 +122,31 @@ class PriceHistoryService {
   async backfillPriceHistory(familyGroupId: string): Promise<void> {
     if (await isBackfillDone(familyGroupId)) return;
 
-    const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+    const PAGE = 100;
+    let offset = 0;
     const allRecords: PriceHistoryRecord[] = [];
 
-    for (const list of completedLists) {
-      const items = await LocalStorageManager.getItemsForList(list.id);
-      for (const item of items) {
-        if (item.checked && item.price !== null) {
-          allRecords.push({
-            id: `backfill_${list.id}_${item.id}`,
-            itemName: item.name,
-            itemNameNormalized: item.name.toLowerCase().trim(),
-            price: item.price,
-            storeName: list.storeName ?? null,
-            listId: list.id,
-            recordedAt: item.updatedAt,
-            familyGroupId,
-          });
+    while (true) {
+      const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+      for (const list of page) {
+        const items = await LocalStorageManager.getItemsForList(list.id);
+        for (const item of items) {
+          if (item.checked && item.price !== null) {
+            allRecords.push({
+              id: `backfill_${list.id}_${item.id}`,
+              itemName: item.name,
+              itemNameNormalized: item.name.toLowerCase().trim(),
+              price: item.price,
+              storeName: list.storeName ?? null,
+              listId: list.id,
+              recordedAt: item.updatedAt,
+              familyGroupId,
+            });
+          }
         }
       }
+      if (page.length < PAGE) break;
+      offset += PAGE;
     }
 
     await LocalStorageManager.savePriceHistoryBatch(allRecords);
@@ -198,26 +204,28 @@ class PriceHistoryService {
     itemName: string
   ): Promise<PricePoint[]> {
     try {
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+      const PAGE = 100;
+      let offset = 0;
       const pricePoints: PricePoint[] = [];
+      const nameLower = itemName.toLowerCase();
 
-      for (const list of completedLists) {
-        const items = await LocalStorageManager.getItemsForList(list.id);
-
-        const matchingItems = items.filter(
-          item => item.name.toLowerCase() === itemName.toLowerCase() && item.price !== null
-        );
-
-        matchingItems.forEach(item => {
-          if (item.price) {
-            pricePoints.push({
-              price: item.price,
-              date: list.completedAt || list.createdAt,
-              storeName: list.storeName || null,
-              listId: list.id,
-            });
+      while (true) {
+        const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        for (const list of page) {
+          const items = await LocalStorageManager.getItemsForList(list.id);
+          for (const item of items) {
+            if (item.name.toLowerCase() === nameLower && item.price) {
+              pricePoints.push({
+                price: item.price,
+                date: list.completedAt || list.createdAt,
+                storeName: list.storeName || null,
+                listId: list.id,
+              });
+            }
           }
-        });
+        }
+        if (page.length < PAGE) break;
+        offset += PAGE;
       }
 
       return pricePoints.sort((a, b) => a.date - b.date);
@@ -321,17 +329,22 @@ class PriceHistoryService {
     limit: number = 10
   ): Promise<Array<{ itemName: string; volatility: number; priceRange: number }>> {
     try {
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
+      const PAGE = 100;
+      let offset = 0;
       const itemNamesSet = new Set<string>();
 
-      for (const list of completedLists) {
-        const items = await LocalStorageManager.getItemsForList(list.id);
-        items.forEach(item => {
-          if (item.price !== null) {
-            itemNamesSet.add(item.name.toLowerCase());
-          }
-        });
+      while (true) {
+        const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        for (const list of page) {
+          const items = await LocalStorageManager.getItemsForList(list.id);
+          items.forEach(item => {
+            if (item.price !== null) {
+              itemNamesSet.add(item.name.toLowerCase());
+            }
+          });
+        }
+        if (page.length < PAGE) break;
+        offset += PAGE;
       }
 
       const volatilityData: Array<{ itemName: string; volatility: number; priceRange: number }> = [];
@@ -373,11 +386,7 @@ class PriceHistoryService {
   ): Promise<{ cheapest: PricePoint[]; mostExpensive: PricePoint[] }> {
     try {
       const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
-      const recentLists = completedLists.filter(
-        list => (list.completedAt || list.createdAt) >= cutoffDate
-      );
+      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
 
       const allPricePoints: (PricePoint & { itemName: string })[] = [];
 
