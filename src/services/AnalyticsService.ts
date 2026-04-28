@@ -146,7 +146,7 @@ class AnalyticsService {
         .slice(0, 10);
 
       // Monthly trend (group by month)
-      const monthlyTrend = this.calculateMonthlyTrend(recentLists);
+      const monthlyTrend = await this.calculateMonthlyTrend(recentLists);
 
       // Category breakdown
       const categoryBreakdown: CategorySpending[] = Object.entries(categoryData)
