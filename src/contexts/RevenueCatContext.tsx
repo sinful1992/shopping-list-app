@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { safeJsonParse } from '../utils/safeJsonParse';
 import Purchases, {
   PurchasesOffering,
   CustomerInfo,
@@ -176,16 +177,10 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
   }, [user?.familyGroupId, user?.uid]);
 
   const loadCachedTier = async () => {
-    try {
-      const cached = await AsyncStorage.getItem(TIER_CACHE_KEY);
-      if (cached) {
-        const { tier: cachedTier } = JSON.parse(cached);
-        if (cachedTier) {
-          setTier(cachedTier);
-        }
-      }
-    } catch {
-      // Cache read failed — stay on free
+    const cached = await AsyncStorage.getItem(TIER_CACHE_KEY);
+    const parsed = safeJsonParse<{ tier?: SubscriptionTier } | null>(cached, null);
+    if (parsed?.tier) {
+      setTier(parsed.tier);
     }
   };
 

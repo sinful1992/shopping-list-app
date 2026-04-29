@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
  * ImageStorageManager
@@ -163,12 +164,8 @@ class ImageStorageManager {
    * Helper: Get upload queue from storage
    */
   private async getUploadQueue(): Promise<QueuedUpload[]> {
-    try {
-      const queueJson = await AsyncStorage.getItem(this.UPLOAD_QUEUE_KEY);
-      return queueJson ? JSON.parse(queueJson) : [];
-    } catch (error) {
-      return [];
-    }
+    const queueJson = await AsyncStorage.getItem(this.UPLOAD_QUEUE_KEY);
+    return safeJsonParse<QueuedUpload[]>(queueJson, []);
   }
 
   /**

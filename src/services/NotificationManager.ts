@@ -3,6 +3,7 @@ import { PermissionsAndroid, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import supabase from './SupabaseClient';
+import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
  * NotificationManager
@@ -157,14 +158,12 @@ class NotificationManager {
       await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       // Update token in Supabase
-      try {
-        const tokenData = await EncryptedStorage.getItem('@fcm_token_data');
-        if (tokenData) {
-          const { userId, familyGroupId } = JSON.parse(tokenData);
-          await this.registerToken(userId, familyGroupId);
-        }
-      } catch (error) {
-        // Token update failed - will retry on next refresh
+      const tokenData = await EncryptedStorage.getItem('@fcm_token_data').catch(() => null);
+      const parsed = safeJsonParse<{ userId?: string; familyGroupId?: string } | null>(tokenData, null);
+      if (parsed?.userId && parsed?.familyGroupId) {
+        await this.registerToken(parsed.userId, parsed.familyGroupId).catch(() => {
+          // Token update failed - will retry on next refresh
+        });
       }
     });
   }
