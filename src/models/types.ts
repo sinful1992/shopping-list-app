@@ -35,7 +35,7 @@ export interface User {
 export interface FamilyGroup {
   id: string;
   name: string;
-  // invitationCode removed - now stored only in /invitations table
+  invitationCode?: string;
   createdBy: string;
   memberIds: { [userId: string]: boolean };
   createdAt: number;

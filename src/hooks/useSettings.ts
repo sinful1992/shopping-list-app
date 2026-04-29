@@ -98,7 +98,7 @@ export function useSettings() {
         setFamilyGroup(group);
 
         if (group) {
-          await fetchInvitationCode(currentUser.familyGroupId);
+          setInvitationCode(group.invitationCode ?? 'NOT_FOUND');
         }
 
         if (group && group.memberIds) {
@@ -126,27 +126,7 @@ export function useSettings() {
       .filter(Boolean);
   };
 
-  const fetchInvitationCode = async (familyGroupId: string) => {
-    try {
-      const invitationsSnapshot = await database()
-        .ref('/invitations')
-        .orderByChild('groupId')
-        .equalTo(familyGroupId)
-        .once('value');
-
-      if (invitationsSnapshot.exists()) {
-        const invitations = invitationsSnapshot.val();
-        const code = Object.keys(invitations)[0];
-        setInvitationCode(code);
-      } else {
-        setInvitationCode('NOT_FOUND');
-      }
-    } catch {
-      setInvitationCode('ERROR');
-    }
-  };
-
-  const updateName = useCallback(async (newName: string): Promise<void> => {
+const updateName = useCallback(async (newName: string): Promise<void> => {
     if (!user) return;
 
     const firebaseUser = await AuthenticationModule.getCurrentFirebaseUser();
@@ -182,9 +162,11 @@ export function useSettings() {
   }, []);
 
   const retryLoadInvitationCode = useCallback(async (): Promise<void> => {
-    if (user?.familyGroupId) {
-      await fetchInvitationCode(user.familyGroupId);
-    }
+    if (!user?.familyGroupId) return;
+    const snap = await database()
+      .ref(`/familyGroups/${user.familyGroupId}/invitationCode`)
+      .once('value');
+    setInvitationCode(snap.val() ?? 'NOT_FOUND');
   }, [user]);
 
   return {
