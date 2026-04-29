@@ -66,6 +66,24 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 10 to 11: Add price history table
+    {
+      toVersion: 11,
+      steps: [
+        createTable({
+          name: 'price_history',
+          columns: [
+            { name: 'item_name',            type: 'string' },
+            { name: 'item_name_normalized', type: 'string', isIndexed: true },
+            { name: 'price',                type: 'number' },
+            { name: 'store_name',           type: 'string', isOptional: true },
+            { name: 'list_id',              type: 'string', isOptional: true, isIndexed: true },
+            { name: 'recorded_at',          type: 'number', isIndexed: true },
+            { name: 'family_group_id',      type: 'string', isIndexed: true },
+          ],
+        }),
+      ],
+    },
     // Migration from version 11 to 12: Add store_layouts table and layout_applied on lists
     {
       toVersion: 12,
@@ -118,24 +136,6 @@ export default schemaMigrations({
             { name: 'measurement_value', type: 'number', isOptional: true },
             { name: 'updated_at', type: 'number' },
             { name: 'created_at', type: 'number', isIndexed: true },
-          ],
-        }),
-      ],
-    },
-    // Migration from version 10 to 11: Add price history table
-    {
-      toVersion: 11,
-      steps: [
-        createTable({
-          name: 'price_history',
-          columns: [
-            { name: 'item_name',            type: 'string' },
-            { name: 'item_name_normalized', type: 'string', isIndexed: true },
-            { name: 'price',                type: 'number' },
-            { name: 'store_name',           type: 'string', isOptional: true },
-            { name: 'list_id',              type: 'string', isOptional: true, isIndexed: true },
-            { name: 'recorded_at',          type: 'number', isIndexed: true },
-            { name: 'family_group_id',      type: 'string', isIndexed: true },
           ],
         }),
       ],
