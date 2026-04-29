@@ -678,16 +678,24 @@ class LocalStorageManager {
         .query(Q.sortBy('timestamp', Q.asc))
         .fetch();
 
-      return operations.map((op) => ({
-        id: op.id,
-        entityType: op.entityType as 'list' | 'item' | 'urgentItem',
-        entityId: op.entityId,
-        operation: op.operation as 'create' | 'update' | 'delete',
-        data: JSON.parse(op.data),
-        timestamp: op.timestamp,
-        retryCount: op.retryCount,
-        nextRetryAt: op.nextRetryAt || null,
-      }));
+      const parseResults = operations.map((op) => {
+        const data = this.safeJsonParse<unknown>(op.data, undefined);
+        if (data === undefined) {
+          console.warn('getSyncQueue: skipping corrupt entry', op.id);
+          return null;
+        }
+        return {
+          id: op.id,
+          entityType: op.entityType as 'list' | 'item' | 'urgentItem',
+          entityId: op.entityId,
+          operation: op.operation as 'create' | 'update' | 'delete',
+          data,
+          timestamp: op.timestamp,
+          retryCount: op.retryCount,
+          nextRetryAt: op.nextRetryAt || null,
+        };
+      });
+      return parseResults.filter((op): op is QueuedOperation => op !== null);
     } catch (error: any) {
       throw new Error(`Failed to get sync queue: ${error.message}`);
     }
