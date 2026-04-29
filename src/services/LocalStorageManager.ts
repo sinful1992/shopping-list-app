@@ -1459,7 +1459,7 @@ class LocalStorageManager {
       category: model.category,
       usageCount: model.usageCount,
       lastUsedAt: model.lastUsedAt,
-      createdAt: model.createdAt,
+      createdAt: Number(model.createdAt),
     };
   }
 
