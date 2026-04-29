@@ -592,7 +592,7 @@ class AuthenticationModule {
 
         // Step 3: Delete all urgent items created by this user
         const urgentItemsSnapshot = await database()
-          .ref(`/familyGroups/${familyGroupId}/urgentItems`)
+          .ref(`/urgentItems/${familyGroupId}`)
           .orderByChild('createdBy')
           .equalTo(userId)
           .once('value');
@@ -600,7 +600,7 @@ class AuthenticationModule {
         const urgentItems = urgentItemsSnapshot.val();
         if (urgentItems) {
           const urgentDeletePromises = Object.keys(urgentItems).map(itemId =>
-            database().ref(`/familyGroups/${familyGroupId}/urgentItems/${itemId}`).remove()
+            database().ref(`/urgentItems/${familyGroupId}/${itemId}`).remove()
           );
           await Promise.all(urgentDeletePromises);
         }

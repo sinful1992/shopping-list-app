@@ -34,9 +34,6 @@ verify_jwt = true
 [functions.create-list]
 verify_jwt = true
 
-[functions.create-urgent-item]
-verify_jwt = true
-
 [functions.notify-urgent-item]
 verify_jwt = false
 
