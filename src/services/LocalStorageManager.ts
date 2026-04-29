@@ -1394,7 +1394,7 @@ class LocalStorageManager {
 
     const applyUpdate = (r: CategoryHistoryModel, data: any) => {
       r.usageCount = data.usageCount || 1;
-      r.lastUsedAt = data.lastUsedAt || Date.now();
+      r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
 
     const applyCreate = (r: CategoryHistoryModel, itemNameNormalized: string, data: any) => {
@@ -1403,7 +1403,7 @@ class LocalStorageManager {
       r.itemNameNormalized = itemNameNormalized;
       r.category = data.category;
       r.usageCount = data.usageCount || 1;
-      r.lastUsedAt = data.lastUsedAt || Date.now();
+      r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
 
     const t0 = performance.now();
@@ -1708,7 +1708,7 @@ class LocalStorageManager {
       r.storeName = data.storeName || '';
       r.categoryOrder = JSON.stringify(data.categoryOrder);
       r.createdBy = data.createdBy || '';
-      r.updatedAt = data.updatedAt || Date.now();
+      r.updatedAt = data.updatedAt ?? Date.now();
       r.syncStatus = 'synced';
     };
 
