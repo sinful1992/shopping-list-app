@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 14,
+  version: 15,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -28,10 +28,14 @@ export const schema = appSchema({
         { name: 'locked_by_role', type: 'string', isOptional: true },
         { name: 'locked_at', type: 'number', isOptional: true },
         { name: 'budget', type: 'number', isOptional: true },
-        { name: 'store_name', type: 'string', isOptional: true, isIndexed: true }, // Sprint 6: Store tracking
-        { name: 'archived', type: 'boolean', isOptional: true, isIndexed: true }, // Sprint 7: Archive functionality
+        { name: 'store_name', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'archived', type: 'boolean', isOptional: true, isIndexed: true },
         { name: 'layout_applied', type: 'boolean', isOptional: true },
         { name: 'unchecked_items_count', type: 'number', isOptional: true },
+        { name: 'total_amount', type: 'number', isOptional: true, isIndexed: true },
+        { name: 'merchant_name', type: 'string', isOptional: true },
+        { name: 'purchase_date', type: 'string', isOptional: true },
+        { name: 'currency', type: 'string', isOptional: true },
       ],
     }),
 

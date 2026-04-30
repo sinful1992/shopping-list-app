@@ -24,4 +24,8 @@ export class ShoppingListModel extends Model {
   @field('archived') archived!: boolean | null;
   @field('layout_applied') layoutApplied!: boolean | null;
   @field('unchecked_items_count') uncheckedItemsCount!: number | null;
+  @field('total_amount') totalAmount!: number | null;
+  @field('merchant_name') merchantName!: string | null;
+  @field('purchase_date') purchaseDate!: string | null;
+  @field('currency') currency!: string | null;
 }

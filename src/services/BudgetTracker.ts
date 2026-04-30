@@ -36,8 +36,8 @@ class BudgetTracker {
 
       // Calculate from shopping lists
       for (const list of lists) {
-        if (list.receiptData && list.receiptData.totalAmount) {
-          totalAmount += list.receiptData.totalAmount;
+        if (list.totalAmount) {
+          totalAmount += list.totalAmount;
           listsWithReceipts++;
         } else {
           listsWithoutReceipts++;
@@ -87,8 +87,8 @@ class BudgetTracker {
         listId: list.id,
         listName: list.name,
         completedAt: list.completedAt || 0,
-        merchantName: list.receiptData?.merchantName || null,
-        totalAmount: list.receiptData?.totalAmount || null,
+        merchantName: list.merchantName || null,
+        totalAmount: list.totalAmount || null,
         createdBy: list.createdBy,
         hasReceipt: list.receiptUrl !== null,
       }));
@@ -130,8 +130,8 @@ class BudgetTracker {
       let listsWithoutReceipts = 0;
 
       for (const list of userLists) {
-        if (list.receiptData && list.receiptData.totalAmount) {
-          totalAmount += list.receiptData.totalAmount;
+        if (list.totalAmount) {
+          totalAmount += list.totalAmount;
           listsWithReceipts++;
         } else {
           listsWithoutReceipts++;

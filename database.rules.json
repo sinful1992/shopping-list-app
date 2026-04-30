@@ -44,7 +44,7 @@
           "$listId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0"
+            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0 && newData.child('name').isString() && newData.child('createdBy').isString() && newData.child('familyGroupId').isString()"
           }
         },
 
@@ -53,15 +53,7 @@
           "$itemId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".validate": "newData.hasChildren(['name', 'listId', 'createdBy', 'checked'])"
-          }
-        },
-
-        "urgentItems": {
-          "$itemId": {
-            ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0"
+            ".validate": "newData.hasChildren(['name', 'listId', 'createdBy', 'checked']) && newData.child('name').isString() && newData.child('listId').isString() && newData.child('createdBy').isString() && newData.child('checked').isBoolean()"
           }
         },
 
@@ -78,18 +70,27 @@
           "$layoutId": {
             ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
             ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-            ".validate": "newData.hasChildren(['storeName', 'categoryOrder', 'familyGroupId', 'createdBy', 'createdAt'])"
+            ".validate": "newData.hasChildren(['storeName', 'categoryOrder', 'familyGroupId', 'createdBy', 'createdAt']) && newData.child('storeName').isString() && newData.child('familyGroupId').isString() && newData.child('createdBy').isString() && newData.child('categoryOrder').hasChildren()"
+          }
+        },
+
+        "categoryHistory": {
+          "$itemHash": {
+            "$category": {
+              ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+              ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+              ".validate": "newData.hasChildren(['category', 'usageCount', 'lastUsedAt', 'createdAt']) && newData.child('usageCount').isNumber() && newData.child('lastUsedAt').isNumber() && newData.child('createdAt').isNumber()"
+            }
           }
         }
       }
     },
 
     "invitations": {
-      ".read": "auth != null",
-      ".indexOn": ["groupId"],
       "$code": {
+        ".read": "auth != null",
         ".write": "auth != null && (!data.exists() || root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid))",
-        ".validate": "newData.hasChildren(['groupId', 'createdAt']) && newData.child('groupId').isString()"
+        ".validate": "newData.hasChildren(['groupId', 'createdAt']) && newData.child('groupId').isString() && newData.child('createdAt').isNumber()"
       }
     },
 
@@ -98,7 +99,7 @@
         ".read": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
         ".write": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
         "$itemId": {
-          ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0"
+          ".validate": "newData.hasChildren(['name', 'createdBy', 'createdAt', 'familyGroupId']) && newData.child('createdAt').isNumber() && newData.child('createdAt').val() > 0 && newData.child('name').isString() && newData.child('createdBy').isString() && newData.child('familyGroupId').isString()"
         }
       }
     }

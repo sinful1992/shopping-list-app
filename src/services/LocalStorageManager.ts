@@ -2,6 +2,7 @@ import { Database, Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
+import { safeJsonParse } from '../utils/safeJsonParse';
 import { CategoryType } from './CategoryService';
 import CrashReporting from './CrashReporting';
 import { schema } from '../database/schema';
@@ -35,6 +36,10 @@ function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
   record.storeName = list.storeName || null;
   record.archived = list.archived || null;
   record.layoutApplied = list.layoutApplied ?? null;
+  record.totalAmount = list.totalAmount ?? null;
+  record.merchantName = list.merchantName ?? null;
+  record.purchaseDate = list.purchaseDate ?? null;
+  record.currency = list.currency ?? null;
 }
 
 function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
@@ -54,6 +59,10 @@ function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): voi
   record.storeName = list.storeName || null;
   record.archived = list.archived || null;
   record.layoutApplied = list.layoutApplied ?? null;
+  record.totalAmount = list.totalAmount ?? null;
+  record.merchantName = list.merchantName ?? null;
+  record.purchaseDate = list.purchaseDate ?? null;
+  record.currency = list.currency ?? null;
 }
 
 function applyItemCreate(record: ItemModel, item: Item): void {
@@ -335,6 +344,10 @@ class LocalStorageManager {
           if (updates.archived !== undefined) record.archived = updates.archived;
           if (updates.layoutApplied !== undefined) record.layoutApplied = updates.layoutApplied;
           if (updates.uncheckedItemsCount !== undefined) record.uncheckedItemsCount = updates.uncheckedItemsCount;
+          if (updates.totalAmount !== undefined) record.totalAmount = updates.totalAmount;
+          if (updates.merchantName !== undefined) record.merchantName = updates.merchantName;
+          if (updates.purchaseDate !== undefined) record.purchaseDate = updates.purchaseDate;
+          if (updates.currency !== undefined) record.currency = updates.currency;
         });
       }, 'updateList');
 
@@ -678,16 +691,24 @@ class LocalStorageManager {
         .query(Q.sortBy('timestamp', Q.asc))
         .fetch();
 
-      return operations.map((op) => ({
-        id: op.id,
-        entityType: op.entityType as 'list' | 'item' | 'urgentItem',
-        entityId: op.entityId,
-        operation: op.operation as 'create' | 'update' | 'delete',
-        data: JSON.parse(op.data),
-        timestamp: op.timestamp,
-        retryCount: op.retryCount,
-        nextRetryAt: op.nextRetryAt || null,
-      }));
+      const parseResults = operations.map((op) => {
+        const data = safeJsonParse<unknown>(op.data, undefined);
+        if (data === undefined) {
+          console.warn('getSyncQueue: skipping corrupt entry', op.id);
+          return null;
+        }
+        return {
+          id: op.id,
+          entityType: op.entityType as 'list' | 'item' | 'urgentItem',
+          entityId: op.entityId,
+          operation: op.operation as 'create' | 'update' | 'delete',
+          data,
+          timestamp: op.timestamp,
+          retryCount: op.retryCount,
+          nextRetryAt: op.nextRetryAt || null,
+        };
+      });
+      return parseResults.filter((op): op is QueuedOperation => op !== null);
     } catch (error: any) {
       throw new Error(`Failed to get sync queue: ${error.message}`);
     }
@@ -776,8 +797,8 @@ class LocalStorageManager {
     let total = 0;
 
     for (const list of lists) {
-      if (list.receiptData && list.receiptData.totalAmount) {
-        total += list.receiptData.totalAmount;
+      if (list.totalAmount) {
+        total += list.totalAmount;
       }
     }
 
@@ -1189,10 +1210,6 @@ class LocalStorageManager {
 
   // ===== HELPER METHODS =====
 
-  private safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
-    if (!value) return fallback;
-    try { return JSON.parse(value) as T; } catch { return fallback; }
-  }
 
   private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
     return (
@@ -1221,7 +1238,7 @@ class LocalStorageManager {
       completedAt: model.completedAt,
       completedBy: model.completedBy,
       receiptUrl: model.receiptUrl,
-      receiptData: this.safeJsonParse<ReceiptData | null>(model.receiptData, null),
+      receiptData: safeJsonParse<ReceiptData | null>(model.receiptData, null),
       syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
       isLocked: model.isLocked,
       lockedBy: model.lockedBy,
@@ -1233,6 +1250,10 @@ class LocalStorageManager {
       archived: model.archived,
       layoutApplied: model.layoutApplied,
       uncheckedItemsCount: model.uncheckedItemsCount,
+      totalAmount: model.totalAmount,
+      merchantName: model.merchantName,
+      purchaseDate: model.purchaseDate,
+      currency: model.currency,
     };
   }
 
@@ -1394,7 +1415,7 @@ class LocalStorageManager {
 
     const applyUpdate = (r: CategoryHistoryModel, data: any) => {
       r.usageCount = data.usageCount || 1;
-      r.lastUsedAt = data.lastUsedAt || Date.now();
+      r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
 
     const applyCreate = (r: CategoryHistoryModel, itemNameNormalized: string, data: any) => {
@@ -1403,7 +1424,7 @@ class LocalStorageManager {
       r.itemNameNormalized = itemNameNormalized;
       r.category = data.category;
       r.usageCount = data.usageCount || 1;
-      r.lastUsedAt = data.lastUsedAt || Date.now();
+      r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
 
     const t0 = performance.now();
@@ -1459,7 +1480,7 @@ class LocalStorageManager {
       category: model.category,
       usageCount: model.usageCount,
       lastUsedAt: model.lastUsedAt,
-      createdAt: model.createdAt,
+      createdAt: Number(model.createdAt),
     };
   }
 
@@ -1708,7 +1729,7 @@ class LocalStorageManager {
       r.storeName = data.storeName || '';
       r.categoryOrder = JSON.stringify(data.categoryOrder);
       r.createdBy = data.createdBy || '';
-      r.updatedAt = data.updatedAt || Date.now();
+      r.updatedAt = data.updatedAt ?? Date.now();
       r.syncStatus = 'synced';
     };
 
@@ -1764,7 +1785,7 @@ class LocalStorageManager {
       id: model.id,
       familyGroupId: model.familyGroupId,
       storeName: model.storeName,
-      categoryOrder: this.safeJsonParse<CategoryType[]>(model.categoryOrder, []),
+      categoryOrder: safeJsonParse<CategoryType[]>(model.categoryOrder, []),
       createdBy: model.createdBy,
       createdAt: Number(model.createdAt), // @date decorator returns Date object; must convert
       updatedAt: model.updatedAt,

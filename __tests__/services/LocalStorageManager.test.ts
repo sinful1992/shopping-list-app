@@ -49,6 +49,10 @@ function makeList(overrides: Partial<ShoppingList> = {}): ShoppingList {
     lockedByRole: null,
     lockedAt: null,
     budget: null,
+    totalAmount: null,
+    merchantName: null,
+    purchaseDate: null,
+    currency: null,
     ...overrides,
   };
 }

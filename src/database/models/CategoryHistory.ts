@@ -9,5 +9,5 @@ export class CategoryHistoryModel extends Model {
   @field('category') category!: string;
   @field('usage_count') usageCount!: number;
   @field('last_used_at') lastUsedAt!: number;
-  @readonly @date('created_at') createdAt!: number;
+  @readonly @date('created_at') createdAt!: Date;
 }

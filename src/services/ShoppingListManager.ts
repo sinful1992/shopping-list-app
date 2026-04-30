@@ -46,7 +46,11 @@ class ShoppingListManager {
       lockedByName: null,
       lockedByRole: null,
       lockedAt: null,
-      budget: null, // No budget by default
+      budget: null,
+      totalAmount: null,
+      merchantName: null,
+      purchaseDate: null,
+      currency: null,
     };
 
     // Save locally first (offline-first)
@@ -96,6 +100,10 @@ class ShoppingListManager {
       lockedByRole: null,
       lockedAt: null,
       budget: null,
+      totalAmount: null,
+      merchantName: null,
+      purchaseDate: null,
+      currency: null,
     };
 
     // Save locally FIRST for instant UI update via WatermelonDB observer
@@ -249,14 +257,10 @@ class ShoppingListManager {
     storeName: string | null,
     uncheckedItemsCount?: number | null
   ): Promise<ShoppingList> {
-    // Build receipt data with pre-calculated total (skip item fetch)
     const receiptData: ReceiptData | null =
       preCalculatedTotal > 0
         ? {
-            merchantName: storeName,
-            purchaseDate: null,
             subtotal: null,
-            currency: '£',
             lineItems: [],
             discounts: [],
             totalDiscount: null,
@@ -264,7 +268,6 @@ class ShoppingListManager {
             store: null,
             extractedAt: Date.now(),
             confidence: 1,
-            totalAmount: preCalculatedTotal,
           }
         : null;
 
@@ -277,6 +280,12 @@ class ShoppingListManager {
       lockedByName: null,
       lockedByRole: null,
       lockedAt: null,
+      ...(preCalculatedTotal > 0 && {
+        totalAmount: preCalculatedTotal,
+        merchantName: storeName,
+        currency: '£',
+        purchaseDate: null,
+      }),
       ...(receiptData && { receiptData }),
       ...(uncheckedItemsCount != null && { uncheckedItemsCount }),
     });

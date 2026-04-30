@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Item } from '../models/types';
 import ShoppingListManager from './ShoppingListManager';
 import LocalStorageManager from './LocalStorageManager';
+import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
  * PricePredictionService
@@ -38,19 +39,12 @@ class PricePredictionService {
     }
 
     // Check persistent storage cache
-    try {
-      const storedData = await AsyncStorage.getItem(this.STORAGE_KEY_PREFIX + familyGroupId);
-      if (storedData) {
-        const { predictions, timestamp } = JSON.parse(storedData);
-        if (Date.now() - timestamp < this.CACHE_TTL) {
-          // Update memory cache
-          this.predictionCache.set(familyGroupId, predictions);
-          this.cacheTimestamps.set(familyGroupId, timestamp);
-          return predictions;
-        }
-      }
-    } catch {
-      // Cache read error, will recalculate
+    const storedData = await AsyncStorage.getItem(this.STORAGE_KEY_PREFIX + familyGroupId);
+    const cachedStorage = safeJsonParse<{ predictions: any; timestamp: number } | null>(storedData, null);
+    if (cachedStorage && Date.now() - cachedStorage.timestamp < this.CACHE_TTL) {
+      this.predictionCache.set(familyGroupId, cachedStorage.predictions);
+      this.cacheTimestamps.set(familyGroupId, cachedStorage.timestamp);
+      return cachedStorage.predictions;
     }
 
     // Calculate fresh predictions

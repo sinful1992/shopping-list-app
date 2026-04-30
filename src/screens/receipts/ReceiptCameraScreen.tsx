@@ -14,7 +14,7 @@ import ReceiptOCRService from '../../services/ReceiptOCRService';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
-import { ReceiptData } from '../../models/types';
+import { OCRResult } from '../../models/types';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute();
@@ -24,7 +24,7 @@ const ReceiptCameraScreen = () => {
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [ocrState, setOcrState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
@@ -45,17 +45,17 @@ const ReceiptCameraScreen = () => {
     abortRef.current = controller;
 
     setOcrState('loading');
-    setReceiptData(null);
+    setOcrResult(null);
     setOcrError(null);
 
     ReceiptOCRService.extractReceipt(capturedImage, controller.signal)
       .then((result) => {
         if (!mounted) return;
         if (result.success && result.receiptData) {
-          setReceiptData(result.receiptData);
+          setOcrResult(result);
           setOcrState('success');
         } else {
-          setReceiptData(result.receiptData);
+          setOcrResult(result);
           setOcrError(result.error ?? 'Failed to parse receipt');
           setOcrState('error');
         }
@@ -96,7 +96,7 @@ const ReceiptCameraScreen = () => {
   };
 
   const handleConfirm = async () => {
-    if (!capturedImage || !receiptData || confirming) return;
+    if (!capturedImage || !ocrResult || confirming) return;
 
     setConfirming(true);
     try {
@@ -105,10 +105,13 @@ const ReceiptCameraScreen = () => {
         throw new Error('User not authenticated');
       }
 
-      // Single atomic write: receipt image + OCR data
       await ShoppingListManager.updateList(listId, {
         receiptUrl: capturedImage,
-        receiptData,
+        receiptData: ocrResult.receiptData,
+        totalAmount: ocrResult.totalAmount,
+        merchantName: ocrResult.merchantName,
+        purchaseDate: ocrResult.purchaseDate,
+        currency: ocrResult.currency,
       });
 
       (navigation as any).replace('ReceiptMatch', { listId });
@@ -123,7 +126,7 @@ const ReceiptCameraScreen = () => {
     abortRef.current?.abort();
     setCapturedImage(null);
     setOcrState('idle');
-    setReceiptData(null);
+    setOcrResult(null);
     setOcrError(null);
     handleCapture();
   };
@@ -145,7 +148,7 @@ const ReceiptCameraScreen = () => {
 
       abortRef.current?.abort();
       setOcrState('idle');
-      setReceiptData(null);
+      setOcrResult(null);
       setOcrError(null);
       setCapturedImage(result.filePath);
     } catch (error: any) {
@@ -164,7 +167,11 @@ const ReceiptCameraScreen = () => {
           />
           <ReceiptPreviewOverlay
             state={confirming ? 'loading' : ocrState}
-            receiptData={receiptData}
+            receiptData={ocrResult?.receiptData ?? null}
+            totalAmount={ocrResult?.totalAmount}
+            merchantName={ocrResult?.merchantName}
+            purchaseDate={ocrResult?.purchaseDate}
+            currency={ocrResult?.currency}
             error={ocrError}
             onConfirm={handleConfirm}
             onRetake={handleRetake}

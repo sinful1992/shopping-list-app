@@ -37,6 +37,7 @@ const ReceiptMatchScreen = () => {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [currency, setCurrency] = useState('£');
   const [eligibleCount, setEligibleCount] = useState(0);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [manualMatches, setManualMatches] = useState<MatchCandidate[]>([]);
@@ -57,6 +58,7 @@ const ReceiptMatchScreen = () => {
           return;
         }
         setReceiptData(list.receiptData);
+        setCurrency(list.currency || '£');
 
         const items = await ItemManager.getItemsForList(listId);
         if (!mounted) return;
@@ -216,7 +218,6 @@ const ReceiptMatchScreen = () => {
     );
   }
 
-  const currency = receiptData.currency || '£';
   const matchCount = allMatches.length;
   const acceptedCount = acceptedMatches.length;
   const canPickFor = visibleUnmatchedList.length > 0;

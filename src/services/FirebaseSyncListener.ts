@@ -49,7 +49,7 @@ class FirebaseSyncListener {
             name: data.name || '',
             familyGroupId: data.familyGroupId || familyGroupId,
             createdBy: data.createdBy || '',
-            createdAt: data.createdAt || Date.now(),
+            createdAt: data.createdAt ?? Date.now(),
             status: data.status || 'active',
             completedAt: data.completedAt || null,
             completedBy: data.completedBy || null,
@@ -65,6 +65,10 @@ class FirebaseSyncListener {
             storeName: data.storeName || null,
             archived: data.archived || false,
             layoutApplied: data.layoutApplied ?? false,
+            totalAmount: data.totalAmount ?? null,
+            merchantName: data.merchantName || null,
+            purchaseDate: data.purchaseDate || null,
+            currency: data.currency || null,
           });
         }
       });
@@ -220,7 +224,7 @@ class FirebaseSyncListener {
         name: firebaseData.name || '',
         familyGroupId: resolvedFamilyGroupId,
         createdBy: firebaseData.createdBy || '',
-        createdAt: firebaseData.createdAt || Date.now(),
+        createdAt: firebaseData.createdAt ?? Date.now(),
         status: firebaseData.status || 'active',
         completedAt: firebaseData.completedAt || null,
         completedBy: firebaseData.completedBy || null,
@@ -236,6 +240,10 @@ class FirebaseSyncListener {
         storeName: firebaseData.storeName || null,
         archived: firebaseData.archived || false,
         layoutApplied: firebaseData.layoutApplied ?? false,
+        totalAmount: firebaseData.totalAmount ?? null,
+        merchantName: firebaseData.merchantName || null,
+        purchaseDate: firebaseData.purchaseDate || null,
+        currency: firebaseData.currency || null,
       };
 
       if (existingList && !this.hasListChanged(existingList, incomingList)) {
@@ -264,7 +272,11 @@ class FirebaseSyncListener {
       local.storeName !== incoming.storeName ||
       local.archived !== incoming.archived ||
       local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
+      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
+      local.totalAmount !== incoming.totalAmount ||
+      local.merchantName !== incoming.merchantName ||
+      local.purchaseDate !== incoming.purchaseDate ||
+      local.currency !== incoming.currency
     );
   }
 
@@ -282,8 +294,8 @@ class FirebaseSyncListener {
       price: data.price ?? null,
       checked: data.checked || false,
       createdBy: data.createdBy || '',
-      createdAt: data.createdAt || Date.now(),
-      updatedAt: data.updatedAt || Date.now(),
+      createdAt: data.createdAt ?? Date.now(),
+      updatedAt: data.updatedAt ?? Date.now(),
       syncStatus: 'synced',
       category: data.category || null,
       sortOrder: data.sortOrder ?? null,
@@ -407,7 +419,7 @@ class FirebaseSyncListener {
         familyGroupId: data.familyGroupId || familyGroupId,
         createdBy: data.createdBy || '',
         createdByName: data.createdByName || '',
-        createdAt: data.createdAt || Date.now(),
+        createdAt: data.createdAt ?? Date.now(),
         resolvedBy: data.resolvedBy || null,
         resolvedByName: data.resolvedByName || null,
         resolvedAt: data.resolvedAt || null,
@@ -489,7 +501,7 @@ class FirebaseSyncListener {
         familyGroupId: firebaseData.familyGroupId || familyGroupId,
         createdBy: firebaseData.createdBy || '',
         createdByName: firebaseData.createdByName || '',
-        createdAt: firebaseData.createdAt || Date.now(),
+        createdAt: firebaseData.createdAt ?? Date.now(),
         resolvedBy: firebaseData.resolvedBy || null,
         resolvedByName: firebaseData.resolvedByName || null,
         resolvedAt: firebaseData.resolvedAt || null,
@@ -631,7 +643,7 @@ class FirebaseSyncListener {
         // Update existing record with Firebase data
         await LocalStorageManager.updateCategoryHistory(existing.id, {
           usageCount: firebaseData.usageCount || 1,
-          lastUsedAt: firebaseData.lastUsedAt || Date.now(),
+          lastUsedAt: firebaseData.lastUsedAt ?? Date.now(),
         });
       } else {
         // Create new record from Firebase data
@@ -641,8 +653,8 @@ class FirebaseSyncListener {
           itemNameNormalized,
           category: firebaseData.category,
           usageCount: firebaseData.usageCount || 1,
-          lastUsedAt: firebaseData.lastUsedAt || Date.now(),
-          createdAt: firebaseData.createdAt || Date.now(),
+          lastUsedAt: firebaseData.lastUsedAt ?? Date.now(),
+          createdAt: firebaseData.createdAt ?? Date.now(),
         };
 
         await LocalStorageManager.saveCategoryHistory(categoryHistory);
@@ -826,8 +838,8 @@ class FirebaseSyncListener {
         storeName: firebaseData.storeName || '',
         categoryOrder: firebaseData.categoryOrder as CategoryType[],
         createdBy: firebaseData.createdBy || '',
-        createdAt: firebaseData.createdAt || Date.now(),
-        updatedAt: firebaseData.updatedAt || Date.now(),
+        createdAt: firebaseData.createdAt ?? Date.now(),
+        updatedAt: firebaseData.updatedAt ?? Date.now(),
         syncStatus: 'synced',
       };
 

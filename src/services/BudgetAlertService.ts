@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BudgetTracker from './BudgetTracker';
+import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
  * BudgetAlertService
@@ -42,27 +43,9 @@ class BudgetAlertService {
    * Get budget settings for a family group
    */
   async getBudgetSettings(familyGroupId: string): Promise<BudgetSettings> {
-    try {
-      const key = `budget_settings_${familyGroupId}`;
-      const data = await AsyncStorage.getItem(key);
-
-      if (data) {
-        return JSON.parse(data);
-      }
-
-      // Default settings
-      return {
-        monthlyLimit: null,
-        weeklyLimit: null,
-        enableAlerts: true,
-      };
-    } catch {
-      return {
-        monthlyLimit: null,
-        weeklyLimit: null,
-        enableAlerts: true,
-      };
-    }
+    const defaultSettings: BudgetSettings = { monthlyLimit: null, weeklyLimit: null, enableAlerts: true };
+    const data = await AsyncStorage.getItem(`budget_settings_${familyGroupId}`);
+    return safeJsonParse<BudgetSettings>(data, defaultSettings);
   }
 
   /**

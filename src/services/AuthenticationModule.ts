@@ -269,17 +269,17 @@ class AuthenticationModule {
       const invitationCode = this.generateInvitationCode();
       const timestamp = Date.now();
 
-      // FamilyGroup no longer stores invitationCode
       const familyGroup: FamilyGroup = {
         id: groupId,
         name: groupName,
+        invitationCode,
         createdBy: userId,
         memberIds: { [userId]: true },
         createdAt: timestamp,
-        subscriptionTier: 'free', // New family groups start with free tier
+        subscriptionTier: 'free',
       };
 
-      // Atomic multi-path update: create both family group AND invitation entry
+      // Atomic multi-path update: create family group, invitation entry, and user membership
       const updates: { [key: string]: any } = {};
       updates[`/familyGroups/${groupId}`] = familyGroup;
       updates[`/invitations/${invitationCode}`] = {
@@ -592,7 +592,7 @@ class AuthenticationModule {
 
         // Step 3: Delete all urgent items created by this user
         const urgentItemsSnapshot = await database()
-          .ref(`/familyGroups/${familyGroupId}/urgentItems`)
+          .ref(`/urgentItems/${familyGroupId}`)
           .orderByChild('createdBy')
           .equalTo(userId)
           .once('value');
@@ -600,7 +600,7 @@ class AuthenticationModule {
         const urgentItems = urgentItemsSnapshot.val();
         if (urgentItems) {
           const urgentDeletePromises = Object.keys(urgentItems).map(itemId =>
-            database().ref(`/familyGroups/${familyGroupId}/urgentItems/${itemId}`).remove()
+            database().ref(`/urgentItems/${familyGroupId}/${itemId}`).remove()
           );
           await Promise.all(urgentDeletePromises);
         }
@@ -618,24 +618,12 @@ class AuthenticationModule {
 
           // If this was the last member, delete the entire family group
           if (remainingMembers.length === 0) {
-            // Find invitation code by querying /invitations for this groupId
-            const invitationsSnapshot = await database()
-              .ref('/invitations')
-              .orderByChild('groupId')
-              .equalTo(familyGroupId)
-              .once('value');
-
-            const deletions: { [key: string]: null } = {};
-            deletions[`/familyGroups/${familyGroupId}`] = null;
-
-            // Delete invitation entry if found
-            if (invitationsSnapshot.exists()) {
-              const invitations = invitationsSnapshot.val();
-              for (const code in invitations) {
-                deletions[`/invitations/${code}`] = null;
-              }
+            const deletions: { [key: string]: null } = {
+              [`/familyGroups/${familyGroupId}`]: null,
+            };
+            if (familyGroup.invitationCode) {
+              deletions[`/invitations/${familyGroup.invitationCode}`] = null;
             }
-
             await database().ref().update(deletions);
           } else {
             await database().ref(`/familyGroups/${familyGroupId}/memberIds/${userId}`).remove();

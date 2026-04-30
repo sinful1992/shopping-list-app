@@ -185,12 +185,12 @@ const HistoryScreen = () => {
       }
       if (currentFilters.minPrice !== null) {
         filteredLists = filteredLists.filter(list =>
-          (list.receiptData?.totalAmount || 0) >= currentFilters.minPrice!
+          (list.totalAmount || 0) >= currentFilters.minPrice!
         );
       }
       if (currentFilters.maxPrice !== null) {
         filteredLists = filteredLists.filter(list =>
-          (list.receiptData?.totalAmount || 0) <= currentFilters.maxPrice!
+          (list.totalAmount || 0) <= currentFilters.maxPrice!
         );
       }
       if (currentFilters.hasReceipt !== 'all') {
@@ -210,8 +210,8 @@ const HistoryScreen = () => {
             comparison = (a.completedAt || 0) - (b.completedAt || 0);
             break;
           case 'amount':
-            const amountA = a.receiptData?.totalAmount || 0;
-            const amountB = b.receiptData?.totalAmount || 0;
+            const amountA = a.totalAmount || 0;
+            const amountB = b.totalAmount || 0;
             comparison = amountA - amountB;
             break;
           case 'store':
@@ -289,8 +289,8 @@ const HistoryScreen = () => {
 
     const dateWithStore = item.storeName ? `${date} / ${item.storeName}` : date;
 
-    const total = item.receiptData?.totalAmount
-      ? `${item.receiptData.currency || '£'}${item.receiptData.totalAmount.toFixed(2)}`
+    const total = item.totalAmount
+      ? `${item.currency || '£'}${item.totalAmount.toFixed(2)}`
       : 'No total';
 
     return (

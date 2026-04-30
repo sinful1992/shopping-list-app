@@ -16,7 +16,14 @@ import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import { ReceiptData, ReceiptLineItem } from '../../models/types';
+import { ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
+
+type EditableReceipt = ReceiptData & {
+  merchantName: string | null;
+  purchaseDate: string | null;
+  totalAmount: number | null;
+  currency: string | null;
+};
 
 /**
  * ReceiptViewScreen
@@ -32,9 +39,10 @@ const ReceiptViewScreen = () => {
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [list, setList] = useState<ShoppingList | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [editing, setEditing] = useState(false);
-  const [editedData, setEditedData] = useState<ReceiptData | null>(null);
+  const [editedData, setEditedData] = useState<EditableReceipt | null>(null);
 
   useEffect(() => {
     loadReceiptData();
@@ -51,15 +59,21 @@ const ReceiptViewScreen = () => {
         return;
       }
 
-      // Load receipt image URL (stored locally)
+      setList(list);
+
       if (list.receiptUrl) {
         setReceiptUrl(list.receiptUrl);
       }
 
-      // Get receipt data
       const data = await LocalStorageManager.getReceiptData(listId);
       setReceiptData(data);
-      setEditedData(data);
+      setEditedData(data ? {
+        ...data,
+        merchantName: list.merchantName,
+        purchaseDate: list.purchaseDate,
+        totalAmount: list.totalAmount,
+        currency: list.currency,
+      } : null);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
@@ -95,8 +109,16 @@ const ReceiptViewScreen = () => {
     if (!editedData) return;
 
     try {
-      await ShoppingListManager.updateList(listId, { receiptData: editedData });
-      setReceiptData(editedData);
+      const { merchantName, purchaseDate, totalAmount, currency, ...slimmedReceiptData } = editedData;
+      await ShoppingListManager.updateList(listId, {
+        receiptData: slimmedReceiptData,
+        merchantName,
+        purchaseDate,
+        totalAmount,
+        currency,
+      });
+      setReceiptData(slimmedReceiptData);
+      setList(prev => prev ? { ...prev, merchantName, purchaseDate, totalAmount, currency } : prev);
       setEditing(false);
       showAlert('Success', 'Receipt data updated', undefined, { icon: 'success' });
     } catch (error: any) {
@@ -105,7 +127,13 @@ const ReceiptViewScreen = () => {
   };
 
   const handleCancelEdits = () => {
-    setEditedData(receiptData);
+    setEditedData(receiptData ? {
+      ...receiptData,
+      merchantName: list?.merchantName ?? null,
+      purchaseDate: list?.purchaseDate ?? null,
+      totalAmount: list?.totalAmount ?? null,
+      currency: list?.currency ?? null,
+    } : null);
     setEditing(false);
   };
 
@@ -198,7 +226,7 @@ const ReceiptViewScreen = () => {
                 />
               ) : (
                 <Text style={styles.value}>
-                  {receiptData.merchantName || 'N/A'}
+                  {list?.merchantName || 'N/A'}
                 </Text>
               )}
             </View>
@@ -219,7 +247,7 @@ const ReceiptViewScreen = () => {
                 />
               ) : (
                 <Text style={styles.value}>
-                  {receiptData.purchaseDate || 'N/A'}
+                  {list?.purchaseDate || 'N/A'}
                 </Text>
               )}
             </View>
@@ -244,8 +272,8 @@ const ReceiptViewScreen = () => {
                 />
               ) : (
                 <Text style={styles.totalValue}>
-                  {receiptData.totalAmount
-                    ? `${receiptData.currency || '£'}${receiptData.totalAmount.toFixed(2)}`
+                  {list?.totalAmount
+                    ? `${list.currency || '£'}${list.totalAmount.toFixed(2)}`
                     : 'N/A'}
                 </Text>
               )}
@@ -295,7 +323,7 @@ const ReceiptViewScreen = () => {
                           {item.description}
                         </Text>
                         <Text style={styles.itemPrice}>
-                          {receiptData.currency || '£'}{item.price?.toFixed(2) || '0.00'}
+                          {list?.currency || '£'}{item.price?.toFixed(2) || '0.00'}
                         </Text>
                       </>
                     )}

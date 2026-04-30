@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
  * StoreHistoryService
@@ -24,26 +25,11 @@ class StoreHistoryService {
    * Returns stores sorted by frequency and recency
    */
   async getStoreHistory(): Promise<string[]> {
-    try {
-      const historyJson = await AsyncStorage.getItem(this.STORAGE_KEY);
-      if (!historyJson) {
-        return [];
-      }
-
-      const history: StoreEntry[] = JSON.parse(historyJson);
-
-      // Sort by frequency (descending) then by lastUsed (descending)
-      const sorted = history.sort((a, b) => {
-        if (a.frequency !== b.frequency) {
-          return b.frequency - a.frequency;
-        }
-        return b.lastUsed - a.lastUsed;
-      });
-
-      return sorted.map(entry => entry.name);
-    } catch {
-      return [];
-    }
+    const historyJson = await AsyncStorage.getItem(this.STORAGE_KEY);
+    const history = safeJsonParse<StoreEntry[]>(historyJson, []);
+    return history
+      .sort((a, b) => a.frequency !== b.frequency ? b.frequency - a.frequency : b.lastUsed - a.lastUsed)
+      .map(entry => entry.name);
   }
 
   /**
@@ -57,7 +43,7 @@ class StoreHistoryService {
     try {
       const normalized = storeName.trim();
       const historyJson = await AsyncStorage.getItem(this.STORAGE_KEY);
-      let history: StoreEntry[] = historyJson ? JSON.parse(historyJson) : [];
+      let history = safeJsonParse<StoreEntry[]>(historyJson, []);
 
       // Find existing entry (case-insensitive)
       const existingIndex = history.findIndex(
