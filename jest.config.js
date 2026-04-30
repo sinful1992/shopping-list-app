@@ -1,5 +1,5 @@
 module.exports = {
-  preset: 'react-native',
+  preset: '@react-native/jest-preset',
   setupFiles: ['<rootDir>/__tests__/setup.js'],
   moduleNameMapper: {
     // Redirect native SQLite adapter to in-memory LokiJS for Node.js tests
