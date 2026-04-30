@@ -246,6 +246,10 @@ class ReceiptOCRService {
         confidence: 0,
         error: 'No receipt image found for this list',
         apiUsageCount: 0,
+        totalAmount: null,
+        merchantName: null,
+        purchaseDate: null,
+        currency: null,
       };
     }
 

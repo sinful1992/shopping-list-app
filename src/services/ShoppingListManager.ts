@@ -46,7 +46,11 @@ class ShoppingListManager {
       lockedByName: null,
       lockedByRole: null,
       lockedAt: null,
-      budget: null, // No budget by default
+      budget: null,
+      totalAmount: null,
+      merchantName: null,
+      purchaseDate: null,
+      currency: null,
     };
 
     // Save locally first (offline-first)
@@ -96,6 +100,10 @@ class ShoppingListManager {
       lockedByRole: null,
       lockedAt: null,
       budget: null,
+      totalAmount: null,
+      merchantName: null,
+      purchaseDate: null,
+      currency: null,
     };
 
     // Save locally FIRST for instant UI update via WatermelonDB observer
