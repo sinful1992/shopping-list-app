@@ -83,7 +83,7 @@ class AnalyticsService {
 
         // Use receipt total when available (ground truth), fall back to summing item prices
         const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-        const listTotal = list.receiptData?.totalAmount ?? itemPriceSum;
+        const listTotal = list.totalAmount ?? itemPriceSum;
         totalSpent += listTotal;
         itemsPurchased += items.filter(item => item.price !== null).length;
 
@@ -183,7 +183,7 @@ class AnalyticsService {
     for (const list of lists) {
       const items = await ItemManager.getItemsForList(list.id);
       const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-      const listTotal = list.receiptData?.totalAmount ?? itemPriceSum;
+      const listTotal = list.totalAmount ?? itemPriceSum;
 
       const date = new Date(list.completedAt || list.createdAt);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -229,7 +229,7 @@ class AnalyticsService {
         if (list.budget) {
           const items = await ItemManager.getItemsForList(list.id);
           const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-          const total = list.receiptData?.totalAmount ?? itemPriceSum;
+          const total = list.totalAmount ?? itemPriceSum;
 
           if (total <= list.budget) {
             withinBudget++;

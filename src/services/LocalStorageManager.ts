@@ -36,6 +36,10 @@ function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
   record.storeName = list.storeName || null;
   record.archived = list.archived || null;
   record.layoutApplied = list.layoutApplied ?? null;
+  record.totalAmount = list.totalAmount ?? null;
+  record.merchantName = list.merchantName ?? null;
+  record.purchaseDate = list.purchaseDate ?? null;
+  record.currency = list.currency ?? null;
 }
 
 function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
@@ -55,6 +59,10 @@ function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): voi
   record.storeName = list.storeName || null;
   record.archived = list.archived || null;
   record.layoutApplied = list.layoutApplied ?? null;
+  record.totalAmount = list.totalAmount ?? null;
+  record.merchantName = list.merchantName ?? null;
+  record.purchaseDate = list.purchaseDate ?? null;
+  record.currency = list.currency ?? null;
 }
 
 function applyItemCreate(record: ItemModel, item: Item): void {
@@ -336,6 +344,10 @@ class LocalStorageManager {
           if (updates.archived !== undefined) record.archived = updates.archived;
           if (updates.layoutApplied !== undefined) record.layoutApplied = updates.layoutApplied;
           if (updates.uncheckedItemsCount !== undefined) record.uncheckedItemsCount = updates.uncheckedItemsCount;
+          if (updates.totalAmount !== undefined) record.totalAmount = updates.totalAmount;
+          if (updates.merchantName !== undefined) record.merchantName = updates.merchantName;
+          if (updates.purchaseDate !== undefined) record.purchaseDate = updates.purchaseDate;
+          if (updates.currency !== undefined) record.currency = updates.currency;
         });
       }, 'updateList');
 
@@ -785,8 +797,8 @@ class LocalStorageManager {
     let total = 0;
 
     for (const list of lists) {
-      if (list.receiptData && list.receiptData.totalAmount) {
-        total += list.receiptData.totalAmount;
+      if (list.totalAmount) {
+        total += list.totalAmount;
       }
     }
 
@@ -1238,6 +1250,10 @@ class LocalStorageManager {
       archived: model.archived,
       layoutApplied: model.layoutApplied,
       uncheckedItemsCount: model.uncheckedItemsCount,
+      totalAmount: model.totalAmount,
+      merchantName: model.merchantName,
+      purchaseDate: model.purchaseDate,
+      currency: model.currency,
     };
   }
 

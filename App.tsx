@@ -19,6 +19,7 @@ import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import { runReceiptSyncBackfill } from './src/services/receiptSyncBackfill';
+import { runHoistedFieldsBackfill } from './src/services/hoistedFieldsBackfill';
 import NotificationManager from './src/services/NotificationManager';
 import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
@@ -301,6 +302,7 @@ function App(): JSX.Element {
   useEffect(() => {
     if (user) {
       runReceiptSyncBackfill().catch(e => console.warn('Receipt sync backfill failed:', e));
+      runHoistedFieldsBackfill().catch(e => console.warn('Hoisted fields backfill failed:', e));
     }
   }, [user?.uid]);
 

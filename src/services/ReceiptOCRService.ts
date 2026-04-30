@@ -119,6 +119,10 @@ class ReceiptOCRService {
       return {
         success: false,
         receiptData: null,
+        totalAmount: null,
+        merchantName: null,
+        purchaseDate: null,
+        currency: null,
         confidence: 0,
         error: 'OCR server URL not configured. Set it in Settings.',
         apiUsageCount: 0,
@@ -155,6 +159,10 @@ class ReceiptOCRService {
         return {
           success: false,
           receiptData: null,
+          totalAmount: null,
+          merchantName: null,
+          purchaseDate: null,
+          currency: null,
           confidence: 0,
           error: `OCR server error (${response.status}): ${errorText}`,
           apiUsageCount: 0,
@@ -162,13 +170,18 @@ class ReceiptOCRService {
       }
 
       const serverData: OCRServerResponse = await response.json();
-      const receiptData = this.mapToReceiptData(serverData);
+      const mapped = this.mapToReceiptData(serverData);
+      const { receiptData, totalAmount, merchantName, purchaseDate, currency } = mapped;
       const success = receiptData.lineItems.length > 0;
       const lowConfidence = receiptData.confidence < 60;
 
       return {
         success,
         receiptData,
+        totalAmount,
+        merchantName,
+        purchaseDate,
+        currency,
         confidence: receiptData.confidence,
         error: !success
           ? 'No items detected — please retake the photo'
@@ -186,6 +199,10 @@ class ReceiptOCRService {
       return {
         success: false,
         receiptData: null,
+        totalAmount: null,
+        merchantName: null,
+        purchaseDate: null,
+        currency: null,
         confidence: 0,
         error: timedOut
           ? 'OCR server took too long — try again in a moment'
@@ -205,7 +222,13 @@ class ReceiptOCRService {
     const result = await this.extractReceipt(localFilePath);
 
     if (result.receiptData) {
-      await ShoppingListManager.updateList(listId, { receiptData: result.receiptData });
+      await ShoppingListManager.updateList(listId, {
+        receiptData: result.receiptData,
+        totalAmount: result.totalAmount,
+        merchantName: result.merchantName,
+        purchaseDate: result.purchaseDate,
+        currency: result.currency,
+      });
     }
 
     return result;
@@ -232,7 +255,7 @@ class ReceiptOCRService {
   /**
    * Map the server's snake_case response to the app's ReceiptData type.
    */
-  private mapToReceiptData(data: OCRServerResponse): ReceiptData {
+  private mapToReceiptData(data: OCRServerResponse): { receiptData: ReceiptData; totalAmount: number | null; merchantName: string | null; purchaseDate: string | null; currency: string } {
     const lineItems: ReceiptLineItem[] = (data.line_items || [])
       .filter(item => item.description)
       .map(item => ({
@@ -269,18 +292,20 @@ class ReceiptOCRService {
     const store = this.detectStore(data.merchant_name);
 
     return {
+      totalAmount,
       merchantName: data.merchant_name,
       purchaseDate: data.date,
-      totalAmount,
-      subtotal,
       currency: 'GBP',
-      lineItems,
-      discounts,
-      totalDiscount,
-      vatBreakdown: [],
-      store,
-      extractedAt: Date.now(),
-      confidence: Math.min(confidence, 100),
+      receiptData: {
+        subtotal,
+        lineItems,
+        discounts,
+        totalDiscount,
+        vatBreakdown: [],
+        store,
+        extractedAt: Date.now(),
+        confidence: Math.min(confidence, 100),
+      },
     };
   }
 

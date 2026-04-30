@@ -65,6 +65,10 @@ class FirebaseSyncListener {
             storeName: data.storeName || null,
             archived: data.archived || false,
             layoutApplied: data.layoutApplied ?? false,
+            totalAmount: data.totalAmount ?? null,
+            merchantName: data.merchantName || null,
+            purchaseDate: data.purchaseDate || null,
+            currency: data.currency || null,
           });
         }
       });
@@ -236,6 +240,10 @@ class FirebaseSyncListener {
         storeName: firebaseData.storeName || null,
         archived: firebaseData.archived || false,
         layoutApplied: firebaseData.layoutApplied ?? false,
+        totalAmount: firebaseData.totalAmount ?? null,
+        merchantName: firebaseData.merchantName || null,
+        purchaseDate: firebaseData.purchaseDate || null,
+        currency: firebaseData.currency || null,
       };
 
       if (existingList && !this.hasListChanged(existingList, incomingList)) {
@@ -264,7 +272,11 @@ class FirebaseSyncListener {
       local.storeName !== incoming.storeName ||
       local.archived !== incoming.archived ||
       local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
+      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
+      local.totalAmount !== incoming.totalAmount ||
+      local.merchantName !== incoming.merchantName ||
+      local.purchaseDate !== incoming.purchaseDate ||
+      local.currency !== incoming.currency
     );
   }
 

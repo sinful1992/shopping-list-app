@@ -152,25 +152,8 @@ const HistoryDetailScreen = () => {
       );
       const newTotal = newItems.reduce((sum, item) => sum + (item.price || 0), 0);
 
-      // Update receiptData with new total
       if (newTotal > 0) {
-        const newReceiptData = {
-          ...(listDetails.receiptData || {
-            merchantName: listDetails.list.storeName || null,
-            purchaseDate: null,
-            subtotal: null,
-            currency: '£',
-            lineItems: [],
-            discounts: [],
-            totalDiscount: null,
-            vatBreakdown: [],
-            store: null,
-            extractedAt: Date.now(),
-            confidence: 1,
-          }),
-          totalAmount: newTotal,
-        };
-        await ShoppingListManager.updateList(listId, { receiptData: newReceiptData as any });
+        await ShoppingListManager.updateList(listId, { totalAmount: newTotal });
       }
 
       // Reload to refresh receiptData total
@@ -223,8 +206,8 @@ const HistoryDetailScreen = () => {
           {list.storeName && ` / ${list.storeName}`}
         </Text>
         <Text style={styles.totalAmount}>
-          Total: £{(receiptData?.totalAmount && receiptData.totalAmount > 0
-            ? receiptData.totalAmount
+          Total: £{(list.totalAmount && list.totalAmount > 0
+            ? list.totalAmount
             : calculatedTotal
           ).toFixed(2)}
         </Text>

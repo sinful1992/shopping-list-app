@@ -140,5 +140,20 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 14 to 15: Hoist receipt totals to first-class columns
+    {
+      toVersion: 15,
+      steps: [
+        addColumns({
+          table: 'shopping_lists',
+          columns: [
+            { name: 'total_amount', type: 'number', isOptional: true, isIndexed: true },
+            { name: 'merchant_name', type: 'string', isOptional: true },
+            { name: 'purchase_date', type: 'string', isOptional: true },
+            { name: 'currency', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
   ],
 });

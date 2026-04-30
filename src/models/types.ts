@@ -74,11 +74,15 @@ export interface ShoppingList {
   lockedByName: string | null;
   lockedByRole: FamilyRole | null;
   lockedAt: number | null;
-  budget: number | null; // Optional budget limit for shopping mode
-  storeName?: string | null; // Sprint 6: Store tracking
-  archived?: boolean | null; // Sprint 7: Archive functionality
+  budget: number | null;
+  storeName?: string | null;
+  archived?: boolean | null;
   layoutApplied?: boolean | null;
   uncheckedItemsCount?: number | null;
+  totalAmount: number | null;
+  merchantName: string | null;
+  purchaseDate: string | null;
+  currency: string | null;
 }
 
 export interface Item {
@@ -115,11 +119,7 @@ export interface VATBreakdownItem {
 }
 
 export interface ReceiptData {
-  merchantName: string | null;
-  purchaseDate: string | null;
-  totalAmount: number | null;
   subtotal: number | null;
-  currency: string | null;
   lineItems: ReceiptLineItem[];
   discounts: ReceiptDiscount[];
   totalDiscount: number | null;
@@ -182,6 +182,10 @@ export type OCRStatusType = 'pending' | 'processing' | 'completed' | 'failed';
 export interface OCRResult {
   success: boolean;
   receiptData: ReceiptData | null;
+  totalAmount: number | null;
+  merchantName: string | null;
+  purchaseDate: string | null;
+  currency: string | null;
   confidence: number;
   error: string | null;
   apiUsageCount: number;

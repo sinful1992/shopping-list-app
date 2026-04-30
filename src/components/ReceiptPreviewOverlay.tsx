@@ -15,6 +15,10 @@ import { COLORS, SPACING, RADIUS, TYPOGRAPHY, ANIMATION, COMMON_STYLES } from '.
 interface ReceiptPreviewOverlayProps {
   state: 'idle' | 'loading' | 'success' | 'error';
   receiptData: ReceiptData | null;
+  totalAmount?: number | null;
+  merchantName?: string | null;
+  purchaseDate?: string | null;
+  currency?: string | null;
   error: string | null;
   onConfirm: () => void;
   onRetake: () => void;
@@ -25,6 +29,10 @@ interface ReceiptPreviewOverlayProps {
 const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
   state,
   receiptData,
+  totalAmount,
+  merchantName,
+  purchaseDate,
+  currency,
   error,
   onConfirm,
   onRetake,
@@ -107,19 +115,19 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
             <View style={styles.fieldsContainer}>
               <FieldRow
                 label="Merchant"
-                value={receiptData.merchantName}
+                value={merchantName ?? null}
                 icon="storefront-outline"
               />
               <FieldRow
                 label="Date"
-                value={receiptData.purchaseDate}
+                value={purchaseDate ?? null}
                 icon="calendar-outline"
               />
               <FieldRow
                 label="Total"
                 value={
-                  receiptData.totalAmount != null
-                    ? `£${receiptData.totalAmount.toFixed(2)}`
+                  totalAmount != null
+                    ? `${currency || '£'}${totalAmount.toFixed(2)}`
                     : null
                 }
                 icon="cash-outline"
