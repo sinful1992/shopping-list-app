@@ -11,6 +11,8 @@ console.error = (...args) => {
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme, useNavigation, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from './src/types/navigation';
 import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -160,7 +162,7 @@ function HistoryStack() {
 // Main Tab Navigator with safe area handling
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [activeTab, setActiveTab] = useState('Lists');
   const { showAlert } = useAlert();
   useInAppUpdate(showAlert);
@@ -180,7 +182,7 @@ function MainTabNavigator() {
         },
         headerRight: () => (
           <TouchableOpacity
-            onPress={() => navigation.navigate('Settings' as any)}
+            onPress={() => navigation.navigate('Settings')}
             style={{ marginRight: 15 }}
           >
             <Icon name="settings-outline" size={24} color="#6EA8FE" />

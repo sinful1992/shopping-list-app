@@ -9,13 +9,15 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { AuthStackParamList } from '../../types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import GoogleLogo from '../../components/GoogleLogo';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
 const SignUpScreen = () => {
-  const navigation = useNavigation() as any;
+  const navigation = useNavigation<StackNavigationProp<AuthStackParamList>>();
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +70,7 @@ const SignUpScreen = () => {
 
         <TouchableOpacity
           style={[styles.buttonSecondary, loading && styles.buttonDisabled]}
-          onPress={() => navigation.navigate('EmailSignUp' as any)}
+          onPress={() => navigation.navigate('EmailSignUp')}
           disabled={loading}
         >
           <View style={styles.buttonContent}>

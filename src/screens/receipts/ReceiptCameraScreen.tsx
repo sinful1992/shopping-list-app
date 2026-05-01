@@ -9,6 +9,9 @@ import {
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { ListsStackParamList } from '../../types/navigation';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -17,10 +20,10 @@ import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
 import { OCRResult } from '../../models/types';
 
 const ReceiptCameraScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation();
+  const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
+  const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId } = route.params as { listId: string };
+  const { listId } = route.params;
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [ocrState, setOcrState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -114,7 +117,7 @@ const ReceiptCameraScreen = () => {
         currency: ocrResult.currency,
       });
 
-      (navigation as any).replace('ReceiptMatch', { listId });
+      navigation.replace('ReceiptMatch', { listId });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {

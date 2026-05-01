@@ -9,13 +9,15 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { AuthStackParamList } from '../../types/navigation';
 import Icon from 'react-native-vector-icons/Ionicons';
 import GoogleLogo from '../../components/GoogleLogo';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
 const LoginScreen = () => {
-  const navigation = useNavigation() as any;
+  const navigation = useNavigation<StackNavigationProp<AuthStackParamList>>();
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +70,7 @@ const LoginScreen = () => {
 
         <TouchableOpacity
           style={[styles.buttonSecondary, loading && styles.buttonDisabled]}
-          onPress={() => navigation.navigate('EmailLogin' as any)}
+          onPress={() => navigation.navigate('EmailLogin')}
           disabled={loading}
         >
           <View style={styles.buttonContent}>
@@ -78,7 +80,7 @@ const LoginScreen = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate('SignUp' as any)}
+          onPress={() => navigation.navigate('SignUp')}
           disabled={loading}
         >
           <Text style={styles.linkText}>Don't have an account? Sign Up</Text>

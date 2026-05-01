@@ -12,6 +12,9 @@ import {
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { ListsStackParamList } from '../../types/navigation';
 import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import LocalStorageManager from '../../services/LocalStorageManager';
@@ -31,10 +34,10 @@ type EditableReceipt = ReceiptData & {
  * Implements Req 5.7, 6.6, 8.4
  */
 const ReceiptViewScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation();
+  const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptView'>>();
+  const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId } = route.params as { listId: string };
+  const { listId } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);

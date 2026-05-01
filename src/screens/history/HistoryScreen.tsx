@@ -12,6 +12,8 @@ import {
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { HistoryStackParamList } from '../../types/navigation';
 import HistoryTracker from '../../services/HistoryTracker';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { ShoppingList, User } from '../../models/types';
@@ -25,7 +27,7 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme
  * Implements Req 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
  */
 const HistoryScreen = () => {
-  const navigation = useNavigation() as any;
+  const navigation = useNavigation<StackNavigationProp<HistoryStackParamList>>();
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -277,7 +279,7 @@ const HistoryScreen = () => {
   };
 
   const handleListPress = (listId: string) => {
-    navigation.navigate('HistoryDetail' as any, { listId });
+    navigation.navigate('HistoryDetail', { listId });
   };
 
   const renderListItem = ({ item }: { item: ShoppingList }) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo, useOptimistic, startTransition } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,9 @@ import AnimatedItemCard from '../../components/AnimatedItemCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { ListsStackParamList } from '../../types/navigation';
 import { Item, ShoppingList, StoreLayout, User } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -152,15 +155,20 @@ const CategoryItemList = memo(({
  * Implements Req 2.4, 3.1-3.6
  */
 const ListDetailScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation() as any;
+  const route = useRoute<RouteProp<ListsStackParamList, 'ListDetail'>>();
+  const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
   const { showInterstitial } = useAdMob();
   const showInterstitialRef = useRef(showInterstitial);
   showInterstitialRef.current = showInterstitial;
   const insets = useSafeAreaInsets();
-  const { listId } = route.params as { listId: string };
+  const { listId } = route.params;
   const [items, setItems] = useState<Item[]>([]);
+  const [optimisticItems, applyOptimisticToggle] = useOptimistic(
+    items,
+    (state, itemId: string) =>
+      state.map(item => item.id === itemId ? { ...item, checked: !item.checked } : item),
+  );
   const [newItemName, setNewItemName] = useState('');
   const [list, setList] = useState<ShoppingList | null>(null);
   const [listName, setListName] = useState('');
@@ -213,9 +221,6 @@ const ListDetailScreen = () => {
 
   // Cleanup flag to prevent setState after unmount
   const isMountedRef = React.useRef(true);
-
-  // Debounce map to prevent multiple rapid toggles on same item
-  const toggleInProgressRef = React.useRef<Set<string>>(new Set());
 
   // Ref for optimistic quantity updates (always has latest state for rapid taps)
   const itemsRef = useRef<Item[]>([]);
@@ -624,34 +629,19 @@ const ListDetailScreen = () => {
     }
   };
 
-  const handleToggleItem = useCallback(async (itemId: string) => {
-    // CRITICAL: Prevent multiple simultaneous toggles on same item
-    if (toggleInProgressRef.current.has(itemId)) {
-      return;
+  const handleToggleItem = useCallback((itemId: string) => {
+    if (hapticEnabledRef.current && Vibration && typeof Vibration.vibrate === 'function') {
+      try { Vibration.vibrate(50); } catch {}
     }
-
-    try {
-      toggleInProgressRef.current.add(itemId);
-
-      // Trigger haptic feedback if enabled (before toggle for instant feedback)
-      if (hapticEnabledRef.current && Vibration && typeof Vibration.vibrate === 'function') {
-        try {
-          Vibration.vibrate(50); // Short vibration (50ms)
-        } catch (vibrationError) {
-          // Vibration not supported - silently ignore
-        }
+    startTransition(async () => {
+      applyOptimisticToggle(itemId);
+      try {
+        await ItemManager.toggleItemChecked(itemId);
+      } catch (error: any) {
+        showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       }
-
-      await ItemManager.toggleItemChecked(itemId);
-
-      // Don't reload - let WatermelonDB observer handle the update
-    } catch (error: any) {
-      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-    } finally {
-      // Always clear the in-progress flag
-      toggleInProgressRef.current.delete(itemId);
-    }
-  }, []);
+    });
+  }, [applyOptimisticToggle, showAlert]);
 
   const handleDeleteItem = async (itemId: string) => {
     try {
@@ -803,7 +793,7 @@ const ListDetailScreen = () => {
   };
 
   const handleTakeReceiptPhoto = () => {
-    navigation.navigate('ReceiptCamera' as any, { listId });
+    navigation.navigate('ReceiptCamera', { listId });
   };
 
   const handleStartShopping = () => {
@@ -1026,11 +1016,11 @@ const ListDetailScreen = () => {
   // NOTE: after per-category D&D, sortOrder is a within-category rank (not global).
   // All display code must group by category first, then sort by sortOrder within groups.
   const { uncheckedGrouped, checkedGrouped } = useMemo(() => {
-    if (!items || items.length === 0) {
+    if (!optimisticItems || optimisticItems.length === 0) {
       return { uncheckedGrouped: {} as { [cat: string]: Item[] }, checkedGrouped: {} as { [cat: string]: Item[] } };
     }
 
-    const validItems = items.filter(item => item && item.id);
+    const validItems = optimisticItems.filter(item => item && item.id);
     const unchecked = validItems.filter(item => !item.checked);
     const checked = validItems.filter(item => item.checked);
 
@@ -1055,7 +1045,7 @@ const ListDetailScreen = () => {
       uncheckedGrouped: groupByCategory(unchecked),
       checkedGrouped: groupByCategory(checked),
     };
-  }, [items]);
+  }, [optimisticItems]);
 
   // Category display order: use layout order when layout is active, otherwise default service order
   const categoryDisplayOrder = useMemo(() => {
@@ -1523,7 +1513,7 @@ const ListDetailScreen = () => {
             {list?.receiptUrl && (
               <TouchableOpacity
                 style={styles.viewReceiptButton}
-                onPress={() => navigation.navigate('ReceiptView' as any, { listId })}
+                onPress={() => navigation.navigate('ReceiptView', { listId })}
               >
                 <Text style={styles.viewReceiptIcon}>📄</Text>
                 <Text style={styles.viewReceiptText}>View Receipt</Text>

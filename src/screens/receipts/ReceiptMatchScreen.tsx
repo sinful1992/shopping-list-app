@@ -14,6 +14,9 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { ListsStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { COLORS, SPACING, TYPOGRAPHY, RADIUS, COMMON_STYLES } from '../../styles/theme';
@@ -26,13 +29,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-type Params = { listId: string };
-
 const ReceiptMatchScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation();
+  const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptMatch'>>();
+  const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId } = route.params as Params;
+  const { listId } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);

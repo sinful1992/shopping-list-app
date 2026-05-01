@@ -13,6 +13,8 @@ import {
 import styles from './SettingsScreen.styles';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RootStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
@@ -26,7 +28,7 @@ import { version } from '../../../package.json';
  * Implements family group management and user settings
  */
 const SettingsScreen = () => {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { showAlert } = useAlert();
 
   // Use custom hook for settings management

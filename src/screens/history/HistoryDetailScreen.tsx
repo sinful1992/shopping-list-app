@@ -11,6 +11,9 @@ import { COLORS, RADIUS } from '../../styles/theme';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { HistoryStackParamList } from '../../types/navigation';
 import HistoryTracker from '../../services/HistoryTracker';
 import ItemManager from '../../services/ItemManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
@@ -26,10 +29,10 @@ import PriceHistoryModal from '../../components/PriceHistoryModal';
  * Implements Req 8.3, 8.4
  */
 const HistoryDetailScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation() as any;
+  const route = useRoute<RouteProp<HistoryStackParamList, 'HistoryDetail'>>();
+  const navigation = useNavigation<StackNavigationProp<HistoryStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId } = route.params as { listId: string };
+  const { listId } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
@@ -128,7 +131,7 @@ const HistoryDetailScreen = () => {
   };
 
   const handleViewReceipt = () => {
-    navigation.navigate('ReceiptView' as any, { listId });
+    navigation.navigate('ReceiptView', { listId });
   };
 
   const handleItemPress = (item: Item) => {

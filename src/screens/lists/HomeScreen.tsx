@@ -18,6 +18,8 @@ import database from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
+import type { ListsStackParamList } from '../../types/navigation';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import DatabaseMigration from '../../services/DatabaseMigration';
 import { useAuth, useShoppingLists } from '../../hooks';
@@ -28,7 +30,7 @@ import { useAuth, useShoppingLists } from '../../hooks';
  * Implements Req 2.3, 9.1
  */
 const HomeScreen = () => {
-  const navigation = useNavigation() as any;
+  const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
 
   const { user, familyGroupId, loading: authLoading } = useAuth();
@@ -211,7 +213,7 @@ const HomeScreen = () => {
                   storeName={list.storeName}
                   formattedDate={formattedDate}
                   syncColor={syncColor}
-                  onPress={() => navigation.navigate(targetScreen as any, { listId: list.id })}
+                  onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
                   completedCardStyle={styles.completedCard}
