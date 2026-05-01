@@ -51,6 +51,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import NotificationManager from '../../services/NotificationManager';
+import CrashReporting from '../../services/CrashReporting';
 
 // Drag wrapper — must be a real component because useReorderableDrag is a hook.
 // Renders children as a render prop, passing drag() so AnimatedItemCard can
@@ -843,7 +844,7 @@ const ListDetailScreen = () => {
           currentUser.displayName || currentUser.email || 'A family member',
           storeName,
           listName
-        ).catch(() => {});
+        ).catch(err => CrashReporting.recordError(err as Error, 'ListDetailScreen notifyShoppingStarted'));
       }
 
       // WatermelonDB observer will automatically update the list state
@@ -870,7 +871,7 @@ const ListDetailScreen = () => {
       [{ text: 'OK', style: 'default', onPress: () => navigation.goBack() }],
       { icon: 'success' },
     );
-    ShoppingListManager.completeShoppingFast(listId, currentUserId!, finalTotal, storeName, skippedCount > 0 ? skippedCount : null).catch(() => {});
+    ShoppingListManager.completeShoppingFast(listId, currentUserId!, finalTotal, storeName, skippedCount > 0 ? skippedCount : null).catch(err => CrashReporting.recordError(err as Error, 'ListDetailScreen completeShoppingFast/full'));
   };
 
   const performPartialCompletion = async (uncheckedItems: Item[]) => {
@@ -888,7 +889,7 @@ const ListDetailScreen = () => {
     setIsShoppingMode(false);
     setIsCreatingPartialList(true);
 
-    ShoppingListManager.completeShoppingFast(listId, currentUserId!, finalTotal, storeName, count).catch(() => {});
+    ShoppingListManager.completeShoppingFast(listId, currentUserId!, finalTotal, storeName, count).catch(err => CrashReporting.recordError(err as Error, 'ListDetailScreen completeShoppingFast/partial'));
 
     let newList;
     try {

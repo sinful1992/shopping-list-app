@@ -5,6 +5,7 @@ import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
 import { sanitizeListName, sanitizeStoreName } from '../utils/sanitize';
+import CrashReporting from './CrashReporting';
 
 /**
  * ShoppingListManager
@@ -110,9 +111,7 @@ class ShoppingListManager {
     await LocalStorageManager.saveList(list);
 
     // Run Firebase operations in background (fire-and-forget)
-    this.performBackgroundCreationTasks(userId, user, list.id).catch(() => {
-      // Background task failed silently
-    });
+    this.performBackgroundCreationTasks(userId, user, list.id).catch(err => CrashReporting.recordError(err as Error, 'ShoppingListManager createList background tasks'));
 
     return list;
   }
@@ -134,8 +133,8 @@ class ShoppingListManager {
 
       // Sync to Firebase
       await SyncEngine.pushChange('list', listId, 'create');
-    } catch {
-      // Background task failed silently
+    } catch (err) {
+      CrashReporting.recordError(err as Error, 'ShoppingListManager performBackgroundCreationTasks');
     }
   }
 
@@ -176,9 +175,7 @@ class ShoppingListManager {
     });
 
     // Trigger sync in background (fire-and-forget for instant local updates)
-    SyncEngine.pushChange('list', listId, 'update', list).catch(() => {
-      // Background sync failed, will retry later
-    });
+    SyncEngine.pushChange('list', listId, 'update', list).catch(err => CrashReporting.recordError(err as Error, 'ShoppingListManager updateList sync'));
 
     return list;
   }

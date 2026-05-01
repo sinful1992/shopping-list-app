@@ -14,6 +14,7 @@ import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
+import CrashReporting from './CrashReporting';
 
 /**
  * AuthenticationModule
@@ -164,7 +165,7 @@ class AuthenticationModule {
       return { user, token };
     } catch (error: unknown) {
       // Clear stale Google session so the next attempt starts fresh
-      try { await GoogleSignin.signOut(); } catch (_) { /* ignore */ }
+      try { await GoogleSignin.signOut(); } catch (err) { CrashReporting.recordError(err as Error, 'AuthenticationModule signIn cleanup GoogleSignin.signOut'); }
 
       if (isErrorWithCode(error)) {
         switch (error.code) {
@@ -211,7 +212,7 @@ class AuthenticationModule {
       await EncryptedStorage.removeItem(this.USER_KEY);
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
-      await AsyncStorage.removeItem(this.USER_KEY).catch(() => {});
+      await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
     } catch (error: unknown) {
       throw new Error(`Sign out failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -644,7 +645,7 @@ class AuthenticationModule {
       await EncryptedStorage.removeItem(this.USER_KEY);
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
-      await AsyncStorage.removeItem(this.USER_KEY).catch(() => {});
+      await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
 
       // Step 9: Revoke Google access if signed in with Google
       try {

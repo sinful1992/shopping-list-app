@@ -118,7 +118,7 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       ) {
         startFirebaseListeners();
 
-        fetchLists().catch(() => {});
+        fetchLists().catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists fetchLists on foreground'));
       }
       appStateRef.current = nextAppState;
     };

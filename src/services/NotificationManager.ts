@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import supabase from './SupabaseClient';
 import { safeJsonParse } from '../utils/safeJsonParse';
+import CrashReporting from './CrashReporting';
 
 /**
  * NotificationManager
@@ -161,9 +162,7 @@ class NotificationManager {
       const tokenData = await EncryptedStorage.getItem('@fcm_token_data').catch(() => null);
       const parsed = safeJsonParse<{ userId?: string; familyGroupId?: string } | null>(tokenData, null);
       if (parsed?.userId && parsed?.familyGroupId) {
-        await this.registerToken(parsed.userId, parsed.familyGroupId).catch(() => {
-          // Token update failed - will retry on next refresh
-        });
+        await this.registerToken(parsed.userId, parsed.familyGroupId).catch(err => CrashReporting.recordError(err as Error, 'NotificationManager registerToken on refresh'));
       }
     });
   }
@@ -198,7 +197,7 @@ class NotificationManager {
         },
       });
     } catch (error) {
-      // Non-critical — shopping flow continues regardless
+      CrashReporting.recordError(error as Error, 'NotificationManager notifyShoppingStarted');
     }
   }
 

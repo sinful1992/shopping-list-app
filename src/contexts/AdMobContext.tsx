@@ -9,6 +9,7 @@ import mobileAds, {
 } from 'react-native-google-mobile-ads';
 import { useRevenueCat } from './RevenueCatContext';
 import { AD_UNIT_IDS, INTERSTITIAL_COOLDOWN_MS, MAX_RETRY_ATTEMPTS } from '../config/adConfig';
+import CrashReporting from '../services/CrashReporting';
 
 interface AdMobContextType {
   shouldShowAds: boolean;
@@ -68,7 +69,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       try {
         await AdsConsent.gatherConsent();
       } catch (e) {
-        if (__DEV__) console.warn('UMP consent failed:', JSON.stringify(e, Object.getOwnPropertyNames(e as object)));
+        CrashReporting.recordError(e as Error, 'AdMobContext UMP consent');
         if (mounted) {
           setConsentObtained(false);
           setConsentChecked(true);
@@ -92,7 +93,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       try {
         await mobileAds().initialize();
       } catch (e) {
-        if (__DEV__) console.warn('AdMob init failed:', e);
+        CrashReporting.recordError(e as Error, 'AdMobContext mobileAds initialize');
         isConsentInFlightRef.current = false;
         return;
       }
@@ -123,7 +124,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       AdsConsent.reset();
       await AdsConsent.gatherConsent();
     } catch (e) {
-      if (__DEV__) console.warn('UMP consent retry failed:', e);
+      CrashReporting.recordError(e as Error, 'AdMobContext UMP consent retry');
       setConsentChecked(true);
       isConsentInFlightRef.current = false;
       return;

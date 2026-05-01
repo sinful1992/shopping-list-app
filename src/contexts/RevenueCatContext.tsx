@@ -12,6 +12,7 @@ import { SubscriptionTier, User } from '../models/types';
 import { ENTITLEMENT_ID, TIER_CACHE_KEY } from '../models/SubscriptionConfig';
 import supabase from '../services/SupabaseClient';
 import { REVENUECAT_ANDROID_API_KEY } from '@env';
+import CrashReporting from '../services/CrashReporting';
 
 interface RevenueCatContextType {
   tier: SubscriptionTier;
@@ -63,8 +64,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
         await Purchases.configure({ apiKey });
         setIsConfigured(true);
       } catch (error) {
-        console.warn('RevenueCat configure failed:', error);
-        // Load cached tier as fallback
+        CrashReporting.recordError(error as Error, 'RevenueCatContext configure');
         await loadCachedTier();
         setIsLoading(false);
       }
@@ -101,7 +101,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
             Purchases.removeCustomerInfoUpdateListener(listener);
           };
         } catch (error) {
-          console.warn('RevenueCat login/fetch failed:', error);
+          CrashReporting.recordError(error as Error, 'RevenueCatContext login/fetch');
           await loadCachedTier();
         }
       } else {

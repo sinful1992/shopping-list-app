@@ -4,6 +4,7 @@ import { StoreLayout } from '../models/types';
 import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
+import CrashReporting from './CrashReporting';
 
 class StoreLayoutService {
   async getLayoutForStore(storeName: string, familyGroupId: string): Promise<StoreLayout | null> {
@@ -28,7 +29,7 @@ class StoreLayoutService {
         updatedAt: Date.now(),
         syncStatus: 'pending',
       });
-      SyncEngine.pushChange('storeLayout', existing.id, 'update').catch(() => {});
+      SyncEngine.pushChange('storeLayout', existing.id, 'update').catch(err => CrashReporting.recordError(err as Error, 'StoreLayoutService pushChange update'));
       return updated;
     }
 
@@ -45,7 +46,7 @@ class StoreLayoutService {
     };
 
     const saved = await LocalStorageManager.saveStoreLayout(layout);
-    SyncEngine.pushChange('storeLayout', saved.id, 'create').catch(() => {});
+    SyncEngine.pushChange('storeLayout', saved.id, 'create').catch(err => CrashReporting.recordError(err as Error, 'StoreLayoutService pushChange create'));
     return saved;
   }
 }
