@@ -127,6 +127,11 @@ jobs:
           ./gradlew clean --no-daemon
           df -h
 
+      - name: Generate codegen artifacts
+        run: |
+          cd android
+          ./gradlew generateCodegenArtifactsRelease --no-daemon
+
       - name: Build Release APK
         run: |
           cd android
