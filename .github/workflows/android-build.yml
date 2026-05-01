@@ -130,7 +130,7 @@ jobs:
       - name: Generate codegen artifacts
         run: |
           cd android
-          ./gradlew generateCodegenArtifactsRelease --no-daemon
+          ./gradlew generateCodegenArtifactsFromSchema --no-daemon
 
       - name: Build Release APK
         run: |
