@@ -665,6 +665,30 @@ class AuthenticationModule {
   }
 
   /**
+   * Ensure a family group has an invitation code, generating one atomically if missing.
+   * Uses a transaction so concurrent calls from multiple devices produce exactly one code.
+   */
+  async ensureInvitationCode(familyGroupId: string): Promise<string> {
+    const ref = database().ref(`/familyGroups/${familyGroupId}/invitationCode`);
+
+    const result = await ref.transaction((current) => {
+      if (current === null) return this.generateInvitationCode();
+      return; // abort — code already exists, keep it
+    });
+
+    const code: string = result.snapshot.val();
+
+    if (result.committed) {
+      await database().ref(`/invitations/${code}`).set({
+        groupId: familyGroupId,
+        createdAt: Date.now(),
+      });
+    }
+
+    return code;
+  }
+
+  /**
    * Helper: Generate 8-character invitation code
    */
   private generateInvitationCode(): string {

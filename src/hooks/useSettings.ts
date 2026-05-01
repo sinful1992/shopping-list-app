@@ -163,10 +163,12 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
 
   const retryLoadInvitationCode = useCallback(async (): Promise<void> => {
     if (!user?.familyGroupId) return;
-    const snap = await database()
-      .ref(`/familyGroups/${user.familyGroupId}/invitationCode`)
-      .once('value');
-    setInvitationCode(snap.val() ?? 'NOT_FOUND');
+    try {
+      const code = await AuthenticationModule.ensureInvitationCode(user.familyGroupId);
+      setInvitationCode(code ?? 'NOT_FOUND');
+    } catch {
+      setInvitationCode('ERROR');
+    }
   }, [user]);
 
   return {
