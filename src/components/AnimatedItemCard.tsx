@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { Animated, View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import Animated, { useSharedValue, withSequence, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { COLORS, RADIUS } from '../styles/theme';
 import CategoryService from '../services/CategoryService';
 
@@ -85,51 +86,33 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const totalPrice = itemPrice * qty;
   const categoryInfo = item.category ? CategoryService.getCategory(item.category as any) : null;
 
-  // Animation refs for tick-off effects
-  const checkAnimation = useRef(new Animated.Value(1)).current;
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
+  const checkScale = useSharedValue(isChecked ? 1 : 0);
+  const cardScale = useSharedValue(1);
 
-  // Trigger animations when item is checked/unchecked
   useEffect(() => {
     if (isChecked) {
-      // Checkmark bounce animation: appear, bounce up, settle
-      Animated.sequence([
-        Animated.timing(checkAnimation, {
-          toValue: 1.0,
-          duration: 50,
-          useNativeDriver: true,
-        }),
-        Animated.timing(checkAnimation, {
-          toValue: 1.2,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(checkAnimation, {
-          toValue: 1.0,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      // Card scale-down animation
-      Animated.sequence([
-        Animated.timing(scaleAnimation, {
-          toValue: 0.98,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-        Animated.timing(scaleAnimation, {
-          toValue: 1.0,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-      ]).start();
+      checkScale.value = withSequence(
+        withTiming(1.0, { duration: 50 }),
+        withTiming(1.2, { duration: 150 }),
+        withTiming(1.0, { duration: 100 }),
+      );
+      cardScale.value = withSequence(
+        withTiming(0.98, { duration: 150 }),
+        withTiming(1.0, { duration: 150 }),
+      );
     } else {
-      // Reset animations when unchecked
-      checkAnimation.setValue(0);
-      scaleAnimation.setValue(1);
+      checkScale.value = 0;
+      cardScale.value = 1;
     }
-  }, [isChecked, checkAnimation, scaleAnimation]);
+  }, [isChecked]);
+
+  const checkAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+  }));
+
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
 
   return (
     <Animated.View
@@ -137,7 +120,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         itemRowStyle,
         isChecked && itemRowCheckedStyle,
         isChecked && { opacity: 0.5 },
-        { transform: [{ scale: scaleAnimation }] }
+        cardAnimatedStyle,
       ]}
     >
       {/* Checkbox */}
@@ -146,7 +129,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         onPress={onToggleItem}
         disabled={isListLocked}
       >
-        <Animated.View style={{ transform: [{ scale: checkAnimation }] }}>
+        <Animated.View style={checkAnimatedStyle}>
           <Text style={[
             isListLocked && checkboxTextDisabledStyle,
             isChecked && !isListLocked && checkboxTextCheckedStyle

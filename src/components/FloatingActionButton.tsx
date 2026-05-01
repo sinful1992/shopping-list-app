@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   TouchableOpacity,
   Text,
   StyleSheet,
-  Animated,
   ViewStyle,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { COLORS } from '../styles/theme';
@@ -34,23 +34,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   disabled = false,
   style,
 }) => {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
-  };
+  const [pressed, setPressed] = useState(false);
 
   return (
     <Animated.View
@@ -58,8 +42,10 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
         styles.fabContainer,
         style,
         {
-          transform: [{ scale: scaleAnim }],
-        },
+          transform: [{ scale: pressed ? 0.9 : 1 }],
+          transitionProperty: 'transform',
+          transitionDuration: '150ms',
+        } as any,
       ]}
     >
       <TouchableOpacity
@@ -72,8 +58,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
           },
         ]}
         onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
+        onPressIn={() => setPressed(true)}
+        onPressOut={() => setPressed(false)}
         disabled={disabled}
         activeOpacity={0.8}
       >

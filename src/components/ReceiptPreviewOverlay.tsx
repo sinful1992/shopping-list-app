@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ReceiptData } from '../models/types';
@@ -40,21 +40,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
   onPickGallery,
 }) => {
   const insets = useSafeAreaInsets();
-  const slideAnim = React.useRef(new Animated.Value(300)).current;
-
-  React.useEffect(() => {
-    if (state === 'idle') {
-      slideAnim.setValue(300);
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: ANIMATION.normal,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [state, slideAnim]);
-
-  if (state === 'idle') return null;
+  const isVisible = state !== 'idle';
 
   const confidenceBadgeColor =
     receiptData && receiptData.confidence >= 70
@@ -65,10 +51,16 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
     <Animated.View
       style={[
         styles.container,
-        { paddingBottom: Math.max(insets.bottom, SPACING.lg), transform: [{ translateY: slideAnim }] },
+        {
+          paddingBottom: Math.max(insets.bottom, SPACING.lg),
+          transform: [{ translateY: isVisible ? 0 : 300 }],
+          transitionProperty: 'transform',
+          transitionDuration: `${ANIMATION.normal}ms`,
+        } as any,
       ]}
+      pointerEvents={isVisible ? 'auto' : 'none'}
     >
-      <View style={styles.card}>
+      {isVisible && <View style={styles.card}>
         {state === 'loading' && (
           <>
             <View style={styles.loadingRow}>
@@ -169,7 +161,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
             </View>
           </>
         )}
-      </View>
+      </View>}
     </Animated.View>
   );
 };
