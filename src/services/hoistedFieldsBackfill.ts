@@ -27,6 +27,7 @@ export async function runHoistedFieldsBackfill(): Promise<void> {
         await AsyncStorage.setItem(BACKFILL_FLAG, String(attemptCount + 1));
 
         const database = LocalStorageManager.getDatabase();
+        // @ts-ignore TS6 stricter generic constraint on Database.get — runtime works correctly
         const rows = await database.get<ShoppingListModel>('shopping_lists')
           .query(
             Q.where('receipt_data', Q.notEq(null)),

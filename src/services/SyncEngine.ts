@@ -131,7 +131,7 @@ class SyncEngine {
       try {
         await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, syncData));
         const updatedAt = (syncData as any)?.updatedAt ?? null;
-        await LocalStorageManager.markSyncedIfUnchanged(entityType, entityId, updatedAt);
+        await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
         await this.queueOperation(entityType, entityId, operation, syncData);
@@ -252,7 +252,7 @@ class SyncEngine {
           await LocalStorageManager.removeFromSyncQueue(operation.id);
 
           const queuedUpdatedAt = (operation.data as any)?.updatedAt ?? null;
-          await LocalStorageManager.markSyncedIfUnchanged(operation.entityType, operation.entityId, queuedUpdatedAt);
+          await LocalStorageManager.markSyncedIfUnchanged(operation.entityType as 'list' | 'item' | 'storeLayout', operation.entityId, queuedUpdatedAt);
           processed++;
         } catch (error) {
           CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);

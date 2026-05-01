@@ -708,7 +708,7 @@ class LocalStorageManager {
           nextRetryAt: op.nextRetryAt || null,
         };
       });
-      return parseResults.filter((op): op is QueuedOperation => op !== null);
+      return parseResults.filter(op => op !== null) as QueuedOperation[];
     } catch (error: any) {
       throw new Error(`Failed to get sync queue: ${error.message}`);
     }
@@ -995,7 +995,7 @@ class LocalStorageManager {
   ): Promise<UrgentItem[]> {
     try {
       const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const conditions = [
+      const conditions: any[] = [
         Q.where('family_group_id', familyGroupId),
         Q.where('status', 'resolved')
       ];
@@ -1806,10 +1806,10 @@ class LocalStorageManager {
         const priceHistory = await this.database.collections.get('price_history').query().fetch();
 
         const ops = [
-          ...lists.map((r: ShoppingListModel) => r.prepareMarkAsDeleted()),
-          ...items.map((r: ItemModel) => r.prepareMarkAsDeleted()),
-          ...syncQueue.map((r: SyncQueueModel) => r.prepareMarkAsDeleted()),
-          ...priceHistory.map((r: PriceHistoryModel) => r.prepareMarkAsDeleted()),
+          ...lists.map((r: any) => r.prepareMarkAsDeleted()),
+          ...items.map((r: any) => r.prepareMarkAsDeleted()),
+          ...syncQueue.map((r: any) => r.prepareMarkAsDeleted()),
+          ...priceHistory.map((r: any) => r.prepareMarkAsDeleted()),
         ];
         if (ops.length > 0) {
           await this.database.batch(ops);

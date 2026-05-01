@@ -15,7 +15,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
 const LoginScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(false);
 
@@ -68,7 +68,7 @@ const LoginScreen = () => {
 
         <TouchableOpacity
           style={[styles.buttonSecondary, loading && styles.buttonDisabled]}
-          onPress={() => navigation.navigate('EmailLogin' as never)}
+          onPress={() => navigation.navigate('EmailLogin' as any)}
           disabled={loading}
         >
           <View style={styles.buttonContent}>
@@ -78,7 +78,7 @@ const LoginScreen = () => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate('SignUp' as never)}
+          onPress={() => navigation.navigate('SignUp' as any)}
           disabled={loading}
         >
           <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
