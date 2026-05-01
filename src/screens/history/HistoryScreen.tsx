@@ -25,7 +25,7 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme
  * Implements Req 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7
  */
 const HistoryScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -277,7 +277,7 @@ const HistoryScreen = () => {
   };
 
   const handleListPress = (listId: string) => {
-    navigation.navigate('HistoryDetail' as never, { listId } as never);
+    navigation.navigate('HistoryDetail' as any, { listId });
   };
 
   const renderListItem = ({ item }: { item: ShoppingList }) => {

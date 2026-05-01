@@ -14,9 +14,9 @@ import { parseCombinedInput } from '../utils/measurement';
 import { useAlert } from '../contexts/AlertContext';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
 
-const UNIT_GROUPS = [
-  { label: 'Volume', units: ['ml', 'L'] as const, color: '#6EA8FE' },
-  { label: 'Weight', units: ['g', 'kg'] as const, color: '#A78BFA' },
+const UNIT_GROUPS: Array<{ label: string; units: string[]; color: string }> = [
+  { label: 'Volume', units: ['ml', 'L'], color: '#6EA8FE' },
+  { label: 'Weight', units: ['g', 'kg'], color: '#A78BFA' },
 ];
 
 interface SizeEditModalProps {
@@ -131,11 +131,11 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
           {measurementUnit && (
             <View style={[
               styles.unitBadge,
-              UNIT_GROUPS[0].units.includes(measurementUnit as any) ? styles.unitBadgeBlue : styles.unitBadgePurple,
+              UNIT_GROUPS[0].units.includes(measurementUnit ?? '') ? styles.unitBadgeBlue : styles.unitBadgePurple,
             ]}>
               <Text style={[
                 styles.unitBadgeText,
-                UNIT_GROUPS[0].units.includes(measurementUnit as any) ? styles.unitBadgeTextBlue : styles.unitBadgeTextPurple,
+                UNIT_GROUPS[0].units.includes(measurementUnit ?? '') ? styles.unitBadgeTextBlue : styles.unitBadgeTextPurple,
               ]}>
                 {measurementUnit}
               </Text>

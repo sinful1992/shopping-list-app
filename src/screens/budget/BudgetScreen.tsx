@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
-import BudgetAlertService from '../../services/BudgetAlertService';
+import BudgetAlertService, { AlertLevel } from '../../services/BudgetAlertService';
 import { ExpenditureBreakdownItem } from '../../models/types';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
 import { useBudgetData } from '../../hooks';
@@ -59,7 +59,7 @@ const BudgetScreen = () => {
     }
   };
 
-  const getAlertColor = (alert: { level: string } | null): string => {
+  const getAlertColor = (alert: { level: AlertLevel } | null): string => {
     if (!alert) return COLORS.accent.green;
     return BudgetAlertService.getAlertColor(alert.level);
   };

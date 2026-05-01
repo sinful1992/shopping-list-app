@@ -28,7 +28,7 @@ import { useAuth, useShoppingLists } from '../../hooks';
  * Implements Req 2.3, 9.1
  */
 const HomeScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { showAlert } = useAlert();
 
   const { user, familyGroupId, loading: authLoading } = useAuth();
@@ -211,7 +211,7 @@ const HomeScreen = () => {
                   storeName={list.storeName}
                   formattedDate={formattedDate}
                   syncColor={syncColor}
-                  onPress={() => navigation.navigate(targetScreen as never, { listId: list.id } as never)}
+                  onPress={() => navigation.navigate(targetScreen as any, { listId: list.id })}
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
                   completedCardStyle={styles.completedCard}

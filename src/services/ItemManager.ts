@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Item, Unsubscribe } from '../models/types';
+import { Item, Unsubscribe, SyncStatus } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
@@ -177,11 +177,11 @@ class ItemManager {
           createdBy: userId,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          syncStatus: 'pending' as const,
+          syncStatus: 'pending' as SyncStatus,
           category: itemData.category ?? null,
         };
       })
-      .filter((item): item is Item => item !== null);
+      .filter(item => item !== null) as Item[];
 
     // Save all items in a single batch transaction
     await LocalStorageManager.saveItemsBatch(items);

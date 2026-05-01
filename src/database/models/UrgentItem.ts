@@ -14,5 +14,6 @@ export class UrgentItemModel extends Model {
   @field('resolved_at') resolvedAt!: number | null;
   @field('price') price!: number | null;
   @field('status') status!: string;
-  @field('sync_status') syncStatus!: string;
+  // @ts-ignore WatermelonDB 0.28 added syncStatus accessor to base Model; our custom field intentionally shadows it
+  @field('sync_status') syncStatus!: any;
 }

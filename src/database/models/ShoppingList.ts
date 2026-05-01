@@ -13,7 +13,8 @@ export class ShoppingListModel extends Model {
   @field('completed_by') completedBy!: string | null;
   @field('receipt_url') receiptUrl!: string | null;
   @field('receipt_data') receiptData!: string | null;
-  @field('sync_status') syncStatus!: string;
+  // @ts-ignore WatermelonDB 0.28 added syncStatus accessor to base Model; our custom field intentionally shadows it
+  @field('sync_status') syncStatus!: any;
   @field('is_locked') isLocked!: boolean;
   @field('locked_by') lockedBy!: string | null;
   @field('locked_by_name') lockedByName!: string | null;

@@ -35,10 +35,7 @@ class SearchService {
 
     try {
       // Get all completed lists
-      const allLists = await LocalStorageManager.getListsByStatus(
-        familyGroupId,
-        'completed'
-      );
+      const allLists = await LocalStorageManager.getCompletedLists(familyGroupId);
 
       // Filter lists that match the query
       const matchingLists: ShoppingList[] = [];

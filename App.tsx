@@ -180,7 +180,7 @@ function MainTabNavigator() {
         },
         headerRight: () => (
           <TouchableOpacity
-            onPress={() => navigation.navigate('Settings' as never)}
+            onPress={() => navigation.navigate('Settings' as any)}
             style={{ marginRight: 15 }}
           >
             <Icon name="settings-outline" size={24} color="#6EA8FE" />

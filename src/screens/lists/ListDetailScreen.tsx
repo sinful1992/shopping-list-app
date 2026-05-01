@@ -152,7 +152,7 @@ const CategoryItemList = memo(({
  */
 const ListDetailScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { showAlert } = useAlert();
   const { showInterstitial } = useAdMob();
   const showInterstitialRef = useRef(showInterstitial);
@@ -802,7 +802,7 @@ const ListDetailScreen = () => {
   };
 
   const handleTakeReceiptPhoto = () => {
-    navigation.navigate('ReceiptCamera' as never, { listId } as never);
+    navigation.navigate('ReceiptCamera' as any, { listId });
   };
 
   const handleStartShopping = () => {
@@ -1377,7 +1377,7 @@ const ListDetailScreen = () => {
                       catItems={catItems}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
-                      storeName={list?.storeName}
+                      storeName={list?.storeName ?? undefined}
                       isListLocked={isListLocked}
                       onReorder={handleCategoryDragEnd}
                       onToggleItem={handleToggleItem}
@@ -1407,7 +1407,7 @@ const ListDetailScreen = () => {
                       catItems={catItems}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
-                      storeName={list?.storeName}
+                      storeName={list?.storeName ?? undefined}
                       isListLocked={isListLocked}
                       onReorder={handleCategoryDragEnd}
                       onToggleItem={handleToggleItem}
@@ -1522,7 +1522,7 @@ const ListDetailScreen = () => {
             {list?.receiptUrl && (
               <TouchableOpacity
                 style={styles.viewReceiptButton}
-                onPress={() => navigation.navigate('ReceiptView' as never, { listId } as never)}
+                onPress={() => navigation.navigate('ReceiptView' as any, { listId })}
               >
                 <Text style={styles.viewReceiptIcon}>📄</Text>
                 <Text style={styles.viewReceiptText}>View Receipt</Text>

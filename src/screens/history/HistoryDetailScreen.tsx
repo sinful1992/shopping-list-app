@@ -12,6 +12,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HistoryTracker from '../../services/HistoryTracker';
+import ItemManager from '../../services/ItemManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
@@ -26,7 +27,7 @@ import PriceHistoryModal from '../../components/PriceHistoryModal';
  */
 const HistoryDetailScreen = () => {
   const route = useRoute();
-  const navigation = useNavigation();
+  const navigation = useNavigation() as any;
   const { showAlert } = useAlert();
   const { listId } = route.params as { listId: string };
 
@@ -127,7 +128,7 @@ const HistoryDetailScreen = () => {
   };
 
   const handleViewReceipt = () => {
-    navigation.navigate('ReceiptView' as never, { listId } as never);
+    navigation.navigate('ReceiptView' as any, { listId });
   };
 
   const handleItemPress = (item: Item) => {
