@@ -130,12 +130,12 @@ jobs:
       - name: Generate codegen artifacts
         run: |
           cd android
-          ./gradlew generateCodegenArtifactsFromSchema --no-daemon
+          ./gradlew generateCodegenArtifactsFromSchema -PnewArchEnabled=true --no-daemon
 
       - name: Build Release APK
         run: |
           cd android
-          ./gradlew assembleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
+          ./gradlew assembleRelease --no-daemon -PnewArchEnabled=true -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
           df -h
 
       - name: Clean up before AAB build
