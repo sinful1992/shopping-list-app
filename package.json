@@ -30,7 +30,7 @@
     "axios": "^1.15.2",
     "date-fns": "^4.1.0",
     "i18n-js": "^4.5.3",
-    "react": "19.2.5",
+    "react": "19.2.3",
     "react-native": "0.85.2",
     "react-native-document-scanner-plugin": "^2.0.4",
     "react-native-encrypted-storage": "^4.0.3",
@@ -83,7 +83,7 @@
     "postinstall-postinstall": "^2.1.0",
     "prettier": "^3.8.3",
     "react-native-dotenv": "^3.4.9",
-    "react-test-renderer": "19.2.5",
+    "react-test-renderer": "19.2.3",
     "typescript": "^6.0.3"
   },
   "engines": {
