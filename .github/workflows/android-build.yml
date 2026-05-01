@@ -138,16 +138,10 @@ jobs:
           ./gradlew assembleRelease --no-daemon -PnewArchEnabled=true -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
           df -h
 
-      - name: Clean up before AAB build
-        run: |
-          cd android
-          rm -rf build/intermediates
-          df -h
-
       - name: Build Release AAB (App Bundle)
         run: |
           cd android
-          ./gradlew bundleRelease --no-daemon -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
+          ./gradlew bundleRelease --no-daemon -PnewArchEnabled=true -Pandroid.useAndroidX=true -Pandroid.enableJetifier=false
           df -h
 
       - name: Upload Release APK
