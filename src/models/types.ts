@@ -47,6 +47,17 @@ export interface InvitationEntry {
   createdAt: number;
 }
 
+export type JoinRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface JoinRequest {
+  userId: string;
+  groupId: string;
+  displayName: string | null;
+  email: string;
+  requestedAt: number;
+  status: JoinRequestStatus;
+}
+
 export interface UserCredential {
   user: User;
   token: string;
