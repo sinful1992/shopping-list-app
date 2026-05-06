@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
+import { sanitizeText } from '../utils/sanitize';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 
@@ -78,8 +79,10 @@ class ReceiptOCRService {
    * Save the OCR server URL.
    */
   async setServerUrl(url: string): Promise<void> {
-    // Trim trailing slash
-    const cleaned = url.replace(/\/+$/, '');
+    const cleaned = url.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(cleaned)) {
+      throw new Error('OCR server URL must start with http:// or https://');
+    }
     await AsyncStorage.setItem(OCR_SERVER_URL_KEY, cleaned);
   }
 
@@ -263,7 +266,7 @@ class ReceiptOCRService {
     const lineItems: ReceiptLineItem[] = (data.line_items || [])
       .filter(item => item.description)
       .map(item => ({
-        description: item.description!,
+        description: sanitizeText(item.description!, 200),
         quantity: item.quantity ?? null,
         unitPrice: parseNumber(item.unit_price),
         price: parseNumber(item.total_price),
@@ -293,11 +296,12 @@ class ReceiptOCRService {
     if (data.date) confidence += 10;
     if (subtotal !== null) confidence += 5;
 
-    const store = this.detectStore(data.merchant_name);
+    const merchantName = data.merchant_name ? sanitizeText(data.merchant_name, 100) : null;
+    const store = this.detectStore(merchantName);
 
     return {
       totalAmount,
-      merchantName: data.merchant_name,
+      merchantName,
       purchaseDate: data.date,
       currency: 'GBP',
       receiptData: {
@@ -313,7 +317,7 @@ class ReceiptOCRService {
     };
   }
 
-  private detectStore(merchantName: string | null): ReceiptData['store'] {
+  private detectStore(merchantName: string | null | undefined): ReceiptData['store'] {
     if (!merchantName) return null;
     const name = merchantName.toUpperCase();
     if (name.includes('LIDL')) return 'lidl';
