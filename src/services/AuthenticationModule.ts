@@ -11,7 +11,7 @@ import {
   statusCodes,
 } from '@react-native-google-signin/google-signin';
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
-import { User, UserCredential, FamilyGroup, Unsubscribe } from '../models/types';
+import { User, UserCredential, FamilyGroup, JoinRequest, JoinRequestStatus, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
 import CrashReporting from './CrashReporting';
@@ -686,6 +686,142 @@ class AuthenticationModule {
     }
 
     return code;
+  }
+
+  /**
+   * Submit a join request using an invitation code.
+   * The requesting user is NOT added to the group immediately — an existing
+   * member must approve via approveJoinRequest().
+   */
+  async submitJoinRequest(invitationCode: string, userId: string): Promise<{ groupId: string; groupName: string }> {
+    try {
+      const invitationSnapshot = await database().ref(`/invitations/${invitationCode}`).once('value');
+      if (!invitationSnapshot.exists()) {
+        throw new Error('Invalid invitation code. Please check and try again.');
+      }
+      const { groupId } = invitationSnapshot.val();
+
+      const groupSnapshot = await database().ref(`/familyGroups/${groupId}`).once('value');
+      if (!groupSnapshot.exists()) {
+        throw new Error('This family group no longer exists.');
+      }
+      const familyGroup: FamilyGroup = groupSnapshot.val();
+
+      if (familyGroup.memberIds?.[userId]) {
+        throw new Error('You are already a member of this family group.');
+      }
+
+      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const userData: User = userSnapshot.val();
+      if (userData.familyGroupId) {
+        throw new Error('You are already in a family group.');
+      }
+
+      const joinRequest: JoinRequest = {
+        userId,
+        groupId,
+        displayName: userData.displayName,
+        email: userData.email,
+        requestedAt: Date.now(),
+        status: 'pending',
+      };
+
+      await database().ref(`/familyGroups/${groupId}/joinRequests/${userId}`).set(joinRequest);
+
+      return { groupId, groupName: familyGroup.name };
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes('Invalid invitation') || msg.includes('no longer exists') ||
+          msg.includes('already') || msg.includes('PERMISSION_DENIED')) {
+        throw error;
+      }
+      throw new Error(`Failed to submit join request: ${msg}`);
+    }
+  }
+
+  /**
+   * Approve a pending join request (called by an existing group member).
+   * Atomically marks the request approved and adds the user to memberIds.
+   * The joining user must still call completeJoinAfterApproval() from their side.
+   */
+  async approveJoinRequest(groupId: string, requestUserId: string): Promise<void> {
+    const updates: { [key: string]: any } = {};
+    updates[`/familyGroups/${groupId}/joinRequests/${requestUserId}/status`] = 'approved';
+    updates[`/familyGroups/${groupId}/memberIds/${requestUserId}`] = true;
+    await database().ref().update(updates);
+  }
+
+  /**
+   * Reject a pending join request (called by an existing group member).
+   */
+  async rejectJoinRequest(groupId: string, requestUserId: string): Promise<void> {
+    await database().ref(`/familyGroups/${groupId}/joinRequests/${requestUserId}/status`).set('rejected');
+  }
+
+  /**
+   * Cancel a pending join request (called by the requesting user themselves).
+   */
+  async cancelJoinRequest(groupId: string, userId: string): Promise<void> {
+    await database().ref(`/familyGroups/${groupId}/joinRequests/${userId}`).remove();
+  }
+
+  /**
+   * Listen for status changes on the requesting user's own join request.
+   * Used by the waiting screen to detect approval or rejection in real-time.
+   */
+  listenForJoinApproval(
+    groupId: string,
+    userId: string,
+    onUpdate: (status: JoinRequestStatus | null) => void,
+  ): () => void {
+    const ref = database().ref(`/familyGroups/${groupId}/joinRequests/${userId}/status`);
+    const handler = (snapshot: any) => onUpdate(snapshot.val() as JoinRequestStatus | null);
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
+  }
+
+  /**
+   * Complete the join after the requesting user's app detects approval.
+   * Writes the user's familyGroupId (now allowed by DB rules since they're in memberIds),
+   * cleans up the join request, and refreshes the local cache.
+   */
+  async completeJoinAfterApproval(groupId: string, userId: string): Promise<FamilyGroup> {
+    await database().ref(`/users/${userId}/familyGroupId`).set(groupId);
+
+    await database().ref(`/familyGroups/${groupId}/joinRequests/${userId}`).remove().catch(() => {});
+
+    const [userSnapshot, groupSnapshot] = await Promise.all([
+      database().ref(`/users/${userId}`).once('value'),
+      database().ref(`/familyGroups/${groupId}`).once('value'),
+    ]);
+
+    const updatedUser = userSnapshot.val();
+    if (updatedUser) {
+      await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+    }
+
+    return groupSnapshot.val();
+  }
+
+  /**
+   * Listen for pending join requests on a group (called by existing members).
+   * Returns unsubscribe function. Only 'pending' status requests are emitted.
+   */
+  listenForJoinRequests(
+    groupId: string,
+    onUpdate: (requests: JoinRequest[]) => void,
+  ): () => void {
+    const ref = database().ref(`/familyGroups/${groupId}/joinRequests`);
+    const handler = (snapshot: any) => {
+      const data = snapshot.val();
+      if (!data) { onUpdate([]); return; }
+      const pending = Object.values(data).filter(
+        (r: any) => r?.status === 'pending',
+      ) as JoinRequest[];
+      onUpdate(pending);
+    };
+    ref.on('value', handler);
+    return () => ref.off('value', handler);
   }
 
   /**
