@@ -693,11 +693,9 @@ class AuthenticationModule {
    */
   private generateInvitationCode(): string {
     const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed ambiguous characters
-    let code = '';
-    for (let i = 0; i < 8; i++) {
-      code += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return code;
+    const randomBytes = new Uint8Array(8);
+    crypto.getRandomValues(randomBytes);
+    return Array.from(randomBytes, b => characters[b % characters.length]).join('');
   }
 
   /**
