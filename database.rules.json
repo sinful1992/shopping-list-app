@@ -32,7 +32,11 @@
 
         "memberIds": {
           "$userId": {
-            ".write": "auth != null && auth.uid == $userId"
+            ".write": "auth != null && auth.uid == $userId && (
+              data.parent().child($userId).exists() ||
+              (newData.val() === true && !root.child('users').child($userId).child('familyGroupId').exists())
+            )",
+            ".validate": "newData.isBoolean() && newData.val() === true"
           }
         },
 
