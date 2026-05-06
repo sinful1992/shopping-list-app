@@ -37,6 +37,7 @@ const SettingsScreen = () => {
     user,
     familyGroup,
     familyMembers,
+    joinRequests,
     invitationCode,
     hapticFeedbackEnabled,
     ocrServerUrl,
@@ -46,12 +47,16 @@ const SettingsScreen = () => {
     toggleHapticFeedback: toggleHapticFeedbackHook,
     updateName,
     updateRole,
+    approveJoinRequest,
+    rejectJoinRequest,
     logout,
     deleteAccount,
     retryLoadInvitationCode,
   } = useSettings();
 
   // UI state only
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [showEditNameModal, setShowEditNameModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -80,6 +85,43 @@ const SettingsScreen = () => {
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
+  };
+
+  const handleApproveJoinRequest = async (requestUserId: string, displayName: string | null) => {
+    setApprovingId(requestUserId);
+    try {
+      await approveJoinRequest(requestUserId);
+      showAlert('Approved', `${displayName || 'User'} has been added to the family group.`, undefined, { icon: 'success' });
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleRejectJoinRequest = (requestUserId: string, displayName: string | null) => {
+    showAlert(
+      'Decline Request',
+      `Decline join request from ${displayName || 'this user'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            setRejectingId(requestUserId);
+            try {
+              await rejectJoinRequest(requestUserId);
+            } catch (error: any) {
+              showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+            } finally {
+              setRejectingId(null);
+            }
+          },
+        },
+      ],
+      { icon: 'confirm' },
+    );
   };
 
   const handleCopyInvitationCode = () => {
@@ -313,6 +355,56 @@ const SettingsScreen = () => {
               Share this code with family members to invite them to your group
             </Text>
           </View>
+
+          {/* Join Requests Section — only shown when there are pending requests */}
+          {joinRequests.length > 0 && (
+            <View style={[styles.section, { borderColor: 'rgba(255, 179, 64, 0.3)' }]}>
+              <View style={styles.sectionHeader}>
+                <Icon name="person-add-outline" size={24} color="#FFB340" />
+                <Text style={[styles.sectionTitle, { color: '#FFB340' }]}>Join Requests</Text>
+                <View style={styles.requestsBadge}>
+                  <Text style={styles.requestsBadgeText}>{joinRequests.length}</Text>
+                </View>
+              </View>
+              {joinRequests.map((req, index) => (
+                <View
+                  key={req.userId}
+                  style={[
+                    styles.memberRow,
+                    index < joinRequests.length - 1 && styles.memberRowBorder,
+                  ]}
+                >
+                  <View style={[styles.memberIconContainer, { borderColor: 'rgba(255, 179, 64, 0.3)', backgroundColor: 'rgba(255, 179, 64, 0.1)' }]}>
+                    <Icon name="person-outline" size={20} color="#FFB340" />
+                  </View>
+                  <View style={styles.memberInfo}>
+                    <Text style={styles.memberEmail}>{req.displayName || req.email}</Text>
+                    {req.displayName && <Text style={styles.memberEmailSmall}>{req.email}</Text>}
+                  </View>
+                  <View style={styles.requestActions}>
+                    <TouchableOpacity
+                      style={[styles.requestActionButton, styles.requestApproveButton]}
+                      onPress={() => handleApproveJoinRequest(req.userId, req.displayName)}
+                      disabled={approvingId === req.userId || rejectingId === req.userId}
+                    >
+                      {approvingId === req.userId
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Icon name="checkmark" size={18} color="#fff" />}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.requestActionButton, styles.requestRejectButton]}
+                      onPress={() => handleRejectJoinRequest(req.userId, req.displayName)}
+                      disabled={approvingId === req.userId || rejectingId === req.userId}
+                    >
+                      {rejectingId === req.userId
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Icon name="close" size={18} color="#fff" />}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Family Members Section */}
           <View style={styles.section}>

@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import database from '@react-native-firebase/database';
-import { User, FamilyGroup, FamilyRole } from '../models/types';
+import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import AuthenticationModule from '../services/AuthenticationModule';
 import NotificationManager from '../services/NotificationManager';
 import ReceiptOCRService from '../services/ReceiptOCRService';
@@ -48,11 +48,16 @@ export function useSettings() {
   const [invitationCode, setInvitationCode] = useState<string | null>(null);
   const [hapticFeedbackEnabled, setHapticFeedbackEnabled] = useState(false);
   const [ocrServerUrl, setOcrServerUrlState] = useState('');
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const joinRequestsUnsubscribeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     loadSettingsData();
     loadHapticFeedbackSetting();
     loadOcrServerUrl();
+    return () => {
+      joinRequestsUnsubscribeRef.current?.();
+    };
   }, []);
 
   const loadHapticFeedbackSetting = async () => {
@@ -105,6 +110,14 @@ export function useSettings() {
           const memberIdsList = Object.keys(group.memberIds);
           const members = await loadFamilyMembers(memberIdsList);
           setFamilyMembers(members);
+        }
+
+        if (currentUser.familyGroupId) {
+          joinRequestsUnsubscribeRef.current?.();
+          joinRequestsUnsubscribeRef.current = AuthenticationModule.listenForJoinRequests(
+            currentUser.familyGroupId,
+            setJoinRequests,
+          );
         }
       }
     } catch {
@@ -171,11 +184,22 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     }
   }, [user]);
 
+  const approveJoinRequest = useCallback(async (requestUserId: string): Promise<void> => {
+    if (!user?.familyGroupId) return;
+    await AuthenticationModule.approveJoinRequest(user.familyGroupId, requestUserId);
+  }, [user]);
+
+  const rejectJoinRequest = useCallback(async (requestUserId: string): Promise<void> => {
+    if (!user?.familyGroupId) return;
+    await AuthenticationModule.rejectJoinRequest(user.familyGroupId, requestUserId);
+  }, [user]);
+
   return {
     loading,
     user,
     familyGroup,
     familyMembers,
+    joinRequests,
     invitationCode,
     hapticFeedbackEnabled,
     ocrServerUrl,
@@ -185,6 +209,8 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     toggleHapticFeedback,
     updateName,
     updateRole,
+    approveJoinRequest,
+    rejectJoinRequest,
     logout,
     deleteAccount,
     retryLoadInvitationCode,

@@ -354,6 +354,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 10,
   },
+  requestsBadge: {
+    marginLeft: 10,
+    backgroundColor: '#FFB340',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  requestsBadgeText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  requestActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  requestApproveButton: {
+    backgroundColor: 'rgba(48, 209, 88, 0.8)',
+  },
+  requestRejectButton: {
+    backgroundColor: 'rgba(255, 69, 58, 0.7)',
+  },
   legalButton: {
     flexDirection: 'row',
     alignItems: 'center',
