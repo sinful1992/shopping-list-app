@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 
-/**
- * FamilyGroupScreen
- * Create or join a family group
- * Implements Req 1.4, 1.5
- */
+type JoinState = 'idle' | 'pending' | 'approved' | 'rejected';
+
 const FamilyGroupScreen = () => {
   const { showAlert } = useAlert();
   const [groupName, setGroupName] = useState('');
@@ -17,8 +24,25 @@ const FamilyGroupScreen = () => {
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [loading, setLoading] = useState(false);
 
+  const [joinState, setJoinState] = useState<JoinState>('idle');
+  const [pendingGroupId, setPendingGroupId] = useState<string | null>(null);
+  const [pendingGroupName, setPendingGroupName] = useState<string | null>(null);
+
+  const approvalUnsubscribeRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      approvalUnsubscribeRef.current?.();
+    };
+  }, []);
+
+  const stopApprovalListener = () => {
+    approvalUnsubscribeRef.current?.();
+    approvalUnsubscribeRef.current = null;
+  };
+
   const handleCreateGroup = async () => {
-    if (!groupName) {
+    if (!groupName.trim()) {
       showAlert('Error', 'Please enter a group name', undefined, { icon: 'error' });
       return;
     }
@@ -28,8 +52,7 @@ const FamilyGroupScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) throw new Error('User not authenticated');
 
-      const result = await AuthenticationModule.createFamilyGroup(groupName, user.uid);
-
+      const result = await AuthenticationModule.createFamilyGroup(groupName.trim(), user.uid);
       await AuthenticationModule.refreshUserData();
 
       showAlert('Success', `Family group created! Invitation code: ${result.invitationCode}`, undefined, { icon: 'success' });
@@ -40,15 +63,9 @@ const FamilyGroupScreen = () => {
     }
   };
 
-  const handleJoinGroup = async () => {
-    if (!invitationCode) {
-      showAlert('Error', 'Please enter an invitation code', undefined, { icon: 'error' });
-      return;
-    }
-
-    const normalizedCode = invitationCode.trim().toUpperCase().replace(/\s/g, '');
-
-    if (normalizedCode.length !== 8) {
+  const handleRequestJoin = async () => {
+    const normalized = invitationCode.trim().toUpperCase().replace(/\s/g, '');
+    if (normalized.length !== 8) {
       showAlert('Error', 'Invitation codes must be exactly 8 characters', undefined, { icon: 'error' });
       return;
     }
@@ -58,119 +75,168 @@ const FamilyGroupScreen = () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (!user) throw new Error('User not authenticated');
 
-      await AuthenticationModule.joinFamilyGroup(normalizedCode, user.uid);
+      const { groupId, groupName: name } = await AuthenticationModule.submitJoinRequest(normalized, user.uid);
 
-      await AuthenticationModule.refreshUserData();
+      setPendingGroupId(groupId);
+      setPendingGroupName(name);
+      setJoinState('pending');
 
-      showAlert('Success', 'You have successfully joined the family group!', undefined, { icon: 'success' });
+      approvalUnsubscribeRef.current = AuthenticationModule.listenForJoinApproval(
+        groupId,
+        user.uid,
+        async (status) => {
+          if (status === 'approved') {
+            stopApprovalListener();
+            setJoinState('approved');
+            try {
+              await AuthenticationModule.completeJoinAfterApproval(groupId, user.uid);
+              await AuthenticationModule.refreshUserData();
+            } catch {
+              // refreshUserData triggers onAuthStateChanged which navigates
+            }
+          } else if (status === 'rejected') {
+            stopApprovalListener();
+            setJoinState('rejected');
+          }
+        },
+      );
     } catch (error: unknown) {
-      let userMessage = 'Something went wrong. Please try again.';
-      if (error instanceof Error) {
-        userMessage = error.message;
-        if (error.message.includes('Invalid invitation code')) {
-          userMessage = 'Invalid invitation code. Please check the code and try again.';
-        } else if (error.message.includes('no longer exists')) {
-          userMessage = 'This family group has been deleted by the owner.';
-        } else if (error.message.includes('network')) {
-          userMessage = 'Network error. Please check your connection and try again.';
-        }
-      }
-      showAlert('Error', userMessage, undefined, { icon: 'error' });
+      const msg = error instanceof Error ? error.message : 'Something went wrong.';
+      showAlert('Error', msg, undefined, { icon: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleCancelRequest = async () => {
+    const user = await AuthenticationModule.getCurrentUser();
+    if (user && pendingGroupId) {
+      await AuthenticationModule.cancelJoinRequest(pendingGroupId, user.uid).catch(() => {});
+    }
+    stopApprovalListener();
+    setPendingGroupId(null);
+    setPendingGroupName(null);
+    setJoinState('idle');
+  };
+
+  const handleRetryAfterRejection = () => {
+    setPendingGroupId(null);
+    setPendingGroupName(null);
+    setJoinState('idle');
+    setInvitationCode('');
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#12121C' }}>
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
-        <View style={styles.container}>
-          <Text style={styles.title}>Family Group</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
+          <View style={styles.container}>
+            <Text style={styles.title}>Family Group</Text>
 
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[styles.toggleButton, mode === 'create' && styles.toggleButtonActive]}
-              onPress={() => setMode('create')}
-            >
-              <Text style={[styles.toggleText, mode === 'create' && styles.toggleTextActive]}>
-                Create
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleButton, mode === 'join' && styles.toggleButtonActive]}
-              onPress={() => setMode('join')}
-            >
-              <Text style={[styles.toggleText, mode === 'join' && styles.toggleTextActive]}>
-                Join
-              </Text>
-            </TouchableOpacity>
+            {/* Waiting for approval */}
+            {joinState === 'pending' && (
+              <View style={styles.waitingCard}>
+                <ActivityIndicator size="large" color="#6EA8FE" style={{ marginBottom: 20 }} />
+                <Text style={styles.waitingTitle}>Request Sent</Text>
+                <Text style={styles.waitingSubtitle}>
+                  Waiting for a member of{'\n'}
+                  <Text style={styles.waitingGroupName}>{pendingGroupName}</Text>
+                  {'\n'}to approve your request.
+                </Text>
+                <TouchableOpacity style={styles.cancelButton} onPress={handleCancelRequest}>
+                  <Text style={styles.cancelButtonText}>Cancel Request</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Rejected */}
+            {joinState === 'rejected' && (
+              <View style={styles.waitingCard}>
+                <Text style={styles.rejectedIcon}>✗</Text>
+                <Text style={styles.rejectedTitle}>Request Declined</Text>
+                <Text style={styles.waitingSubtitle}>
+                  Your request to join{'\n'}
+                  <Text style={styles.waitingGroupName}>{pendingGroupName}</Text>
+                  {'\n'}was declined.
+                </Text>
+                <TouchableOpacity style={styles.retryButton} onPress={handleRetryAfterRejection}>
+                  <LinearGradient colors={['#6EA8FE', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
+                    <Text style={styles.buttonText}>Try Another Code</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Approved — brief flash before auth state navigates away */}
+            {joinState === 'approved' && (
+              <View style={styles.waitingCard}>
+                <Text style={styles.approvedIcon}>✓</Text>
+                <Text style={styles.approvedTitle}>Welcome to the family!</Text>
+                <ActivityIndicator color="#30D158" style={{ marginTop: 16 }} />
+              </View>
+            )}
+
+            {/* Normal create/join UI */}
+            {joinState === 'idle' && (
+              <>
+                <View style={styles.toggleContainer}>
+                  <TouchableOpacity
+                    style={[styles.toggleButton, mode === 'create' && styles.toggleButtonActive]}
+                    onPress={() => setMode('create')}
+                  >
+                    <Text style={[styles.toggleText, mode === 'create' && styles.toggleTextActive]}>Create</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.toggleButton, mode === 'join' && styles.toggleButtonActive]}
+                    onPress={() => setMode('join')}
+                  >
+                    <Text style={[styles.toggleText, mode === 'join' && styles.toggleTextActive]}>Join</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {mode === 'create' ? (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Family Group Name"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={groupName}
+                      onChangeText={setGroupName}
+                      editable={!loading}
+                    />
+                    <TouchableOpacity style={loading ? styles.buttonDisabled : undefined} onPress={handleCreateGroup} disabled={loading}>
+                      <LinearGradient colors={['#6EA8FE', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
+                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create Family Group</Text>}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Invitation Code (e.g., A3F7K9M2)"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={invitationCode}
+                      onChangeText={setInvitationCode}
+                      autoCapitalize="characters"
+                      maxLength={8}
+                      editable={!loading}
+                    />
+                    <Text style={styles.joinHint}>
+                      A member of the group will need to approve your request.
+                    </Text>
+                    <TouchableOpacity style={loading ? styles.buttonDisabled : undefined} onPress={handleRequestJoin} disabled={loading}>
+                      <LinearGradient colors={['#6EA8FE', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
+                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Request to Join</Text>}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
           </View>
-
-          {mode === 'create' ? (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="Family Group Name"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={groupName}
-                onChangeText={setGroupName}
-                editable={!loading}
-              />
-              <TouchableOpacity
-                style={loading && styles.buttonDisabled}
-                onPress={handleCreateGroup}
-                disabled={loading}
-              >
-                <LinearGradient
-                  colors={['#6EA8FE', '#A78BFA']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.button}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.buttonText}>Create Family Group</Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TextInput
-                style={styles.input}
-                placeholder="Invitation Code (e.g., A3F7K9M2)"
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={invitationCode}
-                onChangeText={setInvitationCode}
-                autoCapitalize="characters"
-                maxLength={8}
-                editable={!loading}
-              />
-              <TouchableOpacity
-                style={loading && styles.buttonDisabled}
-                onPress={handleJoinGroup}
-                disabled={loading}
-              >
-                <LinearGradient
-                  colors={['#6EA8FE', '#A78BFA']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.button}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.buttonText}>Join Family Group</Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -220,10 +286,17 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 14,
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: 12,
     borderWidth: 1.5,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     color: '#ffffff',
+  },
+  joinHint: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontStyle: 'italic',
   },
   button: {
     padding: 16,
@@ -237,6 +310,65 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  waitingCard: {
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingHorizontal: 20,
+  },
+  waitingTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 16,
+  },
+  waitingSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 40,
+  },
+  waitingGroupName: {
+    color: '#6EA8FE',
+    fontWeight: '700',
+  },
+  cancelButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  cancelButtonText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  rejectedIcon: {
+    fontSize: 52,
+    color: '#FF453A',
+    marginBottom: 12,
+  },
+  rejectedTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#FF453A',
+    marginBottom: 16,
+  },
+  approvedIcon: {
+    fontSize: 52,
+    color: '#30D158',
+    marginBottom: 12,
+  },
+  approvedTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#30D158',
+    marginBottom: 16,
+  },
+  retryButton: {
+    width: '100%',
   },
 });
 
