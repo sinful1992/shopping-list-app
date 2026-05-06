@@ -2,7 +2,7 @@ import storage from '@react-native-firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import EncryptedStorage from 'react-native-encrypted-storage';
 import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
@@ -103,7 +103,7 @@ class ImageStorageManager {
       queue.push(queuedUpload);
 
       // Save updated queue
-      await AsyncStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(queue));
+      await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(queue));
     } catch (error: any) {
       throw new Error(`Failed to queue upload: ${error.message}`);
     }
@@ -164,7 +164,7 @@ class ImageStorageManager {
    * Helper: Get upload queue from storage
    */
   private async getUploadQueue(): Promise<QueuedUpload[]> {
-    const queueJson = await AsyncStorage.getItem(this.UPLOAD_QUEUE_KEY);
+    const queueJson = await EncryptedStorage.getItem(this.UPLOAD_QUEUE_KEY);
     return safeJsonParse<QueuedUpload[]>(queueJson, []);
   }
 
@@ -185,7 +185,7 @@ class ImageStorageManager {
     const index = queue.findIndex((item) => item.id === upload.id);
     if (index !== -1) {
       queue[index] = upload;
-      await AsyncStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(queue));
+      await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(queue));
     }
   }
 }
