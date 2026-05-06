@@ -6,7 +6,11 @@
     "users": {
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || (root.child('users').child(auth.uid).child('familyGroupId').val() != null && root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()))",
-        ".write": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid && (
+          !newData.hasChild('familyGroupId') ||
+          newData.child('familyGroupId').val() == null ||
+          root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
+        )",
 
         "claimsUpdatedAt": {
           ".write": false
@@ -32,11 +36,31 @@
 
         "memberIds": {
           "$userId": {
-            ".write": "auth != null && auth.uid == $userId && (
-              data.parent().child($userId).exists() ||
-              (newData.val() === true && !root.child('users').child($userId).child('familyGroupId').exists())
+            ".read": "auth != null && auth.uid == $userId",
+            ".write": "auth != null && (
+              (auth.uid == $userId && data.parent().child($userId).exists()) ||
+              (root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid) &&
+               root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists() &&
+               newData.val() === true)
             )",
             ".validate": "newData.isBoolean() && newData.val() === true"
+          }
+        },
+
+        "joinRequests": {
+          ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+          "$userId": {
+            ".read": "auth != null && auth.uid == $userId",
+            ".write": "auth != null && (
+              auth.uid == $userId ||
+              root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)
+            )",
+            ".validate": "!newData.exists() || (
+              newData.hasChildren(['userId', 'groupId', 'displayName', 'email', 'requestedAt', 'status']) &&
+              newData.child('groupId').isString() &&
+              newData.child('requestedAt').isNumber() &&
+              newData.child('status').val().matches(/^(pending|approved|rejected)$/)
+            )"
           }
         },
 
