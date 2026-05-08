@@ -29,6 +29,11 @@ jobs:
           supabase functions deploy notify-urgent-item --no-verify-jwt
           supabase functions deploy process-ocr --no-verify-jwt
           supabase functions deploy create-list --no-verify-jwt
+          supabase functions deploy revenuecat-webhook --no-verify-jwt
+          supabase functions deploy reconcile-subscription --no-verify-jwt
+          supabase functions deploy register-device-token --no-verify-jwt
+          supabase functions deploy notify-shopping-started --no-verify-jwt
+          supabase functions deploy upsert-urgent-item --no-verify-jwt
 
       - name: Set Edge Function Secrets
         env:
