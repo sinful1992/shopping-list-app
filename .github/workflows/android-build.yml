@@ -98,6 +98,11 @@ jobs:
           # Decode the base64 keystore from GitHub secrets
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
 
+      - name: Print keystore fingerprints
+        if: github.event_name != 'pull_request'
+        run: |
+          keytool -list -v -keystore android/app/release.keystore -alias upload-key -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" | grep -E "SHA1:|SHA256:"
+
       - name: Update heap settings in android/gradle.properties
         run: |
           echo "" >> android/gradle.properties
