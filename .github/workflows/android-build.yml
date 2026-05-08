@@ -101,7 +101,7 @@ jobs:
       - name: Print keystore fingerprints
         if: github.event_name != 'pull_request'
         run: |
-          keytool -list -v -keystore android/app/release.keystore -alias upload-key -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" | grep -E "SHA1:|SHA256:"
+          keytool -list -v -keystore android/app/release.keystore -alias upload-key -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" | grep -i "sha"
 
       - name: Update heap settings in android/gradle.properties
         run: |
