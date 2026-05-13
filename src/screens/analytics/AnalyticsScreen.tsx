@@ -14,6 +14,7 @@ import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsServ
 import AuthenticationModule from '../../services/AuthenticationModule';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import { RADIUS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ItemStoreComparison from './ItemStoreComparison';
 import VolatileItemsChart from './VolatileItemsChart';
@@ -220,7 +221,7 @@ const AnalyticsScreen = () => {
               animateOnDataChange
               animationDuration={700}
               rulesType="solid"
-              rulesColor="rgba(255,255,255,0.07)"
+              rulesColor={theme.border.subtle}
               xAxisColor="transparent"
               yAxisColor="transparent"
               yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
@@ -247,10 +248,10 @@ const AnalyticsScreen = () => {
               donut
               radius={72}
               innerRadius={46}
-              innerCircleColor="#12121C"
+              innerCircleColor={theme.glass.subtle}
               centerLabelComponent={() => (
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 14, color: '#fff', fontWeight: '700' }}>
+                  <Text style={{ fontSize: 14, color: theme.text.primary, fontWeight: '700' }}>
                     £{analytics.totalSpent.toFixed(0)}
                   </Text>
                   <Text style={{ fontSize: 10, color: theme.text.secondary }}>total</Text>
@@ -267,7 +268,7 @@ const AnalyticsScreen = () => {
                   <Text style={{ flex: 1, fontSize: 12, color: theme.text.secondary }} numberOfLines={1}>
                     {item.text}
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600' }}>
+                  <Text style={{ fontSize: 12, color: theme.text.primary, fontWeight: '600' }}>
                     £{item.value.toFixed(0)}
                   </Text>
                 </View>
@@ -327,8 +328,8 @@ const AnalyticsScreen = () => {
               isAnimated
               animationDuration={700}
               showValuesAsTopLabel
-              topLabelTextStyle={{ color: '#fff', fontSize: 11, fontWeight: '600' }}
-              rulesColor="rgba(255,255,255,0.07)"
+              topLabelTextStyle={{ color: theme.text.primary, fontSize: 11, fontWeight: '600' }}
+              rulesColor={theme.border.subtle}
               xAxisColor="transparent"
               yAxisColor="transparent"
               yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
@@ -466,7 +467,7 @@ const AnalyticsScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: theme.background.primary,
