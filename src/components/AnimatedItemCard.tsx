@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
 import Animated, { useSharedValue, withSequence, withTiming, useAnimatedStyle } from 'react-native-reanimated';
-import { COLORS, RADIUS } from '../styles/theme';
+import { RADIUS } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import CategoryService from '../services/CategoryService';
 
 const VOLUME_UNITS = ['ml', 'L'];
@@ -81,6 +82,65 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   suggestionRowStyle,
   suggestionTextStyle,
 }) => {
+  const { theme } = useTheme();
+  const cardStyles = useMemo(() => StyleSheet.create({
+    qtyPrefix: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: theme.text.secondary,
+      marginRight: 4,
+    },
+    qtyBtnIncrement: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: RADIUS.small - 2,
+      marginLeft: 4,
+      backgroundColor: theme.accent.greenDim,
+    },
+    qtyBtnDecrement: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: RADIUS.small - 2,
+      marginLeft: 4,
+      backgroundColor: theme.accent.redSubtle,
+    },
+    qtyBtnDisabled: {
+      opacity: 0.3,
+    },
+    qtyBtnTextIncrement: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.accent.green,
+    },
+    qtyBtnTextDecrement: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.accent.red,
+    },
+    subRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 2,
+    },
+    categoryLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    measurementText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    addSizeText: {
+      fontSize: 11,
+      color: theme.text.dim,
+      fontStyle: 'italic',
+    },
+  }), [theme]);
   const isChecked = item.checked === true;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
@@ -231,63 +291,5 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   );
 };
 
-const cardStyles = StyleSheet.create({
-  qtyPrefix: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.text.secondary,
-    marginRight: 4,
-  },
-  qtyBtnIncrement: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: RADIUS.small - 2,
-    marginLeft: 4,
-    backgroundColor: COLORS.accent.greenDim,
-  },
-  qtyBtnDecrement: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: RADIUS.small - 2,
-    marginLeft: 4,
-    backgroundColor: COLORS.accent.redSubtle,
-  },
-  qtyBtnDisabled: {
-    opacity: 0.3,
-  },
-  qtyBtnTextIncrement: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.accent.green,
-  },
-  qtyBtnTextDecrement: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.accent.red,
-  },
-  subRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-  },
-  categoryLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  measurementText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  addSizeText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.2)',
-    fontStyle: 'italic',
-  },
-});
 
 export default AnimatedItemCard;

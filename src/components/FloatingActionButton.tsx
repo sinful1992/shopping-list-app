@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -8,7 +8,7 @@ import {
 import Animated from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface FloatingActionButtonProps {
   icon?: string;
@@ -35,6 +35,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   style,
 }) => {
   const [pressed, setPressed] = useState(false);
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   return (
     <Animated.View
@@ -75,7 +77,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
           </LinearGradient>
         ) : (
           <LinearGradient
-            colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+            colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
@@ -89,13 +91,13 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     bottom: 20,
     right: 20,
     elevation: 8,
-    shadowColor: COLORS.accent.blue,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,

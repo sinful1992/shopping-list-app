@@ -1,7 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import CrashReporting from '../services/CrashReporting';
-import { COLORS, RADIUS } from '../styles/theme';
+import { DARK_THEME, RADIUS } from '../styles/theme';
 
 interface Props {
   children: ReactNode;
@@ -65,24 +65,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: DARK_THEME.background.primary,
     padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.accent.red,
+    color: DARK_THEME.accent.red,
     marginBottom: 16,
   },
   message: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: DARK_THEME.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 20,
   },
   button: {
-    backgroundColor: COLORS.accent.blue,
+    backgroundColor: DARK_THEME.accent.blue,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: RADIUS.large,
