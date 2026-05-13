@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -37,6 +38,7 @@ const ReceiptViewScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptView'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
   const { listId } = route.params;
 
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,7 @@ const ReceiptViewScreen = () => {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<EditableReceipt | null>(null);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   useEffect(() => {
     loadReceiptData();
@@ -143,7 +146,7 @@ const ReceiptViewScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading receipt...</Text>
       </View>
     );
@@ -192,7 +195,7 @@ const ReceiptViewScreen = () => {
                 <Text style={styles.retryButtonText}>Process Receipt</Text>
               </TouchableOpacity>
             )}
-            {retrying && <ActivityIndicator size="small" color="#007AFF" />}
+            {retrying && <ActivityIndicator size="small" color={theme.accent.blue} />}
           </View>
         ) : (
           <>
@@ -271,7 +274,7 @@ const ReceiptViewScreen = () => {
                   }
                   placeholder="0.00"
                   keyboardType="decimal-pad"
-                  placeholderTextColor="#6E6E73"
+                  placeholderTextColor={theme.text.tertiary}
                 />
               ) : (
                 <Text style={styles.totalValue}>
@@ -302,7 +305,7 @@ const ReceiptViewScreen = () => {
                             });
                           }}
                           placeholder="Item name"
-                          placeholderTextColor="#6E6E73"
+                          placeholderTextColor={theme.text.tertiary}
                         />
                         <TextInput
                           style={[styles.input, styles.itemPriceInput]}
@@ -317,7 +320,7 @@ const ReceiptViewScreen = () => {
                           }}
                           placeholder="0.00"
                           keyboardType="decimal-pad"
-                          placeholderTextColor="#6E6E73"
+                          placeholderTextColor={theme.text.tertiary}
                         />
                       </>
                     ) : (
@@ -384,25 +387,25 @@ const ReceiptViewScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   emptyText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   imageContainer: {
     backgroundColor: '#000',
@@ -414,10 +417,10 @@ const styles = StyleSheet.create({
   },
   dataContainer: {
     padding: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
     borderRadius: 16,
     marginHorizontal: 10,
   },
@@ -461,7 +464,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 5,
   },
   value: {
@@ -481,7 +484,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 14,
     padding: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
   },
   lineItemsContainer: {
     marginTop: 20,
@@ -521,7 +524,7 @@ const styles = StyleSheet.create({
   },
   extractedText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     marginTop: 15,
     fontStyle: 'italic',
   },
@@ -531,7 +534,7 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 15,
   },
   retryButton: {
@@ -573,7 +576,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     padding: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 14,
     alignItems: 'center',
     marginRight: 10,
@@ -583,7 +586,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   saveButton: {
     flex: 1,
