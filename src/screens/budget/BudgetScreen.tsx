@@ -13,6 +13,7 @@ import { sanitizeError } from '../../utils/sanitize';
 import BudgetAlertService, { AlertLevel } from '../../services/BudgetAlertService';
 import { ExpenditureBreakdownItem } from '../../models/types';
 import { RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBudgetData } from '../../hooks';
 
@@ -319,7 +320,7 @@ const BudgetScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

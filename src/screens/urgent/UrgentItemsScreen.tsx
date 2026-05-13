@@ -16,6 +16,7 @@ import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
 import { useUrgentItems } from '../../hooks';
+import type { Theme } from '../../styles/theme';
 
 /**
  * UrgentItemsScreen
@@ -279,7 +280,7 @@ const UrgentItemsScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

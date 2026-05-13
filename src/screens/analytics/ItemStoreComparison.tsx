@@ -12,6 +12,7 @@ import {
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PricePoint } from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -296,7 +297,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.glass.subtle,
     borderRadius: 16,

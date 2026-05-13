@@ -20,6 +20,7 @@ import { ShoppingList, User } from '../../models/types';
 import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import SortDropdown, { SortOption } from '../../components/SortDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 /**
  * HistoryScreen
@@ -476,7 +477,7 @@ const HistoryScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SubscriptionTier } from '../models/types';
 import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../styles/theme';
 
 interface UsageIndicatorProps {
   label: string;
@@ -50,7 +51,7 @@ export const UsageIndicator: React.FC<UsageIndicatorProps> = ({ label, used, lim
   );
 };
 
-const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginVertical: 8,
   },

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator, Dimensions } from 'react-nat
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -83,7 +84,7 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
     backgroundColor: theme.glass.subtle,
     borderRadius: 16,

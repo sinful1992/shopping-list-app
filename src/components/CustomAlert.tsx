@@ -36,14 +36,17 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-
-  const ICON_CONFIG = {
-    error: { name: 'close-circle', color: theme.accent.red },
-    success: { name: 'checkmark-circle', color: theme.accent.green },
-    warning: { name: 'warning', color: theme.accent.yellow },
-    info: { name: 'information-circle', color: theme.accent.blue },
-    confirm: { name: 'help-circle', color: theme.accent.blue },
-  };
+  const iconConfig = useMemo(() => {
+    if (!icon) return null;
+    const map = {
+      error:   { name: 'close-circle',       color: theme.accent.red },
+      success: { name: 'checkmark-circle',   color: theme.accent.green },
+      warning: { name: 'warning',            color: theme.accent.yellow },
+      info:    { name: 'information-circle', color: theme.accent.blue },
+      confirm: { name: 'help-circle',        color: theme.accent.blue },
+    };
+    return map[icon];
+  }, [icon, theme]);
 
   const handleButtonPress = (button: AlertButton) => {
     onDismiss();
@@ -73,8 +76,6 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
         return styles.buttonTextDefault;
     }
   };
-
-  const iconConfig = icon ? ICON_CONFIG[icon] : null;
 
   return (
     <Modal visible={visible} transparent animationType="fade">

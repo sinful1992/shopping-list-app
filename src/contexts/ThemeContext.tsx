@@ -10,7 +10,6 @@ interface ThemeContextValue {
   theme: Theme;
   isDark: boolean;
   toggle: () => void;
-  isLoading: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -18,13 +17,13 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const [preference, setPreference] = useState<ThemePreference>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
+  // Load saved preference after mount; system scheme is the immediate default so
+  // children always render on the first pass (no null/blank frame).
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(val => {
-      setPreference(val as ThemePreference);
-      setIsLoading(false);
-    });
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then(val => { setPreference(val as ThemePreference); })
+      .catch(() => {});
   }, []);
 
   const isDark = preference !== null ? preference === 'dark' : systemScheme !== 'light';
@@ -36,10 +35,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEY, next);
   };
 
-  if (isLoading) return null;
-
   return (
-    <ThemeContext.Provider value={{ theme, isDark, toggle, isLoading }}>
+    <ThemeContext.Provider value={{ theme, isDark, toggle }}>
       {children}
     </ThemeContext.Provider>
   );

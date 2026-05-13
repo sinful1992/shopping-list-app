@@ -27,6 +27,7 @@ import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+import { DARK_THEME, LIGHT_THEME } from './src/styles/theme';
 import { useInAppUpdate } from './src/hooks';
 import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 import { AdMobProvider } from './src/contexts/AdMobContext';
@@ -59,18 +60,18 @@ const linking = {
   },
 };
 
-// Navigation themes
+// Navigation themes — derived from theme tokens so they stay in sync automatically
 const DarkNavigationTheme = {
   ...DefaultTheme,
   dark: true,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#6EA8FE',
-    background: '#12121C',
-    card: '#1E1E2E',
-    text: '#ffffff',
-    border: 'rgba(255, 255, 255, 0.05)',
-    notification: '#6EA8FE',
+    primary:      DARK_THEME.accent.blue,
+    background:   DARK_THEME.background.primary,
+    card:         DARK_THEME.background.secondary,
+    text:         DARK_THEME.text.primary,
+    border:       DARK_THEME.border.subtle,
+    notification: DARK_THEME.accent.blue,
   },
 };
 
@@ -79,12 +80,12 @@ const LightNavigationTheme = {
   dark: false,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#2563EB',
-    background: '#F0F2F5',
-    card: '#FFFFFF',
-    text: '#111827',
-    border: 'rgba(0, 0, 0, 0.06)',
-    notification: '#2563EB',
+    primary:      LIGHT_THEME.accent.blue,
+    background:   LIGHT_THEME.background.primary,
+    card:         LIGHT_THEME.background.secondary,
+    text:         LIGHT_THEME.text.primary,
+    border:       LIGHT_THEME.border.subtle,
+    notification: LIGHT_THEME.accent.blue,
   },
 };
 
@@ -492,14 +493,15 @@ function App(): JSX.Element {
   );
 }
 
-// Wrap App with AlertProvider and ThemeProvider
+// ThemeProvider must be outermost: AlertProvider renders CustomAlert which calls
+// useTheme(), so CustomAlert must be a descendant of ThemeProvider.
 function AppWithProvider(): JSX.Element {
   return (
-    <AlertProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <AlertProvider>
         <App />
-      </ThemeProvider>
-    </AlertProvider>
+      </AlertProvider>
+    </ThemeProvider>
   );
 }
 

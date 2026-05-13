@@ -5,6 +5,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../types/navigation';
 import SimpleMarkdown from '../../components/SimpleMarkdown';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 const LegalDocumentScreen = () => {
   const route = useRoute<RouteProp<RootStackParamList, 'LegalDocument'>>();
@@ -19,7 +20,7 @@ const LegalDocumentScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,
