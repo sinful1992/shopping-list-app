@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 export interface FilterOptions {
   startDate: Date | null;
@@ -40,6 +42,9 @@ const FilterModal: React.FC<FilterModalProps> = ({
   availableCategories,
   currentFilters,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const [startDate, setStartDate] = useState<Date | null>(currentFilters.startDate);
   const [endDate, setEndDate] = useState<Date | null>(currentFilters.endDate);
   const [selectedStores, setSelectedStores] = useState<string[]>(currentFilters.stores);
@@ -53,7 +58,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      // Reset to current filters when modal opens
       setStartDate(currentFilters.startDate);
       setEndDate(currentFilters.endDate);
       setSelectedStores(currentFilters.stores);
@@ -128,12 +132,11 @@ const FilterModal: React.FC<FilterModalProps> = ({
           onPress={onClose}
         />
         <LinearGradient
-          colors={['#1E1E2E', '#181825']}
+          colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
           style={styles.modal}
         >
-          {/* Handle bar */}
-          <View style={COMMON_STYLES.modalHandleContainer}>
-            <View style={COMMON_STYLES.modalHandle} />
+          <View style={styles.modalHandleContainer}>
+            <View style={styles.modalHandle} />
           </View>
           <View style={styles.header}>
             <Text style={styles.title}>Filters</Text>
@@ -148,7 +151,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Date Range */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Date Range</Text>
 
@@ -197,7 +199,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
               )}
             </View>
 
-            {/* Stores */}
             {availableStores.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Stores</Text>
@@ -225,7 +226,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             )}
 
-            {/* Price Range */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Price Range</Text>
               <View style={styles.priceRow}>
@@ -236,7 +236,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
                     value={minPrice}
                     onChangeText={setMinPrice}
                     placeholder="£0"
-                    placeholderTextColor={COLORS.text.tertiary}
+                    placeholderTextColor={theme.text.tertiary}
                     keyboardType="numeric"
                   />
                 </View>
@@ -248,14 +248,13 @@ const FilterModal: React.FC<FilterModalProps> = ({
                     value={maxPrice}
                     onChangeText={setMaxPrice}
                     placeholder="£999"
-                    placeholderTextColor={COLORS.text.tertiary}
+                    placeholderTextColor={theme.text.tertiary}
                     keyboardType="numeric"
                   />
                 </View>
               </View>
             </View>
 
-            {/* Categories */}
             {availableCategories.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Categories</Text>
@@ -283,7 +282,6 @@ const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             )}
 
-            {/* Receipt Filter */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Receipt</Text>
               <View style={styles.receiptRow}>
@@ -364,7 +362,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -375,7 +373,7 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
   },
   modal: {
     borderTopLeftRadius: RADIUS.modal,
@@ -388,20 +386,33 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  modalHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.medium,
+    borderBottomColor: theme.border.medium,
   },
   title: {
-    ...COMMON_STYLES.sectionHeader,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: theme.text.primary,
     marginBottom: 0,
   },
   badge: {
-    backgroundColor: COLORS.accent.blueLight,
+    backgroundColor: theme.accent.blueLight,
     borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
@@ -409,7 +420,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
@@ -418,7 +429,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 24,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     fontWeight: '300',
   },
   content: {
@@ -430,13 +441,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: SPACING.md,
   },
   dateButton: {
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -444,11 +460,11 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   dateValue: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   chipContainer: {
@@ -457,19 +473,30 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   chip: {
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
   },
   chipSelected: {
-    ...COMMON_STYLES.buttonActive,
+    backgroundColor: theme.accent.blueLight,
+    borderWidth: 1,
+    borderColor: theme.accent.blueDim,
+    borderRadius: RADIUS.large,
+    shadowColor: theme.accent.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   chipText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   chipTextSelected: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   priceRow: {
@@ -482,20 +509,20 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginBottom: SPACING.xs,
   },
   priceSeparator: {
     fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     paddingTop: 20,
   },
   input: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.large,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     padding: 14,
   },
   receiptRow: {
@@ -504,18 +531,31 @@ const styles = StyleSheet.create({
   },
   receiptButton: {
     flex: 1,
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     alignItems: 'center',
   },
   receiptButtonActive: {
-    ...COMMON_STYLES.buttonActive,
+    backgroundColor: theme.accent.blueLight,
+    borderWidth: 1,
+    borderColor: theme.accent.blueDim,
+    borderRadius: RADIUS.large,
+    shadowColor: theme.accent.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   receiptButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   receiptButtonTextActive: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   footer: {
@@ -524,16 +564,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.xl,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border.medium,
+    borderTopColor: theme.border.medium,
   },
   clearButton: {
     flex: 1,
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     alignItems: 'center',
   },
   clearButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   applyButtonWrapper: {
@@ -547,7 +592,7 @@ const styles = StyleSheet.create({
   },
   applyButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });

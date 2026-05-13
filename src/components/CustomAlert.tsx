@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 export interface AlertButton {
   text: string;
@@ -24,14 +26,6 @@ export interface CustomAlertProps {
   onDismiss: () => void;
 }
 
-const ICON_CONFIG = {
-  error: { name: 'close-circle', color: COLORS.accent.red },
-  success: { name: 'checkmark-circle', color: COLORS.accent.green },
-  warning: { name: 'warning', color: COLORS.accent.yellow },
-  info: { name: 'information-circle', color: COLORS.accent.blue },
-  confirm: { name: 'help-circle', color: COLORS.accent.blue },
-};
-
 const CustomAlert: React.FC<CustomAlertProps> = ({
   visible,
   title,
@@ -40,6 +34,17 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   buttons = [{ text: 'OK', style: 'default' }],
   onDismiss,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
+  const ICON_CONFIG = {
+    error: { name: 'close-circle', color: theme.accent.red },
+    success: { name: 'checkmark-circle', color: theme.accent.green },
+    warning: { name: 'warning', color: theme.accent.yellow },
+    info: { name: 'information-circle', color: theme.accent.blue },
+    confirm: { name: 'help-circle', color: theme.accent.blue },
+  };
+
   const handleButtonPress = (button: AlertButton) => {
     onDismiss();
     if (button.onPress) {
@@ -114,19 +119,19 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
   },
   modal: {
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: theme.background.secondary,
     borderRadius: RADIUS.modal,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
     width: '100%',
     maxWidth: 320,
     paddingTop: SPACING.xl,
@@ -141,13 +146,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: TYPOGRAPHY.fontSize.xl,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   message: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'center',
     marginBottom: SPACING.lg,
     lineHeight: 20,
@@ -175,29 +180,29 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonDefault: {
-    backgroundColor: COLORS.accent.blue,
-    borderColor: COLORS.accent.blueDim,
+    backgroundColor: theme.accent.blue,
+    borderColor: theme.accent.blueDim,
   },
   buttonCancel: {
-    backgroundColor: COLORS.glass.subtle,
-    borderColor: COLORS.border.subtle,
+    backgroundColor: theme.glass.subtle,
+    borderColor: theme.border.subtle,
   },
   buttonDestructive: {
-    backgroundColor: COLORS.accent.red,
-    borderColor: COLORS.accent.redDim,
+    backgroundColor: theme.accent.red,
+    borderColor: theme.accent.redDim,
   },
   buttonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   buttonTextDefault: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   buttonTextCancel: {
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   buttonTextDestructive: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
 });
 

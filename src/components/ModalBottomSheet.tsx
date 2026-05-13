@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Modal,
   KeyboardAvoidingView,
@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { View } from 'react-native';
-import { COLORS, RADIUS, COMMON_STYLES } from '../styles/theme';
+import { RADIUS } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ModalBottomSheetProps {
   visible: boolean;
@@ -17,6 +19,9 @@ interface ModalBottomSheetProps {
 }
 
 const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, children }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   return (
     <Modal
       visible={visible}
@@ -34,11 +39,11 @@ const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, c
           onPress={onClose}
         />
         <LinearGradient
-          colors={[COLORS.gradient.modalStart, COLORS.gradient.modalEnd]}
+          colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
           style={styles.modal}
         >
-          <View style={COMMON_STYLES.modalHandleContainer}>
-            <View style={COMMON_STYLES.modalHandle} />
+          <View style={styles.modalHandleContainer}>
+            <View style={styles.modalHandle} />
           </View>
           {children}
         </LinearGradient>
@@ -47,7 +52,7 @@ const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, c
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -58,7 +63,7 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
   },
   modal: {
     borderTopLeftRadius: RADIUS.modal,
@@ -70,6 +75,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 12,
     elevation: 8,
+  },
+  modalHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
 });
 
