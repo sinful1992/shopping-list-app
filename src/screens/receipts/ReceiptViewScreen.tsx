@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -387,7 +388,7 @@ const ReceiptViewScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,
@@ -433,11 +434,11 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   editButton: {
     fontSize: 16,
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     fontWeight: '600',
   },
   confidenceRow: {
@@ -446,7 +447,7 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
     marginBottom: 15,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: theme.border.subtle,
   },
   confidenceText: {
     fontSize: 18,
@@ -454,10 +455,10 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
     marginLeft: 10,
   },
   highConfidence: {
-    color: '#30D158',
+    color: theme.accent.green,
   },
   lowConfidence: {
-    color: '#FF9500',
+    color: theme.accent.orange,
   },
   fieldRow: {
     marginBottom: 15,
@@ -469,19 +470,19 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
   },
   value: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '600',
   },
   totalValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#30D158',
+    color: theme.accent.green,
   },
   input: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
     borderRadius: 14,
     padding: 12,
     backgroundColor: theme.glass.subtle,
@@ -490,7 +491,7 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
     marginTop: 20,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: theme.border.subtle,
   },
   lineItem: {
     flexDirection: 'row',
@@ -498,18 +499,18 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
     alignItems: 'center',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: theme.border.medium,
     gap: 10,
   },
   itemDescription: {
     flex: 1,
     fontSize: 14,
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#30D158',
+    color: theme.accent.green,
     minWidth: 60,
     textAlign: 'right',
   },
@@ -540,12 +541,12 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
   retryButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(110, 168, 254, 0.8)',
+    backgroundColor: theme.accent.blueLight,
     borderRadius: 14,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
-    shadowColor: '#6EA8FE',
+    borderColor: theme.accent.blueDim,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -566,7 +567,7 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
   },
   warningText: {
     fontSize: 14,
-    color: '#FFB340',
+    color: theme.accent.orange,
     marginBottom: 10,
   },
   editActions: {
@@ -581,7 +582,7 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
     alignItems: 'center',
     marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
   },
   cancelButtonText: {
     fontSize: 16,
@@ -591,12 +592,12 @@ const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.c
   saveButton: {
     flex: 1,
     padding: 15,
-    backgroundColor: 'rgba(48, 209, 88, 0.8)',
+    backgroundColor: theme.accent.green,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(48, 209, 88, 0.3)',
-    shadowColor: '#30D158',
+    borderColor: theme.accent.greenDim,
+    shadowColor: theme.accent.green,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
