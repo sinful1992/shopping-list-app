@@ -1,18 +1,18 @@
 import { StyleSheet } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../../styles/theme';
+import { Theme, RADIUS, SPACING } from '../../styles/theme';
 
-const styles = StyleSheet.create({
+export const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
   },
   listCard: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     margin: 10,
     padding: 18,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
     position: 'relative',
   },
   completedCard: {
@@ -43,15 +43,15 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   completedText: {
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   completedBadge: {
     fontSize: 12,
-    color: COLORS.accent.green,
-    backgroundColor: COLORS.accent.greenDim,
+    color: theme.accent.green,
+    backgroundColor: theme.accent.greenDim,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: SPACING.sm,
@@ -59,23 +59,23 @@ const styles = StyleSheet.create({
   },
   listDate: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   listDateFormatted: {
     fontSize: 15,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: '600',
     marginTop: 4,
   },
   storeName: {
     fontSize: 17,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: '700',
     marginTop: 6,
   },
   listDateSecondary: {
     fontSize: 13,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     marginTop: 4,
   },
   listBadges: {
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   shoppingBadge: {
     fontSize: 12,
-    color: COLORS.accent.orange,
+    color: theme.accent.orange,
     backgroundColor: 'rgba(255, 179, 64, 0.2)',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -105,13 +105,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 22,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: 10,
     fontWeight: '600',
   },
   emptySubtext: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   scanButton: {
     position: 'absolute',
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(52, 199, 89, 0.4)',
-    shadowColor: COLORS.accent.green,
+    shadowColor: theme.accent.green,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.5,
     shadowRadius: 16,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   scanButtonText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.accent.blue,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.6,
     shadowRadius: 20,
@@ -171,12 +171,12 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 36,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: '300',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -186,8 +186,8 @@ const styles = StyleSheet.create({
     width: '85%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    shadowColor: COLORS.accent.blue,
+    borderColor: theme.border.medium,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.3,
     shadowRadius: 24,
@@ -197,17 +197,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 10,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   modalSubtitle: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginBottom: 15,
   },
   dateButton: {
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.xlarge,
     padding: 16,
     marginBottom: 10,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   dateButtonText: {
     fontSize: 18,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: '600',
   },
   calendarIcon: {
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   datePreview: {
     fontSize: 12,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     marginBottom: 20,
     textAlign: 'center',
     fontStyle: 'italic',
@@ -245,8 +245,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   modalButtonCancel: {
-    backgroundColor: COLORS.glass.medium,
-    borderColor: COLORS.border.medium,
+    backgroundColor: theme.glass.medium,
+    borderColor: theme.border.medium,
   },
   modalButtonConfirm: {
     borderWidth: 0,
@@ -261,22 +261,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   modalButtonTextCancel: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   iosPickerContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
   },
   iosPickerContent: {
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: theme.background.secondary,
     borderTopLeftRadius: RADIUS.xxlarge,
     borderTopRightRadius: RADIUS.xxlarge,
     padding: SPACING.xl,
@@ -292,10 +292,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iosPickerDoneText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
 });
 
-export default styles;
+export default createStyles;

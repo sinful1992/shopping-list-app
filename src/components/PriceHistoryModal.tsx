@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import AuthenticationModule from '../services/AuthenticationModule';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -23,16 +25,13 @@ interface PriceHistoryModalProps {
   onClose: () => void;
 }
 
-/**
- * PriceHistoryModal
- * Displays price history and statistics for an item
- * Implements Sprint 7: Price tracking modal
- */
 const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
   visible,
   itemName,
   onClose,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<PriceStats | null>(null);
   const [priceByStore, setPriceByStore] = useState<{ [store: string]: any }>({});
@@ -80,9 +79,9 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
   };
 
   const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
-    if (trend === 'up') return COLORS.accent.red;
-    if (trend === 'down') return COLORS.accent.green;
-    return COLORS.accent.yellow;
+    if (trend === 'up') return theme.accent.red;
+    if (trend === 'down') return theme.accent.green;
+    return theme.accent.yellow;
   };
 
   return (
@@ -94,14 +93,12 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     >
       <View style={styles.modalOverlay}>
         <LinearGradient
-          colors={['#1E1E2E', '#181825']}
+          colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
           style={styles.modalContainer}
         >
-          {/* Handle bar */}
-          <View style={COMMON_STYLES.modalHandleContainer}>
-            <View style={COMMON_STYLES.modalHandle} />
+          <View style={styles.modalHandleContainer}>
+            <View style={styles.modalHandle} />
           </View>
-          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Price History</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -111,7 +108,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.accent.blue} />
+              <ActivityIndicator size="large" color={theme.accent.blue} />
               <Text style={styles.loadingText}>Loading price data...</Text>
             </View>
           ) : stats === null ? (
@@ -121,12 +118,10 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
             </View>
           ) : (
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-              {/* Item Name */}
               <View style={styles.itemNameContainer}>
                 <Text style={styles.itemNameText}>{itemName}</Text>
               </View>
 
-              {/* Current Price & Trend */}
               <View style={styles.statsCard}>
                 <View style={styles.statRow}>
                   <Text style={styles.statLabel}>Current Price:</Text>
@@ -144,7 +139,6 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                 </View>
               </View>
 
-              {/* Price Statistics */}
               <View style={styles.statsCard}>
                 <Text style={styles.cardTitle}>Statistics</Text>
 
@@ -173,12 +167,10 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                 </View>
               </View>
 
-              {/* Price by Store with Chart */}
               {Object.keys(priceByStore).length > 0 && (
                 <View style={styles.statsCard}>
                   <Text style={styles.cardTitle}>Price by Store</Text>
 
-                  {/* Bar Chart for Store Comparison */}
                   {Object.keys(priceByStore).length > 1 && (
                     <View style={styles.chartContainer}>
                       <BarChart
@@ -190,8 +182,8 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                           return {
                             value: data.average,
                             label: store.length > 8 ? store.substring(0, 8) + '...' : store,
-                            labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
-                            frontColor: isCheapest ? COLORS.accent.green : COLORS.accent.blue,
+                            labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+                            frontColor: isCheapest ? theme.accent.green : theme.accent.blue,
                           };
                         })}
                         width={screenWidth - 120}
@@ -202,15 +194,15 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                         animationDuration={600}
                         showValuesAsTopLabel
                         topLabelTextStyle={{
-                          color: COLORS.text.primary,
+                          color: theme.text.primary,
                           fontSize: 10,
                           fontWeight: '600',
                         }}
-                        rulesColor={COLORS.border.medium}
+                        rulesColor={theme.border.medium}
                         rulesThickness={1}
-                        xAxisColor={COLORS.border.medium}
-                        yAxisColor={COLORS.border.medium}
-                        yAxisTextStyle={{ color: COLORS.text.secondary, fontSize: 10 }}
+                        xAxisColor={theme.border.medium}
+                        yAxisColor={theme.border.medium}
+                        yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
                         yAxisLabelPrefix="£"
                         yAxisLabelWidth={35}
                         noOfSections={4}
@@ -218,7 +210,6 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                     </View>
                   )}
 
-                  {/* Store List with Best Deal Badge */}
                   {Object.entries(priceByStore).map(([store, data]) => {
                     const lowestAverage = Math.min(
                       ...Object.values(priceByStore).map((d: any) => d.average)
@@ -250,7 +241,6 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                 </View>
               )}
 
-              {/* Price History Timeline */}
               <View style={styles.statsCard}>
                 <Text style={styles.cardTitle}>Purchase History</Text>
                 {stats.priceHistory.map((point, index) => (
@@ -273,10 +263,10 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay.darker,
+    backgroundColor: theme.overlay.darker,
     justifyContent: 'flex-end',
   },
   modalContainer: {
@@ -289,29 +279,42 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  modalHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.medium,
+    borderBottomColor: theme.border.medium,
   },
   headerTitle: {
-    ...COMMON_STYLES.sectionHeader,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: theme.text.primary,
     marginBottom: 0,
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: RADIUS.large,
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
     fontSize: TYPOGRAPHY.fontSize.xl,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   loadingContainer: {
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.lg,
     fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   emptyContainer: {
     padding: 40,
@@ -331,13 +334,13 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     textAlign: 'center',
     marginBottom: SPACING.sm,
   },
   emptySubtext: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'center',
   },
   content: {
@@ -351,17 +354,25 @@ const styles = StyleSheet.create({
   itemNameText: {
     fontSize: TYPOGRAPHY.fontSize.xxxl,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   statsCard: {
-    ...COMMON_STYLES.glassCard,
+    backgroundColor: theme.glass.subtle,
+    borderRadius: RADIUS.xlarge,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
   },
   cardTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: SPACING.md,
   },
   statRow: {
@@ -372,17 +383,17 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: TYPOGRAPHY.fontSize.md + 1,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   statValue: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   statValueLarge: {
     fontSize: 28,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   priceWithTrend: {
     alignItems: 'flex-end',
@@ -402,13 +413,13 @@ const styles = StyleSheet.create({
   trendText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   priceGreen: {
-    color: COLORS.accent.green,
+    color: theme.accent.green,
   },
   priceRed: {
-    color: COLORS.accent.red,
+    color: theme.accent.red,
   },
   chartContainer: {
     marginBottom: SPACING.lg,
@@ -422,7 +433,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
   },
   storeNameContainer: {
     flex: 1,
@@ -433,10 +444,10 @@ const styles = StyleSheet.create({
   storeName: {
     fontSize: TYPOGRAPHY.fontSize.md + 1,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   bestDealBadge: {
-    backgroundColor: COLORS.accent.greenDim,
+    backgroundColor: theme.accent.greenDim,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
     borderRadius: RADIUS.small,
@@ -444,11 +455,11 @@ const styles = StyleSheet.create({
   bestDealText: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.accent.green,
+    color: theme.accent.green,
     textTransform: 'uppercase',
   },
   bestDealPrice: {
-    color: COLORS.accent.green,
+    color: theme.accent.green,
   },
   storePrices: {
     alignItems: 'flex-end',
@@ -456,16 +467,16 @@ const styles = StyleSheet.create({
   storeAverage: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
   },
   storeRange: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginTop: 2,
   },
   storeCount: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     marginTop: 2,
   },
   historyRow: {
@@ -475,25 +486,25 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
   },
   historyLeft: {
     flex: 1,
   },
   historyDate: {
     fontSize: TYPOGRAPHY.fontSize.md + 1,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   historyStore: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginTop: 2,
   },
   historyPrice: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.accent.green,
+    color: theme.accent.green,
   },
 });
 

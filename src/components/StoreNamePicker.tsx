@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import StoreHistoryService from '../services/StoreHistoryService';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface StoreNamePickerProps {
   visible: boolean;
@@ -21,17 +23,14 @@ interface StoreNamePickerProps {
   initialValue?: string;
 }
 
-/**
- * StoreNamePicker
- * Modal component for selecting store name with autocomplete
- * Implements Sprint 6: Store tracking feature
- */
 const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
   visible,
   onClose,
   onSelect,
   initialValue = '',
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [inputValue, setInputValue] = useState(initialValue);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -88,20 +87,18 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
       >
         <View style={styles.modalContainer}>
           <LinearGradient
-            colors={['#1E1E2E', '#181825']}
+            colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
             style={styles.modalContent}
           >
-            {/* Header */}
             <Text style={styles.title}>Store Name</Text>
             <Text style={styles.subtitle}>
               Where are you shopping? (Optional)
             </Text>
 
-            {/* Input */}
             <TextInput
               style={styles.input}
               placeholder="e.g., Tesco, Sainsbury's, Asda..."
-              placeholderTextColor={COLORS.text.tertiary}
+              placeholderTextColor={theme.text.tertiary}
               value={inputValue}
               onChangeText={handleInputChange}
               onFocus={() => setShowSuggestions(true)}
@@ -110,7 +107,6 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
               autoCorrect={false}
             />
 
-            {/* Suggestions */}
             {showSuggestions && suggestions.length > 0 && (
               <View style={styles.suggestionsContainer}>
                 <Text style={styles.suggestionsTitle}>Recent stores:</Text>
@@ -132,7 +128,6 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
               </View>
             )}
 
-            {/* Actions */}
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.cancelButton}
@@ -162,10 +157,10 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.overlay.darkest,
+    backgroundColor: theme.overlay.darkest,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -177,28 +172,28 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xlarge,
     padding: SPACING.xxl,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     ...SHADOWS.large,
   },
   title: {
     fontSize: TYPOGRAPHY.fontSize.xxl + 2,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.large,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     padding: 14,
     fontSize: TYPOGRAPHY.fontSize.lg,
     marginBottom: SPACING.md,
@@ -208,7 +203,7 @@ const styles = StyleSheet.create({
   },
   suggestionsTitle: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginBottom: SPACING.sm,
     paddingLeft: SPACING.xs,
   },
@@ -218,12 +213,12 @@ const styles = StyleSheet.create({
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     padding: SPACING.md,
     borderRadius: RADIUS.small,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
   },
   suggestionIcon: {
     fontSize: TYPOGRAPHY.fontSize.xl,
@@ -231,7 +226,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: TYPOGRAPHY.fontSize.md + 1,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   actions: {
@@ -241,12 +236,15 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
     padding: SPACING.lg,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -262,7 +260,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   confirmButtonText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PricePoint } from '../../services/PriceHistoryService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -42,6 +43,8 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   const [viewMode, setViewMode] = useState<ViewMode>('avg');
   const [pricePoints, setPricePoints] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const { theme, isDark } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return trackedItems;
@@ -133,9 +136,9 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   const chartWidth = screenWidth - 62 - 40;
 
   const getVolatilityLabel = (v: number) => {
-    if (v < 10) return { label: 'Low', color: '#30D158' };
-    if (v <= 25) return { label: 'Med', color: '#FFD60A' };
-    return { label: 'High', color: '#FF453A' };
+    if (v < 10) return { label: 'Low', color: theme.accent.green };
+    if (v <= 25) return { label: 'Med', color: theme.accent.yellow };
+    return { label: 'High', color: theme.accent.red };
   };
 
   return (
@@ -154,7 +157,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
           <TextInput
             style={styles.searchInput}
             placeholder="Search items..."
-            placeholderTextColor="#6E6E73"
+            placeholderTextColor={theme.text.tertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoFocus
@@ -213,7 +216,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
       )}
 
       {selectedItem && loading && (
-        <ActivityIndicator color="#007AFF" style={{ marginVertical: 20 }} />
+        <ActivityIndicator color={theme.accent.blue} style={{ marginVertical: 20 }} />
       )}
 
       {selectedItem && !loading && filteredPoints.length === 0 && (
@@ -239,7 +242,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               data={storeStats.map((s, i) => ({
                 value: viewMode === 'avg' ? s.average : s.latest,
                 label: s.storeName.length > 8 ? s.storeName.substring(0, 8) + '...' : s.storeName,
-                labelTextStyle: { color: '#a0a0a0', fontSize: 10 },
+                labelTextStyle: { color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 },
                 frontColor: i === 0 ? '#30D158' : '#007AFF',
               }))}
               width={chartWidth}
@@ -250,12 +253,12 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               isAnimated
               animationDuration={600}
               showValuesAsTopLabel
-              topLabelTextStyle={{ color: '#ffffff', fontSize: 11, fontWeight: '600' }}
-              rulesColor="rgba(255, 255, 255, 0.1)"
+              topLabelTextStyle={{ color: theme.text.primary, fontSize: 11, fontWeight: '600' }}
+              {...(isDark ? {rulesColor:'rgba(255,255,255,0.1)'} : {rulesColor:'rgba(0,0,0,0.1)'})}
               rulesThickness={1}
-              xAxisColor="rgba(255, 255, 255, 0.1)"
-              yAxisColor="rgba(255, 255, 255, 0.1)"
-              yAxisTextStyle={{ color: '#a0a0a0', fontSize: 10 }}
+              xAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
+              yAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
+              yAxisTextStyle={{ color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 }}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={40}
               noOfSections={4}
@@ -293,12 +296,12 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
     padding: 12,
     marginHorizontal: 15,
     marginTop: 10,
@@ -306,40 +309,40 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 12,
   },
   pickerButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
     padding: 12,
     marginBottom: 8,
   },
   pickerText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 15,
   },
   pickerPlaceholder: {
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     fontSize: 15,
     fontStyle: 'italic',
   },
   pickerDropdown: {
-    backgroundColor: '#1E1E2E',
+    backgroundColor: theme.background.secondary,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
     marginBottom: 8,
     maxHeight: 220,
   },
   searchInput: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: theme.border.strong,
   },
   pickerList: {
     maxHeight: 170,
@@ -347,10 +350,10 @@ const styles = StyleSheet.create({
   pickerItem: {
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: theme.border.subtle,
   },
   pickerItemText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
   },
   controlsRow: {
@@ -367,43 +370,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: theme.glass.medium,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: theme.border.strong,
   },
   controlChipActive: {
-    backgroundColor: 'rgba(110, 168, 254, 0.25)',
-    borderColor: 'rgba(110, 168, 254, 0.5)',
+    backgroundColor: theme.accent.blueSubtle,
+    borderColor: theme.accent.blueDim,
   },
   controlChipText: {
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontSize: 12,
     fontWeight: '600',
   },
   controlChipTextActive: {
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     textAlign: 'center',
     fontStyle: 'italic',
     marginVertical: 20,
   },
   singleStoreCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: theme.glass.medium,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginVertical: 10,
   },
   singleStoreText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
     marginBottom: 4,
   },
   singleStorePrice: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -414,7 +417,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     marginTop: 12,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -427,14 +430,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stabilityStore: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 12,
     width: 70,
   },
   stabilityBarBg: {
     flex: 1,
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: theme.glass.medium,
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -452,7 +455,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   insightText: {
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontSize: 13,
     marginBottom: 4,
     lineHeight: 18,

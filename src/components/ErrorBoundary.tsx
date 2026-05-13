@@ -1,11 +1,16 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import CrashReporting from '../services/CrashReporting';
-import { COLORS, RADIUS } from '../styles/theme';
+import { RADIUS, Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+}
+
+interface InnerProps extends Props {
+  theme: Theme;
 }
 
 interface State {
@@ -13,13 +18,8 @@ interface State {
   error: Error | null;
 }
 
-/**
- * ErrorBoundary
- * Catches JavaScript errors anywhere in child component tree
- * Displays fallback UI instead of crashing
- */
-class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+class ErrorBoundaryInner extends Component<InnerProps, State> {
+  constructor(props: InnerProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -29,7 +29,6 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Report to Firebase Crashlytics
     CrashReporting.recordJSError(error, errorInfo.componentStack || undefined);
   }
 
@@ -42,7 +41,8 @@ class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) {
         return this.props.fallback;
       }
-
+      const { theme } = this.props;
+      const styles = createStyles(theme);
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Something went wrong</Text>
@@ -55,43 +55,45 @@ class ErrorBoundary extends Component<Props, State> {
         </View>
       );
     }
-
     return this.props.children;
   }
 }
 
-const styles = StyleSheet.create({
+export default function ErrorBoundary({ children, fallback }: Props) {
+  const { theme } = useTheme();
+  return <ErrorBoundaryInner theme={theme} fallback={fallback}>{children}</ErrorBoundaryInner>;
+}
+
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
     padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.accent.red,
+    color: theme.accent.red,
     marginBottom: 16,
   },
   message: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 20,
   },
   button: {
-    backgroundColor: COLORS.accent.blue,
+    backgroundColor: theme.accent.blue,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: RADIUS.large,
   },
   buttonText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
 });
-
-export default ErrorBoundary;

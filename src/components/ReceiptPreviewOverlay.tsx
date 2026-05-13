@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,9 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ReceiptData } from '../models/types';
-import { COLORS, SPACING, RADIUS, TYPOGRAPHY, ANIMATION, COMMON_STYLES } from '../styles/theme';
+import { SPACING, RADIUS, TYPOGRAPHY, ANIMATION } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ReceiptPreviewOverlayProps {
   state: 'idle' | 'loading' | 'success' | 'error';
@@ -26,6 +28,38 @@ interface ReceiptPreviewOverlayProps {
   onPickGallery?: () => void;
 }
 
+interface FieldRowProps {
+  label: string;
+  value: string | null;
+  icon: string;
+  bold?: boolean;
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+}
+
+const FieldRow: React.FC<FieldRowProps> = ({ label, value, icon, bold, styles, theme }) => (
+  <View style={styles.fieldRow}>
+    <View style={styles.fieldLeft}>
+      <Icon
+        name={value ? 'checkmark-circle' : icon}
+        size={16}
+        color={value ? theme.accent.green : theme.text.tertiary}
+      />
+      <Text style={styles.fieldLabel}>{label}</Text>
+    </View>
+    <Text
+      style={[
+        styles.fieldValue,
+        !value && styles.fieldValueMissing,
+        bold && styles.fieldValueBold,
+      ]}
+      numberOfLines={1}
+    >
+      {value || '—'}
+    </Text>
+  </View>
+);
+
 const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
   state,
   receiptData,
@@ -39,13 +73,15 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
   onRetryOCR,
   onPickGallery,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const isVisible = state !== 'idle';
 
   const confidenceBadgeColor =
     receiptData && receiptData.confidence >= 70
-      ? COLORS.accent.green
-      : COLORS.accent.orange;
+      ? theme.accent.green
+      : theme.accent.orange;
 
   return (
     <Animated.View
@@ -64,7 +100,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
         {state === 'loading' && (
           <>
             <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={COLORS.accent.blue} />
+              <ActivityIndicator size="small" color={theme.accent.blue} />
               <Text style={styles.loadingText}>Reading receipt…</Text>
             </View>
             <View style={styles.buttonRow}>
@@ -78,7 +114,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
         {state === 'error' && (
           <>
             <View style={styles.errorRow}>
-              <Icon name="warning-outline" size={22} color={COLORS.accent.orange} />
+              <Icon name="warning-outline" size={22} color={theme.accent.orange} />
               <Text style={styles.errorText} numberOfLines={3}>
                 {error || 'Failed to process receipt'}
               </Text>
@@ -95,7 +131,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
             </View>
             {onPickGallery && (
               <TouchableOpacity style={styles.galleryLink} onPress={onPickGallery}>
-                <Icon name="images-outline" size={14} color={COLORS.text.tertiary} />
+                <Icon name="images-outline" size={14} color={theme.text.tertiary} />
                 <Text style={styles.galleryLinkText}>or pick from gallery</Text>
               </TouchableOpacity>
             )}
@@ -109,11 +145,15 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
                 label="Merchant"
                 value={merchantName ?? null}
                 icon="storefront-outline"
+                styles={styles}
+                theme={theme}
               />
               <FieldRow
                 label="Date"
                 value={purchaseDate ?? null}
                 icon="calendar-outline"
+                styles={styles}
+                theme={theme}
               />
               <FieldRow
                 label="Total"
@@ -124,6 +164,8 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
                 }
                 icon="cash-outline"
                 bold
+                styles={styles}
+                theme={theme}
               />
               <FieldRow
                 label="Items"
@@ -133,6 +175,8 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
                     : null
                 }
                 icon="list-outline"
+                styles={styles}
+                theme={theme}
               />
               <View style={styles.confidenceRow}>
                 <Text style={styles.fieldLabel}>Confidence</Text>
@@ -166,37 +210,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
   );
 };
 
-interface FieldRowProps {
-  label: string;
-  value: string | null;
-  icon: string;
-  bold?: boolean;
-}
-
-const FieldRow: React.FC<FieldRowProps> = ({ label, value, icon, bold }) => (
-  <View style={styles.fieldRow}>
-    <View style={styles.fieldLeft}>
-      <Icon
-        name={value ? 'checkmark-circle' : icon}
-        size={16}
-        color={value ? COLORS.accent.green : COLORS.text.tertiary}
-      />
-      <Text style={styles.fieldLabel}>{label}</Text>
-    </View>
-    <Text
-      style={[
-        styles.fieldValue,
-        !value && styles.fieldValueMissing,
-        bold && styles.fieldValueBold,
-      ]}
-      numberOfLines={1}
-    >
-      {value || '—'}
-    </Text>
-  </View>
-);
-
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,
@@ -205,8 +219,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   card: {
-    ...COMMON_STYLES.glassCardElevated,
-    backgroundColor: 'rgba(18, 18, 28, 0.92)',
+    backgroundColor: theme.glass.elevated,
+    borderRadius: RADIUS.xlarge,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
     padding: SPACING.lg,
   },
   loadingRow: {
@@ -217,7 +238,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   loadingText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
   },
   errorRow: {
@@ -227,7 +248,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   errorText: {
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     fontSize: TYPOGRAPHY.fontSize.md,
     flex: 1,
   },
@@ -246,17 +267,17 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   fieldLabel: {
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     fontSize: TYPOGRAPHY.fontSize.sm,
   },
   fieldValue: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
     maxWidth: '55%',
     textAlign: 'right',
   },
   fieldValueMissing: {
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
   },
   fieldValueBold: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -284,21 +305,21 @@ const styles = StyleSheet.create({
   retakeButton: {
     flex: 1,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     alignItems: 'center',
   },
   retakeButtonText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   confirmButton: {
     flex: 1,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.accent.green,
+    backgroundColor: theme.accent.green,
     borderRadius: RADIUS.large,
     alignItems: 'center',
   },
@@ -316,7 +337,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   galleryLinkText: {
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     fontSize: TYPOGRAPHY.fontSize.sm,
     textDecorationLine: 'underline',
   },

@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS } from '../../styles/theme';
-import styles from './ListDetailScreen.styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import createStyles from './ListDetailScreen.styles';
 import {
   ScrollViewContainer,
   NestedReorderableList,
@@ -159,6 +159,8 @@ const ListDetailScreen = () => {
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
   const { showInterstitial } = useAdMob();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const showInterstitialRef = useRef(showInterstitial);
   showInterstitialRef.current = showInterstitial;
   const insets = useSafeAreaInsets();
@@ -1236,7 +1238,7 @@ const ListDetailScreen = () => {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonExpanded} onPress={handleDoneShopping}>
                   <LinearGradient
-                    colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                    colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={{ borderRadius: 8, alignItems: 'center', padding: 12, width: '100%' }}

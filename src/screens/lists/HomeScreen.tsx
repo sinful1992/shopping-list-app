@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,8 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS } from '../../styles/theme';
-import styles from './HomeScreen.styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import createStyles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import database from '@react-native-firebase/database';
@@ -32,6 +32,8 @@ import { useAuth, useShoppingLists } from '../../hooks';
 const HomeScreen = () => {
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   const { user, familyGroupId, loading: authLoading } = useAuth();
   const { lists, loading: listsLoading, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
@@ -225,7 +227,7 @@ const HomeScreen = () => {
 
       <TouchableOpacity style={styles.fab} onPress={handleCreateList}>
         <LinearGradient
-          colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+          colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.fabGradient}
@@ -242,7 +244,7 @@ const HomeScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <LinearGradient
-            colors={[COLORS.gradient.modalStart, COLORS.gradient.modalEnd]}
+            colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
             style={styles.modalContent}
           >
             <Text style={styles.modalTitle}>New Shopping List</Text>
@@ -279,7 +281,7 @@ const HomeScreen = () => {
                 onPress={handleConfirmCreate}
               >
                 <LinearGradient
-                  colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                  colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.modalButtonConfirmGradient}
@@ -311,7 +313,7 @@ const HomeScreen = () => {
                 onPress={() => setShowIOSPicker(false)}
               >
                 <LinearGradient
-                  colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+                  colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.iosPickerDoneGradient}

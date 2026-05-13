@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import { Item } from '../models/types';
 import CategoryService, { CategoryType } from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { useAlert } from '../contexts/AlertContext';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface DetailsEditModalProps {
   visible: boolean;
@@ -32,6 +34,8 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
   onDelete,
 }) => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
 
@@ -87,16 +91,14 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
   return (
     <ModalBottomSheet visible={visible} onClose={onClose}>
       <View style={styles.content}>
-        {/* Name input */}
         <TextInput
           style={styles.nameInput}
           value={name}
           onChangeText={setName}
           placeholder="Item name"
-          placeholderTextColor={COLORS.text.tertiary}
+          placeholderTextColor={theme.text.tertiary}
         />
 
-        {/* Category grid */}
         <Text style={styles.categoryLabel}>Category</Text>
         <View style={styles.categoryGrid}>
           <TouchableOpacity
@@ -133,7 +135,6 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
         </View>
       </View>
 
-      {/* Footer */}
       <View style={styles.footer}>
         {onDelete && (
           <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
@@ -160,7 +161,7 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   content: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.md,
@@ -169,10 +170,10 @@ const styles = StyleSheet.create({
   nameInput: {
     fontSize: 20,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    backgroundColor: COLORS.glass.subtle,
+    color: theme.text.primary,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.large,
     padding: 14,
     marginBottom: SPACING.xl,
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.dim,
+    color: theme.text.dim,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: SPACING.sm,
@@ -195,16 +196,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.medium,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm + 2,
   },
   categoryCellSelected: {
-    borderColor: COLORS.accent.blue,
-    backgroundColor: COLORS.accent.blueSubtle,
+    borderColor: theme.accent.blue,
+    backgroundColor: theme.accent.blueSubtle,
   },
   categoryEmoji: {
     fontSize: 16,
@@ -212,10 +213,10 @@ const styles = StyleSheet.create({
   categoryText: {
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   categoryTextSelected: {
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   footer: {
@@ -225,18 +226,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border.medium,
+    borderTopColor: theme.border.medium,
   },
   deleteButton: {
-    backgroundColor: COLORS.accent.redSubtle,
+    backgroundColor: theme.accent.redSubtle,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.accent.redDim,
+    borderColor: theme.accent.redDim,
   },
   deleteText: {
-    color: COLORS.accent.red,
+    color: theme.accent.red,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -247,10 +248,15 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   cancelButton: {
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   cancelText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -260,7 +266,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.large,
   },
   saveText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },

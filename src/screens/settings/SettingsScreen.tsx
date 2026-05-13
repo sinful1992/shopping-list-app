@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,13 @@ import {
   Modal,
   Switch,
 } from 'react-native';
-import styles from './SettingsScreen.styles';
+import { createStyles } from './SettingsScreen.styles';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
@@ -30,6 +31,8 @@ import { version } from '../../../package.json';
 const SettingsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme, isDark, toggle: toggleTheme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Use custom hook for settings management
   const {
@@ -234,7 +237,7 @@ const SettingsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6EA8FE" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading settings...</Text>
       </View>
     );
@@ -245,7 +248,7 @@ const SettingsScreen = () => {
       {/* User Info Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Icon name="person-circle-outline" size={24} color="#6EA8FE" />
+          <Icon name="person-circle-outline" size={24} color={theme.accent.blue} />
           <Text style={styles.sectionTitle}>Account</Text>
         </View>
         <View style={styles.infoRow}>
@@ -260,7 +263,7 @@ const SettingsScreen = () => {
               style={styles.editButton}
               onPress={handleEditName}
             >
-              <Icon name="pencil-outline" size={18} color="#007AFF" />
+              <Icon name="pencil-outline" size={18} color={theme.accent.blue} />
             </TouchableOpacity>
           </View>
         </View>
@@ -275,7 +278,7 @@ const SettingsScreen = () => {
               style={styles.editButton}
               onPress={handleEditRole}
             >
-              <Icon name="pencil-outline" size={18} color="#007AFF" />
+              <Icon name="pencil-outline" size={18} color={theme.accent.blue} />
             </TouchableOpacity>
           </View>
         </View>
@@ -284,7 +287,7 @@ const SettingsScreen = () => {
       {/* App Settings Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Icon name="settings-outline" size={24} color="#007AFF" />
+          <Icon name="settings-outline" size={24} color={theme.accent.blue} />
           <Text style={styles.sectionTitle}>App Settings</Text>
         </View>
         <View style={styles.settingRow}>
@@ -302,6 +305,21 @@ const SettingsScreen = () => {
             ios_backgroundColor="#3A3A3C"
           />
         </View>
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Text style={styles.settingLabel}>Light Mode</Text>
+            <Text style={styles.settingDescription}>
+              Switch between dark and light theme
+            </Text>
+          </View>
+          <Switch
+            value={!isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: '#3A3A3C', true: '#34C759' }}
+            thumbColor={!isDark ? '#ffffff' : '#f4f3f4'}
+            ios_backgroundColor="#3A3A3C"
+          />
+        </View>
         <TouchableOpacity style={styles.settingRow} onPress={handleEditOcrUrl}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>OCR Server</Text>
@@ -309,7 +327,7 @@ const SettingsScreen = () => {
               {ocrServerUrl || 'Not configured - tap to set'}
             </Text>
           </View>
-          <Icon name="chevron-forward-outline" size={20} color="#6E6E73" />
+          <Icon name="chevron-forward-outline" size={20} color={theme.text.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -318,7 +336,7 @@ const SettingsScreen = () => {
         <>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Icon name="people-outline" size={24} color="#007AFF" />
+              <Icon name="people-outline" size={24} color={theme.accent.blue} />
               <Text style={styles.sectionTitle}>Family Group</Text>
             </View>
             <View style={styles.infoRow}>
@@ -331,7 +349,7 @@ const SettingsScreen = () => {
                 {!invitationCode ? (
                   <Text style={styles.invitationCode}>Loading...</Text>
                 ) : invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? (
-                  <Text style={[styles.invitationCode, { color: '#FF453A' }]}>Error - Tap to retry</Text>
+                  <Text style={[styles.invitationCode, { color: theme.accent.red }]}>Error - Tap to retry</Text>
                 ) : (
                   <Text style={styles.invitationCode}>{invitationCode}</Text>
                 )}
@@ -347,7 +365,7 @@ const SettingsScreen = () => {
                   }}
                   disabled={!invitationCode}
                 >
-                  <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color="#007AFF" />
+                  <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color={theme.accent.blue} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -409,7 +427,7 @@ const SettingsScreen = () => {
           {/* Family Members Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Icon name="people-circle-outline" size={24} color="#007AFF" />
+              <Icon name="people-circle-outline" size={24} color={theme.accent.blue} />
               <Text style={styles.sectionTitle}>Family Members</Text>
             </View>
             {familyMembers.length === 0 ? (
@@ -428,7 +446,7 @@ const SettingsScreen = () => {
                       {member.avatar ? (
                         <Text style={styles.memberAvatar}>{member.avatar}</Text>
                       ) : (
-                        <Icon name="person" size={20} color="#007AFF" />
+                        <Icon name="person" size={20} color={theme.accent.blue} />
                       )}
                     </View>
                     <View style={styles.memberInfo}>
@@ -459,24 +477,24 @@ const SettingsScreen = () => {
       {/* Legal Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Icon name="document-text-outline" size={24} color="#007AFF" />
+          <Icon name="document-text-outline" size={24} color={theme.accent.blue} />
           <Text style={styles.sectionTitle}>Legal</Text>
         </View>
         <TouchableOpacity
           style={styles.legalButton}
           onPress={() => navigation.navigate('LegalDocument', { title: 'Privacy Policy', content: PRIVACY_POLICY_CONTENT })}
         >
-          <Icon name="shield-checkmark-outline" size={20} color="#007AFF" />
+          <Icon name="shield-checkmark-outline" size={20} color={theme.accent.blue} />
           <Text style={styles.legalButtonText}>Privacy Policy</Text>
-          <Icon name="chevron-forward-outline" size={16} color="#6E6E73" />
+          <Icon name="chevron-forward-outline" size={16} color={theme.text.secondary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.legalButton}
           onPress={() => navigation.navigate('LegalDocument', { title: 'Terms of Service', content: TERMS_OF_SERVICE_CONTENT })}
         >
-          <Icon name="document-outline" size={20} color="#007AFF" />
+          <Icon name="document-outline" size={20} color={theme.accent.blue} />
           <Text style={styles.legalButtonText}>Terms of Service</Text>
-          <Icon name="chevron-forward-outline" size={16} color="#6E6E73" />
+          <Icon name="chevron-forward-outline" size={16} color={theme.text.secondary} />
         </TouchableOpacity>
       </View>
 
@@ -522,7 +540,7 @@ const SettingsScreen = () => {
             <TextInput
               style={styles.modalInput}
               placeholder="Enter your name"
-              placeholderTextColor="#6E6E73"
+              placeholderTextColor={theme.text.tertiary}
               value={newName}
               onChangeText={setNewName}
               autoCapitalize="words"
@@ -562,7 +580,7 @@ const SettingsScreen = () => {
             <TextInput
               style={styles.modalInput}
               placeholder="http://192.168.1.100:8000"
-              placeholderTextColor="#6E6E73"
+              placeholderTextColor={theme.text.tertiary}
               value={newOcrUrl}
               onChangeText={setNewOcrUrl}
               autoCapitalize="none"
@@ -616,7 +634,7 @@ const SettingsScreen = () => {
                     {role}
                   </Text>
                   {selectedRole === role && (
-                    <Icon name="checkmark-circle" size={24} color="#007AFF" />
+                    <Icon name="checkmark-circle" size={24} color={theme.accent.blue} />
                   )}
                 </TouchableOpacity>
               ))}

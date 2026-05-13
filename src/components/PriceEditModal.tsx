@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import { Item } from '../models/types';
 import CategoryService from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { useAlert } from '../contexts/AlertContext';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface PriceEditModalProps {
   visible: boolean;
@@ -31,6 +33,8 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
   onViewPriceHistory,
 }) => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [price, setPrice] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -76,7 +80,6 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
 
   return (
     <ModalBottomSheet visible={visible} onClose={onClose}>
-      {/* Context row */}
       <View style={styles.contextRow}>
         <Text style={styles.contextEmoji}>{category?.icon ?? '📦'}</Text>
         <Text style={styles.contextName} numberOfLines={1}>{item.name}</Text>
@@ -89,7 +92,6 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
         )}
       </View>
 
-      {/* Large price input */}
       <View style={styles.priceInputRow}>
         <Text style={styles.currencySymbol}>£</Text>
         <TextInput
@@ -98,12 +100,11 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
           value={price}
           onChangeText={setPrice}
           placeholder="0.00"
-          placeholderTextColor={COLORS.text.tertiary}
+          placeholderTextColor={theme.text.tertiary}
           keyboardType="numeric"
         />
       </View>
 
-      {/* Quick-fill chips */}
       {recentPrices.length > 0 && (
         <View style={styles.chipsRow}>
           {recentPrices.map((p, i) => (
@@ -118,7 +119,6 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
         </View>
       )}
 
-      {/* Price history button */}
       <TouchableOpacity
         style={styles.historyButton}
         onPress={() => onViewPriceHistory(item.name)}
@@ -127,7 +127,6 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
         <Text style={styles.historyText}>View Price History</Text>
       </TouchableOpacity>
 
-      {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
           <Text style={styles.cancelText}>Cancel</Text>
@@ -147,7 +146,7 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   contextRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,19 +162,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   sizeBadge: {
-    backgroundColor: 'rgba(110,168,254,0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(110,168,254,0.3)',
+    borderColor: theme.accent.blueDim,
     borderRadius: RADIUS.medium,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
   },
   sizeBadgeText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   priceInputRow: {
@@ -187,14 +186,14 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 32,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginRight: SPACING.sm,
   },
   priceInput: {
     flex: 1,
     fontSize: 32,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     padding: 0,
   },
   chipsRow: {
@@ -205,28 +204,28 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   chip: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.medium,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
   },
   chipText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   historyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.accent.blueSubtle,
+    backgroundColor: theme.accent.blueSubtle,
     paddingVertical: SPACING.md + 2,
     paddingHorizontal: SPACING.xl,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.accent.blueDim,
+    borderColor: theme.accent.blueDim,
     marginHorizontal: SPACING.xl,
     marginBottom: SPACING.md,
     gap: SPACING.sm,
@@ -235,7 +234,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.xl,
   },
   historyText: {
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -246,14 +245,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border.medium,
+    borderTopColor: theme.border.medium,
     gap: SPACING.md,
   },
   cancelButton: {
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   cancelText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -263,7 +267,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.large,
   },
   saveText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
