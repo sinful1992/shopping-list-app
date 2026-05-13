@@ -7,7 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { COLORS, RADIUS } from '../../styles/theme';
+import { RADIUS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -32,6 +34,8 @@ const HistoryDetailScreen = () => {
   const route = useRoute<RouteProp<HistoryStackParamList, 'HistoryDetail'>>();
   const navigation = useNavigation<StackNavigationProp<HistoryStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { listId } = route.params;
 
   const [loading, setLoading] = useState(true);
@@ -371,10 +375,10 @@ const HistoryDetailScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
   },
   scrollView: {
     flex: 1,
@@ -383,22 +387,22 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   errorText: {
     fontSize: 16,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   header: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     padding: 20,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: 20,
     marginHorizontal: 10,
     marginTop: 10,
@@ -407,25 +411,25 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 8,
   },
   listDate: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginBottom: 8,
   },
   totalAmount: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#30D158',
+    color: theme.accent.green,
   },
   section: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     marginBottom: 10,
     padding: 20,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: 20,
     marginHorizontal: 10,
   },
@@ -438,12 +442,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 15,
   },
   editLink: {
     fontSize: 16,
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
     fontWeight: '600',
   },
   receiptDataContainer: {
@@ -456,17 +460,17 @@ const styles = StyleSheet.create({
   },
   receiptLabel: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   receiptValue: {
     fontSize: 14,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '600',
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#30D158',
+    color: theme.accent.green,
   },
   itemsContainer: {
     marginTop: 10,
@@ -476,20 +480,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
   },
   checkboxContainer: {
     marginRight: 12,
   },
   checkboxChecked: {
     fontSize: 20,
-    color: '#30D158',
+    color: theme.accent.green,
   },
   checkboxUnchecked: {
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: COLORS.text.tertiary,
+    borderColor: theme.text.tertiary,
     borderRadius: 4,
   },
   itemContent: {
@@ -500,23 +504,23 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     flex: 1,
     flexShrink: 1,
   },
   itemNameChecked: {
     textDecorationLine: 'line-through',
-    color: '#6E6E73',
+    color: theme.text.tertiary,
   },
   itemQuantity: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginTop: 2,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#30D158',
+    color: theme.accent.green,
   },
   itemNameRow: {
     flexDirection: 'row',
@@ -535,7 +539,7 @@ const styles = StyleSheet.create({
   },
   addPricePrompt: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.2)',
+    color: theme.text.dim,
     fontStyle: 'italic',
   },
   priceTrend: {
@@ -543,20 +547,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   priceUp: {
-    color: '#FF3B30',
+    color: theme.accent.red,
   },
   priceDown: {
-    color: '#30D158',
+    color: theme.accent.green,
   },
   receiptButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    backgroundColor: 'rgba(110, 168, 254, 0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
+    borderColor: theme.accent.blueDim,
   },
   receiptButtonIcon: {
     fontSize: 20,
@@ -565,11 +569,11 @@ const styles = StyleSheet.create({
   receiptButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
   },
   emptyText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     fontStyle: 'italic',
   },
   deleteButton: {

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import { useAdMob } from '../contexts/AdMobContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { AD_UNIT_IDS } from '../config/adConfig';
+import type { Theme } from '../styles/theme';
 
 interface AdBannerProps {
   visible: boolean;
@@ -10,7 +12,9 @@ interface AdBannerProps {
 
 function AdBanner({ visible }: AdBannerProps) {
   const { shouldShowAds, isInitialized } = useAdMob();
+  const { theme } = useTheme();
   const [adLoaded, setAdLoaded] = useState(false);
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   if (!shouldShowAds || !isInitialized) {
     return null;
@@ -34,11 +38,11 @@ function AdBanner({ visible }: AdBannerProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: theme.border.subtle,
     alignItems: 'center',
   },
   hidden: {

@@ -26,6 +26,8 @@ import NotificationManager from './src/services/NotificationManager';
 import CrashReporting from './src/services/CrashReporting';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
+import { DARK_THEME, LIGHT_THEME } from './src/styles/theme';
 import { useInAppUpdate } from './src/hooks';
 import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 import { AdMobProvider } from './src/contexts/AdMobContext';
@@ -58,18 +60,32 @@ const linking = {
   },
 };
 
-// Dark theme for navigation
+// Navigation themes — derived from theme tokens so they stay in sync automatically
 const DarkNavigationTheme = {
   ...DefaultTheme,
   dark: true,
   colors: {
     ...DefaultTheme.colors,
-    primary: '#6EA8FE',
-    background: '#12121C',
-    card: '#1E1E2E',
-    text: '#ffffff',
-    border: 'rgba(255, 255, 255, 0.05)',
-    notification: '#6EA8FE',
+    primary:      DARK_THEME.accent.blue,
+    background:   DARK_THEME.background.primary,
+    card:         DARK_THEME.background.secondary,
+    text:         DARK_THEME.text.primary,
+    border:       DARK_THEME.border.subtle,
+    notification: DARK_THEME.accent.blue,
+  },
+};
+
+const LightNavigationTheme = {
+  ...DefaultTheme,
+  dark: false,
+  colors: {
+    ...DefaultTheme.colors,
+    primary:      LIGHT_THEME.accent.blue,
+    background:   LIGHT_THEME.background.primary,
+    card:         LIGHT_THEME.background.secondary,
+    text:         LIGHT_THEME.text.primary,
+    border:       LIGHT_THEME.border.subtle,
+    notification: LIGHT_THEME.accent.blue,
   },
 };
 
@@ -165,27 +181,28 @@ function MainTabNavigator() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [activeTab, setActiveTab] = useState('Lists');
   const { showAlert } = useAlert();
+  const { isDark } = useTheme();
   useInAppUpdate(showAlert);
 
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#6EA8FE',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.3)',
+        tabBarActiveTintColor: isDark ? '#6EA8FE' : '#2563EB',
+        tabBarInactiveTintColor: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(17,24,39,0.4)',
         tabBarStyle: {
           paddingBottom: Math.max(insets.bottom, 5),
           paddingTop: 5,
           height: Math.max(insets.bottom + 60, 60),
-          backgroundColor: 'rgba(18, 18, 28, 0.95)',
+          backgroundColor: isDark ? 'rgba(18, 18, 28, 0.95)' : 'rgba(255, 255, 255, 0.97)',
           borderTopWidth: 1,
-          borderTopColor: 'rgba(255, 255, 255, 0.05)',
+          borderTopColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.08)',
         },
         headerRight: () => (
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}
             style={{ marginRight: 15 }}
           >
-            <Icon name="settings-outline" size={24} color="#6EA8FE" />
+            <Icon name="settings-outline" size={24} color={isDark ? '#6EA8FE' : '#2563EB'} />
           </TouchableOpacity>
         ),
       }}
@@ -280,6 +297,7 @@ function MainTabNavigator() {
  * Sets up navigation and authentication flow
  */
 function App(): JSX.Element {
+  const { isDark } = useTheme();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -410,12 +428,12 @@ function App(): JSX.Element {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StatusBar
-        barStyle="light-content"
+        barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor="transparent"
         translucent={true}
       />
       <RevenueCatProvider user={user}>
-      <NavigationContainer theme={DarkNavigationTheme} linking={linking}>
+      <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme} linking={linking}>
         {!user ? (
           // Authentication Stack
           <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -475,12 +493,15 @@ function App(): JSX.Element {
   );
 }
 
-// Wrap App with AlertProvider
+// ThemeProvider must be outermost: AlertProvider renders CustomAlert which calls
+// useTheme(), so CustomAlert must be a descendant of ThemeProvider.
 function AppWithProvider(): JSX.Element {
   return (
-    <AlertProvider>
-      <App />
-    </AlertProvider>
+    <ThemeProvider>
+      <AlertProvider>
+        <App />
+      </AlertProvider>
+    </ThemeProvider>
   );
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { SubscriptionTier, User } from '../../models/types';
@@ -15,9 +16,12 @@ import { TIER_FEATURES } from '../../models/SubscriptionConfig';
 import { UsageIndicator } from '../../components/UsageIndicator';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
+import type { Theme } from '../../styles/theme';
 
 export const SubscriptionScreen: React.FC = () => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const {
     tier,
     offerings,
@@ -104,7 +108,7 @@ export const SubscriptionScreen: React.FC = () => {
   if (loading || rcLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6EA8FE" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
       </View>
     );
   }
@@ -122,7 +126,7 @@ export const SubscriptionScreen: React.FC = () => {
       {/* Activating overlay */}
       {isPurchasing && (
         <View style={styles.activatingBanner}>
-          <ActivityIndicator color="#FFFFFF" size="small" />
+          <ActivityIndicator color={theme.text.primary} size="small" />
           <Text style={styles.activatingText}>Activating your subscription...</Text>
         </View>
       )}
@@ -186,7 +190,7 @@ export const SubscriptionScreen: React.FC = () => {
                 disabled={isPurchasing}
               >
                 {isPurchasing ? (
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator color={theme.text.primary} />
                 ) : (
                   <Text style={styles.upgradeButtonText}>View Subscription Options</Text>
                 )}
@@ -233,7 +237,7 @@ export const SubscriptionScreen: React.FC = () => {
           disabled={isPurchasing}
         >
           {isPurchasing ? (
-            <ActivityIndicator color="#007AFF" />
+            <ActivityIndicator color={theme.accent.blue} />
           ) : (
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           )}
@@ -243,51 +247,51 @@ export const SubscriptionScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   errorText: {
-    color: '#FF453A',
+    color: theme.accent.red,
     fontSize: 16,
   },
   activatingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6EA8FE',
+    backgroundColor: theme.accent.blue,
     paddingVertical: 12,
     paddingHorizontal: 20,
     gap: 10,
   },
   activatingText: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   headerContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: theme.border.subtle,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 28,
     fontWeight: 'bold',
   },
@@ -297,17 +301,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   tierBadgeText: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 12,
     fontWeight: 'bold',
   },
   section: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: theme.border.subtle,
   },
   sectionTitle: {
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     fontSize: 13,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -318,12 +322,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   tierCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: theme.border.subtle,
   },
   tierCardHeader: {
     flexDirection: 'row',
@@ -332,7 +336,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tierCardName: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -340,12 +344,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   price: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 24,
     fontWeight: 'bold',
   },
   priceLabel: {
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontSize: 12,
   },
   featuresContainer: {
@@ -357,23 +361,23 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   checkmark: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 16,
     marginRight: 8,
     fontWeight: 'bold',
   },
   featureText: {
-    color: 'rgba(255,255,255,0.8)',
+    color: theme.text.primary,
     fontSize: 14,
   },
   upgradeButton: {
-    backgroundColor: '#6EA8FE',
+    backgroundColor: theme.accent.blue,
     borderRadius: 14,
     padding: 14,
     alignItems: 'center',
   },
   upgradeButtonText: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -385,13 +389,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   currentFeatureCheckmark: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 18,
     marginRight: 10,
     fontWeight: 'bold',
   },
   currentFeatureText: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 16,
   },
   restoreButton: {
@@ -404,21 +408,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   manageButton: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: theme.border.medium,
     padding: 14,
     alignItems: 'center',
     marginBottom: 8,
   },
   manageButtonText: {
-    color: '#FFFFFF',
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   manageHintText: {
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     fontSize: 13,
     textAlign: 'center',
   },

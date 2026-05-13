@@ -1,11 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import PriceHistoryService from '../../services/PriceHistoryService';
+import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 interface Props {
   familyGroupId: string;
@@ -15,6 +12,8 @@ interface Props {
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [suggestions, setSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +38,6 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
   const entries = Array.from(suggestions.entries());
   const totalSavings = entries.reduce((sum, [, v]) => sum + v.savings, 0);
 
-  // Build a lookup from normalized name to original casing
   const nameMap = new Map<string, string>();
   for (const item of trackedItems) {
     nameMap.set(item.itemNameNormalized, item.itemName);
@@ -49,7 +47,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
     <View style={styles.card}>
       <Text style={styles.title}>Smart Savings</Text>
 
-      {loading && <ActivityIndicator color="#007AFF" style={{ marginVertical: 20 }} />}
+      {loading && <ActivityIndicator color={theme.accent.blue} style={{ marginVertical: 20 }} />}
 
       {!loading && entries.length === 0 && (
         <Text style={styles.emptyText}>Buy from multiple stores to see savings tips</Text>
@@ -59,7 +57,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
         <>
           <View style={styles.totalBanner}>
             <Text style={styles.totalLabel}>Potential savings per shop</Text>
-            <Text style={styles.totalValue}>Â£{totalSavings.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>£{totalSavings.toFixed(2)}</Text>
           </View>
 
           {entries.map(([key, val]) => {
@@ -71,8 +69,8 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
                   <Text style={styles.itemStore}>Best at {val.bestStore}</Text>
                 </View>
                 <View style={styles.itemRight}>
-                  <Text style={styles.itemPrice}>Â£{val.bestPrice.toFixed(2)}</Text>
-                  <Text style={styles.itemSavings}>Save Â£{val.savings.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>£{val.bestPrice.toFixed(2)}</Text>
+                  <Text style={styles.itemSavings}>Save £{val.savings.toFixed(2)}</Text>
                 </View>
               </View>
             );
@@ -83,12 +81,12 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
     padding: 12,
     marginHorizontal: 15,
     marginTop: 10,
@@ -96,18 +94,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 12,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     textAlign: 'center',
     fontStyle: 'italic',
     marginVertical: 20,
   },
   totalBanner: {
-    backgroundColor: 'rgba(48, 209, 88, 0.15)',
+    backgroundColor: theme.accent.greenDim,
     borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
@@ -116,11 +114,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   totalLabel: {
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontSize: 13,
   },
   totalValue: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 22,
     fontWeight: '700',
   },
@@ -130,19 +128,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    borderBottomColor: theme.border.subtle,
   },
   itemLeft: {
     flex: 1,
     marginRight: 12,
   },
   itemName: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   itemStore: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 12,
     marginTop: 2,
   },
@@ -150,12 +148,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   itemPrice: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   itemSavings: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,

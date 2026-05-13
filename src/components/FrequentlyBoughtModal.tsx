@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import LinearGradient from 'react-native-linear-gradient';
 import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import AuthenticationModule from '../services/AuthenticationModule';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface FrequentlyBoughtModalProps {
   visible: boolean;
@@ -26,6 +28,8 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
   onClose,
   onAddItem,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading] = useState(true);
   const [frequentItems, setFrequentItems] = useState<TopItem[]>([]);
   const [addingItemName, setAddingItemName] = useState<string | null>(null);
@@ -45,13 +49,11 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
         return;
       }
 
-      // Get analytics summary for last 90 days to get more items
       const analytics = await AnalyticsService.getAnalyticsSummary(
         user.familyGroupId,
         90
       );
 
-      // Sort by purchase count and take top 20
       const sortedItems = [...analytics.topItems]
         .sort((a, b) => b.purchaseCount - a.purchaseCount)
         .slice(0, 20);
@@ -68,7 +70,6 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
     try {
       setAddingItemName(itemName);
       await onAddItem(itemName);
-      // Don't close modal - allow multiple additions
     } catch (error) {
       // Failed to add item
     } finally {
@@ -90,12 +91,11 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
           onPress={onClose}
         />
         <LinearGradient
-          colors={['#1E1E2E', '#181825']}
+          colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
           style={styles.modal}
         >
-          {/* Handle bar */}
-          <View style={COMMON_STYLES.modalHandleContainer}>
-            <View style={COMMON_STYLES.modalHandle} />
+          <View style={styles.modalHandleContainer}>
+            <View style={styles.modalHandle} />
           </View>
           <View style={styles.header}>
             <Text style={styles.title}>Frequently Bought Items</Text>
@@ -106,7 +106,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
 
           {loading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.accent.blue} />
+              <ActivityIndicator size="large" color={theme.accent.blue} />
               <Text style={styles.loadingText}>Loading frequent items...</Text>
             </View>
           ) : frequentItems.length === 0 ? (
@@ -137,7 +137,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
                     disabled={addingItemName === item.name}
                   >
                     {addingItemName === item.name ? (
-                      <ActivityIndicator size="small" color={COLORS.text.primary} />
+                      <ActivityIndicator size="small" color={theme.text.primary} />
                     ) : (
                       <Text style={styles.addButtonText}>+</Text>
                     )}
@@ -152,7 +152,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     top: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
   },
   modal: {
     borderTopLeftRadius: RADIUS.modal,
@@ -176,16 +176,29 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  modalHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: SPACING.xl,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.medium,
+    borderBottomColor: theme.border.medium,
   },
   title: {
-    ...COMMON_STYLES.sectionHeader,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: theme.text.primary,
     marginBottom: 0,
   },
   closeButton: {
@@ -193,7 +206,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 24,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     fontWeight: '300',
   },
   loadingContainer: {
@@ -203,7 +216,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SPACING.lg,
     fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   emptyContainer: {
     paddingVertical: 60,
@@ -217,13 +230,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: TYPOGRAPHY.fontSize.xl,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'center',
   },
   listContent: {
@@ -235,10 +248,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
     marginBottom: SPACING.sm,
   },
   itemLeft: {
@@ -248,7 +261,7 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: 6,
   },
   itemStats: {
@@ -258,20 +271,20 @@ const styles = StyleSheet.create({
   },
   itemCount: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   itemPrice: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.accent.green,
+    color: theme.accent.green,
   },
   addButton: {
     width: 40,
     height: 40,
     borderRadius: RADIUS.pill,
-    backgroundColor: 'rgba(110,168,254,0.2)',
+    backgroundColor: theme.accent.blueSubtle,
     borderWidth: 1.5,
-    borderColor: '#6EA8FE',
+    borderColor: theme.accent.blueDim,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -280,7 +293,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 24,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: '300',
     lineHeight: 24,
   },

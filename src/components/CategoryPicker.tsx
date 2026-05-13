@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   ScrollView,
 } from 'react-native';
 import CategoryService, { CategoryType } from '../services/CategoryService';
-import { COLORS, RADIUS } from '../styles/theme';
+import { RADIUS } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface CategoryPickerProps {
   selectedCategory: CategoryType | null | undefined;
@@ -23,6 +25,8 @@ const CategoryPicker: React.FC<CategoryPickerProps> = ({
   selectedCategory,
   onSelectCategory,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const categories = CategoryService.getCategories();
 
   return (
@@ -79,14 +83,14 @@ const CategoryPicker: React.FC<CategoryPickerProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: 16,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: 8,
   },
   categoriesContainer: {
@@ -100,14 +104,14 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.xxlarge,
     borderWidth: 2,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
   },
   categoryChipSelected: {
-    backgroundColor: COLORS.accent.blueSubtle,
-    borderColor: COLORS.accent.blue,
+    backgroundColor: theme.accent.blueSubtle,
+    borderColor: theme.accent.blue,
   },
   categoryIcon: {
     fontSize: 16,
@@ -115,10 +119,10 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 13,
     fontWeight: '500',
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   categoryTextSelected: {
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
     fontWeight: '600',
   },
 });

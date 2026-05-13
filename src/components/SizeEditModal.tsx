@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import CategoryService from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { parseCombinedInput } from '../utils/measurement';
 import { useAlert } from '../contexts/AlertContext';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 const UNIT_GROUPS: Array<{ label: string; units: string[]; color: string }> = [
   { label: 'Volume', units: ['ml', 'L'], color: '#6EA8FE' },
@@ -31,6 +33,8 @@ interface SizeEditModalProps {
 
 const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, onSave }) => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [combinedInput, setCombinedInput] = useState('');
   const [measurementUnit, setMeasurementUnit] = useState<string | null>(null);
   const [measurementValueText, setMeasurementValueText] = useState('');
@@ -67,7 +71,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
       setMeasurementUnit(null);
       setMeasurementValueText('');
     } else if (measurementUnit) {
-      // Unit already selected via pill — treat plain number as the value
       const num = parseFloat(text.trim());
       if (!isNaN(num)) {
         setMeasurementValueText(num.toString());
@@ -107,7 +110,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
 
   return (
     <ModalBottomSheet visible={visible} onClose={onClose}>
-      {/* Context row */}
       <View style={styles.contextRow}>
         <Text style={styles.contextEmoji}>{category?.icon ?? '📦'}</Text>
         <Text style={styles.contextName} numberOfLines={1}>{item.name}</Text>
@@ -117,7 +119,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
       </View>
 
       <View style={styles.content}>
-        {/* Combined input */}
         <View style={styles.inputRow}>
           <TextInput
             ref={inputRef}
@@ -125,7 +126,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
             value={combinedInput}
             onChangeText={handleCombinedInputChange}
             placeholder="e.g. 500ml, 1.5kg"
-            placeholderTextColor={COLORS.text.tertiary}
+            placeholderTextColor={theme.text.tertiary}
             autoCapitalize="none"
           />
           {measurementUnit && (
@@ -143,7 +144,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
           )}
         </View>
 
-        {/* Unit pills */}
         <View style={styles.pillGroups}>
           {UNIT_GROUPS.map(group => (
             <View key={group.label} style={styles.pillGroup}>
@@ -165,7 +165,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
                       } else if (measurementValueText) {
                         setCombinedInput(`${measurementValueText}${newUnit}`);
                       } else {
-                        // Type-first path: user typed a number before selecting pill
                         const num = parseFloat(combinedInput.trim());
                         if (!isNaN(num)) {
                           setMeasurementValueText(num.toString());
@@ -188,7 +187,6 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
         </View>
       </View>
 
-      {/* Footer */}
       <View style={styles.footer}>
         {hasExistingMeasurement && (
           <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
@@ -215,7 +213,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   contextRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,11 +229,11 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   contextPrice: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   content: {
     paddingHorizontal: SPACING.xl,
@@ -248,11 +246,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     borderRadius: RADIUS.large,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     padding: 14,
     fontSize: TYPOGRAPHY.fontSize.lg,
   },
@@ -305,12 +303,12 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     backgroundColor: 'transparent',
   },
   pillText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   footer: {
@@ -320,18 +318,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.lg,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border.medium,
+    borderTopColor: theme.border.medium,
   },
   clearButton: {
-    backgroundColor: COLORS.accent.redSubtle,
+    backgroundColor: theme.accent.redSubtle,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.accent.redDim,
+    borderColor: theme.accent.redDim,
   },
   clearText: {
-    color: COLORS.accent.red,
+    color: theme.accent.red,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -342,10 +340,15 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   cancelButton: {
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
   },
   cancelText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -355,7 +358,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.large,
   },
   saveText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },

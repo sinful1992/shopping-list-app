@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SimpleMarkdownProps {
   content: string;
 }
 
 const SimpleMarkdown: React.FC<SimpleMarkdownProps> = ({ content }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const lines = content.split('\n');
 
   const renderLine = (line: string, index: number) => {
@@ -47,7 +50,7 @@ const SimpleMarkdown: React.FC<SimpleMarkdownProps> = ({ content }) => {
     if (trimmed.startsWith('- ')) {
       return (
         <View key={index} style={styles.bulletRow}>
-          <Text style={styles.bullet}>{'\u2022'}</Text>
+          <Text style={styles.bullet}>{'•'}</Text>
           <Text style={styles.bulletText}>{renderInline(trimmed.slice(2))}</Text>
         </View>
       );
@@ -100,40 +103,40 @@ const SimpleMarkdown: React.FC<SimpleMarkdownProps> = ({ content }) => {
   return <View style={styles.container}>{lines.map(renderLine)}</View>;
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
   },
   h1: {
     fontSize: 22,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   h2: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginTop: 14,
     marginBottom: 6,
   },
   h3: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginTop: 12,
     marginBottom: 4,
   },
   paragraph: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     lineHeight: 20,
     marginBottom: 4,
   },
   bold: {
     fontWeight: '700',
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   bulletRow: {
     flexDirection: 'row',
@@ -143,13 +146,13 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: 14,
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
     marginRight: 8,
     lineHeight: 20,
   },
   bulletText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     lineHeight: 20,
     flex: 1,
   },

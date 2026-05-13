@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import PriceHistoryService from '../../services/PriceHistoryService';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../styles/theme';
+import { RADIUS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import ItemStoreComparison from './ItemStoreComparison';
 import VolatileItemsChart from './VolatileItemsChart';
 import SmartSavingsCard from './SmartSavingsCard';
@@ -77,6 +79,8 @@ const STAT_CONFIG = [
 
 const AnalyticsScreen = () => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading]         = useState(true);
   const [analytics, setAnalytics]     = useState<AnalyticsSummary | null>(null);
   const [timePeriod, setTimePeriod]   = useState<30 | 90 | 365>(30);
@@ -127,7 +131,7 @@ const AnalyticsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.accent.blue} />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading analytics…</Text>
       </View>
     );
@@ -167,19 +171,19 @@ const AnalyticsScreen = () => {
       monthlyChartData = analytics.monthlyTrend.map(trend => ({
         value: trend.amount,
         label: new Date(trend.date).toLocaleDateString('en-US', { month: 'short' }),
-        labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
+        labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
       }));
     }
     if (Array.isArray(analytics.spendingByStore)) {
       storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
         value: store.totalSpent,
         label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
-        labelTextStyle: { color: COLORS.text.secondary, fontSize: 10 },
-        frontColor: COLORS.accent.blue,
+        labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+        frontColor: theme.accent.blue,
       }));
     }
     if (Array.isArray(analytics.categoryBreakdown)) {
-      const PIE_COLORS = [COLORS.accent.blue, COLORS.accent.green, '#FFD60A', '#FF453A', COLORS.accent.purple];
+      const PIE_COLORS = [theme.accent.blue, theme.accent.green, '#FFD60A', '#FF453A', theme.accent.purple];
       categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, i) => ({
         value: cat.totalSpent,
         text: cat.category,
@@ -207,7 +211,7 @@ const AnalyticsScreen = () => {
               adjustToWidth
               initialSpacing={0}
               endSpacing={0}
-              color={COLORS.accent.blue}
+              color={theme.accent.blue}
               thickness={3}
               startFillColor="rgba(110,168,254,0.3)"
               endFillColor="rgba(110,168,254,0.01)"
@@ -217,14 +221,14 @@ const AnalyticsScreen = () => {
               animateOnDataChange
               animationDuration={700}
               rulesType="solid"
-              rulesColor="rgba(255,255,255,0.07)"
+              rulesColor={theme.border.subtle}
               xAxisColor="transparent"
               yAxisColor="transparent"
-              yAxisTextStyle={{ color: COLORS.text.secondary, fontSize: 10 }}
+              yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={38}
               hideDataPoints={false}
-              dataPointsColor={COLORS.accent.blue}
+              dataPointsColor={theme.accent.blue}
               dataPointsRadius={4}
             />
           </View>
@@ -244,13 +248,13 @@ const AnalyticsScreen = () => {
               donut
               radius={72}
               innerRadius={46}
-              innerCircleColor="#12121C"
+              innerCircleColor={theme.glass.subtle}
               centerLabelComponent={() => (
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 14, color: '#fff', fontWeight: '700' }}>
+                  <Text style={{ fontSize: 14, color: theme.text.primary, fontWeight: '700' }}>
                     £{analytics.totalSpent.toFixed(0)}
                   </Text>
-                  <Text style={{ fontSize: 10, color: COLORS.text.secondary }}>total</Text>
+                  <Text style={{ fontSize: 10, color: theme.text.secondary }}>total</Text>
                 </View>
               )}
               focusOnPress
@@ -261,10 +265,10 @@ const AnalyticsScreen = () => {
               {categoryPieData.map((item: any) => (
                 <View key={item.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                  <Text style={{ flex: 1, fontSize: 12, color: COLORS.text.secondary }} numberOfLines={1}>
+                  <Text style={{ flex: 1, fontSize: 12, color: theme.text.secondary }} numberOfLines={1}>
                     {item.text}
                   </Text>
-                  <Text style={{ fontSize: 12, color: '#fff', fontWeight: '600' }}>
+                  <Text style={{ fontSize: 12, color: theme.text.primary, fontWeight: '600' }}>
                     £{item.value.toFixed(0)}
                   </Text>
                 </View>
@@ -285,7 +289,7 @@ const AnalyticsScreen = () => {
       <View style={{ marginTop: 12, gap: 2 }}>
         {analytics.topItems.slice(0, 8).map((item, index) => {
           const RANK_COLORS = ['#FFD60A', '#C0C0C0', '#CD7F32'];
-          const rankColor = RANK_COLORS[index] ?? COLORS.text.secondary;
+          const rankColor = RANK_COLORS[index] ?? theme.text.secondary;
           return (
             <View key={item.name} style={styles.itemRow}>
               {/* Rank badge */}
@@ -324,11 +328,11 @@ const AnalyticsScreen = () => {
               isAnimated
               animationDuration={700}
               showValuesAsTopLabel
-              topLabelTextStyle={{ color: '#fff', fontSize: 11, fontWeight: '600' }}
-              rulesColor="rgba(255,255,255,0.07)"
+              topLabelTextStyle={{ color: theme.text.primary, fontSize: 11, fontWeight: '600' }}
+              rulesColor={theme.border.subtle}
               xAxisColor="transparent"
               yAxisColor="transparent"
-              yAxisTextStyle={{ color: COLORS.text.secondary, fontSize: 10 }}
+              yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={38}
               noOfSections={4}
@@ -353,14 +357,14 @@ const AnalyticsScreen = () => {
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <Text style={styles.storeName}>{store.storeName}</Text>
-                    {isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: COLORS.accent.green }]}>Best avg</Text></View>}
-                    {isMost && !isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: COLORS.accent.blue }]}>Most visited</Text></View>}
+                    {isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: theme.accent.green }]}>Best avg</Text></View>}
+                    {isMost && !isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: theme.accent.blue }]}>Most visited</Text></View>}
                   </View>
                   {/* Progress bar: proportion of total spend */}
                   <View style={styles.progressBg}>
                     <View style={[styles.progressFill, {
                       width: `${(store.totalSpent / analytics.totalSpent) * 100}%` as any,
-                      backgroundColor: isBest ? COLORS.accent.green : COLORS.accent.blue,
+                      backgroundColor: isBest ? theme.accent.green : theme.accent.blue,
                     }]} />
                   </View>
                 </View>
@@ -463,10 +467,10 @@ const AnalyticsScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
   },
 
   // ── Loading / Error / Empty ───────────────────────────────────────────────
@@ -474,14 +478,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
     paddingHorizontal: 40,
   },
-  loadingText: { marginTop: 14, fontSize: 15, color: COLORS.text.secondary },
+  loadingText: { marginTop: 14, fontSize: 15, color: theme.text.secondary },
   errorIcon:  { fontSize: 52, marginBottom: 12 },
-  errorTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 6, textAlign: 'center' },
-  errorSub:   { fontSize: 14, color: COLORS.text.secondary, textAlign: 'center', marginBottom: 20 },
-  retryBtn:   { backgroundColor: 'rgba(110,168,254,0.8)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  errorTitle: { fontSize: 18, fontWeight: '700', color: theme.text.primary, marginBottom: 6, textAlign: 'center' },
+  errorSub:   { fontSize: 14, color: theme.text.secondary, textAlign: 'center', marginBottom: 20 },
+  retryBtn:   { backgroundColor: theme.accent.blueLight, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 
   // ── Period row ────────────────────────────────────────────────────────────
@@ -491,23 +495,23 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
   },
   periodBtn: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: RADIUS.large,
     alignItems: 'center',
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
   },
   periodBtnActive: {
-    backgroundColor: 'rgba(110,168,254,0.2)',
-    borderColor: COLORS.accent.blue,
+    backgroundColor: theme.accent.blueSubtle,
+    borderColor: theme.accent.blue,
   },
-  periodText:       { fontSize: 13, fontWeight: '600', color: COLORS.text.secondary },
-  periodTextActive: { color: COLORS.accent.blue },
+  periodText:       { fontSize: 13, fontWeight: '600', color: theme.text.secondary },
+  periodTextActive: { color: theme.accent.blue },
 
   // ── 2×2 Stat grid ─────────────────────────────────────────────────────────
   statGrid: {
@@ -526,8 +530,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   statIcon:  { fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  statValue: { fontSize: 22, fontWeight: '700', color: '#fff', marginBottom: 2 },
-  statLabel: { fontSize: 12, color: COLORS.text.secondary },
+  statValue: { fontSize: 22, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
+  statLabel: { fontSize: 12, color: theme.text.secondary },
 
   // ── Tab bar ───────────────────────────────────────────────────────────────
   tabBar: {
@@ -535,10 +539,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginTop: 8,
     marginBottom: 4,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     padding: 4,
   },
   tab: {
@@ -551,11 +555,11 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.medium,
   },
   tabActive: {
-    backgroundColor: 'rgba(110,168,254,0.18)',
+    backgroundColor: theme.accent.blueSubtle,
   },
   tabIcon:  { fontSize: 13 },
-  tabLabel: { fontSize: 12, fontWeight: '600', color: COLORS.text.secondary },
-  tabLabelActive: { color: COLORS.accent.blue },
+  tabLabel: { fontSize: 12, fontWeight: '600', color: theme.text.secondary },
+  tabLabelActive: { color: theme.accent.blue },
 
   // ── Scroll area ───────────────────────────────────────────────────────────
   scrollContent: {
@@ -566,15 +570,15 @@ const styles = StyleSheet.create({
 
   // ── Shared card ───────────────────────────────────────────────────────────
   card: {
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
     padding: 16,
   },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  cardSub:   { fontSize: 12, color: COLORS.text.secondary, marginTop: 2 },
-  noData:    { fontSize: 13, color: COLORS.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: theme.text.primary },
+  cardSub:   { fontSize: 12, color: theme.text.secondary, marginTop: 2 },
+  noData:    { fontSize: 13, color: theme.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
 
   // ── Items tab ─────────────────────────────────────────────────────────────
   itemRow: {
@@ -582,7 +586,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
     gap: 10,
   },
   rankBadge: {
@@ -594,20 +598,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rankText:  { fontSize: 12, fontWeight: '700' },
-  itemName:  { flex: 1, fontSize: 14, color: '#fff', fontWeight: '500' },
-  itemCount: { fontSize: 11, color: COLORS.text.secondary },
-  itemSpend: { fontSize: 14, fontWeight: '700', color: COLORS.accent.green, marginTop: 1 },
+  itemName:  { flex: 1, fontSize: 14, color: theme.text.primary, fontWeight: '500' },
+  itemCount: { fontSize: 11, color: theme.text.secondary },
+  itemSpend: { fontSize: 14, fontWeight: '700', color: theme.accent.green, marginTop: 1 },
 
   // ── Stores tab ────────────────────────────────────────────────────────────
   storeRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  storeName:  { fontSize: 15, fontWeight: '600', color: '#fff' },
-  storeTotal: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  storeMeta:  { fontSize: 11, color: COLORS.text.secondary, marginTop: 2 },
+  storeName:  { fontSize: 15, fontWeight: '600', color: theme.text.primary },
+  storeTotal: { fontSize: 16, fontWeight: '700', color: theme.text.primary },
+  storeMeta:  { fontSize: 11, color: theme.text.secondary, marginTop: 2 },
   pill: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: theme.glass.elevated,
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 1,
@@ -616,7 +620,7 @@ const styles = StyleSheet.create({
   progressBg: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: theme.glass.elevated,
     marginTop: 6,
     overflow: 'hidden',
   },

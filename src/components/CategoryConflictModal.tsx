@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import CategoryService from '../services/CategoryService';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface CategoryConflictModalProps {
   visible: boolean;
@@ -30,6 +32,8 @@ const CategoryConflictModal: React.FC<CategoryConflictModalProps> = ({
   onSelectCategory,
   onCancel,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
@@ -76,7 +80,7 @@ const CategoryConflictModal: React.FC<CategoryConflictModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -85,7 +89,7 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   modal: {
-    backgroundColor: COLORS.glass.elevated,
+    backgroundColor: theme.glass.elevated,
     borderRadius: RADIUS.large,
     width: '100%',
     maxWidth: 400,
@@ -95,14 +99,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: TYPOGRAPHY.fontSize.xl,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     textAlign: 'center',
     marginTop: SPACING.lg,
     marginHorizontal: SPACING.lg,
   },
   subtitle: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'center',
     marginTop: SPACING.sm,
     marginHorizontal: SPACING.lg,
@@ -118,11 +122,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.medium,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
   },
   categoryContent: {
     flexDirection: 'row',
@@ -136,27 +140,27 @@ const styles = StyleSheet.create({
   categoryName: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     flex: 1,
   },
   arrow: {
     fontSize: TYPOGRAPHY.fontSize.xl,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginLeft: SPACING.sm,
   },
   cancelButton: {
     margin: SPACING.lg,
     padding: SPACING.md,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
     alignItems: 'center',
   },
   cancelText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
 });
 

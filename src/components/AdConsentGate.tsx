@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAdMob } from '../contexts/AdMobContext';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useAlert } from '../contexts/AlertContext';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../styles/theme';
 
 interface AdConsentGateProps {
   children: React.ReactNode;
@@ -13,6 +15,8 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
   const { consentChecked, consentObtained, retryConsent } = useAdMob();
   const { tier, hasEntitlement, isLoading, presentPaywall } = useRevenueCat();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [retrying, setRetrying] = useState(false);
   const shownRef = useRef(false);
 
@@ -41,7 +45,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
   if (!consentChecked) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#6EA8FE" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
       </View>
     );
   }
@@ -66,7 +70,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
           disabled={retrying}
         >
           {retrying ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color={theme.text.primary} />
           ) : (
             <Text style={styles.buttonText}>Accept Ads</Text>
           )}
@@ -85,10 +89,10 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
   return <>{children}</>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
@@ -96,13 +100,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 16,
     textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
@@ -115,12 +119,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButton: {
-    backgroundColor: '#6EA8FE',
+    backgroundColor: theme.accent.blue,
   },
   secondaryButton: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: theme.border.medium,
   },
   disabledButton: {
     opacity: 0.6,
@@ -128,6 +132,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.text.primary,
   },
 });

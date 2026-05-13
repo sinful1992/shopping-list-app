@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,14 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import GoogleLogo from '../../components/GoogleLogo';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 const SignUpScreen = () => {
   const navigation = useNavigation<StackNavigationProp<AuthStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignUp = async () => {
@@ -41,7 +45,7 @@ const SignUpScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#12121C' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
       <View style={styles.container}>
         <Text style={styles.title}>Create Account</Text>
         <Text style={styles.subtitle}>Join your family shopping list</Text>
@@ -74,7 +78,7 @@ const SignUpScreen = () => {
           disabled={loading}
         >
           <View style={styles.buttonContent}>
-            <Icon name="mail-outline" size={20} color="#ffffff" style={{ marginRight: 8 }} />
+            <Icon name="mail-outline" size={20} color={theme.text.primary} style={{ marginRight: 8 }} />
             <Text style={styles.buttonSecondaryText}>Sign up with Email</Text>
           </View>
         </TouchableOpacity>
@@ -90,11 +94,11 @@ const SignUpScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
     justifyContent: 'center',
   },
   title: {
@@ -102,13 +106,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   button: {
     padding: 16,
@@ -130,21 +134,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   buttonSecondary: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     padding: 16,
     borderRadius: 14,
     alignItems: 'center',
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
   },
   buttonSecondaryText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   linkText: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     textAlign: 'center',
     fontSize: 16,
     marginTop: 20,

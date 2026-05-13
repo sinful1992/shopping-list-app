@@ -1,29 +1,30 @@
 import { StyleSheet } from 'react-native';
+import type { Theme } from '../../styles/theme';
 
-const styles = StyleSheet.create({
+export const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   section: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     marginHorizontal: 15,
     marginTop: 15,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -31,12 +32,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: theme.border.subtle,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginLeft: 10,
   },
   infoRow: {
@@ -44,12 +45,12 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 4,
   },
   value: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '600',
   },
   codeRow: {
@@ -59,26 +60,26 @@ const styles = StyleSheet.create({
   },
   invitationCode: {
     fontSize: 18,
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     fontWeight: '700',
     letterSpacing: 2,
   },
   copyButton: {
     padding: 8,
-    backgroundColor: 'rgba(110, 168, 254, 0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
+    borderColor: theme.accent.blueDim,
   },
   helperText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     marginTop: 10,
     fontStyle: 'italic',
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontStyle: 'italic',
   },
   memberRow: {
@@ -88,18 +89,18 @@ const styles = StyleSheet.create({
   },
   memberRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: theme.border.medium,
   },
   memberIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(110, 168, 254, 0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
+    borderColor: theme.accent.blueDim,
   },
   memberInfo: {
     flex: 1,
@@ -115,18 +116,18 @@ const styles = StyleSheet.create({
   },
   memberEmail: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '600',
   },
   memberEmailSmall: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 4,
   },
   memberRole: {
     fontSize: 12,
-    color: '#6EA8FE',
-    backgroundColor: 'rgba(110, 168, 254, 0.15)',
+    color: theme.accent.blue,
+    backgroundColor: theme.accent.blueSubtle,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -134,17 +135,17 @@ const styles = StyleSheet.create({
   },
   memberName: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 4,
   },
   creatorBadge: {
     fontSize: 12,
-    color: '#FFB340',
+    color: theme.accent.orange,
     fontWeight: '600',
   },
   youBadge: {
     fontSize: 12,
-    color: '#30D158',
+    color: theme.accent.green,
     fontWeight: '600',
   },
   logoutButton: {
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.8)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
+    borderColor: theme.accent.redDim,
     shadowColor: '#FF3B30',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     marginBottom: 4,
   },
   nameRow: {
@@ -185,26 +186,26 @@ const styles = StyleSheet.create({
   },
   editButton: {
     padding: 8,
-    backgroundColor: 'rgba(110, 168, 254, 0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
+    borderColor: theme.accent.blueDim,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: theme.overlay.dark,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#1E1E2E',
+    backgroundColor: theme.background.secondary,
     borderRadius: 24,
     padding: 24,
     width: '85%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    shadowColor: '#6EA8FE',
+    borderColor: theme.border.subtle,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.3,
     shadowRadius: 24,
@@ -214,17 +215,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 20,
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   modalInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
     borderRadius: 14,
     padding: 16,
     marginBottom: 20,
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -240,14 +241,14 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   modalButtonCancel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: theme.glass.subtle,
+    borderColor: theme.border.medium,
     marginLeft: 0,
   },
   modalButtonConfirm: {
-    backgroundColor: 'rgba(110, 168, 254, 0.8)',
-    borderColor: 'rgba(110, 168, 254, 0.3)',
-    shadowColor: '#6EA8FE',
+    backgroundColor: theme.accent.blueLight,
+    borderColor: theme.accent.blueDim,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalButtonTextCancel: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -281,13 +282,13 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     marginBottom: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
   },
   roleItemSelected: {
-    backgroundColor: 'rgba(110, 168, 254, 0.15)',
-    borderColor: 'rgba(110, 168, 254, 0.4)',
+    backgroundColor: theme.accent.blueSubtle,
+    borderColor: theme.accent.blueDim,
   },
   roleAvatar: {
     fontSize: 28,
@@ -295,12 +296,12 @@ const styles = StyleSheet.create({
   },
   roleText: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '500',
     flex: 1,
   },
   roleTextSelected: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     fontWeight: '600',
   },
   settingRow: {
@@ -315,13 +316,13 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '600',
     marginBottom: 4,
   },
   settingDescription: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     lineHeight: 18,
   },
   dangerTitle: {
@@ -392,15 +393,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: theme.border.medium,
   },
   legalButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     marginLeft: 12,
     fontWeight: '500',
   },
 });
-
-export default styles;

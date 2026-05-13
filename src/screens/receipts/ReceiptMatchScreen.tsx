@@ -19,7 +19,9 @@ import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
-import { COLORS, SPACING, TYPOGRAPHY, RADIUS, COMMON_STYLES } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY, RADIUS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
 import { matchReceiptToList, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
@@ -33,6 +35,8 @@ const ReceiptMatchScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptMatch'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { listId } = route.params;
 
   const [loading, setLoading] = useState(true);
@@ -181,7 +185,7 @@ const ReceiptMatchScreen = () => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.accent.blue} />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
       </View>
     );
   }
@@ -193,6 +197,8 @@ const ReceiptMatchScreen = () => {
         title="No receipt data found"
         message="The list does not have OCR data attached."
         onSkip={handleSkip}
+        styles={styles}
+        textSecondary={theme.text.secondary}
       />
     );
   }
@@ -204,6 +210,8 @@ const ReceiptMatchScreen = () => {
         title="Nothing to price"
         message="No items are missing a price."
         onSkip={handleSkip}
+        styles={styles}
+        textSecondary={theme.text.secondary}
       />
     );
   }
@@ -215,6 +223,8 @@ const ReceiptMatchScreen = () => {
         title="Could not match"
         message="The receipt has no usable line items."
         onSkip={handleSkip}
+        styles={styles}
+        textSecondary={theme.text.secondary}
       />
     );
   }
@@ -307,13 +317,13 @@ const ReceiptMatchScreen = () => {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={[COLORS.gradient.buttonStart, COLORS.gradient.buttonEnd]}
+            colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.applyGradient}
           >
             {applying ? (
-              <ActivityIndicator color={COLORS.text.primary} />
+              <ActivityIndicator color={theme.text.primary} />
             ) : (
               <Text style={styles.applyText}>
                 {acceptedCount === 0 ? 'Apply' : `Apply ${acceptedCount} price${acceptedCount === 1 ? '' : 's'}`}
@@ -335,15 +345,17 @@ interface MatchRowProps {
 }
 
 const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, isManual, onToggleReject }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const price = match.receiptItem.price ?? match.receiptItem.unitPrice;
-  const badge = badgeStyle(match);
+  const badge = badgeStyle(match, theme);
   return (
     <View style={[styles.matchCard, rejected && styles.matchCardRejected]}>
       <View style={styles.matchTop}>
         <Text style={[styles.listName, rejected && styles.strikethrough]} numberOfLines={2}>
           {match.listItem.name}
         </Text>
-        <Icon name="arrow-forward" size={16} color={COLORS.text.tertiary} style={styles.arrowIcon} />
+        <Icon name="arrow-forward" size={16} color={theme.text.tertiary} style={styles.arrowIcon} />
         <Text style={[styles.receiptDesc, rejected && styles.strikethrough]} numberOfLines={2}>
           {match.receiptItem.description}
         </Text>
@@ -361,7 +373,7 @@ const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, isManual
           <Icon
             name={isManual ? 'close-circle-outline' : (rejected ? 'add-circle-outline' : 'close-circle-outline')}
             size={22}
-            color={isManual ? COLORS.text.secondary : (rejected ? COLORS.accent.green : COLORS.accent.red)}
+            color={isManual ? theme.text.secondary : (rejected ? theme.accent.green : theme.accent.red)}
           />
         </TouchableOpacity>
       </View>
@@ -376,6 +388,8 @@ interface UnmatchedReceiptRowProps {
 }
 
 const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({ item, currency, onAssign }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const content = (
     <>
       <Text style={styles.infoText} numberOfLines={2}>{item.description}</Text>
@@ -383,7 +397,7 @@ const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({ item, currenc
         {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
       </Text>
       {onAssign && (
-        <Icon name="add-circle-outline" size={20} color={COLORS.accent.blue} style={styles.assignIcon} />
+        <Icon name="add-circle-outline" size={20} color={theme.accent.blue} style={styles.assignIcon} />
       )}
     </>
   );
@@ -406,7 +420,10 @@ interface AssignPickerModalProps {
   onClose: () => void;
 }
 
-const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptItem, currency, options, onPick, onClose }) => (
+const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptItem, currency, options, onPick, onClose }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
       <TouchableOpacity style={styles.modalCard} activeOpacity={1}>
@@ -433,7 +450,7 @@ const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptI
                 activeOpacity={0.7}
               >
                 <Text style={styles.modalOptionText} numberOfLines={2}>{item.name}</Text>
-                <Icon name="chevron-forward" size={18} color={COLORS.text.tertiary} />
+                <Icon name="chevron-forward" size={18} color={theme.text.tertiary} />
               </TouchableOpacity>
             ))
           )}
@@ -444,13 +461,18 @@ const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptI
       </TouchableOpacity>
     </TouchableOpacity>
   </Modal>
-);
+  );
+};
 
-const UnmatchedListRow: React.FC<{ item: Item }> = ({ item }) => (
-  <View style={styles.infoRow}>
-    <Text style={styles.infoText} numberOfLines={2}>{item.name}</Text>
-  </View>
-);
+const UnmatchedListRow: React.FC<{ item: Item }> = ({ item }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <View style={styles.infoRow}>
+      <Text style={styles.infoText} numberOfLines={2}>{item.name}</Text>
+    </View>
+  );
+};
 
 interface CollapsibleSectionProps {
   title: string;
@@ -459,26 +481,32 @@ interface CollapsibleSectionProps {
   children: React.ReactNode;
 }
 
-const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, open, onToggle, children }) => (
-  <View style={styles.section}>
-    <TouchableOpacity style={styles.collapseHeader} onPress={onToggle} activeOpacity={0.7}>
-      <Text style={styles.sectionLabel}>{title}</Text>
-      <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.text.secondary} />
-    </TouchableOpacity>
-    {open && <View>{children}</View>}
-  </View>
-);
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, open, onToggle, children }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <View style={styles.section}>
+      <TouchableOpacity style={styles.collapseHeader} onPress={onToggle} activeOpacity={0.7}>
+        <Text style={styles.sectionLabel}>{title}</Text>
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={theme.text.secondary} />
+      </TouchableOpacity>
+      {open && <View>{children}</View>}
+    </View>
+  );
+};
 
 interface EmptyStateProps {
   icon: string;
   title: string;
   message: string;
   onSkip: () => void;
+  styles: ReturnType<typeof createStyles>;
+  textSecondary: string;
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message, onSkip }) => (
+const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message, onSkip, styles, textSecondary }) => (
   <View style={styles.center}>
-    <Icon name={icon} size={56} color={COLORS.text.secondary} />
+    <Icon name={icon} size={56} color={textSecondary} />
     <Text style={styles.emptyTitle}>{title}</Text>
     <Text style={styles.emptyMessage}>{message}</Text>
     <TouchableOpacity style={styles.emptyButton} onPress={onSkip}>
@@ -487,29 +515,29 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message, onSkip })
   </View>
 );
 
-function badgeStyle(match: MatchCandidate): { bg: string; border: string; fg: string } {
+function badgeStyle(match: MatchCandidate, theme: Theme): { bg: string; border: string; fg: string } {
   if (match.method === 'manual') {
-    return { bg: COLORS.accent.blueSubtle, border: COLORS.accent.blueDim, fg: COLORS.accent.blue };
+    return { bg: theme.accent.blueSubtle, border: theme.accent.blueDim, fg: theme.accent.blue };
   }
   if (match.score >= 0.9) {
-    return { bg: 'rgba(48, 209, 88, 0.18)', border: COLORS.accent.greenDim, fg: COLORS.accent.green };
+    return { bg: 'rgba(48, 209, 88, 0.18)', border: theme.accent.greenDim, fg: theme.accent.green };
   }
   if (match.score >= 0.7) {
-    return { bg: 'rgba(255, 179, 64, 0.18)', border: 'rgba(255, 179, 64, 0.35)', fg: COLORS.accent.orange };
+    return { bg: 'rgba(255, 179, 64, 0.18)', border: 'rgba(255, 179, 64, 0.35)', fg: theme.accent.orange };
   }
-  return { bg: 'rgba(255, 214, 10, 0.18)', border: COLORS.accent.yellowDim, fg: COLORS.accent.yellow };
+  return { bg: 'rgba(255, 214, 10, 0.18)', border: theme.accent.yellowDim, fg: theme.accent.yellow };
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
     padding: SPACING.xl,
   },
   scroll: {
@@ -518,14 +546,18 @@ const styles = StyleSheet.create({
   },
   summary: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginBottom: SPACING.lg,
   },
   section: {
     marginBottom: SPACING.xl,
   },
   sectionLabel: {
-    ...COMMON_STYLES.label,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1.2,
+    color: theme.text.tertiary,
     marginBottom: SPACING.md,
   },
   collapseHeader: {
@@ -535,7 +567,15 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   matchCard: {
-    ...COMMON_STYLES.glassCard,
+    backgroundColor: theme.glass.subtle,
+    borderRadius: RADIUS.xlarge,
+    borderWidth: 1,
+    borderColor: theme.border.subtle,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
     padding: SPACING.lg,
     marginBottom: SPACING.md,
   },
@@ -551,7 +591,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   arrowIcon: {
     marginHorizontal: SPACING.xs,
@@ -559,7 +599,7 @@ const styles = StyleSheet.create({
   receiptDesc: {
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'right',
   },
   strikethrough: {
@@ -586,7 +626,7 @@ const styles = StyleSheet.create({
   priceText: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.accent.green,
+    color: theme.accent.green,
     marginLeft: 'auto',
   },
   rejectButton: {
@@ -599,17 +639,17 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
     gap: SPACING.md,
   },
   infoText: {
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   infoPrice: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.tertiary,
+    color: theme.text.tertiary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   assignIcon: {
@@ -617,7 +657,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
     justifyContent: 'center',
     alignItems: 'center',
     padding: SPACING.lg,
@@ -626,25 +666,25 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     maxHeight: '80%',
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: theme.background.secondary,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: COLORS.border.subtle,
+    borderColor: theme.border.subtle,
     overflow: 'hidden',
   },
   modalHeader: {
     padding: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
   },
   modalTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   modalSubtitle: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginTop: SPACING.xs,
   },
   modalScroll: {
@@ -655,7 +695,7 @@ const styles = StyleSheet.create({
   },
   modalEmpty: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textAlign: 'center',
     padding: SPACING.xl,
   },
@@ -666,24 +706,24 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
     gap: SPACING.md,
   },
   modalOptionText: {
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   modalCancel: {
     paddingVertical: SPACING.md,
     alignItems: 'center',
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
   },
   modalCancelText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   footer: {
     position: 'absolute',
@@ -693,21 +733,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: SPACING.lg,
     gap: SPACING.md,
-    backgroundColor: COLORS.background.primary,
+    backgroundColor: theme.background.primary,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border.subtle,
+    borderTopColor: theme.border.subtle,
   },
   skipButton: {
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.xl,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    backgroundColor: COLORS.glass.subtle,
+    borderColor: theme.border.medium,
+    backgroundColor: theme.glass.subtle,
     justifyContent: 'center',
   },
   skipButtonText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -725,20 +765,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   applyText: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   emptyTitle: {
     fontSize: TYPOGRAPHY.fontSize.xl,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginTop: SPACING.lg,
     textAlign: 'center',
   },
   emptyMessage: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     marginTop: SPACING.sm,
     marginBottom: SPACING.xl,
     textAlign: 'center',
@@ -748,8 +788,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    backgroundColor: COLORS.glass.subtle,
+    borderColor: theme.border.medium,
+    backgroundColor: theme.glass.subtle,
   },
 });
 

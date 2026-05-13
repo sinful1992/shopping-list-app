@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   Modal,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { COLORS, SHADOWS, RADIUS, SPACING, TYPOGRAPHY, COMMON_STYLES } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 export type SortField = 'date' | 'amount' | 'store' | 'name';
 export type SortOrder = 'asc' | 'desc';
@@ -38,6 +40,8 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
   currentSort,
   onSelect,
 }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [visible, setVisible] = useState(false);
 
   const handleSelect = (option: SortOption) => {
@@ -67,12 +71,11 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
           onPress={() => setVisible(false)}
         >
           <LinearGradient
-            colors={['#1E1E2E', '#181825']}
+            colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
             style={styles.dropdown}
           >
-            {/* Handle bar */}
-            <View style={COMMON_STYLES.modalHandleContainer}>
-              <View style={COMMON_STYLES.modalHandle} />
+            <View style={styles.modalHandleContainer}>
+              <View style={styles.modalHandle} />
             </View>
             <Text style={styles.dropdownTitle}>Sort By</Text>
             {SORT_OPTIONS.map((option, index) => {
@@ -111,32 +114,37 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   trigger: {
-    ...COMMON_STYLES.button,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
   },
   triggerText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   triggerIcon: {
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   overlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.overlay.dark,
+    backgroundColor: theme.overlay.dark,
   },
   dropdown: {
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: COLORS.border.medium,
+    borderColor: theme.border.medium,
     minWidth: 280,
     maxWidth: '80%',
     padding: SPACING.md,
@@ -146,10 +154,21 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  modalHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
   dropdownTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     marginBottom: SPACING.md,
     paddingHorizontal: SPACING.md,
   },
@@ -160,28 +179,28 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.subtle,
+    borderBottomColor: theme.border.subtle,
   },
   optionLast: {
     borderBottomWidth: 0,
   },
   optionSelected: {
-    backgroundColor: 'rgba(110,168,254,0.08)',
+    backgroundColor: theme.accent.blueSubtle,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: '#6EA8FE',
+    borderColor: theme.accent.blueDim,
   },
   optionText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   optionTextSelected: {
-    color: COLORS.text.primary,
+    color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   checkmark: {
     fontSize: TYPOGRAPHY.fontSize.lg,
-    color: COLORS.accent.blue,
+    color: theme.accent.blue,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });

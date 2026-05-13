@@ -1,73 +1,57 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SubscriptionTier } from '../models/types';
+import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../styles/theme';
 
 interface UsageIndicatorProps {
   label: string;
   used: number;
-  limit: number | null; // null = unlimited
+  limit: number | null;
   tier: SubscriptionTier;
 }
 
-/**
- * UsageIndicator Component
- * Sprint 2: Displays usage progress for subscription limits
- */
-export const UsageIndicator: React.FC<UsageIndicatorProps> = ({
-  label,
-  used,
-  limit,
-  tier,
-}) => {
-  // Calculate progress percentage
+export const UsageIndicator: React.FC<UsageIndicatorProps> = ({ label, used, limit }) => {
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+
   const percentage = limit === null ? 100 : Math.min((used / limit) * 100, 100);
 
-  // Determine color based on usage
   const getProgressColor = (): string => {
-    if (limit === null) return '#30D158';
-    if (percentage >= 100) return '#FF453A';
-    if (percentage >= 80) return '#FF9F0A';
-    return '#6EA8FE';
+    if (limit === null) return theme.accent.green;
+    if (percentage >= 100) return theme.accent.red;
+    if (percentage >= 80) return theme.accent.orange;
+    return theme.accent.blue;
   };
 
   const progressColor = getProgressColor();
 
   return (
     <View style={styles.container}>
-      {/* Label and Usage Text */}
       <View style={styles.header}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.usageText}>
           {limit === null ? 'Unlimited' : `${used} / ${limit}`}
         </Text>
       </View>
-
-      {/* Progress Bar */}
       <View style={styles.progressBarBackground}>
         <View
           style={[
             styles.progressBarFill,
-            {
-              width: `${percentage}%`,
-              backgroundColor: progressColor,
-            },
+            { width: `${percentage}%`, backgroundColor: progressColor },
           ]}
         />
       </View>
-
-      {/* Warning Text for Near/At Limit */}
       {limit !== null && percentage >= 80 && (
         <Text style={[styles.warningText, { color: progressColor }]}>
-          {percentage >= 100
-            ? 'Limit reached - Upgrade to continue'
-            : 'Almost at your limit'}
+          {percentage >= 100 ? 'Limit reached - Upgrade to continue' : 'Almost at your limit'}
         </Text>
       )}
     </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginVertical: 8,
   },
@@ -78,18 +62,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   label: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
     fontWeight: '600',
   },
   usageText: {
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontSize: 14,
     fontWeight: '500',
   },
   progressBarBackground: {
     height: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: theme.glass.elevated,
     borderRadius: 4,
     overflow: 'hidden',
   },

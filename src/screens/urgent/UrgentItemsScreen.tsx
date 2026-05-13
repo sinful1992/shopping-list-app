@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
 import { useUrgentItems } from '../../hooks';
+import type { Theme } from '../../styles/theme';
 
 /**
  * UrgentItemsScreen
@@ -22,6 +24,8 @@ import { useUrgentItems } from '../../hooks';
  */
 const UrgentItemsScreen = () => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { shouldShowAds, showRewarded } = useAdMob();
   const { tier } = useRevenueCat();
 
@@ -116,7 +120,7 @@ const UrgentItemsScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading urgent items...</Text>
       </View>
     );
@@ -205,7 +209,7 @@ const UrgentItemsScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="What do you need urgently?"
-              placeholderTextColor="#6E6E73"
+              placeholderTextColor={theme.text.tertiary}
               value={newItemName}
               onChangeText={setNewItemName}
               autoFocus
@@ -246,7 +250,7 @@ const UrgentItemsScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="Price (optional)"
-              placeholderTextColor="#6E6E73"
+              placeholderTextColor={theme.text.tertiary}
               value={resolvePrice}
               onChangeText={setResolvePrice}
               keyboardType="decimal-pad"
@@ -276,31 +280,31 @@ const UrgentItemsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   scrollView: {
     flex: 1,
   },
   section: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     marginBottom: 10,
     padding: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
     borderRadius: 16,
     marginHorizontal: 10,
     marginTop: 10,
@@ -308,12 +312,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 15,
   },
   emptyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 20,
@@ -327,9 +331,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   resolvedItemCard: {
-    backgroundColor: 'rgba(48, 209, 88, 0.1)',
+    backgroundColor: theme.accent.greenDim,
     borderWidth: 1,
-    borderColor: 'rgba(48, 209, 88, 0.3)',
+    borderColor: theme.accent.greenDim,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -345,7 +349,7 @@ const styles = StyleSheet.create({
   checkEmoji: {
     fontSize: 28,
     marginRight: 12,
-    color: '#30D158',
+    color: theme.accent.green,
   },
   itemInfo: {
     flex: 1,
@@ -353,27 +357,27 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 4,
   },
   resolvedItemName: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 4,
   },
   itemMeta: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 8,
   },
   resolvedMeta: {
     fontSize: 13,
-    color: '#30D158',
+    color: theme.accent.green,
     fontWeight: '600',
   },
   resolveButton: {
-    backgroundColor: '#30D158',
+    backgroundColor: theme.accent.green,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -406,41 +410,41 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: theme.overlay.dark,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#1E1E2E',
+    backgroundColor: theme.background.secondary,
     borderRadius: 20,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
   },
   modalTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 8,
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 20,
     textAlign: 'center',
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
     borderRadius: 14,
     padding: 16,
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 20,
   },
   modalButtons: {
@@ -449,15 +453,15 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     padding: 16,
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
   },
   cancelButtonText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },

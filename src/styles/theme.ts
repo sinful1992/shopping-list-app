@@ -294,6 +294,67 @@ export const ANIMATION = {
   slow: 500,
 } as const;
 
+export type Theme = typeof COLORS;
+
+export const DARK_THEME: Theme = COLORS;
+
+export const LIGHT_THEME: Theme = {
+  background: {
+    primary: '#F0F2F5',
+    secondary: '#FFFFFF',
+    tertiary: '#F8F9FA',
+  },
+
+  glass: {
+    subtle: 'rgba(0, 0, 0, 0.04)',
+    medium: 'rgba(0, 0, 0, 0.06)',
+    elevated: 'rgba(0, 0, 0, 0.08)',
+    strong: 'rgba(0, 0, 0, 0.12)',
+  },
+
+  accent: {
+    blue: '#2563EB',
+    blueLight: 'rgba(37, 99, 235, 0.8)',
+    blueDim: 'rgba(37, 99, 235, 0.3)',
+    blueSubtle: 'rgba(37, 99, 235, 0.12)',
+    green: '#16A34A',
+    greenDim: 'rgba(22, 163, 74, 0.3)',
+    yellow: '#CA8A04',
+    yellowDim: 'rgba(202, 138, 4, 0.3)',
+    red: '#DC2626',
+    redDim: 'rgba(220, 38, 38, 0.3)',
+    redSubtle: 'rgba(220, 38, 38, 0.12)',
+    orange: '#EA580C',
+    purple: '#7C3AED',
+  },
+
+  text: {
+    primary: '#111827',
+    secondary: 'rgba(17, 24, 39, 0.55)',
+    tertiary: 'rgba(17, 24, 39, 0.4)',
+    dim: 'rgba(17, 24, 39, 0.25)',
+  },
+
+  border: {
+    subtle: 'rgba(0, 0, 0, 0.06)',
+    medium: 'rgba(0, 0, 0, 0.10)',
+    strong: 'rgba(0, 0, 0, 0.14)',
+  },
+
+  overlay: {
+    dark: 'rgba(0, 0, 0, 0.45)',
+    darker: 'rgba(0, 0, 0, 0.60)',
+    darkest: 'rgba(0, 0, 0, 0.75)',
+  },
+
+  gradient: {
+    buttonStart: '#2563EB',
+    buttonEnd: '#7C3AED',
+    modalStart: '#FFFFFF',
+    modalEnd: '#F8F9FA',
+  },
+};
+
 export default {
   COLORS,
   SHADOWS,
