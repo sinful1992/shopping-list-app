@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,10 +15,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const EmailSignUpScreen = () => {
   const navigation = useNavigation();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -57,7 +60,7 @@ const EmailSignUpScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#12121C' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
           <View style={styles.container}>
@@ -67,7 +70,7 @@ const EmailSignUpScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="Your Name"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.text.tertiary}
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
@@ -77,7 +80,7 @@ const EmailSignUpScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="Email"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.text.tertiary}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -88,7 +91,7 @@ const EmailSignUpScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="Password"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.text.tertiary}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -98,7 +101,7 @@ const EmailSignUpScreen = () => {
             <TextInput
               style={styles.input}
               placeholder="Confirm Password"
-              placeholderTextColor="rgba(255,255,255,0.3)"
+              placeholderTextColor={theme.text.tertiary}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -137,34 +140,34 @@ const EmailSignUpScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   title: {
     fontSize: 36,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 40,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     padding: 15,
     borderRadius: 14,
     fontSize: 16,
     marginBottom: 15,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
+    borderColor: theme.border.medium,
+    color: theme.text.primary,
   },
   button: {
     padding: 16,
@@ -181,7 +184,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   linkText: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     textAlign: 'center',
     fontSize: 16,
     marginTop: 20,

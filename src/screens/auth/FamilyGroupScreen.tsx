@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,15 @@ import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 type JoinState = 'idle' | 'pending' | 'approved' | 'rejected';
 
 const FamilyGroupScreen = () => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [groupName, setGroupName] = useState('');
   const [invitationCode, setInvitationCode] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
@@ -127,7 +131,7 @@ const FamilyGroupScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#12121C' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
           <View style={styles.container}>
@@ -136,7 +140,7 @@ const FamilyGroupScreen = () => {
             {/* Waiting for approval */}
             {joinState === 'pending' && (
               <View style={styles.waitingCard}>
-                <ActivityIndicator size="large" color="#6EA8FE" style={{ marginBottom: 20 }} />
+                <ActivityIndicator size="large" color={theme.accent.blue} style={{ marginBottom: 20 }} />
                 <Text style={styles.waitingTitle}>Request Sent</Text>
                 <Text style={styles.waitingSubtitle}>
                   Waiting for a member of{'\n'}
@@ -172,7 +176,7 @@ const FamilyGroupScreen = () => {
               <View style={styles.waitingCard}>
                 <Text style={styles.approvedIcon}>✓</Text>
                 <Text style={styles.approvedTitle}>Welcome to the family!</Text>
-                <ActivityIndicator color="#30D158" style={{ marginTop: 16 }} />
+                <ActivityIndicator color={theme.accent.green} style={{ marginTop: 16 }} />
               </View>
             )}
 
@@ -199,7 +203,7 @@ const FamilyGroupScreen = () => {
                     <TextInput
                       style={styles.input}
                       placeholder="Family Group Name"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor={theme.text.tertiary}
                       value={groupName}
                       onChangeText={setGroupName}
                       editable={!loading}
@@ -215,7 +219,7 @@ const FamilyGroupScreen = () => {
                     <TextInput
                       style={styles.input}
                       placeholder="Invitation Code (e.g., A3F7K9M2)"
-                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      placeholderTextColor={theme.text.tertiary}
                       value={invitationCode}
                       onChangeText={setInvitationCode}
                       autoCapitalize="characters"
@@ -241,11 +245,11 @@ const FamilyGroupScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   title: {
     fontSize: 32,
@@ -253,16 +257,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     marginBottom: 30,
-    color: '#ffffff',
+    color: theme.text.primary,
   },
   toggleContainer: {
     flexDirection: 'row',
     marginBottom: 30,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.subtle,
   },
   toggleButton: {
     flex: 1,
@@ -271,29 +275,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   toggleButtonActive: {
-    backgroundColor: 'rgba(110, 168, 254, 0.25)',
+    backgroundColor: theme.accent.blueSubtle,
   },
   toggleText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.tertiary,
     fontWeight: '600',
   },
   toggleTextActive: {
-    color: '#fff',
+    color: theme.text.primary,
   },
   input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     padding: 15,
     borderRadius: 14,
     fontSize: 16,
     marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    color: '#ffffff',
+    borderColor: theme.border.medium,
+    color: theme.text.primary,
   },
   joinHint: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: theme.text.quaternary,
     textAlign: 'center',
     marginBottom: 20,
     fontStyle: 'italic',
@@ -319,18 +323,18 @@ const styles = StyleSheet.create({
   waitingTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 16,
   },
   waitingSubtitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: theme.text.secondary,
     textAlign: 'center',
     lineHeight: 26,
     marginBottom: 40,
   },
   waitingGroupName: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     fontWeight: '700',
   },
   cancelButton: {
@@ -338,33 +342,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: theme.border.medium,
   },
   cancelButtonText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: theme.text.secondary,
     fontSize: 15,
     fontWeight: '600',
   },
   rejectedIcon: {
     fontSize: 52,
-    color: '#FF453A',
+    color: theme.accent.red,
     marginBottom: 12,
   },
   rejectedTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#FF453A',
+    color: theme.accent.red,
     marginBottom: 16,
   },
   approvedIcon: {
     fontSize: 52,
-    color: '#30D158',
+    color: theme.accent.green,
     marginBottom: 12,
   },
   approvedTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#30D158',
+    color: theme.accent.green,
     marginBottom: 16,
   },
   retryButton: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import database from '@react-native-firebase/database';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   PRIVACY_POLICY_CONTENT,
   TERMS_OF_SERVICE_CONTENT,
@@ -21,6 +22,8 @@ import SimpleMarkdown from '../../components/SimpleMarkdown';
 
 const TermsAcceptanceScreen = () => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading] = useState(false);
 
   const handleAccept = async () => {
@@ -67,7 +70,7 @@ const TermsAcceptanceScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#12121C' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
     <View style={styles.container}>
       <Text style={styles.title}>Terms & Privacy Policy</Text>
       <Text style={styles.subtitle}>
@@ -114,22 +117,22 @@ const TermsAcceptanceScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     textAlign: 'center',
     marginTop: 20,
     marginHorizontal: 20,
   },
   subtitle: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 16,
@@ -138,10 +141,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     marginHorizontal: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
   },
   scrollContent: {
     padding: 16,
@@ -149,7 +152,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.border.strong,
     marginVertical: 20,
   },
   buttonContainer: {
@@ -175,7 +178,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   declineButtonText: {
-    color: '#FF453A',
+    color: theme.accent.red,
     fontSize: 16,
     fontWeight: '600',
   },
