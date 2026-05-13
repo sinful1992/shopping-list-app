@@ -21,10 +21,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(val => {
-      setPreference(val as ThemePreference);
-      setIsLoading(false);
-    });
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then(val => {
+        setPreference(val as ThemePreference);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const isDark = preference !== null ? preference === 'dark' : systemScheme !== 'light';

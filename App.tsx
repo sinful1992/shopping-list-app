@@ -492,14 +492,15 @@ function App(): JSX.Element {
   );
 }
 
-// Wrap App with AlertProvider and ThemeProvider
+// ThemeProvider must be outermost: AlertProvider renders CustomAlert which calls
+// useTheme(), so CustomAlert must be a descendant of ThemeProvider.
 function AppWithProvider(): JSX.Element {
   return (
-    <AlertProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <AlertProvider>
         <App />
-      </ThemeProvider>
-    </AlertProvider>
+      </AlertProvider>
+    </ThemeProvider>
   );
 }
 
