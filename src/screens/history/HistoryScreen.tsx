@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import { ShoppingList, User } from '../../models/types';
 import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import SortDropdown, { SortOption } from '../../components/SortDropdown';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 /**
  * HistoryScreen
@@ -29,6 +29,8 @@ import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme
 const HistoryScreen = () => {
   const navigation = useNavigation<StackNavigationProp<HistoryStackParamList>>();
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lists, setLists] = useState<ShoppingList[]>([]);
@@ -317,7 +319,7 @@ const HistoryScreen = () => {
     if (!loading) return null;
     return (
       <View style={styles.footer}>
-        <ActivityIndicator size="small" color="#007AFF" />
+        <ActivityIndicator size="small" color={theme.accent.blue} />
       </View>
     );
   };
@@ -325,7 +327,7 @@ const HistoryScreen = () => {
   if (loading && lists.length === 0) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading history...</Text>
       </View>
     );
@@ -358,7 +360,7 @@ const HistoryScreen = () => {
         <TextInput
           style={styles.searchInput}
           placeholder={activeTab === 'archived' ? "Search archived lists..." : "Search by list name, store, or item..."}
-          placeholderTextColor="#6E6E73"
+          placeholderTextColor={theme.text.tertiary}
           value={searchQuery}
           onChangeText={handleSearchChange}
           autoCapitalize="none"
@@ -474,27 +476,27 @@ const HistoryScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: theme.border.subtle,
   },
   tab: {
     flex: 1,
@@ -504,27 +506,27 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#6EA8FE',
+    borderBottomColor: theme.accent.blue,
   },
   tabText: {
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
   },
   tabTextActive: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
   },
   searchContainer: {
     padding: 15,
   },
   searchInput: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 14,
     padding: 12,
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
     marginBottom: 10,
   },
   searchActions: {
@@ -534,15 +536,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   filterIconButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
   },
   filterIconText: {
-    color: '#ffffff',
+    color: theme.text.primary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -555,36 +557,36 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
   },
   filterButtonActive: {
-    backgroundColor: 'rgba(110, 168, 254, 0.25)',
-    borderColor: 'rgba(110, 168, 254, 0.5)',
+    backgroundColor: theme.accent.blueSubtle,
+    borderColor: theme.accent.blueDim,
   },
   filterButtonText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontWeight: '600',
   },
   filterButtonTextActive: {
-    color: '#fff',
+    color: theme.accent.blue,
   },
   listContent: {
     paddingBottom: 20,
   },
   listItem: {
     flexDirection: 'column',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     marginHorizontal: 15,
     marginTop: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
     padding: 15,
   },
   listItemRow: {
@@ -594,12 +596,12 @@ const styles = StyleSheet.create({
   },
   listDate: {
     fontSize: 16,
-    color: '#ffffff',
+    color: theme.text.primary,
     fontWeight: '600',
   },
   listTotal: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.5)',
+    color: theme.text.secondary,
     fontWeight: '600',
   },
   itemsNotBought: {
@@ -616,7 +618,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   footer: {
     paddingVertical: 20,

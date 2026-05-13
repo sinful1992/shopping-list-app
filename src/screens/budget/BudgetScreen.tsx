@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import BudgetAlertService, { AlertLevel } from '../../services/BudgetAlertService';
 import { ExpenditureBreakdownItem } from '../../models/types';
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useBudgetData } from '../../hooks';
 
 /**
@@ -22,6 +23,8 @@ import { useBudgetData } from '../../hooks';
  */
 const BudgetScreen = () => {
   const { showAlert } = useAlert();
+  const { theme } = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Use custom hook for budget data management
   const {
@@ -60,7 +63,7 @@ const BudgetScreen = () => {
   };
 
   const getAlertColor = (alert: { level: AlertLevel } | null): string => {
-    if (!alert) return COLORS.accent.green;
+    if (!alert) return theme.accent.green;
     return BudgetAlertService.getAlertColor(alert.level);
   };
 
@@ -88,7 +91,7 @@ const BudgetScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading budget data...</Text>
       </View>
     );
@@ -271,7 +274,7 @@ const BudgetScreen = () => {
                 value={monthlyLimitInput}
                 onChangeText={setMonthlyLimitInput}
                 placeholder="e.g., 500"
-                placeholderTextColor={COLORS.text.tertiary}
+                placeholderTextColor={theme.text.tertiary}
                 keyboardType="numeric"
               />
             </View>
@@ -282,7 +285,7 @@ const BudgetScreen = () => {
                 value={weeklyLimitInput}
                 onChangeText={setWeeklyLimitInput}
                 placeholder="e.g., 150"
-                placeholderTextColor={COLORS.text.tertiary}
+                placeholderTextColor={theme.text.tertiary}
                 keyboardType="numeric"
               />
             </View>
@@ -316,10 +319,10 @@ const BudgetScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   scrollContent: {
     paddingBottom: 30,
@@ -328,19 +331,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#12121C',
+    backgroundColor: theme.background.primary,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   dateRangeContainer: {
     padding: 15,
   },
   dateRangeLabel: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 10,
   },
   dateRangeButtons: {
@@ -350,47 +353,47 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: theme.border.medium,
   },
   dateRangeButtonActive: {
-    backgroundColor: 'rgba(110, 168, 254, 0.25)',
-    borderColor: 'rgba(110, 168, 254, 0.5)',
+    backgroundColor: theme.accent.blueSubtle,
+    borderColor: theme.accent.blueDim,
   },
   dateRangeButtonText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     fontWeight: '600',
   },
   dateRangeButtonTextActive: {
-    color: '#fff',
+    color: theme.accent.blue,
   },
   summaryCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     margin: 15,
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
   },
   summaryTitle: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginBottom: 5,
   },
   summaryPeriod: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     marginBottom: 10,
   },
   totalAmount: {
     fontSize: 42,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 20,
   },
   summaryStats: {
@@ -398,7 +401,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    borderTopColor: theme.border.subtle,
   },
   statItem: {
     alignItems: 'center',
@@ -406,11 +409,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#6EA8FE',
+    color: theme.accent.blue,
   },
   statLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
     marginTop: 5,
     textAlign: 'center',
   },
@@ -418,12 +421,12 @@ const styles = StyleSheet.create({
     marginTop: 15,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(110, 168, 254, 0.8)',
+    backgroundColor: theme.accent.blueLight,
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(110, 168, 254, 0.3)',
-    shadowColor: '#6EA8FE',
+    borderColor: theme.accent.blueDim,
+    shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -439,13 +442,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   alertCard: {
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     borderRadius: RADIUS.medium,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderLeftWidth: 4,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderColor: theme.border.strong,
   },
   alertHeader: {
     flexDirection: 'row',
@@ -459,11 +462,11 @@ const styles = StyleSheet.create({
   alertTitle: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   progressBar: {
     height: 8,
-    backgroundColor: COLORS.glass.subtle,
+    backgroundColor: theme.glass.subtle,
     borderRadius: 4,
     marginBottom: SPACING.sm,
     overflow: 'hidden',
@@ -474,7 +477,7 @@ const styles = StyleSheet.create({
   },
   alertMessage: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   configContainer: {
     marginHorizontal: 15,
@@ -484,28 +487,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     padding: SPACING.md,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderColor: theme.border.strong,
   },
   configToggleText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   configToggleIcon: {
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
   },
   configForm: {
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     padding: SPACING.lg,
     borderRadius: RADIUS.medium,
     marginTop: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
+    borderColor: theme.border.strong,
   },
   configInputGroup: {
     marginBottom: SPACING.lg,
@@ -513,48 +516,48 @@ const styles = StyleSheet.create({
   configLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.secondary,
+    color: theme.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: SPACING.sm,
   },
   configInput: {
-    backgroundColor: COLORS.glass.medium,
+    backgroundColor: theme.glass.medium,
     padding: SPACING.md,
     borderRadius: RADIUS.medium,
     borderWidth: 1,
-    borderColor: COLORS.border.strong,
-    color: COLORS.text.primary,
+    borderColor: theme.border.strong,
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.lg,
   },
   saveButton: {
-    backgroundColor: COLORS.accent.blueLight,
+    backgroundColor: theme.accent.blueLight,
     padding: SPACING.md,
     borderRadius: RADIUS.medium,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.accent.blueDim,
+    borderColor: theme.accent.blueDim,
     ...SHADOWS.blue,
   },
   saveButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+    color: theme.text.primary,
   },
   breakdownContainer: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    backgroundColor: theme.glass.subtle,
     marginHorizontal: 15,
     marginBottom: 15,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: theme.border.subtle,
     padding: 15,
   },
   breakdownTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 15,
   },
   breakdownList: {
@@ -565,7 +568,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: theme.border.medium,
   },
   breakdownLeft: {
     flex: 1,
@@ -573,16 +576,16 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.text.primary,
     marginBottom: 4,
   },
   listDate: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
   merchantName: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     marginTop: 2,
   },
   breakdownRight: {
@@ -592,11 +595,11 @@ const styles = StyleSheet.create({
   amount: {
     fontSize: 18,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.5)',
+    color: theme.text.secondary,
   },
   noReceipt: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.3)',
+    color: theme.text.tertiary,
     fontStyle: 'italic',
   },
   emptyContainer: {
@@ -605,7 +608,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: theme.text.secondary,
   },
 });
 
