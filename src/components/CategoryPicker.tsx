@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import CategoryService, { CategoryType } from '../services/CategoryService';
 import { RADIUS } from '../styles/theme';
+import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface CategoryPickerProps {
@@ -82,7 +83,7 @@ const CategoryPicker: React.FC<CategoryPickerProps> = ({
   );
 };
 
-const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     marginBottom: 16,
   },

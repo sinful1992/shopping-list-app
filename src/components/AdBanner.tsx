@@ -4,6 +4,7 @@ import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
 import { useAdMob } from '../contexts/AdMobContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { AD_UNIT_IDS } from '../config/adConfig';
+import type { Theme } from '../styles/theme';
 
 interface AdBannerProps {
   visible: boolean;
@@ -37,7 +38,7 @@ function AdBanner({ visible }: AdBannerProps) {
   );
 }
 
-const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     backgroundColor: theme.background.primary,
     borderTopWidth: 1,

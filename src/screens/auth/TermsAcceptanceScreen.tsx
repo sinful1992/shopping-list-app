@@ -19,6 +19,7 @@ import {
   CURRENT_TERMS_VERSION,
 } from '../../legal';
 import SimpleMarkdown from '../../components/SimpleMarkdown';
+import type { Theme } from '../../styles/theme';
 
 const TermsAcceptanceScreen = () => {
   const { showAlert } = useAlert();
@@ -117,7 +118,7 @@ const TermsAcceptanceScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

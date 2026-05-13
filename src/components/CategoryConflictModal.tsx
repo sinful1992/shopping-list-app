@@ -10,6 +10,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import CategoryService from '../services/CategoryService';
 import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface CategoryConflictModalProps {
@@ -79,7 +80,7 @@ const CategoryConflictModal: React.FC<CategoryConflictModalProps> = ({
   );
 };
 
-const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',

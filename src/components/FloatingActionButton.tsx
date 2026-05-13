@@ -9,6 +9,7 @@ import Animated from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../styles/theme';
 
 interface FloatingActionButtonProps {
   icon?: string;
@@ -91,7 +92,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   );
 };
 
-const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   fabContainer: {
     position: 'absolute',
     bottom: 20,

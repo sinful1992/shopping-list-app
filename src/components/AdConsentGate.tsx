@@ -5,6 +5,7 @@ import { useAdMob } from '../contexts/AdMobContext';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useAlert } from '../contexts/AlertContext';
 import { useTheme } from '../contexts/ThemeContext';
+import type { Theme } from '../styles/theme';
 
 interface AdConsentGateProps {
   children: React.ReactNode;
@@ -88,7 +89,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
   return <>{children}</>;
 }
 
-const createStyles = (theme: import('../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

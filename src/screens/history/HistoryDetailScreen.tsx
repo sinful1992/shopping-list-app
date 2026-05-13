@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { RADIUS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
@@ -374,7 +375,7 @@ const HistoryDetailScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

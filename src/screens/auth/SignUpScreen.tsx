@@ -16,6 +16,7 @@ import GoogleLogo from '../../components/GoogleLogo';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import type { Theme } from '../../styles/theme';
 
 const SignUpScreen = () => {
   const navigation = useNavigation<StackNavigationProp<AuthStackParamList>>();
@@ -93,7 +94,7 @@ const SignUpScreen = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,

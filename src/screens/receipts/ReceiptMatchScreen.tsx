@@ -20,6 +20,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { SPACING, TYPOGRAPHY, RADIUS } from '../../styles/theme';
+import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
@@ -514,7 +515,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message, onSkip, s
   </View>
 );
 
-function badgeStyle(match: MatchCandidate, theme: import('../../styles/theme').Theme): { bg: string; border: string; fg: string } {
+function badgeStyle(match: MatchCandidate, theme: Theme): { bg: string; border: string; fg: string } {
   if (match.method === 'manual') {
     return { bg: theme.accent.blueSubtle, border: theme.accent.blueDim, fg: theme.accent.blue };
   }
@@ -527,7 +528,7 @@ function badgeStyle(match: MatchCandidate, theme: import('../../styles/theme').T
   return { bg: 'rgba(255, 214, 10, 0.18)', border: theme.accent.yellowDim, fg: theme.accent.yellow };
 }
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,

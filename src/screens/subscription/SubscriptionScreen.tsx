@@ -16,6 +16,7 @@ import { TIER_FEATURES } from '../../models/SubscriptionConfig';
 import { UsageIndicator } from '../../components/UsageIndicator';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
+import type { Theme } from '../../styles/theme';
 
 export const SubscriptionScreen: React.FC = () => {
   const { showAlert } = useAlert();
@@ -246,7 +247,7 @@ export const SubscriptionScreen: React.FC = () => {
   );
 };
 
-const createStyles = (theme: import('../../styles/theme').Theme) => StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background.primary,
