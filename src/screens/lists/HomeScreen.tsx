@@ -219,6 +219,7 @@ const HomeScreen = () => {
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
                   completedCardStyle={styles.completedCard}
+                  theme={theme}
                 />
               );
             })
