@@ -499,6 +499,7 @@ class LocalStorageManager {
       const recordMap = new Map(records.map(r => [r.id, r]));
 
       const ops: any[] = [];
+      const processedRecords: ItemModel[] = [];
       for (const { id, updates: itemUpdates } of updates) {
         const record = recordMap.get(id);
         if (!record) continue;
@@ -515,10 +516,13 @@ class LocalStorageManager {
           if (itemUpdates.measurementUnit !== undefined) r.measurementUnit = itemUpdates.measurementUnit;
           if (itemUpdates.measurementValue !== undefined) r.measurementValue = itemUpdates.measurementValue;
         }));
-        updatedItems.push(this.itemModelToType(record));
+        processedRecords.push(record);
       }
       if (ops.length > 0) {
         await this.database.batch(ops);
+      }
+      for (const record of processedRecords) {
+        updatedItems.push(this.itemModelToType(record));
       }
     }, 'updateItemsBatch');
     console.log(`[Perf] updateItemsBatch: ${updates.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
@@ -1632,18 +1636,36 @@ class LocalStorageManager {
       let record: StoreLayoutModel | undefined;
 
       await this.database.write(async () => {
-        record = await collection.create((r) => {
-          r._raw.id = layout.id;
-          r.familyGroupId = layout.familyGroupId;
-          r.storeName = layout.storeName;
-          r.categoryOrder = JSON.stringify(layout.categoryOrder);
-          r.createdBy = layout.createdBy;
-          r.updatedAt = layout.updatedAt;
-          r.syncStatus = layout.syncStatus;
-        });
+        let existing: StoreLayoutModel | null = null;
+        try {
+          existing = await collection.find(layout.id);
+        } catch {
+          // Record does not exist yet
+        }
+
+        if (existing) {
+          record = await existing.update((r) => {
+            r.familyGroupId = layout.familyGroupId;
+            r.storeName = layout.storeName;
+            r.categoryOrder = JSON.stringify(layout.categoryOrder);
+            r.createdBy = layout.createdBy;
+            r.updatedAt = layout.updatedAt;
+            r.syncStatus = layout.syncStatus;
+          });
+        } else {
+          record = await collection.create((r) => {
+            r._raw.id = layout.id;
+            r.familyGroupId = layout.familyGroupId;
+            r.storeName = layout.storeName;
+            r.categoryOrder = JSON.stringify(layout.categoryOrder);
+            r.createdBy = layout.createdBy;
+            r.updatedAt = layout.updatedAt;
+            r.syncStatus = layout.syncStatus;
+          });
+        }
       }, 'saveStoreLayout');
 
-      if (!record) throw new Error('Failed to create store layout record');
+      if (!record) throw new Error('Failed to save store layout record');
       return this.storeLayoutModelToType(record);
     } catch (error: any) {
       throw new Error(`Failed to save store layout: ${error.message}`);
@@ -1804,19 +1826,25 @@ class LocalStorageManager {
         const items = await this.database.collections.get('items').query().fetch();
         const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
         const priceHistory = await this.database.collections.get('price_history').query().fetch();
+        const urgentItems = await this.database.collections.get('urgent_items').query().fetch();
+        const categoryHistory = await this.database.collections.get('category_history').query().fetch();
+        const storeLayouts = await this.database.collections.get('store_layouts').query().fetch();
+        const itemPreferences = await this.database.collections.get('item_preferences').query().fetch();
 
         const ops = [
           ...lists.map((r: any) => r.prepareMarkAsDeleted()),
           ...items.map((r: any) => r.prepareMarkAsDeleted()),
           ...syncQueue.map((r: any) => r.prepareMarkAsDeleted()),
           ...priceHistory.map((r: any) => r.prepareMarkAsDeleted()),
+          ...urgentItems.map((r: any) => r.prepareMarkAsDeleted()),
+          ...categoryHistory.map((r: any) => r.prepareMarkAsDeleted()),
+          ...storeLayouts.map((r: any) => r.prepareMarkAsDeleted()),
+          ...itemPreferences.map((r: any) => r.prepareMarkAsDeleted()),
         ];
         if (ops.length > 0) {
           await this.database.batch(ops);
         }
       }, 'clearAllData');
-
-      // Data cleared successfully - no logging needed
     } catch (error: any) {
       throw new Error(`Failed to clear local data: ${error.message}`);
     }
