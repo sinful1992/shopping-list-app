@@ -127,11 +127,6 @@ const HistoryScreen = () => {
     loadStores();
   }, [user?.familyGroupId]);
 
-  useFocusEffect(useCallback(() => {
-    if (user) { loadHistory(true); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]));
-
   const autoArchiveOldLists = async () => {
     if (!user?.familyGroupId) return;
 
