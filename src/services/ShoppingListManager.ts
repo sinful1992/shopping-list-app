@@ -277,12 +277,10 @@ class ShoppingListManager {
       lockedByName: null,
       lockedByRole: null,
       lockedAt: null,
-      ...(preCalculatedTotal > 0 && {
-        totalAmount: preCalculatedTotal,
-        merchantName: storeName,
-        currency: '£',
-        purchaseDate: null,
-      }),
+      totalAmount: preCalculatedTotal,
+      currency: '£',
+      merchantName: storeName,
+      purchaseDate: null,
       ...(receiptData && { receiptData }),
       ...(uncheckedItemsCount != null && { uncheckedItemsCount }),
     });

@@ -87,21 +87,31 @@ const HistoryDetailScreen = () => {
     try {
       setLoading(true);
       const details = await HistoryTracker.getListDetails(listId);
-      setListDetails(details);
-      if (details.items.length > 0) {
-        setItems(details.items);
-      } else if (details.list.familyGroupId) {
-        // Items not in local DB (fresh install / new device) — fetch from Firebase
+
+      let loadedItems = details.items;
+      if (loadedItems.length === 0 && details.list.familyGroupId) {
         try {
-          const firebaseItems = await FirebaseSyncListener.fetchItemsOnceForHistory(
+          loadedItems = await FirebaseSyncListener.fetchItemsOnceForHistory(
             details.list.familyGroupId,
             listId
           );
-          setItems(firebaseItems);
         } catch {
-          setItems([]);
+          loadedItems = [];
         }
       }
+
+      // Backfill totalAmount from item prices when not yet saved
+      let resolvedList = details.list;
+      if (!details.list.totalAmount && loadedItems.length > 0) {
+        const calcTotal = loadedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+        if (calcTotal > 0) {
+          await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
+          resolvedList = { ...details.list, totalAmount: calcTotal };
+        }
+      }
+
+      setListDetails({ ...details, list: resolvedList });
+      setItems(loadedItems);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       navigation.goBack();

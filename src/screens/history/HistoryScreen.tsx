@@ -294,7 +294,7 @@ const HistoryScreen = () => {
 
     const dateWithStore = item.storeName ? `${date} / ${item.storeName}` : date;
 
-    const total = item.totalAmount
+    const total = item.totalAmount != null
       ? `${item.currency || '£'}${item.totalAmount.toFixed(2)}`
       : 'No total';
 
@@ -303,6 +303,7 @@ const HistoryScreen = () => {
         style={styles.listItem}
         onPress={() => handleListPress(item.id)}
       >
+        <Text style={styles.listName}>{item.name}</Text>
         <View style={styles.listItemRow}>
           <Text style={styles.listDate}>{dateWithStore}</Text>
           <Text style={styles.listTotal}>Total: {total}</Text>
@@ -590,20 +591,27 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.border.subtle,
     padding: 15,
   },
+  listName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.text.primary,
+    marginBottom: 4,
+  },
   listItemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   listDate: {
-    fontSize: 16,
-    color: theme.text.primary,
-    fontWeight: '600',
+    fontSize: 13,
+    color: theme.text.secondary,
+    fontWeight: '500',
+    flex: 1,
   },
   listTotal: {
-    fontSize: 16,
-    color: theme.text.secondary,
-    fontWeight: '600',
+    fontSize: 15,
+    color: theme.accent.green,
+    fontWeight: '700',
   },
   itemsNotBought: {
     fontSize: 12,
