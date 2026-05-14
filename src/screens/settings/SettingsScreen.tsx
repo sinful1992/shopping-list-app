@@ -31,7 +31,7 @@ import { version } from '../../../package.json';
 const SettingsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { showAlert } = useAlert();
-  const { theme, isDark, toggle: toggleTheme } = useTheme();
+  const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // Use custom hook for settings management
@@ -307,18 +307,24 @@ const SettingsScreen = () => {
         </View>
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>Light Mode</Text>
+            <Text style={styles.settingLabel}>Theme</Text>
             <Text style={styles.settingDescription}>
-              Switch between dark and light theme
+              Auto follows your phone, or force light/dark
             </Text>
           </View>
-          <Switch
-            value={!isDark}
-            onValueChange={toggleTheme}
-            trackColor={{ false: '#3A3A3C', true: '#34C759' }}
-            thumbColor={!isDark ? '#ffffff' : '#f4f3f4'}
-            ios_backgroundColor="#3A3A3C"
-          />
+          <View style={styles.themeSegmentedRow}>
+            {(["system", "light", "dark"] as const).map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.themeButton, themeMode === mode && styles.themeButtonActive]}
+                onPress={() => setThemeMode(mode)}
+              >
+                <Text style={[styles.themeButtonText, themeMode === mode && styles.themeButtonTextActive]}>
+                  {mode === "system" ? "Auto" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
         <TouchableOpacity style={styles.settingRow} onPress={handleEditOcrUrl}>
           <View style={styles.settingInfo}>
