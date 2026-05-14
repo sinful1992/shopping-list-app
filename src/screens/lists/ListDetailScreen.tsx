@@ -102,7 +102,7 @@ const CategoryItemList = memo(({
       data={catItems}
       keyExtractor={(item: Item) => item.id}
       onReorder={({ from, to }: ReorderableListReorderEvent) => onReorder(reorderItems(catItems, from, to))}
-      renderItem={({ item }: { item: Item }) => {
+      renderItem={({ item, index }: { item: Item; index: number }) => {
         const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
         const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
         const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
@@ -112,7 +112,7 @@ const CategoryItemList = memo(({
             {(drag) => (
               <AnimatedItemCard
                 key={item.id}
-                index={0}
+                index={index}
                 item={item}
                 itemPrice={itemPrice}
                 isPredicted={isPredicted}
@@ -1366,7 +1366,7 @@ const ListDetailScreen = () => {
                       )}
                     </View>
                     <CategoryItemList
-                      key={catItems.map(i => i.id).sort().join(',')}
+                      key={`cat-items-${cat}`}
                       catItems={catItems}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}
@@ -1396,7 +1396,7 @@ const ListDetailScreen = () => {
                       <Text style={styles.categoryName}>{key}</Text>
                     </View>
                     <CategoryItemList
-                      key={catItems.map(i => i.id).sort().join(',')}
+                      key={`custom-items-${key}`}
                       catItems={catItems}
                       predictedPrices={predictedPrices}
                       smartSuggestions={smartSuggestions}

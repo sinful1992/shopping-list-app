@@ -6,20 +6,20 @@ _Generated: 2026-05-13_
 
 ## src/services/BudgetTracker.ts
 - [ ] **Currency hardcoded as 'USD'** — `ExpenditureSummary` always returns `currency: 'USD'` on lines 56 and 150 while the entire UI (BudgetScreen, ListDetailScreen shopping header) displays amounts with a `£` symbol. This means the budget API response and the display are structurally inconsistent. Should be driven by a constant or a user/group-level locale setting.
-- [ ] `list.totalAmount` is used with `||` operator (`if (list.totalAmount)`) which treats `0` as falsy — a list with a zero total will be counted in `listsWithoutReceipts` incorrectly. Use `!= null` or `?? 0` check instead.
+- [x] ~~`list.totalAmount` is used with `||` operator (`if (list.totalAmount)`) which treats `0` as falsy~~ — Fixed in 74172ff: now uses `!= null` check.
 
 ---
 
 ## src/services/SyncEngine.ts
 - [ ] **`getSyncStatus()` always returns `pendingOperations: 0`** (line 335 — stub value with a comment `// Would query sync queue`). Any UI that reads this field (sync badges, offline warnings) will always show "0 pending" regardless of actual queue depth. Implement the real queue count query.
-- [ ] `syncToFirebase` destructures `syncStatus` from `data` using a bare `const { syncStatus, ...dataWithoutSyncStatus } = data` (line 362). If `data` is `null` or `undefined` (e.g., a delete operation with no data), this will throw a runtime TypeError. Add a `data != null` guard before destructuring.
+- [x] ~~`syncToFirebase` destructures `syncStatus` from `data` on null/undefined~~ — Fixed in c70627b: now guards `data != null` before destructuring.
 
 ---
 
 ## src/services/LocalStorageManager.ts
-- [ ] **`clearAllData()` omits `urgent_items`, `category_history`, and `store_layouts` tables** (lines 1802–1817). After a user signs out or deletes their account, these three tables retain data from the previous session. When a different account signs in on the same device, it reads stale data from another user's history — a cross-account data bleed.
-- [ ] `saveStoreLayout()` (line 1634) always calls `collection.create()` — it never checks for an existing record. If called twice for the same layout ID it will throw a unique-constraint error. The other save methods (saveList, saveItem) use upsert patterns; this one needs the same treatment.
-- [ ] `updateItemsBatch` returns stale pre-update item snapshots (line 518: `updatedItems.push(this.itemModelToType(record))` is called before `database.batch(ops)` resolves). Callers that rely on the returned array will see old field values.
+- [x] ~~`clearAllData()` omits `urgent_items`, `category_history`, `store_layouts`~~ — Fixed in 63794c2: all tables now included.
+- [x] ~~`saveStoreLayout()` always calls `collection.create()`~~ — Fixed in 63794c2: now uses upsert (find → update or create).
+- [x] ~~`updateItemsBatch` returns stale pre-update snapshots~~ — Fixed in 63794c2: push now happens after `database.batch()` resolves.
 - [ ] `console.log` perf telemetry on lines 205, 524, 570, 629, 941, 1472, 1567, 1768 should use a debug-only logging utility rather than shipping to production builds.
 
 ---
@@ -63,18 +63,18 @@ _Generated: 2026-05-13_
 ---
 
 ## src/contexts/RevenueCatContext.tsx
-- [ ] **Firebase RTDB subscription is torn down and recreated every time `isPurchasing` flips** — the dependency array of the RTDB effect is `[user?.familyGroupId, isPurchasing]` (line 156). Every `setIsPurchasing(true/false)` call tears down and reinstates the `tierRef.on('value', onTierChange)` listener. This causes an unnecessary round-trip (off + on) during purchase/restore flows. Remove `isPurchasing` from the dependency array and handle the `isPurchasing` check inside the callback using a ref.
-- [ ] `onTierChange` callback (line 136) references `isPurchasing` from closure — after removing it from the dep array (above fix), this ref must also be converted to a `useRef` to avoid a stale closure bug where the callback always sees `isPurchasing = false`.
+- [x] ~~Firebase RTDB subscription torn down and recreated on `isPurchasing` flip~~ — Fixed in 74172ff: `isPurchasing` removed from dep array, converted to `useRef`.
+- [x] ~~`onTierChange` sees stale `isPurchasing = false` from closure~~ — Fixed in 74172ff alongside the dep-array fix.
 
 ---
 
 ## src/screens/lists/ListDetailScreen.tsx
-- [ ] **`index={0}` hardcoded for every AnimatedItemCard in the unchecked-items drag list** (line 115) — `CategoryItemList` passes a constant `index={0}` to every `AnimatedItemCard`. The `AnimatedItemCard` uses `index` to drive stagger animations (confirmed in AnimatedItemCard.tsx). All items animate identically instead of staggering. Should pass the actual item index within the category group.
+- [x] ~~`index={0}` hardcoded for every AnimatedItemCard~~ — Fixed: `renderItem` now destructures `index` from `NestedReorderableList` and passes it to `AnimatedItemCard`.
 - [ ] `handleToggleItem` wraps an async function in `startTransition` (line 636). `startTransition` is designed for synchronous state updates; wrapping async operations is an anti-pattern that can cause the optimistic state to be rolled back unexpectedly mid-await. The optimistic toggle should be separated from the async `ItemManager.toggleItemChecked` call.
 - [ ] `loadCurrentUser()` is a fire-and-forget async call without error handling (line 415 — `useEffect(() => { loadCurrentUser(); }, [])`). If `AuthenticationModule.getCurrentUser()` rejects, the error is silently dropped and `currentUserId` remains null, preventing item additions and shopping mode.
 - [ ] `SyncEngine.syncPendingChanges()` is called in a `useEffect` that fires on every `isOnline` change (lines 260–266). If the device flickers online/offline rapidly, multiple sync runs can be triggered in parallel. `SyncEngine.processOperationQueue` has a `syncInProgress` guard, but `syncPendingChanges` will still run the queue-fetch and response-shaping code N times needlessly.
 - [ ] `showInterstitial()` is called in `performFullCompletion` (line 854) which is a synchronous function called from within an alert `onPress` callback. `showInterstitial` is also called in `performPartialCompletion` (line 877). Both paths can be triggered by the same `handleDoneShopping` call if the user taps "Done" rapidly; the cooldown guard in AdMobContext should prevent double shows, but the `completeShoppingFast` + `createList` race is not guarded — only `isCreatingPartialList` guards `performPartialCompletion`, not the full completion path.
-- [ ] The `CategoryItemList` `key` prop (line 1367) is computed by sorting item IDs and joining them — this is O(n log n) on every render and will cause a full remount of the `NestedReorderableList` whenever any item is added or removed. Use a stable key derived from the category name only.
+- [x] ~~`CategoryItemList` key computed by sorting item IDs (O(n log n))~~ — Fixed: key now uses stable `cat-items-${categoryId}` string.
 
 ---
 

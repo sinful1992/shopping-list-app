@@ -1,7 +1,7 @@
 import React from 'react';
 import { Animated, TouchableOpacity, View, Text, StyleProp, ViewStyle } from 'react-native';
+import type { Theme } from '../styles/theme';
 
-// Create animated version of TouchableOpacity
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 interface AnimatedListCardProps {
@@ -19,10 +19,10 @@ interface AnimatedListCardProps {
   onDelete: () => void;
   completedCardStyle?: StyleProp<ViewStyle>;
   listCardStyle: StyleProp<ViewStyle>;
+  theme: Theme;
 }
 
 const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
-  index,
   listId,
   listName,
   isCompleted,
@@ -36,6 +36,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   onDelete,
   completedCardStyle,
   listCardStyle,
+  theme,
 }) => {
   return (
     <AnimatedTouchableOpacity
@@ -43,45 +44,47 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
       style={[listCardStyle, isCompleted && completedCardStyle]}
       onPress={onPress}
     >
-      {/* Sync Status Indicator - Top Right */}
-      <View style={[styles.syncIndicator, { backgroundColor: syncColor }]} />
+      <View style={[staticStyles.syncIndicator, { backgroundColor: syncColor }]} />
 
-      <View style={styles.listHeader}>
-        <View style={styles.listTitleRow}>
-          <Text style={[styles.listName, isCompleted && styles.completedText]}>
+      <View style={staticStyles.listHeader}>
+        <View style={staticStyles.listTitleRow}>
+          <Text style={[staticStyles.listName, { color: theme.text.primary }, isCompleted && { color: theme.text.secondary }]}>
             {listName}
           </Text>
         </View>
-        <View style={styles.listBadges}>
+        <View style={staticStyles.listBadges}>
           {isLocked && (
-            <Text style={styles.shoppingBadge}>
+            <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange }]}>
               🛒 {lockedByRole || lockedByName || 'Shopping'}
             </Text>
           )}
-          {isCompleted && <Text style={styles.completedBadge}>✓ Completed</Text>}
+          {isCompleted && (
+            <Text style={[staticStyles.completedBadge, { color: theme.accent.green }]}>
+              ✓ Completed
+            </Text>
+          )}
           <TouchableOpacity
             onPress={(e) => {
               e.stopPropagation();
               onDelete();
             }}
-            style={styles.deleteIconButton}
+            style={staticStyles.deleteIconButton}
           >
-            <Text style={styles.deleteIcon}>🗑</Text>
+            <Text style={staticStyles.deleteIcon}>🗑</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Date and Store Display */}
-      <Text style={[styles.listDateFormatted, isCompleted && styles.completedText]}>
+      <Text style={[staticStyles.listDateFormatted, { color: theme.text.secondary }, isCompleted && { color: theme.text.tertiary }]}>
         {formattedDate}
       </Text>
       {isCompleted && storeName && (
-        <Text style={[styles.storeName, isCompleted && styles.completedText]}>
+        <Text style={[staticStyles.storeName, { color: theme.text.secondary }]}>
           {storeName}
         </Text>
       )}
       {!isCompleted && (
-        <Text style={[styles.listDateSecondary, isCompleted && styles.completedText]}>
+        <Text style={[staticStyles.listDateSecondary, { color: theme.text.tertiary }]}>
           Created {formattedDate}
         </Text>
       )}
@@ -89,7 +92,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   );
 };
 
-const styles = {
+const staticStyles = {
   syncIndicator: {
     position: 'absolute' as const,
     top: 8,
@@ -111,10 +114,6 @@ const styles = {
   listName: {
     fontSize: 18,
     fontWeight: '600' as const,
-    color: '#fff',
-  },
-  completedText: {
-    color: 'rgba(255, 255, 255, 0.6)',
   },
   listBadges: {
     flexDirection: 'row' as const,
@@ -123,7 +122,6 @@ const styles = {
   },
   shoppingBadge: {
     fontSize: 12,
-    color: '#FFD60A',
     backgroundColor: 'rgba(255, 214, 10, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -131,7 +129,6 @@ const styles = {
   },
   completedBadge: {
     fontSize: 12,
-    color: '#30D158',
     backgroundColor: 'rgba(48, 209, 88, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -145,17 +142,14 @@ const styles = {
   },
   listDateFormatted: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 4,
   },
   listDateSecondary: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.3)',
     marginTop: 2,
   },
   storeName: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.45)',
     marginTop: 2,
   },
 };
