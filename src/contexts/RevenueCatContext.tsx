@@ -42,9 +42,16 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
   const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const isPurchasingRef = useRef(false);
   const purchaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevFamilyGroupIdRef = useRef<string | null>(null);
   const reconciledGroupRef = useRef<string | null>(null);
+
+  // Keep ref in sync so the Firebase callback always sees the latest value without
+  // being in its dependency array (prevents unnecessary listener teardown/re-register)
+  useEffect(() => {
+    isPurchasingRef.current = isPurchasing;
+  }, [isPurchasing]);
 
   // Configure RevenueCat SDK on mount
   useEffect(() => {
@@ -139,7 +146,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       cacheTier(newTier);
 
       // If we were waiting for a purchase to activate, it just did
-      if (isPurchasing) {
+      if (isPurchasingRef.current) {
         setIsPurchasing(false);
         if (purchaseTimeoutRef.current) {
           clearTimeout(purchaseTimeoutRef.current);
@@ -153,7 +160,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
     return () => {
       tierRef.off('value', onTierChange);
     };
-  }, [user?.familyGroupId, isPurchasing]);
+  }, [user?.familyGroupId]);
 
   // Reconciliation: server-side subscription verification on cold start
   useEffect(() => {
