@@ -351,7 +351,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
   themeButtonTextActive: {
     color: theme.accent.blue,
   },
-    dangerTitle: {
+  dangerTitle: {
     color: '#FF3B30',
   },
   dangerWarning: {
