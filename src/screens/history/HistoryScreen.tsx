@@ -284,7 +284,7 @@ const HistoryScreen = () => {
       const totalsByListId = new Map<string, number>();
       for (const item of allItems) {
         const prev = totalsByListId.get(item.listId) ?? 0;
-        totalsByListId.set(item.listId, prev + (item.price ?? 0));
+        totalsByListId.set(item.listId, prev + (item.price ?? 0) * (item.unitQty ?? 1));
       }
 
       const updates: Promise<void>[] = [];
