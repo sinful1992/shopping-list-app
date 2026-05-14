@@ -100,14 +100,12 @@ const HistoryDetailScreen = () => {
         }
       }
 
-      // Backfill totalAmount from item prices when not yet saved
+      // Backfill totalAmount from item prices when not yet saved (including zero)
       let resolvedList = details.list;
-      if (!details.list.totalAmount && loadedItems.length > 0) {
+      if (details.list.totalAmount == null && loadedItems.length > 0) {
         const calcTotal = loadedItems.reduce((sum, item) => sum + (item.price || 0), 0);
-        if (calcTotal > 0) {
-          await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
-          resolvedList = { ...details.list, totalAmount: calcTotal };
-        }
+        await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
+        resolvedList = { ...details.list, totalAmount: calcTotal };
       }
 
       setListDetails({ ...details, list: resolvedList });
