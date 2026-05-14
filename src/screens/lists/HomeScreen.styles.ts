@@ -7,12 +7,12 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.background.primary,
   },
   listCard: {
-    backgroundColor: theme.glass.subtle,
+    backgroundColor: theme.background.secondary,
     margin: 10,
     padding: 18,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: theme.border.subtle,
+    borderColor: theme.border.strong,
     position: 'relative',
   },
   completedCard: {

@@ -106,13 +106,13 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.glass.subtle,
+    backgroundColor: theme.background.secondary,
     padding: 15,
     marginHorizontal: 10,
     marginBottom: 8,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: theme.border.subtle,
+    borderColor: theme.border.strong,
   },
   itemRowChecked: {
     backgroundColor: theme.glass.subtle,
