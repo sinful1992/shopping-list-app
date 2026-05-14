@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,13 @@ import {
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { HistoryStackParamList } from '../../types/navigation';
 import HistoryTracker from '../../services/HistoryTracker';
 import AuthenticationModule from '../../services/AuthenticationModule';
+import LocalStorageManager from '../../services/LocalStorageManager';
+import ShoppingListManager from '../../services/ShoppingListManager';
 import { ShoppingList, User } from '../../models/types';
 import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import SortDropdown, { SortOption } from '../../components/SortDropdown';
@@ -68,9 +70,20 @@ const HistoryScreen = () => {
   const [hasMore, setHasMore] = useState(true);
   const pageSize = 20;
 
+  // Incremented by useFocusEffect to trigger a reload when the screen regains focus
+  const [focusRefreshKey, setFocusRefreshKey] = useState(0);
+  const initialLoadDone = useRef(false);
+
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Reload when screen regains focus so totals written in HistoryDetail are immediately visible
+  useFocusEffect(useCallback(() => {
+    if (initialLoadDone.current) {
+      setFocusRefreshKey(k => k + 1);
+    }
+  }, [])); // intentionally empty — just signals focus, not a data dependency
 
   // Auto-archive old lists on mount
   useEffect(() => {
@@ -94,7 +107,7 @@ const HistoryScreen = () => {
     }
   // Use primitive values to avoid re-renders from object reference changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, debouncedSearchQuery, receiptFilter, activeTab, currentSort.field, currentSort.order,
+  }, [user, focusRefreshKey, debouncedSearchQuery, receiptFilter, activeTab, currentSort.field, currentSort.order,
       currentFilters.startDate?.getTime(), currentFilters.endDate?.getTime(),
       currentFilters.stores.join(','), currentFilters.minPrice, currentFilters.maxPrice,
       currentFilters.hasReceipt]);
@@ -246,11 +259,49 @@ const HistoryScreen = () => {
 
       setHasMore(currentOffset + pageSize < filteredLists.length);
       setOffset(currentOffset + pageSize);
+      initialLoadDone.current = true;
+
+      // Background: compute and persist totalAmount for any lists missing it
+      if (user?.familyGroupId) {
+        backfillMissingTotals(paginatedLists, user.familyGroupId);
+      }
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const backfillMissingTotals = async (displayedLists: ShoppingList[], familyGroupId: string) => {
+    const listsNeedingTotal = displayedLists.filter(l => l.totalAmount == null);
+    if (listsNeedingTotal.length === 0) return;
+
+    try {
+      const listIds = listsNeedingTotal.map(l => l.id);
+      const allItems = await LocalStorageManager.getItemsForLists(listIds);
+
+      const totalsByListId = new Map<string, number>();
+      for (const item of allItems) {
+        const prev = totalsByListId.get(item.listId) ?? 0;
+        totalsByListId.set(item.listId, prev + (item.price ?? 0));
+      }
+
+      const updates: Promise<void>[] = [];
+      for (const list of listsNeedingTotal) {
+        const computed = totalsByListId.get(list.id) ?? 0;
+        updates.push(ShoppingListManager.updateList(list.id, { totalAmount: computed }).then(() => {}));
+      }
+      await Promise.all(updates);
+
+      // Patch state so the list refreshes without a full reload
+      setLists(prev => prev.map(l => {
+        if (l.totalAmount != null) return l;
+        const computed = totalsByListId.get(l.id);
+        return computed != null ? { ...l, totalAmount: computed } : l;
+      }));
+    } catch {
+      // Backfill is best-effort; failures are silent
     }
   };
 
