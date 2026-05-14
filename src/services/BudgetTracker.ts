@@ -36,7 +36,7 @@ class BudgetTracker {
 
       // Calculate from shopping lists
       for (const list of lists) {
-        if (list.totalAmount) {
+        if (list.totalAmount != null) {
           totalAmount += list.totalAmount;
           listsWithReceipts++;
         } else {
@@ -130,7 +130,7 @@ class BudgetTracker {
       let listsWithoutReceipts = 0;
 
       for (const list of userLists) {
-        if (list.totalAmount) {
+        if (list.totalAmount != null) {
           totalAmount += list.totalAmount;
           listsWithReceipts++;
         } else {

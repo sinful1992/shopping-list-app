@@ -474,6 +474,16 @@ const SettingsScreen = () => {
         </>
       )}
 
+      {/* Subscription Section */}
+      <TouchableOpacity style={styles.section} onPress={() => navigation.navigate('Subscription')}>
+        <View style={styles.sectionHeader}>
+          <Icon name="star-outline" size={24} color={theme.accent.blue} />
+          <Text style={styles.sectionTitle}>Subscription</Text>
+          <Icon name="chevron-forward-outline" size={20} color={theme.text.secondary} style={{ marginLeft: 'auto' }} />
+        </View>
+        <Text style={styles.helperText}>Manage your Pro plan, view usage limits, and upgrade</Text>
+      </TouchableOpacity>
+
       {/* Legal Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>

@@ -329,10 +329,11 @@ class SyncEngine {
   /**
    * Get current sync status
    */
-  getSyncStatus(): SyncEngineStatus {
+  async getSyncStatus(): Promise<SyncEngineStatus> {
+    const queue = await LocalStorageManager.getSyncQueue();
     return {
       isOnline: this.isOnline,
-      pendingOperations: 0, // Would query sync queue
+      pendingOperations: queue.length,
       lastSyncTimestamp: null,
     };
   }
@@ -358,6 +359,7 @@ class SyncEngine {
     if (operation === 'delete') {
       await database().ref(path).remove();
     } else {
+      if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
       // Strip syncStatus before syncing to Firebase (keep it local-only)
       const { syncStatus, ...dataWithoutSyncStatus } = data;
       await database().ref(path).set(dataWithoutSyncStatus);

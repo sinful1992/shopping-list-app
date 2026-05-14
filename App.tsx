@@ -52,10 +52,10 @@ const linking = {
           History: 'history',
           Analytics: 'analytics',
           Budget: 'budget',
-          Subscription: 'subscription',
         },
       },
       Settings: 'settings',
+      Subscription: 'subscription',
     },
   },
 };
@@ -179,7 +179,6 @@ function HistoryStack() {
 function MainTabNavigator() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-  const [activeTab, setActiveTab] = useState('Lists');
   const { showAlert } = useAlert();
   const { isDark } = useTheme();
   useInAppUpdate(showAlert);
@@ -208,17 +207,10 @@ function MainTabNavigator() {
       }}
       tabBar={(props) => (
         <>
-          <AdBanner visible={activeTab !== 'Subscription'} />
+          <AdBanner visible />
           <BottomTabBar {...props} />
         </>
       )}
-      screenListeners={{
-        state: (e: any) => {
-          const state = e.data.state;
-          const activeRoute = state.routes[state.index];
-          setActiveTab(activeRoute.name);
-        },
-      }}
     >
       <Tab.Screen
         name="Lists"
@@ -275,16 +267,6 @@ function MainTabNavigator() {
           title: 'Budget',
           tabBarIcon: ({ color, size}) => (
             <Icon name="wallet-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Subscription"
-        component={SubscriptionScreen}
-        options={{
-          title: 'Pro',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="star-outline" size={size} color={color} />
           ),
         }}
       />
@@ -475,6 +457,11 @@ function App(): JSX.Element {
                     name="Settings"
                     component={SettingsScreen}
                     options={{ title: 'Settings' }}
+                  />
+                  <Stack.Screen
+                    name="Subscription"
+                    component={SubscriptionScreen}
+                    options={{ title: 'Subscription' }}
                   />
                   <Stack.Screen
                     name="LegalDocument"

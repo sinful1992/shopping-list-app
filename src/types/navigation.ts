@@ -5,6 +5,7 @@ import type { CompositeScreenProps } from '@react-navigation/native';
 export type RootStackParamList = {
   MainTabs: undefined;
   Settings: undefined;
+  Subscription: undefined;
   LegalDocument: { title: string; content: string };
 };
 
@@ -30,7 +31,6 @@ export type MainTabParamList = {
   History: undefined;
   Analytics: undefined;
   Budget: undefined;
-  Subscription: undefined;
 };
 
 export type ListsStackParamList = {
