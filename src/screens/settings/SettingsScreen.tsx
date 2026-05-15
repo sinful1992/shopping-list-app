@@ -305,7 +305,7 @@ const SettingsScreen = () => {
             ios_backgroundColor="#3A3A3C"
           />
         </View>
-        <View style={styles.settingRow}>
+        <View style={styles.themeSettingBlock}>
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>Theme</Text>
             <Text style={styles.settingDescription}>

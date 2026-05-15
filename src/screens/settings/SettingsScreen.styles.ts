@@ -310,6 +310,9 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
   },
+  themeSettingBlock: {
+    paddingVertical: 8,
+  },
   settingInfo: {
     flex: 1,
     marginRight: 12,
