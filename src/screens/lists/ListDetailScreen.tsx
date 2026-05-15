@@ -1006,11 +1006,11 @@ const ListDetailScreen = () => {
     }, [list?.storeName, list?.familyGroupId])
   );
 
-  // Reload smart suggestions when the screen gains focus (handles return from sub-screens)
+  // Reload smart suggestions on re-focus (not initial mount — subscription handles that)
   useFocusEffect(useCallback(() => {
     const fgid = listFamilyGroupIdRef.current;
     const currentItems = itemsRef.current;
-    if (fgid && currentItems.length > 0) {
+    if (predictionsLoadedRef.current && fgid && currentItems.length > 0) {
       predictPricesFromHistory(currentItems, fgid);
     }
   }, [predictPricesFromHistory]));

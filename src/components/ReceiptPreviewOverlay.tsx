@@ -34,16 +34,15 @@ interface FieldRowProps {
   icon: string;
   bold?: boolean;
   styles: ReturnType<typeof createStyles>;
-  theme: Theme;
 }
 
-const FieldRow: React.FC<FieldRowProps> = ({ label, value, icon, bold, styles, theme }) => (
+const FieldRow: React.FC<FieldRowProps> = ({ label, value, icon, bold, styles }) => (
   <View style={styles.fieldRow}>
     <View style={styles.fieldLeft}>
       <Icon
         name={value ? 'checkmark-circle' : icon}
         size={16}
-        color={value ? theme.accent.green : theme.text.tertiary}
+        color={value ? '#4CD964' : 'rgba(255, 255, 255, 0.38)'}
       />
       <Text style={styles.fieldLabel}>{label}</Text>
     </View>
@@ -131,7 +130,7 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
             </View>
             {onPickGallery && (
               <TouchableOpacity style={styles.galleryLink} onPress={onPickGallery}>
-                <Icon name="images-outline" size={14} color={theme.text.tertiary} />
+                <Icon name="images-outline" size={14} color="rgba(255, 255, 255, 0.55)" />
                 <Text style={styles.galleryLinkText}>or pick from gallery</Text>
               </TouchableOpacity>
             )}
@@ -146,14 +145,12 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
                 value={merchantName ?? null}
                 icon="storefront-outline"
                 styles={styles}
-                theme={theme}
               />
               <FieldRow
                 label="Date"
                 value={purchaseDate ?? null}
                 icon="calendar-outline"
                 styles={styles}
-                theme={theme}
               />
               <FieldRow
                 label="Total"
@@ -165,7 +162,6 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
                 icon="cash-outline"
                 bold
                 styles={styles}
-                theme={theme}
               />
               <FieldRow
                 label="Items"
@@ -176,7 +172,6 @@ const ReceiptPreviewOverlay: React.FC<ReceiptPreviewOverlayProps> = ({
                 }
                 icon="list-outline"
                 styles={styles}
-                theme={theme}
               />
               <View style={styles.confidenceRow}>
                 <Text style={styles.fieldLabel}>Confidence</Text>
