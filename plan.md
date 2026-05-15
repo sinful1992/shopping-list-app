@@ -1,139 +1,163 @@
-# Plan: Four UX Fixes
+# Plan: OCR Overlay Visibility, Match Screen Contrast, Settings Theme Row Layout
 
 ## Goals and Success Criteria
 
-| # | Issue | Success |
-|---|-------|---------|
-| 1 | Settings has no follow-phone (system) theme option | Settings shows a 3-way control: System / Light / Dark; selecting System removes the stored preference so the app follows the OS |
-| 2 | Item cards in shopping list view are hard to see | Cards have a clearly-distinguishable background on both dark and light themes |
-| 3 | History totals do not appear after returning from a detail view | After visiting a detail and pressing back, the history list shows correct totals without a manual pull-to-refresh |
-| 4 | Smart store-price suggestions only appear after manual refresh | Suggestions load automatically on first entry to the list screen and on return from any sub-screen |
+| # | Issue | Success Criterion |
+|---|-------|-------------------|
+| 1 | OCR scan overlay nearly invisible over receipt photo | Card clearly readable in all lighting; text, buttons, status info legible on the dark overlay |
+| 2 | Post-scan ReceiptMatchScreen low contrast in light mode | Match cards and skip button have clear visual boundaries on both themes |
+| 3 | Settings theme-selector row broken layout — blank gaps, buttons detached from label | Auto/Light/Dark sits directly under label; row compact and readable |
 
 ---
 
 ## Root Cause Analysis
 
-### Issue 1 - No System theme option
-ThemeContext.tsx stores ThemePreference of 'light' | 'dark' | null. null already means follow system. The toggle() function only cycles between 'light' and 'dark', never setting null. The settings UI only exposes a single Switch, so there is no affordance to clear the preference.
+### Bug 1 — OCR overlay invisible (ReceiptPreviewOverlay.tsx)
 
-### Issue 2 - Cards hard to see
-ListDetailScreen.styles.ts itemRow.backgroundColor = theme.glass.subtle
-- Dark: rgba(255,255,255,0.03) on #12121C background - 3% white, almost invisible
-- Light: rgba(0,0,0,0.04) on #F0F2F5 background - 4% black, barely distinguishable
-The border uses theme.border.subtle which is equally faint (5-6% opacity). The same pattern appears on HomeScreen list cards.
+  card.backgroundColor = theme.glass.elevated = rgba(255,255,255,0.08)
 
-### Issue 3 - History totals missing after back-navigation
-HistoryDetailScreen.loadListDetails() backfills totalAmount in WatermelonDB when it is null. HistoryScreen re-queries only when user/filter/sort deps change or on manual pull-to-refresh. There is no useFocusEffect to re-query when returning from HistoryDetailScreen.
+8% white — effectively transparent. When this card sits on top of a receipt photo
+(white paper filling the screen) the card surface disappears. In dark mode text is
+#fff, rendering white-on-white-receipt. In light mode text switches to #111827 which
+is dark-on-transparent — equally illegible against the background photo.
 
-### Issue 4 - Smart suggestions require manual refresh
-loadPredictions() is triggered once inside InteractionManager.runAfterInteractions on mount, and manually via onRefresh. At the time InteractionManager fires (after navigation animation), either listFamilyGroupIdRef.current is undefined (list not yet loaded) or itemsRef.current.length is zero (WatermelonDB observer not yet fired). After both arrive, nothing re-triggers. On re-focus there is no useFocusEffect for predictions.
+Button styles on the same card:
+  retakeButton.backgroundColor = theme.glass.medium  = rgba(255,255,255,0.05)  near invisible
+  retakeButton.borderColor     = theme.border.medium = rgba(255,255,255,0.08)  near invisible
+
+The overlay is ALWAYS rendered over a camera feed or captured photo, never over a
+solid themed background. App-theme colour values are irrelevant here — the overlay
+must be permanently opaque and dark.
+
+### Bug 2 — ReceiptMatchScreen low contrast in light mode (ReceiptMatchScreen.tsx)
+
+  matchCard.backgroundColor = theme.glass.subtle = rgba(0,0,0,0.04) in light mode
+
+4% opacity black on #F0F2F5 page background — cards are practically invisible,
+indistinguishable from the page background.
+
+  skipButton.backgroundColor = theme.glass.subtle   = rgba(0,0,0,0.04)  invisible fill
+  skipButton.borderColor     = theme.border.medium   = rgba(0,0,0,0.10)  barely visible
+
+Skip button appears as a ghost in light mode. Dark mode is unaffected.
+
+### Bug 3 — Settings theme row layout broken
+
+Row structure:
+  settingRow (flexDirection: row, alignItems: center)
+    settingInfo (flex: 1)           <-- consumes ALL horizontal space
+    themeSegmentedRow (no flex, no width)
+      themeButton (flex: 1)   --+
+      themeButton (flex: 1)     +-- three flex:1 children inside a 0-width parent
+      themeButton (flex: 1)   --+
+
+settingInfo with flex:1 in a row consumes all available width. themeSegmentedRow
+receives 0 remaining width. Its three flex:1 children have no bounded dimension.
+Yoga on Android collapses the container and stacks content vertically — causing the
+large blank whitespace and the segmented control appearing detached from its label.
+
+Fix: Change the Theme row from horizontal settingRow to vertical themeSettingBlock
+(column). Label and description stack above the segmented row. With full container
+width available, themeButton flex:1 distributes evenly across the three buttons.
 
 ---
 
 ## Affected Files
 
-| File | Change |
-|------|--------|
-| src/contexts/ThemeContext.tsx | Expose themeMode + setThemeMode; keep toggle for backward compat |
-| src/screens/settings/SettingsScreen.tsx | Replace Switch with 3-button segmented control |
-| src/screens/lists/ListDetailScreen.styles.ts | Increase itemRow card background contrast |
-| src/screens/lists/HomeScreen.styles.ts | Increase listCard background contrast |
-| src/screens/history/HistoryScreen.tsx | Add useFocusEffect to reload on focus |
-| src/screens/lists/ListDetailScreen.tsx | Trigger predictions on item-observer first fire + useFocusEffect |
+| File | Change Summary |
+|------|----------------|
+| src/components/ReceiptPreviewOverlay.tsx | Harden card to opaque dark; hardcode text/button colours inside overlay |
+| src/screens/receipts/ReceiptMatchScreen.tsx | matchCard -> theme.background.secondary; skipButton -> glass.strong / border.strong |
+| src/screens/settings/SettingsScreen.styles.ts | Add themeSettingBlock style (column layout, paddingVertical 8) |
+| src/screens/settings/SettingsScreen.tsx | Use themeSettingBlock instead of settingRow for Theme row only |
 
 ---
 
 ## Implementation Steps
 
-### Step 1 - ThemeContext: expose themeMode and setThemeMode
+### Step 1 — src/components/ReceiptPreviewOverlay.tsx
 
-File: src/contexts/ThemeContext.tsx
+Harden card and all inner styles to hardcoded dark values.
+Accent colours (blue, orange, green) still come from theme — readable on a dark surface.
 
-1. Export type ThemeMode = 'light' | 'dark' | 'system'.
-2. Extend ThemeContextValue: add themeMode: ThemeMode and setThemeMode: (mode: ThemeMode) => Promise<void>. Keep existing toggle untouched.
-3. Implement setThemeMode:
-   - 'system' -> setPreference(null) + AsyncStorage.removeItem(STORAGE_KEY)
-   - 'light'/'dark' -> setPreference(mode) + AsyncStorage.setItem(STORAGE_KEY, mode)
-4. Derive themeMode: preference ?? 'system'
-5. Provide all new values through the context provider.
+Changes inside createStyles:
 
-### Step 2 - Settings: 3-way theme segmented control
+  card.backgroundColor          theme.glass.elevated  ->  rgba(18, 18, 30, 0.94)
+  card.borderColor              theme.border.medium   ->  rgba(255, 255, 255, 0.12)
+  loadingText.color             theme.text.primary    ->  #fff
+  errorText.color               theme.text.secondary  ->  rgba(255, 255, 255, 0.75)
+  fieldLabel.color              theme.text.secondary  ->  rgba(255, 255, 255, 0.60)
+  fieldValue.color              theme.text.primary    ->  #fff
+  fieldValueMissing.color       theme.text.tertiary   ->  rgba(255, 255, 255, 0.38)
+  retakeButton.backgroundColor  theme.glass.medium    ->  rgba(255, 255, 255, 0.15)
+  retakeButton.borderColor      theme.border.medium   ->  rgba(255, 255, 255, 0.28)
+  retakeButtonText.color        theme.text.primary    ->  #fff
+  galleryLinkText.color         theme.text.tertiary   ->  rgba(255, 255, 255, 0.55)
 
-File: src/screens/settings/SettingsScreen.tsx
+NOT changed: confirmButton.backgroundColor, confirmButtonText.color, badge colours,
+confidenceText, confidenceBadge.
 
-1. Destructure themeMode and setThemeMode from useTheme().
-2. Remove the existing Switch row for "Light Mode".
-3. Replace with an inline row containing three TouchableOpacity buttons (System | Light | Dark).
-   - Active button: theme.accent.blueSubtle bg, theme.accent.blue text, theme.accent.blueDim border.
-   - Inactive: theme.glass.subtle bg, theme.text.secondary text.
-4. Row label: "Theme" / "Auto follows your phone, or force light/dark".
+### Step 2 — src/screens/receipts/ReceiptMatchScreen.tsx (inside createStyles)
 
-### Step 3 - Card visibility
+  matchCard.backgroundColor   theme.glass.subtle  ->  theme.background.secondary
+    Light: #FFFFFF on #F0F2F5 -- clearly visible card
+    Dark:  #1E1E2E on #12121C -- slightly elevated card, correct
 
-File: src/screens/lists/ListDetailScreen.styles.ts
-- itemRow.backgroundColor: theme.glass.subtle -> theme.background.secondary
-  (Dark: #1E1E2E on #12121C; Light: #FFFFFF on #F0F2F5)
-- itemRow.borderColor: theme.border.subtle -> theme.border.strong
+  skipButton.backgroundColor  theme.glass.subtle  ->  theme.glass.strong
+    Light: rgba(0,0,0,0.12) -- visible ghost button
 
-File: src/screens/lists/HomeScreen.styles.ts
-- listCard.backgroundColor: theme.glass.subtle -> theme.background.secondary
-- listCard.borderColor: theme.border.subtle -> theme.border.strong
+  skipButton.borderColor      theme.border.medium ->  theme.border.strong
+    Light: rgba(0,0,0,0.14) -- readable border
 
-### Step 4 - History: reload on focus
+No other changes; dark mode results verified not to regress.
 
-File: src/screens/history/HistoryScreen.tsx
+### Step 3 — src/screens/settings/SettingsScreen.styles.ts
 
-1. Add useFocusEffect to the @react-navigation/native import.
-2. Add useFocusEffect after existing useEffect blocks:
-   useFocusEffect(useCallback(() => { if (user) { loadHistory(true); } }, [user]));
-   Fires every time the screen gains focus, re-queries WatermelonDB, picks up backfilled totalAmount.
+Add after settingRow:
 
-### Step 5 - Smart suggestions: load on screen entry
+  themeSettingBlock: {
+    paddingVertical: 8,
+    // default flexDirection is column
+    // themeSegmentedRow gets full width; flex:1 buttons work correctly
+  },
 
-File: src/screens/lists/ListDetailScreen.tsx
+settingRow, themeSegmentedRow, themeButton are NOT modified.
+settingRow is still used by Haptic Feedback and OCR Server rows.
 
-Part A - items observer trigger (handles initial load when InteractionManager fires too early):
-- Add predictionsLoadedRef = useRef(false) near other refs.
-- Reset to false in cleanup of main useEffect([listId]).
-- In WatermelonDB items observer, after calculateShoppingStats(mergedItems), add:
-    if (!predictionsLoadedRef.current && mergedItems.length > 0 && listFamilyGroupIdRef.current) {
-      predictionsLoadedRef.current = true;
-      predictPricesFromHistory(mergedItems, listFamilyGroupIdRef.current);
-    }
+### Step 4 — src/screens/settings/SettingsScreen.tsx
 
-Part B - useFocusEffect trigger (handles return-to-screen):
-- Add alongside existing store-layout useFocusEffect:
-    useFocusEffect(useCallback(() => {
-      const fgid = listFamilyGroupIdRef.current;
-      const currentItems = itemsRef.current;
-      if (fgid && currentItems.length > 0) {
-        predictPricesFromHistory(currentItems, fgid);
-      }
-    }, [predictPricesFromHistory]));
-- predictPricesFromHistory is stable useCallback([]) so no render loops.
+Single JSX change — Theme row outer wrapper only:
+  Wrap the Theme row in themeSettingBlock instead of settingRow.
+Children (settingInfo, themeSegmentedRow) are unchanged.
 
 ---
 
 ## Test Strategy
 
-| Scenario | Expected |
-|----------|----------|
-| Settings -> tap System | App follows OS theme; stored preference is cleared |
-| Settings -> tap Dark | App stays dark regardless of OS theme |
-| Settings -> tap Light | App stays light regardless of OS theme |
-| Tap System after explicit dark/light | OS theme resumes immediately |
-| Shopping list dark theme | Item cards #1E1E2E on #12121C - visibly distinct |
-| Shopping list light theme | Item cards #FFFFFF on #F0F2F5 - clearly visible |
-| Home screen light theme | List cards are white with a defined border |
-| Complete trip -> History -> tap entry -> back | Total amount shows without pull-to-refresh |
-| First-time open of a shopping list | Smart suggestions appear without pull-to-refresh |
-| Leave list and return | Smart suggestions refresh on re-entry |
+  ReceiptCameraScreen dark theme  | Scan white receipt  | Overlay opaque; text/buttons readable over white paper
+  ReceiptCameraScreen light theme | Scan white receipt  | Card still dark — hardcoded, not themed
+  ReceiptCameraScreen             | Error state         | Warning icon, error message, Try again + Retake all visible
+  ReceiptCameraScreen             | Success state       | Merchant/Date/Total/Items readable; Retake + Confirm visible
+  ReceiptMatchScreen              | Light mode          | Match cards white on gray — distinct; Skip has visible border
+  ReceiptMatchScreen              | Dark mode           | No regression — slightly elevated cards on dark bg
+  ReceiptMatchScreen              | Reject a match      | Strikethrough and opacity still visible on white card
+  SettingsScreen                  | Light mode          | Theme label visible; segmented control directly below; no gap
+  SettingsScreen                  | Dark mode           | Compact layout; inactive buttons subtle; active button blue
+  SettingsScreen                  | Tap theme options   | Preference persists; UI switches immediately
+  SettingsScreen                  | Haptic Feedback row | Uses settingRow (horizontal) — unaffected
+  SettingsScreen                  | OCR Server row      | Uses settingRow (horizontal) — unaffected
 
 ---
 
 ## Known Constraints
 
-- toggle() is kept in ThemeContextValue for backward compatibility.
-- useFocusEffect in HistoryScreen and the existing useEffect([user,...]) will both call loadHistory(true) on first mount - one extra query, idempotent, not a correctness issue.
-- The items-observer prediction trigger and InteractionManager call can both fire on first mount; both are idempotent. predictionsLoadedRef prevents repeated fires on subsequent item changes.
-- background.secondary for card backgrounds (#FFFFFF light / #1E1E2E dark) is the correct semantic token: intentionally one step lighter/darker than background.primary in both themes, matching the existing design contract in theme.ts.
+- Android only — iOS is out of scope.
+- No build commands — CI handles builds via GitHub Actions.
+- Overlay colours are intentionally hardcoded: ReceiptPreviewOverlay is always rendered
+  over camera/photo content. Using themed colours causes the card to be invisible when
+  the user is in light mode. This is a deliberate design decision, not a theme gap.
+- Dark mode regression check for matchCard: theme.background.secondary in dark is #1E1E2E,
+  slightly lighter than page background #12121C. Cards become MORE distinguishable.
+- settingRow style is preserved — still used by Haptic Feedback and OCR Server rows.
+  Only the Theme row adopts the new column layout.
+- settingInfo.marginRight:12 has no visible effect in a column parent; left unchanged.
