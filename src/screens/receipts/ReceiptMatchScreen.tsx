@@ -567,7 +567,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   matchCard: {
-    backgroundColor: theme.glass.subtle,
+    backgroundColor: theme.background.secondary,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
     borderColor: theme.border.subtle,
@@ -742,8 +742,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: theme.border.medium,
-    backgroundColor: theme.glass.subtle,
+    borderColor: theme.border.strong,
+    backgroundColor: theme.glass.strong,
     justifyContent: 'center',
   },
   skipButtonText: {

@@ -11,7 +11,6 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 interface ThemeContextValue {
   theme: Theme;
   isDark: boolean;
-  toggle: () => void;
   themeMode: ThemeMode;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
 }
@@ -32,12 +31,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
   const themeMode: ThemeMode = preference ?? 'system';
 
-  const toggle = async () => {
-    const next: ThemePreference = isDark ? 'light' : 'dark';
-    setPreference(next);
-    await AsyncStorage.setItem(STORAGE_KEY, next);
-  };
-
   const setThemeMode = async (mode: ThemeMode) => {
     if (mode === 'system') {
       setPreference(null);
@@ -49,7 +42,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, isDark, toggle, themeMode, setThemeMode }}>
+    <ThemeContext.Provider value={{ theme, isDark, themeMode, setThemeMode }}>
       {children}
     </ThemeContext.Provider>
   );
