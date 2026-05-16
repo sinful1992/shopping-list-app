@@ -5,6 +5,7 @@ import ShoppingListManager from './ShoppingListManager';
 import { sanitizeText } from '../utils/sanitize';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
+const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
@@ -71,8 +72,21 @@ class ReceiptOCRService {
   /**
    * Get the configured OCR server URL.
    */
-  async getServerUrl(): Promise<string | null> {
+  async getServerUrl(): Promise<string> {
+    const stored = await AsyncStorage.getItem(OCR_SERVER_URL_KEY);
+    return stored ?? DEFAULT_OCR_SERVER_URL;
+  }
+
+  /**
+   * Return the raw stored URL without falling back to the default.
+   * Returns null when the user hasn't overridden the default.
+   */
+  async getStoredServerUrl(): Promise<string | null> {
     return AsyncStorage.getItem(OCR_SERVER_URL_KEY);
+  }
+
+  async clearServerUrl(): Promise<void> {
+    await AsyncStorage.removeItem(OCR_SERVER_URL_KEY);
   }
 
   /**
@@ -118,19 +132,6 @@ class ReceiptOCRService {
    */
   async extractReceipt(localFilePath: string, signal?: AbortSignal): Promise<OCRResult> {
     const serverUrl = await this.getServerUrl();
-    if (!serverUrl) {
-      return {
-        success: false,
-        receiptData: null,
-        totalAmount: null,
-        merchantName: null,
-        purchaseDate: null,
-        currency: null,
-        confidence: 0,
-        error: 'OCR server URL not configured. Set it in Settings.',
-        apiUsageCount: 0,
-      };
-    }
 
     // Compose the caller's AbortSignal with a local timeout so a stuck
     // server round-trip surfaces as an actionable error instead of an

@@ -330,7 +330,7 @@ const SettingsScreen = () => {
           <View style={styles.settingInfo}>
             <Text style={styles.settingLabel}>OCR Server</Text>
             <Text style={styles.settingDescription}>
-              {ocrServerUrl || 'Not configured - tap to set'}
+              {ocrServerUrl ? ocrServerUrl : 'Using default endpoint - tap to override'}
             </Text>
           </View>
           <Icon name="chevron-forward-outline" size={20} color={theme.text.secondary} />
@@ -591,11 +591,11 @@ const SettingsScreen = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>OCR Server URL</Text>
             <Text style={[styles.settingDescription, { marginBottom: 12 }]}>
-              Enter the address of your receipt OCR server
+              Enter a custom OCR server URL, or leave blank to restore the default.
             </Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="http://192.168.1.100:8000"
+              placeholder="https://sinful1-receipt-ocr.hf.space"
               placeholderTextColor={theme.text.tertiary}
               value={newOcrUrl}
               onChangeText={setNewOcrUrl}

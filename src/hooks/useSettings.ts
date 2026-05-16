@@ -78,16 +78,22 @@ export function useSettings() {
 
   const loadOcrServerUrl = async () => {
     try {
-      const url = await ReceiptOCRService.getServerUrl();
-      if (url) setOcrServerUrlState(url);
+      const stored = await ReceiptOCRService.getStoredServerUrl();
+      setOcrServerUrlState(stored ?? '');
     } catch {
       // Failed to load OCR server URL
     }
   };
 
   const updateOcrServerUrl = useCallback(async (url: string): Promise<void> => {
-    await ReceiptOCRService.setServerUrl(url);
-    setOcrServerUrlState(url.replace(/\/+$/, ''));
+    const trimmed = url.trim();
+    if (!trimmed) {
+      await ReceiptOCRService.clearServerUrl();
+      setOcrServerUrlState('');
+      return;
+    }
+    await ReceiptOCRService.setServerUrl(trimmed);
+    setOcrServerUrlState(trimmed.replace(/\/+$/, ''));
   }, []);
 
   const loadSettingsData = async () => {

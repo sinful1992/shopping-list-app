@@ -12,7 +12,7 @@ export function getTierFromProductId(productId: string): SubscriptionTier {
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
   free: {
     maxLists: null,
-    maxOCRPerMonth: 0,            // hard-block — OCR is premium+ only
+    maxOCRPerMonth: null,         // gate is now ad-based in UI, not a numeric cap
     maxUrgentItemsPerMonth: null, // gate is "ad per creation", not monthly cap
     maxFamilyMembers: null,
   },
@@ -33,6 +33,7 @@ export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> =
 export const TIER_FEATURES = {
   free: [
     'Unlimited Shopping Lists',
+    'Receipt Scanning (Watch Ad)',
     'Urgent Items (Watch Ad)',
     'Ad-supported',
   ],
