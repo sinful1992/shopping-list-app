@@ -46,6 +46,7 @@ const ReceiptCameraScreen = () => {
   // Ad gate: free users must earn a reward before OCR fires.
   // Resets whenever capturedImage changes (retake) so each new photo requires a fresh ad.
   useEffect(() => {
+    if (adGatePassed) return;   // gate already open, nothing to do
     if (!capturedImage) {
       setAdGatePassed(false);
       return;
@@ -82,7 +83,7 @@ const ReceiptCameraScreen = () => {
         { icon: 'info' },
       );
     }
-  }, [capturedImage, tier, shouldShowAds, showRewarded, showAlert, navigation]);
+  }, [adGatePassed, capturedImage, tier, shouldShowAds, showRewarded, showAlert, navigation]);
 
   // Auto-trigger OCR when a fresh image is set or when the user retries.
   // retryToken lets us re-run OCR on the same image (network blip recovery)

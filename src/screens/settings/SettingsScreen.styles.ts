@@ -310,9 +310,6 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
   },
-  themeSettingBlock: {
-    paddingVertical: 8,
-  },
   settingInfo: {
     flex: 1,
     marginRight: 12,
@@ -327,32 +324,6 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 13,
     color: theme.text.secondary,
     lineHeight: 18,
-  },
-  themeSegmentedRow: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  themeButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: theme.glass.subtle,
-    borderWidth: 1,
-    borderColor: theme.border.medium,
-  },
-  themeButtonActive: {
-    backgroundColor: theme.accent.blueSubtle,
-    borderColor: theme.accent.blueDim,
-  },
-  themeButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.text.secondary,
-  },
-  themeButtonTextActive: {
-    color: theme.accent.blue,
   },
   dangerTitle: {
     color: '#FF3B30',

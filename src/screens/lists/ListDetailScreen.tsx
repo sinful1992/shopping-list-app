@@ -242,9 +242,6 @@ const ListDetailScreen = () => {
   // Cache haptic setting to avoid AsyncStorage read on every toggle
   const hapticEnabledRef = useRef(false);
 
-  // Tracks whether predictions have been loaded for the current list mount
-  const predictionsLoadedRef = useRef(false);
-
   // Refs to avoid list closure in useCallback handlers
   const listFamilyGroupIdRef = useRef<string | undefined>(undefined);
   const listStoreNameRef = useRef<string | undefined>(undefined);
@@ -386,11 +383,6 @@ const ListDetailScreen = () => {
       } catch (error) {
         // Silently handle error
       }
-
-      if (!predictionsLoadedRef.current && mergedItems.length > 0 && listFamilyGroupIdRef.current) {
-        predictionsLoadedRef.current = true;
-        predictPricesFromHistory(mergedItems, listFamilyGroupIdRef.current);
-      }
     });
 
     // Subscribe to network status changes
@@ -402,7 +394,6 @@ const ListDetailScreen = () => {
 
     return () => {
       isMountedRef.current = false;
-      predictionsLoadedRef.current = false;
       interactionHandle.cancel();
       unsubscribeList();
       unsubscribeItems();
@@ -1005,15 +996,6 @@ const ListDetailScreen = () => {
       return () => { cancelled = true; };
     }, [list?.storeName, list?.familyGroupId])
   );
-
-  // Reload smart suggestions when the screen gains focus (handles return from sub-screens)
-  useFocusEffect(useCallback(() => {
-    const fgid = listFamilyGroupIdRef.current;
-    const currentItems = itemsRef.current;
-    if (fgid && currentItems.length > 0) {
-      predictPricesFromHistory(currentItems, fgid);
-    }
-  }, [predictPricesFromHistory]));
 
   const handleCategoryDragEnd = useCallback((reorderedItems: Item[]) => {
     const reorderedIds = new Set(reorderedItems.map(i => i.id));

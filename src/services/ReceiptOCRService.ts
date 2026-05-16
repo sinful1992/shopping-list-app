@@ -77,6 +77,14 @@ class ReceiptOCRService {
     return stored ?? DEFAULT_OCR_SERVER_URL;
   }
 
+  /**
+   * Return the raw stored URL without falling back to the default.
+   * Returns null when the user hasn't overridden the default.
+   */
+  async getStoredServerUrl(): Promise<string | null> {
+    return AsyncStorage.getItem(OCR_SERVER_URL_KEY);
+  }
+
   async clearServerUrl(): Promise<void> {
     await AsyncStorage.removeItem(OCR_SERVER_URL_KEY);
   }

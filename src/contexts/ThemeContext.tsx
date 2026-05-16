@@ -6,14 +6,10 @@ import { DARK_THEME, LIGHT_THEME, Theme } from '../styles/theme';
 const STORAGE_KEY = 'theme_preference';
 type ThemePreference = 'light' | 'dark' | null;
 
-export type ThemeMode = 'light' | 'dark' | 'system';
-
 interface ThemeContextValue {
   theme: Theme;
   isDark: boolean;
   toggle: () => void;
-  themeMode: ThemeMode;
-  setThemeMode: (mode: ThemeMode) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -22,6 +18,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const [preference, setPreference] = useState<ThemePreference>(null);
 
+  // Load saved preference after mount; system scheme is the immediate default so
+  // children always render on the first pass (no null/blank frame).
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(val => { setPreference(val as ThemePreference); })
@@ -30,7 +28,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const isDark = preference !== null ? preference === 'dark' : systemScheme !== 'light';
   const theme = isDark ? DARK_THEME : LIGHT_THEME;
-  const themeMode: ThemeMode = preference ?? 'system';
 
   const toggle = async () => {
     const next: ThemePreference = isDark ? 'light' : 'dark';
@@ -38,18 +35,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(STORAGE_KEY, next);
   };
 
-  const setThemeMode = async (mode: ThemeMode) => {
-    if (mode === 'system') {
-      setPreference(null);
-      await AsyncStorage.removeItem(STORAGE_KEY);
-    } else {
-      setPreference(mode);
-      await AsyncStorage.setItem(STORAGE_KEY, mode);
-    }
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, isDark, toggle, themeMode, setThemeMode }}>
+    <ThemeContext.Provider value={{ theme, isDark, toggle }}>
       {children}
     </ThemeContext.Provider>
   );

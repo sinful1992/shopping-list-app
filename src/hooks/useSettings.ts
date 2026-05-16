@@ -78,7 +78,7 @@ export function useSettings() {
 
   const loadOcrServerUrl = async () => {
     try {
-      const stored = await AsyncStorage.getItem('@ocr_server_url');
+      const stored = await ReceiptOCRService.getStoredServerUrl();
       setOcrServerUrlState(stored ?? '');
     } catch {
       // Failed to load OCR server URL

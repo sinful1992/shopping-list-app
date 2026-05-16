@@ -219,10 +219,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: SPACING.lg,
   },
   card: {
-    backgroundColor: 'rgba(18, 18, 30, 0.94)',
+    backgroundColor: theme.glass.elevated,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: theme.border.medium,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -238,7 +238,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: SPACING.sm,
   },
   loadingText: {
-    color: '#fff',
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
   },
   errorRow: {
@@ -248,7 +248,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: SPACING.sm,
   },
   errorText: {
-    color: 'rgba(255, 255, 255, 0.75)',
+    color: theme.text.secondary,
     fontSize: TYPOGRAPHY.fontSize.md,
     flex: 1,
   },
@@ -267,17 +267,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: SPACING.sm,
   },
   fieldLabel: {
-    color: 'rgba(255, 255, 255, 0.60)',
+    color: theme.text.secondary,
     fontSize: TYPOGRAPHY.fontSize.sm,
   },
   fieldValue: {
-    color: '#fff',
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
     maxWidth: '55%',
     textAlign: 'right',
   },
   fieldValueMissing: {
-    color: 'rgba(255, 255, 255, 0.38)',
+    color: theme.text.tertiary,
   },
   fieldValueBold: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -305,14 +305,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   retakeButton: {
     flex: 1,
     paddingVertical: SPACING.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.glass.medium,
     borderRadius: RADIUS.large,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.28)',
+    borderColor: theme.border.medium,
     alignItems: 'center',
   },
   retakeButtonText: {
-    color: '#fff',
+    color: theme.text.primary,
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
@@ -337,7 +337,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.xs,
   },
   galleryLinkText: {
-    color: 'rgba(255, 255, 255, 0.55)',
+    color: theme.text.tertiary,
     fontSize: TYPOGRAPHY.fontSize.sm,
     textDecorationLine: 'underline',
   },
