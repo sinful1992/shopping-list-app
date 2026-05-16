@@ -43,14 +43,14 @@ const ReceiptCameraScreen = () => {
     handleCapture();
   }, []);
 
-  // Ad gate: free users must earn a reward before OCR fires.
-  // Resets whenever capturedImage changes (retake) so each new photo requires a fresh ad.
+  // Reset the gate each time a new image is captured so every retake requires a fresh ad.
   useEffect(() => {
-    if (adGatePassed) return;   // gate already open, nothing to do
-    if (!capturedImage) {
-      setAdGatePassed(false);
-      return;
-    }
+    setAdGatePassed(false);
+  }, [capturedImage]);
+
+  // Ad gate: free users must earn a reward before OCR fires.
+  useEffect(() => {
+    if (adGatePassed || !capturedImage) return;
     if (tier !== 'free') {
       setAdGatePassed(true);
       return;
