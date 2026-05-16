@@ -22,6 +22,8 @@ import ReceiptOCRService from '../../services/ReceiptOCRService';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import { ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
+import { useAdMob } from '../../contexts/AdMobContext';
+import { useRevenueCat } from '../../contexts/RevenueCatContext';
 
 type EditableReceipt = ReceiptData & {
   merchantName: string | null;
@@ -41,6 +43,9 @@ const ReceiptViewScreen = () => {
   const { showAlert } = useAlert();
   const { theme } = useTheme();
   const { listId } = route.params;
+
+  const { shouldShowAds, showRewarded } = useAdMob();
+  const { tier } = useRevenueCat();
 
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
@@ -88,7 +93,7 @@ const ReceiptViewScreen = () => {
     }
   };
 
-  const handleRetryOCR = async () => {
+  const performRetryOCR = async () => {
     try {
       setRetrying(true);
       const result = await ReceiptOCRService.retryOCR(listId);
@@ -109,6 +114,41 @@ const ReceiptViewScreen = () => {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleRetryOCR = () => {
+    if (tier !== 'free') {
+      performRetryOCR();
+      return;
+    }
+    if (!shouldShowAds) {
+      showAlert(
+        'Upgrade Required',
+        'Accept ads or upgrade to Premium to retry OCR.',
+        undefined,
+        { icon: 'warning' },
+      );
+      return;
+    }
+    const shown = showRewarded(
+      () => { performRetryOCR(); },
+      () => {
+        showAlert(
+          'Ad Skipped',
+          'Watch the full ad to retry OCR.',
+          undefined,
+          { icon: 'info' },
+        );
+      },
+    );
+    if (!shown) {
+      showAlert(
+        'Ad Not Ready',
+        'Please wait a moment and try again.',
+        undefined,
+        { icon: 'info' },
+      );
     }
   };
 

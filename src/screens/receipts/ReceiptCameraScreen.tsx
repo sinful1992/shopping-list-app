@@ -18,6 +18,8 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
 import { OCRResult } from '../../models/types';
+import { useAdMob } from '../../contexts/AdMobContext';
+import { useRevenueCat } from '../../contexts/RevenueCatContext';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
@@ -25,23 +27,68 @@ const ReceiptCameraScreen = () => {
   const { showAlert } = useAlert();
   const { listId } = route.params;
 
+  const { shouldShowAds, showRewarded } = useAdMob();
+  const { tier } = useRevenueCat();
+
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [ocrState, setOcrState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
+  const [adGatePassed, setAdGatePassed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     handleCapture();
   }, []);
 
+  // Ad gate: free users must earn a reward before OCR fires.
+  // Resets whenever capturedImage changes (retake) so each new photo requires a fresh ad.
+  useEffect(() => {
+    if (!capturedImage) {
+      setAdGatePassed(false);
+      return;
+    }
+    if (tier !== 'free') {
+      setAdGatePassed(true);
+      return;
+    }
+    if (!shouldShowAds) {
+      showAlert(
+        'Upgrade Required',
+        'Accept ads or upgrade to Premium to scan receipts.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+        { icon: 'warning' },
+      );
+      return;
+    }
+    const shown = showRewarded(
+      () => { setAdGatePassed(true); },
+      () => {
+        showAlert(
+          'Ad Skipped',
+          'Watch the full ad to scan your receipt.',
+          undefined,
+          { icon: 'info' },
+        );
+      },
+    );
+    if (!shown) {
+      showAlert(
+        'Ad Not Ready',
+        'Please wait a moment and try again.',
+        undefined,
+        { icon: 'info' },
+      );
+    }
+  }, [capturedImage, tier, shouldShowAds, showRewarded, showAlert, navigation]);
+
   // Auto-trigger OCR when a fresh image is set or when the user retries.
   // retryToken lets us re-run OCR on the same image (network blip recovery)
   // without forcing a rescan that would discard a good photo.
   useEffect(() => {
-    if (!capturedImage) return;
+    if (!capturedImage || !adGatePassed) return;
 
     let mounted = true;
     const controller = new AbortController();
@@ -74,7 +121,7 @@ const ReceiptCameraScreen = () => {
       mounted = false;
       controller.abort();
     };
-  }, [capturedImage, retryToken]);
+  }, [capturedImage, retryToken, adGatePassed]);
 
   const handleCapture = async () => {
     try {
