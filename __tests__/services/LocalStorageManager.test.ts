@@ -186,3 +186,65 @@ describe('item field round-trip', () => {
     expect(saved?.updatedAt).toBe(2000);
   });
 });
+
+// ---------------------------------------------------------------------------
+// saveItemsBatchUpsert — timestamp guard and upsert behaviour
+// ---------------------------------------------------------------------------
+
+describe('saveItemsBatchUpsert', () => {
+  it('creates new items that do not exist locally', async () => {
+    const item = makeItem({ updatedAt: 1000 });
+    await localStorageManager.saveItemsBatchUpsert([item]);
+
+    const saved = await localStorageManager.getItem(item.id);
+    expect(saved?.name).toBe(item.name);
+    expect(saved?.updatedAt).toBe(1000);
+  });
+
+  it('overwrites local item when incoming is newer', async () => {
+    const item = makeItem({ updatedAt: 1000, name: 'Apples' });
+    await localStorageManager.saveItem(item);
+
+    await localStorageManager.saveItemsBatchUpsert([{ ...item, name: 'Oranges', updatedAt: 2000 }]);
+
+    const saved = await localStorageManager.getItem(item.id);
+    expect(saved?.name).toBe('Oranges');
+    expect(saved?.updatedAt).toBe(2000);
+  });
+
+  it('preserves local item when incoming is older (local wins)', async () => {
+    const item = makeItem({ updatedAt: 2000, name: 'Local Edit' });
+    await localStorageManager.saveItem(item);
+
+    await localStorageManager.saveItemsBatchUpsert([{ ...item, name: 'Stale Firebase Data', updatedAt: 1000 }]);
+
+    const saved = await localStorageManager.getItem(item.id);
+    expect(saved?.name).toBe('Local Edit');
+    expect(saved?.updatedAt).toBe(2000);
+  });
+
+  it('overwrites local item when timestamps are equal', async () => {
+    const item = makeItem({ updatedAt: 1000, name: 'Original' });
+    await localStorageManager.saveItem(item);
+
+    await localStorageManager.saveItemsBatchUpsert([{ ...item, name: 'Incoming', updatedAt: 1000 }]);
+
+    const saved = await localStorageManager.getItem(item.id);
+    expect(saved?.name).toBe('Incoming');
+  });
+
+  it('handles a mixed batch: creates new, updates newer, skips older', async () => {
+    const existing = makeItem({ updatedAt: 2000, name: 'Keep Me' });
+    await localStorageManager.saveItem(existing);
+
+    const newItem = makeItem({ updatedAt: 1000 });
+    const staleUpdate = { ...existing, name: 'Stale', updatedAt: 500 };
+    const freshItem = makeItem({ updatedAt: 3000, name: 'Fresh' });
+
+    await localStorageManager.saveItemsBatchUpsert([newItem, staleUpdate, freshItem]);
+
+    expect((await localStorageManager.getItem(existing.id))?.name).toBe('Keep Me');
+    expect(await localStorageManager.getItem(newItem.id)).not.toBeNull();
+    expect((await localStorageManager.getItem(freshItem.id))?.name).toBe('Fresh');
+  });
+});
