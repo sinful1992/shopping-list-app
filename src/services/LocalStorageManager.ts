@@ -1402,7 +1402,7 @@ class LocalStorageManager {
    */
   async saveCategoryHistoryBatch(
     familyGroupId: string,
-    entries: Array<{ itemHash: string; data: any }>
+    entries: Array<{ itemHash: string; category: string; data: any }>
   ): Promise<void> {
     if (entries.length === 0) return;
 
@@ -1422,11 +1422,11 @@ class LocalStorageManager {
       r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
 
-    const applyCreate = (r: CategoryHistoryModel, itemNameNormalized: string, data: any) => {
+    const applyCreate = (r: CategoryHistoryModel, itemNameNormalized: string, category: string, data: any) => {
       r._raw.id = uuidv4();
       r.familyGroupId = familyGroupId;
       r.itemNameNormalized = itemNameNormalized;
-      r.category = data.category;
+      r.category = category;
       r.usageCount = data.usageCount || 1;
       r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
@@ -1434,15 +1434,15 @@ class LocalStorageManager {
     const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
-      for (const { itemHash, data } of entries) {
+      for (const { itemHash, category, data } of entries) {
         const itemNameNormalized = itemHash.replace(/_/g, '.');
-        const key = `${itemNameNormalized}|${data.category}`;
+        const key = `${itemNameNormalized}|${category}`;
         const existing = existingMap.get(key);
 
         if (existing) {
           ops.push(existing.prepareUpdate(r => applyUpdate(r as CategoryHistoryModel, data)));
         } else {
-          ops.push(collection.prepareCreate(r => applyCreate(r, itemNameNormalized, data)));
+          ops.push(collection.prepareCreate(r => applyCreate(r, itemNameNormalized, category, data)));
         }
       }
       if (ops.length === 0) return;
@@ -1451,21 +1451,21 @@ class LocalStorageManager {
         await this.database.batch(ops);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'saveCategoryHistoryBatch batch failed, falling back to individual writes');
-        for (const { itemHash, data } of entries) {
+        for (const { itemHash, category, data } of entries) {
           try {
             const itemNameNormalized = itemHash.replace(/_/g, '.');
             const freshRecords = await collection
               .query(
                 Q.where('family_group_id', familyGroupId),
                 Q.where('item_name_normalized', itemNameNormalized),
-                Q.where('category', data.category)
+                Q.where('category', category)
               )
               .fetch();
             const rec = freshRecords[0];
             if (rec) {
               await rec.update(r => applyUpdate(r, data));
             } else {
-              await collection.create(r => applyCreate(r, itemNameNormalized, data));
+              await collection.create(r => applyCreate(r, itemNameNormalized, category, data));
             }
           } catch (e) {
             CrashReporting.recordError(e as Error, `saveCategoryHistoryBatch individual write failed for ${itemHash}`);

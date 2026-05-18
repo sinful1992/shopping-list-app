@@ -75,7 +75,6 @@ class CategoryHistoryService {
       await ref.transaction((current) => {
         if (current === null) {
           return {
-            category,
             usageCount: 1,
             lastUsedAt: Date.now(),
             createdAt: Date.now(),

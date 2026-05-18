@@ -582,13 +582,13 @@ class FirebaseSyncListener {
 
       if (!initialLoadDone) {
         for (const category of Object.keys(categoriesForItem)) {
-          initialBuffer.push({ itemHash, data: categoriesForItem[category] });
+          initialBuffer.push({ itemHash, category, data: categoriesForItem[category] });
         }
         return;
       }
 
       for (const category of Object.keys(categoriesForItem)) {
-        await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, categoriesForItem[category]);
+        await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category]);
       }
     });
 
@@ -603,8 +603,7 @@ class FirebaseSyncListener {
         const categoriesForItem = itemSnapshot.val();
         if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
-          const data = categoriesForItem[category];
-          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, data);
+          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category]);
         }
       }
     });
@@ -625,33 +624,30 @@ class FirebaseSyncListener {
   private async syncCategoryHistoryToLocal(
     familyGroupId: string,
     itemHash: string,
+    category: string,
     firebaseData: any
   ): Promise<void> {
     try {
-      // Unhash the item name (reverse the hashing done in CategoryHistoryService)
       const itemNameNormalized = itemHash.replace(/_/g, '.');
 
-      // Check if we already have this record
       const existingRecords = await LocalStorageManager.getCategoryHistoryForItem(
         familyGroupId,
         itemNameNormalized
       );
 
-      const existing = existingRecords.find((record) => record.category === firebaseData.category);
+      const existing = existingRecords.find((record) => record.category === category);
 
       if (existing) {
-        // Update existing record with Firebase data
         await LocalStorageManager.updateCategoryHistory(existing.id, {
           usageCount: firebaseData.usageCount || 1,
           lastUsedAt: firebaseData.lastUsedAt ?? Date.now(),
         });
       } else {
-        // Create new record from Firebase data
         const categoryHistory: CategoryHistory = {
           id: uuidv4(),
           familyGroupId,
           itemNameNormalized,
-          category: firebaseData.category,
+          category,
           usageCount: firebaseData.usageCount || 1,
           lastUsedAt: firebaseData.lastUsedAt ?? Date.now(),
           createdAt: firebaseData.createdAt ?? Date.now(),
