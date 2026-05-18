@@ -89,14 +89,17 @@ const HistoryDetailScreen = () => {
       const details = await HistoryTracker.getListDetails(listId);
 
       let loadedItems = details.items;
-      if (loadedItems.length === 0 && details.list.familyGroupId) {
+      if (details.list.familyGroupId) {
         try {
-          loadedItems = await FirebaseSyncListener.fetchItemsOnceForHistory(
+          const firebaseItems = await FirebaseSyncListener.fetchItemsOnceForHistory(
             details.list.familyGroupId,
             listId
           );
+          if (firebaseItems.length > 0) {
+            loadedItems = firebaseItems;
+          }
         } catch {
-          loadedItems = [];
+          // fall back to local items already in loadedItems
         }
       }
 
