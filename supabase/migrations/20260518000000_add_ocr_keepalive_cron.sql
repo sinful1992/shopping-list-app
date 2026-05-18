@@ -4,10 +4,10 @@
 create extension if not exists pg_net schema extensions;
 create extension if not exists pg_cron;
 
--- Ping the HuggingFace OCR Space every 30 minutes to prevent it sleeping.
--- Free-tier Spaces sleep after 48h of inactivity; 30 min is conservative.
+-- Ping the HuggingFace OCR Space every 12 hours to prevent it sleeping.
+-- Free-tier Spaces sleep after 48h of inactivity; 12h gives a 4x safety margin.
 select cron.schedule(
   'keep-ocr-alive',
-  '*/30 * * * *',
+  '0 */12 * * *',
   $$ select net.http_get('https://sinful1-receipt-ocr.hf.space/health') $$
 );
