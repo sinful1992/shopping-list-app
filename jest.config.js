@@ -13,7 +13,7 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|uuid)/)',
   ],
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/__mocks__/', '/__tests__/setup\\.js'],
   modulePathIgnorePatterns: ['/.claude/'],
   watchPathIgnorePatterns: ['/.claude/'],
 };
