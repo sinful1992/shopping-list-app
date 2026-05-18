@@ -252,19 +252,13 @@ class FirebaseSyncListener {
 
       await LocalStorageManager.saveList(incomingList);
 
-      // Proactively sync all items for this list when:
-      // 1. List just transitioned to completed, OR
-      // 2. Receipt was scanned on an already-completed list (receiptUrl or totalAmount changed)
-      // startListeningToItems only runs while ListDetailScreen is open, so any device
-      // not viewing the list would otherwise miss item updates entirely.
+      // When a list transitions to completed, proactively sync all its items.
+      // startListeningToItems only runs while ListDetailScreen is open, so any
+      // device that wasn't viewing the list would otherwise miss receipt scan
+      // updates (prices, checked status, new items). This ensures all devices
+      // receive complete item data automatically, without requiring screen navigation.
       const wasCompleted = existingList?.status === 'completed';
-      const justCompleted = incomingList.status === 'completed' && !wasCompleted;
-      const receiptScannedOnCompleted = wasCompleted &&
-        incomingList.status === 'completed' &&
-        (existingList?.receiptUrl !== incomingList.receiptUrl ||
-          existingList?.totalAmount !== incomingList.totalAmount);
-
-      if (justCompleted || receiptScannedOnCompleted) {
+      if (incomingList.status === 'completed' && !wasCompleted) {
         this.fetchItemsOnceForHistory(resolvedFamilyGroupId, listId).catch(err =>
           CrashReporting.recordError(err as Error, 'FirebaseSyncListener syncListToLocal items backfill')
         );
