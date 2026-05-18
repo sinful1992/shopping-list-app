@@ -13,4 +13,7 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|uuid)/)',
   ],
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
+  modulePathIgnorePatterns: ['/.claude/'],
+  watchPathIgnorePatterns: ['/.claude/'],
 };
