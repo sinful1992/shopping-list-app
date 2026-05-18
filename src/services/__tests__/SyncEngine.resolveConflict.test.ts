@@ -1,3 +1,5 @@
+jest.useFakeTimers();
+
 jest.mock('@react-native-firebase/database', () => () => ({}));
 jest.mock('@react-native-community/netinfo', () => ({
   addEventListener: jest.fn(() => jest.fn()),
@@ -7,7 +9,10 @@ jest.mock('../CrashReporting', () => ({ default: { recordError: jest.fn(), log: 
 
 import SyncEngine from '../SyncEngine';
 
-afterAll(() => SyncEngine.stopPeriodicRetry());
+afterAll(() => {
+  SyncEngine.stopPeriodicRetry();
+  jest.useRealTimers();
+});
 
 const item = (overrides = {}) => ({
   id: 'item-1', name: 'Milk', checked: false,
