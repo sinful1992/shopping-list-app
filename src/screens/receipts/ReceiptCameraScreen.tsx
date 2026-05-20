@@ -212,7 +212,7 @@ const ReceiptCameraScreen = () => {
       {capturedImage ? (
         <>
           <Image
-            source={{ uri: `file://${capturedImage}` }}
+            source={{ uri: capturedImage.startsWith('content://') ? capturedImage : `file://${capturedImage}` }}
             style={styles.preview}
             resizeMode="contain"
           />

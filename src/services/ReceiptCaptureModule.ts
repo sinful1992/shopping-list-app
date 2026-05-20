@@ -80,9 +80,16 @@ class ReceiptCaptureModule {
         return { success: false, filePath: null, base64: null, error: null, cancelled: true };
       }
 
+      // ML Kit returns a full URI (file:/// or content://). Strip file:// so
+      // the path is in the same raw-path format that pickFromGallery returns,
+      // letting ReceiptCameraScreen's `file://${capturedImage}` work correctly.
+      // content:// URIs are kept as-is — the display and OCR layers handle them.
+      const rawUri = scannedImages[0];
+      const filePath = rawUri.startsWith('file://') ? rawUri.slice(7) : rawUri;
+
       return {
         success: true,
-        filePath: scannedImages[0],
+        filePath,
         base64: null,
         error: null,
         cancelled: false,
