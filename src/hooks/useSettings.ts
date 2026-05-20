@@ -109,7 +109,16 @@ export function useSettings() {
         setFamilyGroup(group);
 
         if (group) {
-          setInvitationCode(group.invitationCode ?? 'NOT_FOUND');
+          if (group.invitationCode) {
+            setInvitationCode(group.invitationCode);
+          } else {
+            try {
+              const code = await AuthenticationModule.ensureInvitationCode(currentUser.familyGroupId);
+              setInvitationCode(code ?? 'NOT_FOUND');
+            } catch {
+              setInvitationCode('NOT_FOUND');
+            }
+          }
         }
 
         if (group && group.memberIds) {
