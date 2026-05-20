@@ -146,10 +146,19 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  fab: {
+  fabContainer: {
     position: 'absolute',
     right: 20,
     bottom: 20,
+    alignItems: 'center',
+    gap: 6,
+  },
+  fabHint: {
+    fontSize: 11,
+    color: theme.text.tertiary,
+    letterSpacing: 0.2,
+  },
+  fab: {
     width: 64,
     height: 64,
     borderRadius: 32,

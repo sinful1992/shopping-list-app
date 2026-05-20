@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
   LayoutAnimation,
@@ -24,6 +25,7 @@ import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
+import AuthenticationModule from '../../services/AuthenticationModule';
 import { matchReceiptToList, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
 import { Item, ReceiptData, ReceiptLineItem } from '../../models/types';
 
@@ -37,26 +39,32 @@ const ReceiptMatchScreen = () => {
   const { showAlert } = useAlert();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { listId } = route.params;
+  const { listId, autoAddAll } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [currency, setCurrency] = useState('£');
-  const [eligibleCount, setEligibleCount] = useState(0);
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [manualMatches, setManualMatches] = useState<MatchCandidate[]>([]);
   const [pickerReceiptIndex, setPickerReceiptIndex] = useState<number | null>(null);
   const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [unmatchedReceiptOpen, setUnmatchedReceiptOpen] = useState(false);
   const [unmatchedListOpen, setUnmatchedListOpen] = useState(false);
+  const [toAdd, setToAdd] = useState<Set<number>>(new Set());
+  const [editingNames, setEditingNames] = useState<Record<number, string>>({});
+  const [userId, setUserId] = useState<string | null>(null);
   const applyingRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const list = await ShoppingListManager.getListById(listId);
+        const [list, items, user] = await Promise.all([
+          ShoppingListManager.getListById(listId),
+          ItemManager.getItemsForList(listId),
+          AuthenticationModule.getCurrentUser(),
+        ]);
         if (!mounted) return;
         if (!list) {
           setLoading(false);
@@ -64,14 +72,27 @@ const ReceiptMatchScreen = () => {
         }
         setReceiptData(list.receiptData);
         setCurrency(list.currency || '£');
+        setUserId(user?.uid ?? null);
 
-        const items = await ItemManager.getItemsForList(listId);
-        if (!mounted) return;
-        const eligible = items.filter(i => i.price == null);
-        setEligibleCount(eligible.length);
+        if (list.receiptData?.lineItems?.length) {
+          const eligible = items.filter(i => i.price == null);
+          const result: MatchResult = eligible.length > 0
+            ? matchReceiptToList(list.receiptData.lineItems, eligible)
+            : {
+                matches: [],
+                unmatchedReceipt: list.receiptData.lineItems.map((item, index) => ({ item, index })),
+                unmatchedList: [],
+              };
+          setMatchResult(result);
 
-        if (list.receiptData && eligible.length > 0) {
-          setMatchResult(matchReceiptToList(list.receiptData.lineItems, eligible));
+          if (autoAddAll) {
+            const allIndices = new Set(result.unmatchedReceipt.map(e => e.index));
+            setToAdd(allIndices);
+            const names: Record<number, string> = {};
+            result.unmatchedReceipt.forEach(e => { names[e.index] = e.item.description; });
+            setEditingNames(names);
+            setUnmatchedReceiptOpen(true);
+          }
         }
       } catch (error: any) {
         showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -147,8 +168,24 @@ const ReceiptMatchScreen = () => {
     });
   };
 
+  const toggleToAdd = (index: number, defaultName: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setToAdd(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+        setEditingNames(names => { const n = { ...names }; delete n[index]; return n; });
+      } else {
+        next.add(index);
+        setEditingNames(names => ({ ...names, [index]: defaultName }));
+      }
+      return next;
+    });
+  };
+
   const handleApply = async () => {
     if (applyingRef.current) return;
+
     const updates = acceptedMatches
       .map(m => {
         const price = sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice);
@@ -159,18 +196,33 @@ const ReceiptMatchScreen = () => {
       })
       .filter((u): u is { id: string; updates: Partial<Item> } => u !== null);
 
-    if (updates.length === 0) return;
+    const newItems = matchResult
+      ? Array.from(toAdd).map(idx => {
+          const entry = matchResult.unmatchedReceipt.find(e => e.index === idx);
+          if (!entry) return null;
+          const name = (editingNames[idx] ?? entry.item.description).trim();
+          if (!name) return null;
+          const price = sanitizePrice(entry.item.price ?? entry.item.unitPrice);
+          return { name, price: price ?? undefined, checked: true };
+        }).filter((x): x is { name: string; price?: number; checked: true } => x !== null)
+      : [];
+
+    if (updates.length === 0 && newItems.length === 0) return;
 
     applyingRef.current = true;
     setApplying(true);
     try {
-      await ItemManager.updateItemsBatch(updates);
-      showAlert(
-        'Prices applied',
-        `Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`,
-        undefined,
-        { icon: 'success' },
-      );
+      if (newItems.length > 0) {
+        if (!userId) throw new Error('User not authenticated');
+        await ItemManager.addItemsBatch(listId, newItems, userId);
+      }
+      if (updates.length > 0) {
+        await ItemManager.updateItemsBatch(updates);
+      }
+      const parts: string[] = [];
+      if (updates.length > 0) parts.push(`Updated ${updates.length} price${updates.length === 1 ? '' : 's'}`);
+      if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
+      showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
       navigation.goBack();
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -203,24 +255,11 @@ const ReceiptMatchScreen = () => {
     );
   }
 
-  if (eligibleCount === 0) {
-    return (
-      <EmptyState
-        icon="checkmark-done-outline"
-        title="Nothing to price"
-        message="No items are missing a price."
-        onSkip={handleSkip}
-        styles={styles}
-        textSecondary={theme.text.secondary}
-      />
-    );
-  }
-
   if (!matchResult) {
     return (
       <EmptyState
         icon="alert-circle-outline"
-        title="Could not match"
+        title="No items found in receipt"
         message="The receipt has no usable line items."
         onSkip={handleSkip}
         styles={styles}
@@ -232,6 +271,14 @@ const ReceiptMatchScreen = () => {
   const matchCount = allMatches.length;
   const acceptedCount = acceptedMatches.length;
   const canPickFor = visibleUnmatchedList.length > 0;
+  const canApply = acceptedCount > 0 || toAdd.size > 0;
+
+  const applyLabel = (() => {
+    const parts: string[] = [];
+    if (acceptedCount > 0) parts.push(`Apply ${acceptedCount} price${acceptedCount === 1 ? '' : 's'}`);
+    if (toAdd.size > 0) parts.push(`Add ${toAdd.size} item${toAdd.size === 1 ? '' : 's'}`);
+    return parts.length ? parts.join(' · ') : 'Apply';
+  })();
 
   return (
     <View style={styles.container}>
@@ -275,6 +322,10 @@ const ReceiptMatchScreen = () => {
                 key={index}
                 item={item}
                 currency={currency}
+                inToAdd={toAdd.has(index)}
+                editedName={editingNames[index] ?? item.description}
+                onToggleAdd={() => toggleToAdd(index, item.description)}
+                onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
                 onAssign={canPickFor ? () => setPickerReceiptIndex(index) : undefined}
               />
             ))}
@@ -311,9 +362,9 @@ const ReceiptMatchScreen = () => {
           <Text style={styles.skipButtonText}>Skip</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.applyWrap, acceptedCount === 0 && styles.applyDisabled]}
+          style={[styles.applyWrap, !canApply && styles.applyDisabled]}
           onPress={handleApply}
-          disabled={acceptedCount === 0 || applying}
+          disabled={!canApply || applying}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -325,9 +376,7 @@ const ReceiptMatchScreen = () => {
             {applying ? (
               <ActivityIndicator color={theme.text.primary} />
             ) : (
-              <Text style={styles.applyText}>
-                {acceptedCount === 0 ? 'Apply' : `Apply ${acceptedCount} price${acceptedCount === 1 ? '' : 's'}`}
-              </Text>
+              <Text style={styles.applyText}>{applyLabel}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -384,31 +433,50 @@ const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, isManual
 interface UnmatchedReceiptRowProps {
   item: ReceiptLineItem;
   currency: string;
+  inToAdd: boolean;
+  editedName: string;
+  onToggleAdd: () => void;
+  onNameChange: (name: string) => void;
   onAssign?: () => void;
 }
 
-const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({ item, currency, onAssign }) => {
+const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({
+  item, currency, inToAdd, editedName, onToggleAdd, onNameChange, onAssign,
+}) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const content = (
-    <>
-      <Text style={styles.infoText} numberOfLines={2}>{item.description}</Text>
+  return (
+    <View style={[styles.infoRow, inToAdd && styles.infoRowSelected]}>
+      {inToAdd ? (
+        <TextInput
+          style={styles.nameInput}
+          value={editedName}
+          onChangeText={onNameChange}
+          placeholder="Item name"
+          placeholderTextColor={theme.text.tertiary}
+          autoCorrect={false}
+        />
+      ) : (
+        <Text style={styles.infoText} numberOfLines={2}>{item.description}</Text>
+      )}
       <Text style={styles.infoPrice}>
         {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
       </Text>
-      {onAssign && (
-        <Icon name="add-circle-outline" size={20} color={theme.accent.blue} style={styles.assignIcon} />
+      {onAssign && !inToAdd && (
+        <TouchableOpacity onPress={onAssign} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Icon name="link-outline" size={20} color={theme.accent.blue} style={styles.assignIcon} />
+        </TouchableOpacity>
       )}
-    </>
-  );
-  if (onAssign) {
-    return (
-      <TouchableOpacity style={styles.infoRow} onPress={onAssign} activeOpacity={0.6}>
-        {content}
+      <TouchableOpacity onPress={onToggleAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Icon
+          name={inToAdd ? 'checkmark-circle' : 'add-circle-outline'}
+          size={22}
+          color={inToAdd ? theme.accent.green : theme.text.tertiary}
+          style={styles.assignIcon}
+        />
       </TouchableOpacity>
-    );
-  }
-  return <View style={styles.infoRow}>{content}</View>;
+    </View>
+  );
 };
 
 interface AssignPickerModalProps {
@@ -642,10 +710,22 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderBottomColor: theme.border.subtle,
     gap: SPACING.md,
   },
+  infoRowSelected: {
+    backgroundColor: 'rgba(48, 209, 88, 0.08)',
+  },
   infoText: {
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.md,
     color: theme.text.secondary,
+  },
+  nameInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: theme.text.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.accent.green,
+    paddingVertical: 2,
+    paddingHorizontal: 0,
   },
   infoPrice: {
     fontSize: TYPOGRAPHY.fontSize.md,

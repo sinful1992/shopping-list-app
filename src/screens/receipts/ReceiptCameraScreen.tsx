@@ -25,7 +25,7 @@ const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId } = route.params;
+  const { listId, autoAddAll } = route.params;
 
   const { shouldShowAds, showRewarded } = useAdMob();
   const { tier } = useRevenueCat();
@@ -165,7 +165,7 @@ const ReceiptCameraScreen = () => {
         currency: ocrResult.currency,
       });
 
-      navigation.replace('ReceiptMatch', { listId });
+      navigation.replace('ReceiptMatch', { listId, autoAddAll });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {

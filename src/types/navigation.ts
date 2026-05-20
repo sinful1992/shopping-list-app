@@ -37,8 +37,8 @@ export type ListsStackParamList = {
   Home: undefined;
   ListDetail: { listId: string };
   HistoryDetail: { listId: string };
-  ReceiptCamera: { listId: string };
-  ReceiptMatch: { listId: string };
+  ReceiptCamera: { listId: string; autoAddAll?: boolean };
+  ReceiptMatch: { listId: string; autoAddAll?: boolean };
   ReceiptView: { listId: string };
 };
 

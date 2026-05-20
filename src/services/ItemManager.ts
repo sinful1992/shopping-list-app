@@ -160,7 +160,7 @@ class ItemManager {
    */
   async addItemsBatch(
     listId: string,
-    itemsData: Array<{ name: string; quantity?: string; price?: number; category?: string | null }>,
+    itemsData: Array<{ name: string; quantity?: string; price?: number; category?: string | null; checked?: boolean }>,
     userId: string
   ): Promise<Item[]> {
     const items: Item[] = itemsData
@@ -173,7 +173,7 @@ class ItemManager {
           name: sanitizedName,
           quantity: sanitizeQuantity(itemData.quantity),
           price: sanitizePrice(itemData.price),
-          checked: false,
+          checked: itemData.checked ?? false,
           createdBy: userId,
           createdAt: Date.now(),
           updatedAt: Date.now(),

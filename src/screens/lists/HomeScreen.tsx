@@ -99,6 +99,23 @@ const HomeScreen = () => {
     setShowCreateModal(true);
   };
 
+  const handleQuickScan = async () => {
+    if (!user || !familyGroupId) {
+      showAlert('Error', 'Sign in required', undefined, { icon: 'error' });
+      return;
+    }
+    try {
+      const listName = new Date().toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      });
+      const list = await createList(listName);
+      if (!list) return;
+      navigation.navigate('ReceiptCamera', { listId: list.id, autoAddAll: true });
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+    }
+  };
+
   const handleOpenDatePicker = () => {
     if (Platform.OS === 'android') {
       // Android DateTimePickerAndroid crashes outside 1900-2037 range
@@ -226,16 +243,24 @@ const HomeScreen = () => {
         )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={handleCreateList}>
-        <LinearGradient
-          colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.fabGradient}
+      <View style={styles.fabContainer}>
+        <Text style={styles.fabHint}>Hold to scan receipt</Text>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleCreateList}
+          onLongPress={handleQuickScan}
+          delayLongPress={500}
         >
-          <Text style={styles.fabText}>+</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          <LinearGradient
+            colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.fabGradient}
+          >
+            <Text style={styles.fabText}>+</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
       <Modal
         visible={showCreateModal}
