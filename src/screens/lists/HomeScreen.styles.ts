@@ -249,7 +249,6 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.border.medium,
   },
   modalButtonConfirm: {
-    borderWidth: 0,
     overflow: 'hidden',
     padding: 0,
   },
