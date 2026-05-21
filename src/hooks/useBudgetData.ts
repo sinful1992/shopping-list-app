@@ -40,7 +40,8 @@ export function useBudgetData() {
     if (user) {
       loadBudgetData();
     }
-  }, [user, dateRange, filterUserId, loadBudgetData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, dateRange, filterUserId]);
 
   const loadUser = async () => {
     try {

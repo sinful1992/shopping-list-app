@@ -426,7 +426,6 @@ const ListDetailScreen = () => {
   }, [listId]);
 
   // One-shot: load current user (separate from main effect to avoid double observer setup)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadCurrentUser(); }, []);
 
   // Compute lock/mode state once userId becomes available

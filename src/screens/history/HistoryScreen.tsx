@@ -103,15 +103,17 @@ const HistoryScreen = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const startDateMs = currentFilters.startDate?.getTime();
+  const endDateMs = currentFilters.endDate?.getTime();
+  const storesKey = currentFilters.stores.join(',');
+
   useEffect(() => {
     if (user) {
       loadHistory(true);
     }
-  // Use primitive values to avoid re-renders from object reference changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, focusRefreshKey, debouncedSearchQuery, receiptFilter, activeTab, currentSort.field, currentSort.order,
-      currentFilters.startDate?.getTime(), currentFilters.endDate?.getTime(),
-      currentFilters.stores.join(','), currentFilters.minPrice, currentFilters.maxPrice,
+      startDateMs, endDateMs, storesKey, currentFilters.minPrice, currentFilters.maxPrice,
       currentFilters.hasReceipt]);
 
   // Load available stores for filter
