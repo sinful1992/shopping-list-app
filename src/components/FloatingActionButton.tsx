@@ -15,7 +15,6 @@ interface FloatingActionButtonProps {
   icon?: string;
   label?: string;
   onPress: () => void;
-  backgroundColor?: string;
   size?: number;
   disabled?: boolean;
   style?: ViewStyle;
@@ -30,7 +29,6 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   icon = 'cart',
   label,
   onPress,
-  backgroundColor: _backgroundColor,
   size = 60,
   disabled = false,
   style,

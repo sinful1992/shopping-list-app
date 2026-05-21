@@ -1550,7 +1550,6 @@ const ListDetailScreen = () => {
         <FloatingActionButton
           icon="cart"
           onPress={handleStartShopping}
-          backgroundColor="#34C759"
           size={64}
         />
       )}

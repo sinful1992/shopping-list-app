@@ -267,7 +267,7 @@ const HistoryScreen = () => {
 
       // Background: compute and persist totalAmount for any lists missing it
       if (user?.familyGroupId) {
-        backfillMissingTotals(paginatedLists, user.familyGroupId);
+        backfillMissingTotals(paginatedLists);
       }
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -277,7 +277,7 @@ const HistoryScreen = () => {
     }
   };
 
-  const backfillMissingTotals = async (displayedLists: ShoppingList[], _familyGroupId: string) => {
+  const backfillMissingTotals = async (displayedLists: ShoppingList[]) => {
     const listsNeedingTotal = displayedLists.filter(l => l.totalAmount == null);
     if (listsNeedingTotal.length === 0) return;
 
