@@ -59,7 +59,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
         .slice(0, 20);
 
       setFrequentItems(sortedItems);
-    } catch (error) {
+    } catch {
       setFrequentItems([]);
     } finally {
       setLoading(false);
@@ -70,7 +70,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
     try {
       setAddingItemName(itemName);
       await onAddItem(itemName);
-    } catch (error) {
+    } catch {
       // Failed to add item
     } finally {
       setAddingItemName(null);

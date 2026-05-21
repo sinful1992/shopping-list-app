@@ -570,7 +570,7 @@ class FirebaseSyncListener {
     }
 
     const categoryHistoryRef = database().ref(`familyGroups/${familyGroupId}/categoryHistory`);
-    const initialBuffer: { itemHash: string; data: any }[] = [];
+    const initialBuffer: { itemHash: string; category: string; data: any }[] = [];
     let initialLoadDone = false;
 
     const flushBuffer = async () => {
@@ -720,8 +720,6 @@ class FirebaseSyncListener {
 
     const baseRef = database().ref(`familyGroups/${familyGroupId}/priceHistory`);
     const sessionStart = Date.now();
-    let batchLoadDone = false;
-
     baseRef.once('value').then(async (snapshot) => {
       const records: PriceHistoryRecord[] = [];
       snapshot.forEach(child => {
@@ -732,7 +730,6 @@ class FirebaseSyncListener {
         }
       });
       await LocalStorageManager.savePriceHistoryBatch(records);
-      batchLoadDone = true;
     }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
 
     const ongoingRef = baseRef.orderByChild('recordedAt').startAt(sessionStart);

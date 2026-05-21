@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import database from '@react-native-firebase/database';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
-import { Item, ShoppingList, PriceHistoryRecord } from '../models/types';
+import { PriceHistoryRecord } from '../models/types';
 
 /**
  * PriceHistoryService

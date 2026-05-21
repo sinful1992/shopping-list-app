@@ -294,7 +294,9 @@ export const ANIMATION = {
   slow: 500,
 } as const;
 
-export type Theme = typeof COLORS;
+export type Theme = {
+  [K in keyof typeof COLORS]: { [P in keyof (typeof COLORS)[K]]: string }
+};
 
 export const DARK_THEME: Theme = COLORS;
 
@@ -353,15 +355,4 @@ export const LIGHT_THEME: Theme = {
     modalStart: '#FFFFFF',
     modalEnd: '#F8F9FA',
   },
-};
-
-export default {
-  COLORS,
-  SHADOWS,
-  RADIUS,
-  SPACING,
-  TYPOGRAPHY,
-  COMMON_STYLES,
-  BUDGET_ALERT_COLORS,
-  ANIMATION,
 };

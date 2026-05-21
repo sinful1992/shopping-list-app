@@ -33,7 +33,7 @@ class NotificationManager {
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
       return enabled;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -77,7 +77,7 @@ class NotificationManager {
       await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       return token;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -115,7 +115,7 @@ class NotificationManager {
           registeredAt: Date.now(),
         })
       );
-    } catch (error) {
+    } catch {
       // Token registration failed - will retry later
     }
   }
@@ -140,8 +140,8 @@ class NotificationManager {
     });
 
     // Handle background/quit state notification tap
-    messaging().onNotificationOpenedApp((remoteMessage) => {
-      // TODO: Navigate to UrgentItemsScreen based on remoteMessage.data
+    messaging().onNotificationOpenedApp((_remoteMessage) => {
+      // TODO: Navigate to UrgentItemsScreen based on _remoteMessage.data
     });
 
     // Check if app was opened from a notification (quit state)
@@ -210,7 +210,7 @@ class NotificationManager {
       await EncryptedStorage.removeItem(this.FCM_TOKEN_KEY);
       await EncryptedStorage.removeItem('@fcm_token_data');
       this.fcmToken = null;
-    } catch (error) {
+    } catch {
       // Token clear failed - not critical
     }
   }

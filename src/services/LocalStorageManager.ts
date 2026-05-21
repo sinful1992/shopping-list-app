@@ -1,7 +1,7 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, ExpenditureSummary, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
 import { safeJsonParse } from '../utils/safeJsonParse';
 import { CategoryType } from './CategoryService';
 import CrashReporting from './CrashReporting';

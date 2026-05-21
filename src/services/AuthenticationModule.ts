@@ -251,7 +251,7 @@ class AuthenticationModule {
         .ref(`/familyGroups/${groupId}`)
         .once('value');
       return groupSnapshot.exists();
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -389,7 +389,7 @@ class AuthenticationModule {
       }
 
       return userData;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -425,7 +425,7 @@ class AuthenticationModule {
       }
 
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }

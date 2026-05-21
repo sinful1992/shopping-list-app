@@ -7,7 +7,6 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 import CategoryService from '../services/CategoryService';
 import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';

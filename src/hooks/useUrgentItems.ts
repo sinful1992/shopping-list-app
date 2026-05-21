@@ -160,4 +160,3 @@ export function useUrgentItems() {
   };
 }
 
-export default useUrgentItems;

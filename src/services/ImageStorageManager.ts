@@ -45,9 +45,6 @@ class ImageStorageManager {
       // Wait for upload to complete
       await task;
 
-      // Get download URL
-      const downloadUrl = await reference.getDownloadURL();
-
       // Update list with receipt URL
       await LocalStorageManager.updateList(listId, {
         receiptUrl: storagePath,
@@ -68,7 +65,7 @@ class ImageStorageManager {
       const reference = storage().ref(storagePath);
       return await reference.getDownloadURL();
     } catch (error: any) {
-      throw new Error(`Failed to get download URL: ${error.message}`);
+      throw new Error(`Failed to get receipt URL: ${error.message}`);
     }
   }
 
@@ -85,7 +82,7 @@ class ImageStorageManager {
   }
 
   /**
-   * Queue receipt for upload (when offline)
+   * Queue receipt for upload
    * Implements Req 5.6, 9.4
    */
   async queueReceiptForUpload(filePath: string, listId: string): Promise<void> {
@@ -127,7 +124,7 @@ class ImageStorageManager {
 
         // Remove from queue on success
         await this.removeFromQueue(upload.id);
-      } catch (error: any) {
+      } catch {
         if (upload.retryCount >= 5) {
           // Max retries reached, remove from queue
           errors.push({
@@ -137,7 +134,6 @@ class ImageStorageManager {
           });
           await this.removeFromQueue(upload.id);
         } else {
-          // Increment retry count
           upload.retryCount++;
           await this.updateQueueItem(upload);
         }
@@ -174,7 +170,7 @@ class ImageStorageManager {
   private async removeFromQueue(uploadId: string): Promise<void> {
     const queue = await this.getUploadQueue();
     const updatedQueue = queue.filter((item) => item.id !== uploadId);
-    await AsyncStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(updatedQueue));
+    await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(updatedQueue));
   }
 
   /**

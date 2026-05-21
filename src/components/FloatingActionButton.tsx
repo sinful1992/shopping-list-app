@@ -30,7 +30,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   icon = 'cart',
   label,
   onPress,
-  backgroundColor,
+  backgroundColor: _backgroundColor,
   size = 60,
   disabled = false,
   style,

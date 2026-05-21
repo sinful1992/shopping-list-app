@@ -116,4 +116,3 @@ export function useFormValidation(validators: ValidatorMap): UseFormValidationRe
   };
 }
 
-export default useFormValidation;

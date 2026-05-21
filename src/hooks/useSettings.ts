@@ -233,5 +233,3 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     refresh: loadSettingsData,
   };
 }
-
-export default useSettings;

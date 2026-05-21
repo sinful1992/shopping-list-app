@@ -6,7 +6,6 @@ import {
   Operation,
   QueuedOperation,
   SyncResult,
-  SyncStatus,
   SyncEngineStatus,
   ShoppingList,
   Item,
@@ -361,7 +360,7 @@ class SyncEngine {
     } else {
       if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
       // Strip syncStatus before syncing to Firebase (keep it local-only)
-      const { syncStatus, ...dataWithoutSyncStatus } = data;
+      const { syncStatus: _, ...dataWithoutSyncStatus } = data;
       await database().ref(path).set(dataWithoutSyncStatus);
     }
   }
