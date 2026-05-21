@@ -53,7 +53,7 @@ interface AnimatedItemCardProps {
 }
 
 const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
-  index,
+  index: _index,
   item,
   itemPrice,
   isPredicted,
@@ -164,6 +164,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       checkScale.value = 0;
       cardScale.value = 1;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChecked]);
 
   const checkAnimatedStyle = useAnimatedStyle(() => ({
