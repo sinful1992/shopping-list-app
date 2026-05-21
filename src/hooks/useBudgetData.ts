@@ -32,6 +32,7 @@ export function useBudgetData() {
   // Load user on mount
   useEffect(() => {
     loadUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reload data when user, dateRange, or filter changes
@@ -39,7 +40,7 @@ export function useBudgetData() {
     if (user) {
       loadBudgetData();
     }
-  }, [user, dateRange, filterUserId]);
+  }, [user, dateRange, filterUserId, loadBudgetData]);
 
   const loadUser = async () => {
     try {

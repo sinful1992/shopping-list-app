@@ -49,7 +49,7 @@ export const SubscriptionScreen: React.FC = () => {
     if (user) {
       UsageTracker.getUsageSummary(user).then(setUsageSummary).catch(() => {});
     }
-  }, [tier]);
+  }, [tier, user]);
 
   const loadUserAndUsage = async () => {
     try {
