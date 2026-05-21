@@ -76,6 +76,7 @@ const HistoryScreen = () => {
 
   useEffect(() => {
     loadUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reload when screen regains focus so totals written in HistoryDetail are immediately visible
@@ -90,6 +91,7 @@ const HistoryScreen = () => {
     if (user?.familyGroupId) {
       autoArchiveOldLists();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.familyGroupId]);
 
   // Debounce search query (300ms)
@@ -117,10 +119,10 @@ const HistoryScreen = () => {
     const loadStores = async () => {
       if (!user?.familyGroupId) return;
       try {
-        const lists = await HistoryTracker.getCompletedLists(user.familyGroupId);
-        const stores = [...new Set(lists.map(l => l.storeName).filter(Boolean))] as string[];
+        const completedLists = await HistoryTracker.getCompletedLists(user.familyGroupId);
+        const stores = [...new Set(completedLists.map(l => l.storeName).filter(Boolean))] as string[];
         setAvailableStores(stores);
-      } catch (error) {
+      } catch {
         // Failed to load stores - filter will be unavailable
       }
     };
@@ -132,7 +134,7 @@ const HistoryScreen = () => {
 
     try {
       await HistoryTracker.autoArchiveOldLists(user.familyGroupId);
-    } catch (error) {
+    } catch {
       // Auto-archive failed - not critical
     }
   };
@@ -273,7 +275,7 @@ const HistoryScreen = () => {
     }
   };
 
-  const backfillMissingTotals = async (displayedLists: ShoppingList[], familyGroupId: string) => {
+  const backfillMissingTotals = async (displayedLists: ShoppingList[], _familyGroupId: string) => {
     const listsNeedingTotal = displayedLists.filter(l => l.totalAmount == null);
     if (listsNeedingTotal.length === 0) return;
 

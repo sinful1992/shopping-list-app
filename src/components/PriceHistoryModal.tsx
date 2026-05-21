@@ -40,6 +40,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     if (visible && itemName) {
       loadPriceData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, itemName]);
 
   const loadPriceData = async () => {
@@ -56,7 +57,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 
       setStats(priceStats);
       setPriceByStore(storeComparison);
-    } catch (error) {
+    } catch {
       // Failed to load price data
     } finally {
       setLoading(false);
@@ -174,7 +175,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                   {Object.keys(priceByStore).length > 1 && (
                     <View style={styles.chartContainer}>
                       <BarChart
-                        data={Object.entries(priceByStore).map(([store, data], index) => {
+                        data={Object.entries(priceByStore).map(([store, data]) => {
                           const lowestAverage = Math.min(
                             ...Object.values(priceByStore).map((d: any) => d.average)
                           );

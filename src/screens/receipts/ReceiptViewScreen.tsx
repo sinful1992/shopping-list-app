@@ -17,11 +17,10 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
-import ImageStorageManager from '../../services/ImageStorageManager';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import { ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
+import { ReceiptData, ShoppingList } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 
@@ -58,33 +57,34 @@ const ReceiptViewScreen = () => {
 
   useEffect(() => {
     loadReceiptData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadReceiptData = async () => {
     try {
       setLoading(true);
 
-      const list = await LocalStorageManager.getList(listId);
-      if (!list) {
+      const fetchedList = await LocalStorageManager.getList(listId);
+      if (!fetchedList) {
         showAlert('Error', 'List not found', undefined, { icon: 'error' });
         navigation.goBack();
         return;
       }
 
-      setList(list);
+      setList(fetchedList);
 
-      if (list.receiptUrl) {
-        setReceiptUrl(list.receiptUrl);
+      if (fetchedList.receiptUrl) {
+        setReceiptUrl(fetchedList.receiptUrl);
       }
 
       const data = await LocalStorageManager.getReceiptData(listId);
       setReceiptData(data);
       setEditedData(data ? {
         ...data,
-        merchantName: list.merchantName,
-        purchaseDate: list.purchaseDate,
-        totalAmount: list.totalAmount,
-        currency: list.currency,
+        merchantName: fetchedList.merchantName,
+        purchaseDate: fetchedList.purchaseDate,
+        totalAmount: fetchedList.totalAmount,
+        currency: fetchedList.currency,
       } : null);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });

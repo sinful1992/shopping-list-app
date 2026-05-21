@@ -41,6 +41,7 @@ const ReceiptCameraScreen = () => {
 
   useEffect(() => {
     handleCapture();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reset the gate each time a new image is captured so every retake requires a fresh ad.

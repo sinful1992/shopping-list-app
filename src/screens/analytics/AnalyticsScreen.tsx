@@ -22,6 +22,15 @@ import SmartSavingsCard from './SmartSavingsCard';
 
 const screenWidth = Dimensions.get('window').width;
 
+const errorBoundaryStyles = StyleSheet.create({
+  centered:     { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#12121C', paddingHorizontal: 40 },
+  errorIcon:    { fontSize: 52, marginBottom: 12 },
+  errorTitle:   { fontSize: 18, fontWeight: '700', color: '#ffffff', marginBottom: 6, textAlign: 'center' },
+  errorSub:     { fontSize: 14, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 20 },
+  retryBtn:     { backgroundColor: 'rgba(110,168,254,0.8)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+});
+
 // ─── Error Boundary ──────────────────────────────────────────────────────────
 
 class ErrorBoundary extends Component<
@@ -39,15 +48,15 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.centered}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorSub}>{this.state.error?.message}</Text>
+        <View style={errorBoundaryStyles.centered}>
+          <Text style={errorBoundaryStyles.errorIcon}>⚠️</Text>
+          <Text style={errorBoundaryStyles.errorTitle}>Something went wrong</Text>
+          <Text style={errorBoundaryStyles.errorSub}>{this.state.error?.message}</Text>
           <TouchableOpacity
-            style={styles.retryBtn}
+            style={errorBoundaryStyles.retryBtn}
             onPress={() => this.setState({ hasError: false, error: null })}
           >
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={errorBoundaryStyles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
       );
@@ -94,6 +103,7 @@ const AnalyticsScreen = () => {
       setError(err?.message || 'Failed to initialize');
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timePeriod]);
 
   useEffect(() => {

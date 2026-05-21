@@ -35,8 +35,8 @@ const HomeScreen = () => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const { user, familyGroupId, loading: authLoading } = useAuth();
-  const { lists, loading: listsLoading, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
+  const { user, familyGroupId } = useAuth();
+  const { lists, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -47,6 +47,7 @@ const HomeScreen = () => {
     if (user && familyGroupId) {
       loadInitialData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, familyGroupId]);
 
   const loadInitialData = async () => {
