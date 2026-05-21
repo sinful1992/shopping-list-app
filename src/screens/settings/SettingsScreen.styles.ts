@@ -431,4 +431,11 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     marginLeft: 12,
     fontWeight: '500',
   },
+  iconAutoMargin: { marginLeft: 'auto' as const },
+  settingDescriptionSpaced: { marginBottom: 12 },
+  invitationCodeError: { color: theme.accent.red },
+  copyButtonDisabled: { opacity: 0.5 },
+  joinRequestsSection: { borderColor: 'rgba(255, 179, 64, 0.3)' },
+  joinRequestsTitle: { color: '#FFB340' },
+  joinRequestsMemberIcon: { borderColor: 'rgba(255, 179, 64, 0.3)', backgroundColor: 'rgba(255, 179, 64, 0.1)' },
 });

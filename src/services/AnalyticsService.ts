@@ -199,7 +199,7 @@ class AnalyticsService {
     return Object.entries(monthlyData)
       .map(([month, data]) => {
         const [year, monthNum] = month.split('-');
-        const date = new Date(parseInt(year), parseInt(monthNum) - 1, 1).getTime();
+        const date = new Date(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1).getTime();
         return {
           date,
           amount: data.amount,

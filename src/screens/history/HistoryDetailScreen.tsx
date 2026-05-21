@@ -281,7 +281,7 @@ const HistoryDetailScreen = () => {
               </>
             )}
 
-            <View style={[styles.subSectionHeaderPurchased, uncheckedItems.length > 0 && { marginTop: 12 }]}>
+            <View style={[styles.subSectionHeaderPurchased, uncheckedItems.length > 0 && styles.itemsMarginTop]}>
               <Text style={styles.subSectionTitlePurchased}>Purchased</Text>
             </View>
             <View style={styles.itemsContainer}>
@@ -634,6 +634,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   itemPriceNotPurchased: {
     color: '#FF9500',
   },
+  itemsMarginTop: { marginTop: 12 },
 });
 
 export default HistoryDetailScreen;

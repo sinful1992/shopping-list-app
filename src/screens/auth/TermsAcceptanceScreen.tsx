@@ -39,7 +39,7 @@ const TermsAcceptanceScreen = () => {
         termsAcceptedVersion: CURRENT_TERMS_VERSION,
         termsAcceptedAt: Date.now(),
       });
-    } catch (error: any) {
+    } catch {
       showAlert(
         'Error',
         'Failed to save your acceptance. Please try again.',
@@ -71,7 +71,7 @@ const TermsAcceptanceScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
+    <SafeAreaView style={styles.safeArea}>
     <View style={styles.container}>
       <Text style={styles.title}>Terms & Privacy Policy</Text>
       <Text style={styles.subtitle}>
@@ -183,6 +183,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  safeArea: { flex: 1, backgroundColor: theme.background.primary },
 });
 
 export default TermsAcceptanceScreen;

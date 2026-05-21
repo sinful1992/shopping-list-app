@@ -1252,7 +1252,7 @@ const ListDetailScreen = () => {
                     colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={{ borderRadius: 8, alignItems: 'center', padding: 12, width: '100%' }}
+                    style={styles.gradientDoneButton}
                   >
                     <Text style={styles.doneButtonText}>Done Shopping</Text>
                   </LinearGradient>

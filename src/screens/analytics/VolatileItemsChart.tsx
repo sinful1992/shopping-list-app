@@ -37,13 +37,14 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
   const chartWidth = screenWidth - 62 - 40;
   const axisColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
   const labelColor = isDark ? '#a0a0a0' : '#6B7280';
+  const chartAxisStyle = { color: labelColor, fontSize: 10 };
 
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Most Volatile Prices</Text>
       <Text style={styles.subtitle}>Items with the biggest price swings</Text>
 
-      {loading && <ActivityIndicator color={theme.accent.blue} style={{ marginVertical: 20 }} />}
+      {loading && <ActivityIndicator color={theme.accent.blue} style={styles.activityIndicator} />}
 
       {!loading && data.length === 0 && (
         <Text style={styles.emptyText}>Not enough price data yet</Text>
@@ -68,12 +69,12 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
             isAnimated
             animationDuration={600}
             showValuesAsTopLabel
-            topLabelTextStyle={{ color: theme.text.primary, fontSize: 10, fontWeight: '600' }}
+            topLabelTextStyle={styles.chartTopLabel}
             rulesColor={axisColor}
             rulesThickness={1}
             xAxisColor={axisColor}
             yAxisColor={axisColor}
-            yAxisTextStyle={{ color: labelColor, fontSize: 10 }}
+            yAxisTextStyle={chartAxisStyle}
             yAxisLabelSuffix="%"
             yAxisLabelWidth={40}
             noOfSections={4}
@@ -115,6 +116,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   chartContainer: {
     marginTop: 4,
   },
+  activityIndicator: { marginVertical: 20 },
+  chartTopLabel: { color: theme.text.primary, fontSize: 10, fontWeight: '600' as const },
 });
 
 export default VolatileItemsChart;

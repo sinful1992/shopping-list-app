@@ -85,6 +85,9 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     return theme.accent.yellow;
   };
 
+  const chartTopLabelStyle = { color: theme.text.primary, fontSize: 10, fontWeight: '600' as const };
+  const chartAxisStyle = { color: theme.text.secondary, fontSize: 10 };
+
   return (
     <Modal
       visible={visible}
@@ -194,16 +197,12 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                         isAnimated
                         animationDuration={600}
                         showValuesAsTopLabel
-                        topLabelTextStyle={{
-                          color: theme.text.primary,
-                          fontSize: 10,
-                          fontWeight: '600',
-                        }}
+                        topLabelTextStyle={chartTopLabelStyle}
                         rulesColor={theme.border.medium}
                         rulesThickness={1}
                         xAxisColor={theme.border.medium}
                         yAxisColor={theme.border.medium}
-                        yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
+                        yAxisTextStyle={chartAxisStyle}
                         yAxisLabelPrefix="£"
                         yAxisLabelWidth={35}
                         noOfSections={4}

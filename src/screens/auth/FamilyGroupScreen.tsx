@@ -131,16 +131,16 @@ const FamilyGroupScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoid}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           <View style={styles.container}>
             <Text style={styles.title}>Family Group</Text>
 
             {/* Waiting for approval */}
             {joinState === 'pending' && (
               <View style={styles.waitingCard}>
-                <ActivityIndicator size="large" color={theme.accent.blue} style={{ marginBottom: 20 }} />
+                <ActivityIndicator size="large" color={theme.accent.blue} style={styles.activityBottom} />
                 <Text style={styles.waitingTitle}>Request Sent</Text>
                 <Text style={styles.waitingSubtitle}>
                   Waiting for a member of{'\n'}
@@ -176,7 +176,7 @@ const FamilyGroupScreen = () => {
               <View style={styles.waitingCard}>
                 <Text style={styles.approvedIcon}>✓</Text>
                 <Text style={styles.approvedTitle}>Welcome to the family!</Text>
-                <ActivityIndicator color={theme.accent.green} style={{ marginTop: 16 }} />
+                <ActivityIndicator color={theme.accent.green} style={styles.activityTop} />
               </View>
             )}
 
@@ -297,7 +297,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   joinHint: {
     fontSize: 13,
-    color: theme.text.quaternary,
+    color: theme.text.dim,
     textAlign: 'center',
     marginBottom: 20,
     fontStyle: 'italic',
@@ -374,6 +374,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   retryButton: {
     width: '100%',
   },
+  safeArea: { flex: 1, backgroundColor: theme.background.primary },
+  keyboardAvoid: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  activityBottom: { marginBottom: 20 },
+  activityTop: { marginTop: 16 },
 });
 
 export default FamilyGroupScreen;

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS, SPACING } from '../../styles/theme';
+import { Theme, RADIUS } from '../../styles/theme';
 
 export const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -581,6 +581,12 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 999,
+  },
+  gradientDoneButton: {
+    borderRadius: 8,
+    alignItems: 'center' as const,
+    padding: 12,
+    width: '100%' as const,
   },
 });
 

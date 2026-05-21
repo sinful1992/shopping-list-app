@@ -225,7 +225,7 @@ const UrgentItemsScreen = () => {
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.createButton, isCreating && { opacity: 0.5 }]}
+                style={[styles.createButton, isCreating && styles.disabledOpacity]}
                 onPress={handleCreateItem}
                 disabled={isCreating}
               >
@@ -477,6 +477,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
+  disabledOpacity: { opacity: 0.5 },
 });
 
 export default UrgentItemsScreen;

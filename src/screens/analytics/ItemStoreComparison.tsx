@@ -135,6 +135,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   }, [storeStats]);
 
   const chartWidth = screenWidth - 62 - 40;
+  const chartAxisStyle = { color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 };
 
   const getVolatilityLabel = (v: number) => {
     if (v < 10) return { label: 'Low', color: theme.accent.green };
@@ -217,7 +218,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
       )}
 
       {selectedItem && loading && (
-        <ActivityIndicator color={theme.accent.blue} style={{ marginVertical: 20 }} />
+        <ActivityIndicator color={theme.accent.blue} style={styles.activityIndicator} />
       )}
 
       {selectedItem && !loading && filteredPoints.length === 0 && (
@@ -254,12 +255,12 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               isAnimated
               animationDuration={600}
               showValuesAsTopLabel
-              topLabelTextStyle={{ color: theme.text.primary, fontSize: 11, fontWeight: '600' }}
+              topLabelTextStyle={styles.chartTopLabel}
               {...(isDark ? {rulesColor:'rgba(255,255,255,0.1)'} : {rulesColor:'rgba(0,0,0,0.1)'})}
               rulesThickness={1}
               xAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
               yAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
-              yAxisTextStyle={{ color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 }}
+              yAxisTextStyle={chartAxisStyle}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={40}
               noOfSections={4}
@@ -461,6 +462,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
     lineHeight: 18,
   },
+  activityIndicator: { marginVertical: 20 },
+  chartTopLabel: { color: theme.text.primary, fontSize: 10, fontWeight: '600' as const },
 });
 
 export default ItemStoreComparison;

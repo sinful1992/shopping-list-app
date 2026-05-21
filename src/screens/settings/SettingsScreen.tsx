@@ -355,12 +355,12 @@ const SettingsScreen = () => {
                 {!invitationCode ? (
                   <Text style={styles.invitationCode}>Loading...</Text>
                 ) : invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? (
-                  <Text style={[styles.invitationCode, { color: theme.accent.red }]}>Error - Tap to retry</Text>
+                  <Text style={[styles.invitationCode, styles.invitationCodeError]}>Error - Tap to retry</Text>
                 ) : (
                   <Text style={styles.invitationCode}>{invitationCode}</Text>
                 )}
                 <TouchableOpacity
-                  style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && { opacity: 0.5 }]}
+                  style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
                   onPress={() => {
                     if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
                       // Retry loading
@@ -382,10 +382,10 @@ const SettingsScreen = () => {
 
           {/* Join Requests Section — only shown when there are pending requests */}
           {joinRequests.length > 0 && (
-            <View style={[styles.section, { borderColor: 'rgba(255, 179, 64, 0.3)' }]}>
+            <View style={[styles.section, styles.joinRequestsSection]}>
               <View style={styles.sectionHeader}>
                 <Icon name="person-add-outline" size={24} color="#FFB340" />
-                <Text style={[styles.sectionTitle, { color: '#FFB340' }]}>Join Requests</Text>
+                <Text style={[styles.sectionTitle, styles.joinRequestsTitle]}>Join Requests</Text>
                 <View style={styles.requestsBadge}>
                   <Text style={styles.requestsBadgeText}>{joinRequests.length}</Text>
                 </View>
@@ -398,7 +398,7 @@ const SettingsScreen = () => {
                     index < joinRequests.length - 1 && styles.memberRowBorder,
                   ]}
                 >
-                  <View style={[styles.memberIconContainer, { borderColor: 'rgba(255, 179, 64, 0.3)', backgroundColor: 'rgba(255, 179, 64, 0.1)' }]}>
+                  <View style={[styles.memberIconContainer, styles.joinRequestsMemberIcon]}>
                     <Icon name="person-outline" size={20} color="#FFB340" />
                   </View>
                   <View style={styles.memberInfo}>
@@ -485,7 +485,7 @@ const SettingsScreen = () => {
         <View style={styles.sectionHeader}>
           <Icon name="star-outline" size={24} color={theme.accent.blue} />
           <Text style={styles.sectionTitle}>Subscription</Text>
-          <Icon name="chevron-forward-outline" size={20} color={theme.text.secondary} style={{ marginLeft: 'auto' }} />
+          <Icon name="chevron-forward-outline" size={20} color={theme.text.secondary} style={styles.iconAutoMargin} />
         </View>
         <Text style={styles.helperText}>Manage your Pro plan, view usage limits, and upgrade</Text>
       </TouchableOpacity>
@@ -590,7 +590,7 @@ const SettingsScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>OCR Server URL</Text>
-            <Text style={[styles.settingDescription, { marginBottom: 12 }]}>
+            <Text style={[styles.settingDescription, styles.settingDescriptionSpaced]}>
               Enter a custom OCR server URL, or leave blank to restore the default.
             </Text>
             <TextInput
