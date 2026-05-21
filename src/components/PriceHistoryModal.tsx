@@ -40,6 +40,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     if (visible && itemName) {
       loadPriceData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, itemName]);
 
   const loadPriceData = async () => {
@@ -56,7 +57,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 
       setStats(priceStats);
       setPriceByStore(storeComparison);
-    } catch (error) {
+    } catch {
       // Failed to load price data
     } finally {
       setLoading(false);
@@ -83,6 +84,9 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     if (trend === 'down') return theme.accent.green;
     return theme.accent.yellow;
   };
+
+  const chartTopLabelStyle = { color: theme.text.primary, fontSize: 10, fontWeight: '600' as const };
+  const chartAxisStyle = { color: theme.text.secondary, fontSize: 10 };
 
   return (
     <Modal
@@ -174,7 +178,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                   {Object.keys(priceByStore).length > 1 && (
                     <View style={styles.chartContainer}>
                       <BarChart
-                        data={Object.entries(priceByStore).map(([store, data], index) => {
+                        data={Object.entries(priceByStore).map(([store, data]) => {
                           const lowestAverage = Math.min(
                             ...Object.values(priceByStore).map((d: any) => d.average)
                           );
@@ -193,16 +197,12 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                         isAnimated
                         animationDuration={600}
                         showValuesAsTopLabel
-                        topLabelTextStyle={{
-                          color: theme.text.primary,
-                          fontSize: 10,
-                          fontWeight: '600',
-                        }}
+                        topLabelTextStyle={chartTopLabelStyle}
                         rulesColor={theme.border.medium}
                         rulesThickness={1}
                         xAxisColor={theme.border.medium}
                         yAxisColor={theme.border.medium}
-                        yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
+                        yAxisTextStyle={chartAxisStyle}
                         yAxisLabelPrefix="£"
                         yAxisLabelWidth={35}
                         noOfSections={4}

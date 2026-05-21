@@ -22,6 +22,15 @@ import SmartSavingsCard from './SmartSavingsCard';
 
 const screenWidth = Dimensions.get('window').width;
 
+const errorBoundaryStyles = StyleSheet.create({
+  centered:     { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#12121C', paddingHorizontal: 40 },
+  errorIcon:    { fontSize: 52, marginBottom: 12 },
+  errorTitle:   { fontSize: 18, fontWeight: '700', color: '#ffffff', marginBottom: 6, textAlign: 'center' },
+  errorSub:     { fontSize: 14, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 20 },
+  retryBtn:     { backgroundColor: 'rgba(110,168,254,0.8)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+});
+
 // ─── Error Boundary ──────────────────────────────────────────────────────────
 
 class ErrorBoundary extends Component<
@@ -39,15 +48,15 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.centered}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorSub}>{this.state.error?.message}</Text>
+        <View style={errorBoundaryStyles.centered}>
+          <Text style={errorBoundaryStyles.errorIcon}>⚠️</Text>
+          <Text style={errorBoundaryStyles.errorTitle}>Something went wrong</Text>
+          <Text style={errorBoundaryStyles.errorSub}>{this.state.error?.message}</Text>
           <TouchableOpacity
-            style={styles.retryBtn}
+            style={errorBoundaryStyles.retryBtn}
             onPress={() => this.setState({ hasError: false, error: null })}
           >
-            <Text style={styles.retryBtnText}>Retry</Text>
+            <Text style={errorBoundaryStyles.retryBtnText}>Retry</Text>
           </TouchableOpacity>
         </View>
       );
@@ -94,6 +103,7 @@ const AnalyticsScreen = () => {
       setError(err?.message || 'Failed to initialize');
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timePeriod]);
 
   useEffect(() => {
@@ -153,7 +163,7 @@ const AnalyticsScreen = () => {
   if (!analytics || analytics.totalTrips === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={{ fontSize: 52, marginBottom: 12 }}>📊</Text>
+        <Text style={styles.noDataIcon}>📊</Text>
         <Text style={styles.errorTitle}>No data yet</Text>
         <Text style={styles.errorSub}>Complete some shopping trips to see analytics</Text>
       </View>
@@ -203,7 +213,7 @@ const AnalyticsScreen = () => {
         <Text style={styles.cardTitle}>Spending Trend</Text>
         <Text style={styles.cardSub}>Monthly spend over the selected period</Text>
         {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 ? (
-          <View style={{ marginTop: 12 }}>
+          <View style={styles.chartWrapper}>
             <LineChart
               data={monthlyChartData}
               width={CHART_W - 24}
@@ -224,7 +234,7 @@ const AnalyticsScreen = () => {
               rulesColor={theme.border.subtle}
               xAxisColor="transparent"
               yAxisColor="transparent"
-              yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
+              yAxisTextStyle={styles.chartAxisStyle}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={38}
               hideDataPoints={false}
@@ -242,7 +252,7 @@ const AnalyticsScreen = () => {
         <Text style={styles.cardTitle}>Spending by Category</Text>
         <Text style={styles.cardSub}>What you spend most on</Text>
         {categoryPieData.length > 0 ? (
-          <View style={{ marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+          <View style={styles.pieWrapper}>
             <PieChart
               data={categoryPieData}
               donut
@@ -250,29 +260,32 @@ const AnalyticsScreen = () => {
               innerRadius={46}
               innerCircleColor={theme.glass.subtle}
               centerLabelComponent={() => (
-                <View style={{ alignItems: 'center' }}>
-                  <Text style={{ fontSize: 14, color: theme.text.primary, fontWeight: '700' }}>
+                <View style={styles.pieCenterContainer}>
+                  <Text style={styles.pieCenterTotal}>
                     £{analytics.totalSpent.toFixed(0)}
                   </Text>
-                  <Text style={{ fontSize: 10, color: theme.text.secondary }}>total</Text>
+                  <Text style={styles.pieCenterLabel}>total</Text>
                 </View>
               )}
               focusOnPress
               sectionAutoFocus={false}
             />
             {/* Legend */}
-            <View style={{ flex: 1, gap: 8 }}>
-              {categoryPieData.map((item: any) => (
-                <View key={item.text} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: item.color }} />
-                  <Text style={{ flex: 1, fontSize: 12, color: theme.text.secondary }} numberOfLines={1}>
-                    {item.text}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: theme.text.primary, fontWeight: '600' }}>
-                    £{item.value.toFixed(0)}
-                  </Text>
-                </View>
-              ))}
+            <View style={styles.legendContainer}>
+              {categoryPieData.map((item: any) => {
+                const dotColorStyle = { backgroundColor: item.color };
+                return (
+                  <View key={item.text} style={styles.legendItem}>
+                    <View style={[styles.legendDot, dotColorStyle]} />
+                    <Text style={styles.legendText} numberOfLines={1}>
+                      {item.text}
+                    </Text>
+                    <Text style={styles.legendValue}>
+                      £{item.value.toFixed(0)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         ) : (
@@ -286,20 +299,22 @@ const AnalyticsScreen = () => {
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Most Purchased</Text>
       <Text style={styles.cardSub}>Your top items by frequency</Text>
-      <View style={{ marginTop: 12, gap: 2 }}>
+      <View style={styles.itemsContainer}>
         {analytics.topItems.slice(0, 8).map((item, index) => {
           const RANK_COLORS = ['#FFD60A', '#C0C0C0', '#CD7F32'];
           const rankColor = RANK_COLORS[index] ?? theme.text.secondary;
+          const rankBorderStyle = { borderColor: rankColor + '60' };
+          const rankColorStyle = { color: rankColor };
           return (
             <View key={item.name} style={styles.itemRow}>
               {/* Rank badge */}
-              <View style={[styles.rankBadge, { borderColor: rankColor + '60' }]}>
-                <Text style={[styles.rankText, { color: rankColor }]}>{index + 1}</Text>
+              <View style={[styles.rankBadge, rankBorderStyle]}>
+                <Text style={[styles.rankText, rankColorStyle]}>{index + 1}</Text>
               </View>
               {/* Name */}
               <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
               {/* Stats */}
-              <View style={{ alignItems: 'flex-end' }}>
+              <View style={styles.itemStatsColumn}>
                 <Text style={styles.itemCount}>{item.purchaseCount}× bought</Text>
                 <Text style={styles.itemSpend}>{fmt(item.totalSpent)}</Text>
               </View>
@@ -317,7 +332,7 @@ const AnalyticsScreen = () => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Spend by Store</Text>
           <Text style={styles.cardSub}>Total spent at each location</Text>
-          <View style={{ marginTop: 12 }}>
+          <View style={styles.chartWrapper}>
             <BarChart
               data={storeChartData}
               width={CHART_W - 24}
@@ -328,11 +343,11 @@ const AnalyticsScreen = () => {
               isAnimated
               animationDuration={700}
               showValuesAsTopLabel
-              topLabelTextStyle={{ color: theme.text.primary, fontSize: 11, fontWeight: '600' }}
+              topLabelTextStyle={styles.chartTopLabel}
               rulesColor={theme.border.subtle}
               xAxisColor="transparent"
               yAxisColor="transparent"
-              yAxisTextStyle={{ color: theme.text.secondary, fontSize: 10 }}
+              yAxisTextStyle={styles.chartAxisStyle}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={38}
               noOfSections={4}
@@ -345,30 +360,31 @@ const AnalyticsScreen = () => {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Store Breakdown</Text>
         <Text style={styles.cardSub}>Trips, totals, and averages</Text>
-        <View style={{ marginTop: 12, gap: 12 }}>
+        <View style={styles.storeListContainer}>
           {analytics.spendingByStore.map((store) => {
             const lowestAvg = Math.min(...analytics.spendingByStore.map(s => s.averagePerTrip));
             const mostVisited = Math.max(...analytics.spendingByStore.map(s => s.tripCount));
             const isBest    = store.averagePerTrip === lowestAvg && analytics.spendingByStore.length > 1;
             const isMost    = store.tripCount === mostVisited && analytics.spendingByStore.length > 1;
+            const progressFillStyle = {
+              width: `${(store.totalSpent / analytics.totalSpent) * 100}%` as any,
+              backgroundColor: isBest ? theme.accent.green : theme.accent.blue,
+            };
 
             return (
               <View key={store.storeName} style={styles.storeRow}>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <View style={styles.storeFlexLeft}>
+                  <View style={styles.storeNameRow}>
                     <Text style={styles.storeName}>{store.storeName}</Text>
-                    {isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: theme.accent.green }]}>Best avg</Text></View>}
-                    {isMost && !isBest && <View style={styles.pill}><Text style={[styles.pillText, { color: theme.accent.blue }]}>Most visited</Text></View>}
+                    {isBest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextGreen]}>Best avg</Text></View>}
+                    {isMost && !isBest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextBlue]}>Most visited</Text></View>}
                   </View>
                   {/* Progress bar: proportion of total spend */}
                   <View style={styles.progressBg}>
-                    <View style={[styles.progressFill, {
-                      width: `${(store.totalSpent / analytics.totalSpent) * 100}%` as any,
-                      backgroundColor: isBest ? theme.accent.green : theme.accent.blue,
-                    }]} />
+                    <View style={[styles.progressFill, progressFillStyle]} />
                   </View>
                 </View>
-                <View style={{ alignItems: 'flex-end', marginLeft: 12 }}>
+                <View style={styles.storeStatsColumn}>
                   <Text style={styles.storeTotal}>{fmt(store.totalSpent)}</Text>
                   <Text style={styles.storeMeta}>{store.tripCount} trips · avg {fmt(store.averagePerTrip)}</Text>
                 </View>
@@ -423,9 +439,11 @@ const AnalyticsScreen = () => {
           const value = cfg.key === 'totalSpent' || cfg.key === 'averagePerTrip'
             ? fmt(raw)
             : String(raw);
+          const statCardStyle = { backgroundColor: cfg.bg, borderColor: cfg.color + '30' };
+          const statIconColorStyle = { color: cfg.color };
           return (
-            <View key={cfg.key} style={[styles.statCard, { backgroundColor: cfg.bg, borderColor: cfg.color + '30' }]}>
-              <Text style={[styles.statIcon, { color: cfg.color }]}>{cfg.icon}</Text>
+            <View key={cfg.key} style={[styles.statCard, statCardStyle]}>
+              <Text style={[styles.statIcon, statIconColorStyle]}>{cfg.icon}</Text>
               <Text style={styles.statValue}>{value}</Text>
               <Text style={styles.statLabel}>{cfg.label}</Text>
             </View>
@@ -451,7 +469,7 @@ const AnalyticsScreen = () => {
 
       {/* ── Tab content ──────────────────────────────────────────────────── */}
       <ScrollView
-        style={{ flex: 1 }}
+        style={styles.scrollFlex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -459,7 +477,7 @@ const AnalyticsScreen = () => {
         {activeTab === 'items'    && renderItemsTab()}
         {activeTab === 'stores'   && renderStoresTab()}
         {activeTab === 'prices'   && renderPricesTab()}
-        <View style={{ height: 32 }} />
+        <View style={styles.spacer32} />
       </ScrollView>
     </View>
   );
@@ -628,6 +646,41 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
+
+  // ── No-data screen ────────────────────────────────────────────────────────
+  noDataIcon: { fontSize: 52, marginBottom: 12 },
+
+  // ── Chart helpers ─────────────────────────────────────────────────────────
+  chartWrapper: { marginTop: 12 },
+  chartTopLabel: { color: theme.text.primary, fontSize: 11, fontWeight: '600' as const },
+  chartAxisStyle: { color: theme.text.secondary, fontSize: 10 },
+
+  // ── Overview – pie section ────────────────────────────────────────────────
+  pieWrapper: { marginTop: 16, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 20 },
+  pieCenterContainer: { alignItems: 'center' as const },
+  pieCenterTotal: { fontSize: 14, color: theme.text.primary, fontWeight: '700' as const },
+  pieCenterLabel: { fontSize: 10, color: theme.text.secondary },
+  legendContainer: { flex: 1, gap: 8 },
+  legendItem: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { flex: 1, fontSize: 12, color: theme.text.secondary },
+  legendValue: { fontSize: 12, color: theme.text.primary, fontWeight: '600' as const },
+
+  // ── Items tab ─────────────────────────────────────────────────────────────
+  itemsContainer: { marginTop: 12, gap: 2 },
+  itemStatsColumn: { alignItems: 'flex-end' as const },
+
+  // ── Stores tab ────────────────────────────────────────────────────────────
+  storeListContainer: { marginTop: 12, gap: 12 },
+  storeFlexLeft: { flex: 1 },
+  storeNameRow: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, marginBottom: 4 },
+  pillTextGreen: { color: theme.accent.green },
+  pillTextBlue: { color: theme.accent.blue },
+  storeStatsColumn: { alignItems: 'flex-end' as const, marginLeft: 12 },
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+  scrollFlex: { flex: 1 },
+  spacer32: { height: 32 },
 });
 
 // ─── Export ───────────────────────────────────────────────────────────────────

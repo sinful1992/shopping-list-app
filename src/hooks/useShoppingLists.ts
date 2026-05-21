@@ -216,4 +216,3 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
   };
 }
 
-export default useShoppingLists;

@@ -130,4 +130,3 @@ For users in the European Economic Area, we process your data based on:
 - **Legitimate Interest**: To improve our services and prevent fraud
 `;
 
-export default PRIVACY_POLICY_CONTENT;

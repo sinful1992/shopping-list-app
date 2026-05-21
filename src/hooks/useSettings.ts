@@ -58,6 +58,7 @@ export function useSettings() {
     return () => {
       joinRequestsUnsubscribeRef.current?.();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadHapticFeedbackSetting = async () => {
@@ -232,5 +233,3 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     refresh: loadSettingsData,
   };
 }
-
-export default useSettings;

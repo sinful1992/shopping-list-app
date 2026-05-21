@@ -15,6 +15,11 @@ module.exports = [
       'no-shadow': 'off',
       '@typescript-eslint/no-shadow': 'error',
       'no-undef': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
     },
   },
 ];

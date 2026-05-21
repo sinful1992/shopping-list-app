@@ -38,7 +38,7 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
         AsyncStorage.setItem('ad_thank_you_shown', 'true');
       }
     });
-  }, [consentObtained, isFreeUser, consentChecked]);
+  }, [consentObtained, isFreeUser, consentChecked, showAlert]);
 
   if (isLoading || !isFreeUser) return <>{children}</>;
 

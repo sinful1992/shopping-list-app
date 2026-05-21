@@ -86,8 +86,11 @@ tmp/
 # VS Code
 .vscode/
 
-# Claude Code local settings (per-developer permissions)
-.claude/settings.local.json
+# Claude Code local settings (per-developer config and tooling)
+.claude/
+
+# Local-only DB migrations (not part of shared schema history)
+supabase/migrations/20260520000000_update_ocr_keepalive_interval.sql
 
 # macOS
 .AppleDouble

@@ -53,7 +53,7 @@ interface AnimatedItemCardProps {
 }
 
 const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
-  index,
+  index: _index,
   item,
   itemPrice,
   isPredicted,
@@ -140,11 +140,14 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       color: theme.text.dim,
       fontStyle: 'italic',
     },
+    checkedOpacity: { opacity: 0.5 },
   }), [theme]);
   const isChecked = item.checked === true;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
   const categoryInfo = item.category ? CategoryService.getCategory(item.category as any) : null;
+  const categoryColorStyle = categoryInfo ? { color: categoryInfo.color } : null;
+  const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? '#6EA8FE' : '#A78BFA' };
 
   const checkScale = useSharedValue(isChecked ? 1 : 0);
   const cardScale = useSharedValue(1);
@@ -164,6 +167,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       checkScale.value = 0;
       cardScale.value = 1;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChecked]);
 
   const checkAnimatedStyle = useAnimatedStyle(() => ({
@@ -179,7 +183,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       style={[
         itemRowStyle,
         isChecked && itemRowCheckedStyle,
-        isChecked && { opacity: 0.5 },
+        isChecked && cardStyles.checkedOpacity,
         cardAnimatedStyle,
       ]}
     >
@@ -225,13 +229,13 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           </View>
           <View style={cardStyles.subRow}>
             {categoryInfo && (
-              <Text style={[cardStyles.categoryLabel, { color: categoryInfo.color }]}>
+              <Text style={[cardStyles.categoryLabel, categoryColorStyle]}>
                 {categoryInfo.name}
               </Text>
             )}
             {item.measurementUnit ? (
               <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
-                <Text style={[cardStyles.measurementText, { color: VOLUME_UNITS.includes(item.measurementUnit) ? '#6EA8FE' : '#A78BFA' }]}>
+                <Text style={[cardStyles.measurementText, measurementColorStyle]}>
                   {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
                 </Text>
               </TouchableOpacity>

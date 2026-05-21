@@ -61,9 +61,9 @@ const EmailSignUpScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardAvoid}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.scrollContent}>
           <View style={styles.container}>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Sign up with your email</Text>
@@ -190,6 +190,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     marginTop: 20,
   },
+  safeArea: { flex: 1, backgroundColor: theme.background.primary },
+  keyboardAvoid: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' as const },
 });
 
 export default EmailSignUpScreen;

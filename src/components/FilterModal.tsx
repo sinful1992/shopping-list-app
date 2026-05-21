@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 

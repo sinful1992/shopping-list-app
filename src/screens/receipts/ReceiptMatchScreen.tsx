@@ -101,7 +101,7 @@ const ReceiptMatchScreen = () => {
       }
     })();
     return () => { mounted = false; };
-  }, [listId, showAlert]);
+  }, [listId, showAlert, autoAddAll]);
 
   const allMatches = useMemo(() => {
     if (!matchResult) return [] as MatchCandidate[];
@@ -204,7 +204,7 @@ const ReceiptMatchScreen = () => {
           if (!name) return null;
           const price = sanitizePrice(entry.item.price ?? entry.item.unitPrice);
           return { name, price: price ?? undefined, checked: true };
-        }).filter((x): x is { name: string; price?: number; checked: true } => x !== null)
+        }).filter((x): x is { name: string; price: number | undefined; checked: true } => x !== null)
       : [];
 
     if (updates.length === 0 && newItems.length === 0) return;

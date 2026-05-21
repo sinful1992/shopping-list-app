@@ -76,6 +76,7 @@ const HistoryScreen = () => {
 
   useEffect(() => {
     loadUser();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reload when screen regains focus so totals written in HistoryDetail are immediately visible
@@ -90,6 +91,7 @@ const HistoryScreen = () => {
     if (user?.familyGroupId) {
       autoArchiveOldLists();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.familyGroupId]);
 
   // Debounce search query (300ms)
@@ -101,15 +103,17 @@ const HistoryScreen = () => {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const startDateMs = currentFilters.startDate?.getTime();
+  const endDateMs = currentFilters.endDate?.getTime();
+  const storesKey = currentFilters.stores.join(',');
+
   useEffect(() => {
     if (user) {
       loadHistory(true);
     }
-  // Use primitive values to avoid re-renders from object reference changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, focusRefreshKey, debouncedSearchQuery, receiptFilter, activeTab, currentSort.field, currentSort.order,
-      currentFilters.startDate?.getTime(), currentFilters.endDate?.getTime(),
-      currentFilters.stores.join(','), currentFilters.minPrice, currentFilters.maxPrice,
+      startDateMs, endDateMs, storesKey, currentFilters.minPrice, currentFilters.maxPrice,
       currentFilters.hasReceipt]);
 
   // Load available stores for filter
@@ -117,10 +121,10 @@ const HistoryScreen = () => {
     const loadStores = async () => {
       if (!user?.familyGroupId) return;
       try {
-        const lists = await HistoryTracker.getCompletedLists(user.familyGroupId);
-        const stores = [...new Set(lists.map(l => l.storeName).filter(Boolean))] as string[];
+        const completedLists = await HistoryTracker.getCompletedLists(user.familyGroupId);
+        const stores = [...new Set(completedLists.map(l => l.storeName).filter(Boolean))] as string[];
         setAvailableStores(stores);
-      } catch (error) {
+      } catch {
         // Failed to load stores - filter will be unavailable
       }
     };
@@ -132,7 +136,7 @@ const HistoryScreen = () => {
 
     try {
       await HistoryTracker.autoArchiveOldLists(user.familyGroupId);
-    } catch (error) {
+    } catch {
       // Auto-archive failed - not critical
     }
   };
@@ -263,7 +267,7 @@ const HistoryScreen = () => {
 
       // Background: compute and persist totalAmount for any lists missing it
       if (user?.familyGroupId) {
-        backfillMissingTotals(paginatedLists, user.familyGroupId);
+        backfillMissingTotals(paginatedLists);
       }
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -273,7 +277,7 @@ const HistoryScreen = () => {
     }
   };
 
-  const backfillMissingTotals = async (displayedLists: ShoppingList[], familyGroupId: string) => {
+  const backfillMissingTotals = async (displayedLists: ShoppingList[]) => {
     const listsNeedingTotal = displayedLists.filter(l => l.totalAmount == null);
     if (listsNeedingTotal.length === 0) return;
 

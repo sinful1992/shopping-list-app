@@ -47,7 +47,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
     <View style={styles.card}>
       <Text style={styles.title}>Smart Savings</Text>
 
-      {loading && <ActivityIndicator color={theme.accent.blue} style={{ marginVertical: 20 }} />}
+      {loading && <ActivityIndicator color={theme.accent.blue} style={styles.activityIndicator} />}
 
       {!loading && entries.length === 0 && (
         <Text style={styles.emptyText}>Buy from multiple stores to see savings tips</Text>
@@ -57,7 +57,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
         <>
           <View style={styles.totalBanner}>
             <Text style={styles.totalLabel}>Potential savings per shop</Text>
-            <Text style={styles.totalValue}>£{totalSavings.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>ï¿½{totalSavings.toFixed(2)}</Text>
           </View>
 
           {entries.map(([key, val]) => {
@@ -69,8 +69,8 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
                   <Text style={styles.itemStore}>Best at {val.bestStore}</Text>
                 </View>
                 <View style={styles.itemRight}>
-                  <Text style={styles.itemPrice}>£{val.bestPrice.toFixed(2)}</Text>
-                  <Text style={styles.itemSavings}>Save £{val.savings.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>ï¿½{val.bestPrice.toFixed(2)}</Text>
+                  <Text style={styles.itemSavings}>Save ï¿½{val.savings.toFixed(2)}</Text>
                 </View>
               </View>
             );
@@ -158,6 +158,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
+  activityIndicator: { marginVertical: 20 },
 });
 
 export default SmartSavingsCard;

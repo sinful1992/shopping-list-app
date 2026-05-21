@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Item } from '../models/types';
+
 import ShoppingListManager from './ShoppingListManager';
 import LocalStorageManager from './LocalStorageManager';
 import { safeJsonParse } from '../utils/safeJsonParse';

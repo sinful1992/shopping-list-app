@@ -1,4 +1,4 @@
-import { ExpenditureSummary, ExpenditureBreakdownItem, ShoppingList, UrgentItem } from '../models/types';
+import { ExpenditureSummary, ExpenditureBreakdownItem, ShoppingList } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 
 /**

@@ -33,7 +33,6 @@ import { Item, ShoppingList, StoreLayout, User } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import AuthenticationModule from '../../services/AuthenticationModule';
-import LocalStorageManager from '../../services/LocalStorageManager';
 import SyncEngine from '../../services/SyncEngine';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
@@ -296,7 +295,7 @@ const ListDetailScreen = () => {
       setCheckedCount(checked);
       setUncheckedCount(unchecked);
       setRunningTotal(total);
-    } catch (error) {
+    } catch {
       // Set safe defaults on error
       setCheckedCount(0);
       setUncheckedCount(0);
@@ -383,7 +382,7 @@ const ListDetailScreen = () => {
 
       try {
         calculateShoppingStats(mergedItems);
-      } catch (error) {
+      } catch {
         // Silently handle error
       }
 
@@ -400,6 +399,9 @@ const ListDetailScreen = () => {
       }
     });
 
+    const qtyDebounce = qtyDebounceRef.current;
+    const optimisticQty = optimisticQtyRef.current;
+
     return () => {
       isMountedRef.current = false;
       predictionsLoadedRef.current = false;
@@ -411,15 +413,16 @@ const ListDetailScreen = () => {
       setSmartSuggestions(new Map());
 
       // Flush pending qty writes on unmount — don't lose data
-      for (const [itemId, timer] of qtyDebounceRef.current.entries()) {
+      for (const [itemId, timer] of qtyDebounce.entries()) {
         clearTimeout(timer);
-        const targetQty = optimisticQtyRef.current.get(itemId);
+        const targetQty = optimisticQty.get(itemId);
         if (targetQty !== undefined) {
           ItemManager.updateItem(itemId, { unitQty: targetQty });
         }
       }
-      qtyDebounceRef.current.clear();
+      qtyDebounce.clear();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
 
   // One-shot: load current user (separate from main effect to avoid double observer setup)
@@ -556,12 +559,11 @@ const ListDetailScreen = () => {
 
       // Recalculate stats after predictions are loaded
       calculateShoppingStats(itemsList);
-    } catch (error) {
-      // Don't crash - just continue without predictions
+    } catch {
       setPredictedPrices({});
       setSmartSuggestions(new Map());
     }
-  }, []);
+  }, [calculateShoppingStats]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -792,15 +794,6 @@ const ListDetailScreen = () => {
   const handleCancelEditListName = () => {
     setIsEditingListName(false);
     setEditedListName('');
-  };
-
-  const handleCompleteList = async () => {
-    try {
-      await ShoppingListManager.markListAsCompleted(listId);
-      showAlert('Success', 'Shopping list completed!', undefined, { icon: 'success' });
-    } catch (error: any) {
-      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-    }
   };
 
   const handleTakeReceiptPhoto = () => {
@@ -1259,7 +1252,7 @@ const ListDetailScreen = () => {
                     colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={{ borderRadius: 8, alignItems: 'center', padding: 12, width: '100%' }}
+                    style={styles.gradientDoneButton}
                   >
                     <Text style={styles.doneButtonText}>Done Shopping</Text>
                   </LinearGradient>
@@ -1557,7 +1550,6 @@ const ListDetailScreen = () => {
         <FloatingActionButton
           icon="cart"
           onPress={handleStartShopping}
-          backgroundColor="#34C759"
           size={64}
         />
       )}

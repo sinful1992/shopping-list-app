@@ -47,7 +47,7 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
       const stores = await StoreHistoryService.searchStores(query);
       setSuggestions(stores);
       setShowSuggestions(true);
-    } catch (error) {
+    } catch {
       // Failed to load suggestions
     }
   };

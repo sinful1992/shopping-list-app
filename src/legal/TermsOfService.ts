@@ -188,4 +188,3 @@ For questions about these Terms:
 - In-app: Settings > Contact Support
 `;
 
-export default TERMS_OF_SERVICE_CONTENT;

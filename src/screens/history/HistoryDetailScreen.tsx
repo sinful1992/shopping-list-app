@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { RADIUS } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAlert } from '../../contexts/AlertContext';
@@ -51,6 +50,7 @@ const HistoryDetailScreen = () => {
 
   useEffect(() => {
     loadListDetails();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load price stats once after items first arrive
@@ -76,7 +76,7 @@ const HistoryDetailScreen = () => {
 
         setPriceStats(statsMap);
         setSmartSuggestions(suggestionsMap);
-      } catch (error: any) {
+      } catch {
         // Price stats are non-critical, don't block UI
       }
     };
@@ -208,7 +208,7 @@ const HistoryDetailScreen = () => {
     );
   }
 
-  const { list, receiptUrl, receiptData } = listDetails;
+  const { list, receiptUrl } = listDetails;
 
   return (
     <View style={styles.container}>
@@ -281,7 +281,7 @@ const HistoryDetailScreen = () => {
               </>
             )}
 
-            <View style={[styles.subSectionHeaderPurchased, uncheckedItems.length > 0 && { marginTop: 12 }]}>
+            <View style={[styles.subSectionHeaderPurchased, uncheckedItems.length > 0 && styles.itemsMarginTop]}>
               <Text style={styles.subSectionTitlePurchased}>Purchased</Text>
             </View>
             <View style={styles.itemsContainer}>
@@ -634,6 +634,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   itemPriceNotPurchased: {
     color: '#FF9500',
   },
+  itemsMarginTop: { marginTop: 12 },
 });
 
 export default HistoryDetailScreen;

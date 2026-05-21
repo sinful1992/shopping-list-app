@@ -45,7 +45,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>Family Shopping List</Text>
         <Text style={styles.subtitle}>Sign in to your account</Text>
@@ -66,7 +66,7 @@ const LoginScreen = () => {
             ) : (
               <View style={styles.buttonContent}>
                 <GoogleLogo size={20} />
-                <Text style={[styles.buttonText, { marginLeft: 8 }]}>Sign in with Google</Text>
+                <Text style={[styles.buttonText, styles.buttonTextIndent]}>Sign in with Google</Text>
               </View>
             )}
           </LinearGradient>
@@ -78,7 +78,7 @@ const LoginScreen = () => {
           disabled={loading}
         >
           <View style={styles.buttonContent}>
-            <Icon name="mail-outline" size={20} color={theme.text.primary} style={{ marginRight: 8 }} />
+            <Icon name="mail-outline" size={20} color={theme.text.primary} style={styles.iconMargin} />
             <Text style={styles.buttonSecondaryText}>Sign in with Email</Text>
           </View>
         </TouchableOpacity>
@@ -153,6 +153,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     marginTop: 20,
   },
+  safeArea: { flex: 1, backgroundColor: theme.background.primary },
+  buttonTextIndent: { marginLeft: 8 },
+  iconMargin: { marginRight: 8 },
 });
 
 export default LoginScreen;

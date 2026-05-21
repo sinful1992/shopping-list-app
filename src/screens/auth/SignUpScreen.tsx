@@ -45,7 +45,7 @@ const SignUpScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background.primary }}>
+    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>Create Account</Text>
         <Text style={styles.subtitle}>Join your family shopping list</Text>
@@ -66,7 +66,7 @@ const SignUpScreen = () => {
             ) : (
               <View style={styles.buttonContent}>
                 <GoogleLogo size={20} />
-                <Text style={[styles.buttonText, { marginLeft: 8 }]}>Sign up with Google</Text>
+                <Text style={[styles.buttonText, styles.buttonTextIndent]}>Sign up with Google</Text>
               </View>
             )}
           </LinearGradient>
@@ -78,7 +78,7 @@ const SignUpScreen = () => {
           disabled={loading}
         >
           <View style={styles.buttonContent}>
-            <Icon name="mail-outline" size={20} color={theme.text.primary} style={{ marginRight: 8 }} />
+            <Icon name="mail-outline" size={20} color={theme.text.primary} style={styles.iconMargin} />
             <Text style={styles.buttonSecondaryText}>Sign up with Email</Text>
           </View>
         </TouchableOpacity>
@@ -153,6 +153,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     marginTop: 20,
   },
+  safeArea: { flex: 1, backgroundColor: theme.background.primary },
+  buttonTextIndent: { marginLeft: 8 },
+  iconMargin: { marginRight: 8 },
 });
 
 export default SignUpScreen;

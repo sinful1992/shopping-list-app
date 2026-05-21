@@ -84,4 +84,3 @@ export function useShoppingMode(
   };
 }
 
-export default useShoppingMode;
