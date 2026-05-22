@@ -1,4 +1,4 @@
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, get, set, runTransaction } from '@react-native-firebase/database';
 import auth from '@react-native-firebase/auth';
 import { User, UsageCounters, FamilyGroup, SubscriptionTier } from '../models/types';
 import { SUBSCRIPTION_LIMITS } from '../models/SubscriptionConfig';
@@ -39,7 +39,7 @@ class UsageTracker {
     }
 
     try {
-      const groupSnapshot = await database().ref(`/familyGroups/${familyGroupId}`).once('value');
+      const groupSnapshot = await get(ref(getDatabase(), `/familyGroups/${familyGroupId}`));
       const familyGroup: FamilyGroup | null = groupSnapshot.val();
       return familyGroup?.subscriptionTier || 'free';
     } catch {
@@ -69,7 +69,7 @@ class UsageTracker {
       };
 
       // Update Firebase
-      await database().ref(`/users/${user.uid}/usageCounters`).set(resetCounters);
+      await set(ref(getDatabase(), `/users/${user.uid}/usageCounters`), resetCounters);
 
       return resetCounters;
     }
@@ -145,18 +145,14 @@ class UsageTracker {
    * Increment list counter
    */
   async incrementListCounter(userId: string): Promise<void> {
-    await database()
-      .ref(`/users/${userId}/usageCounters/listsCreated`)
-      .transaction((current) => (current || 0) + 1);
+    await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/listsCreated`), (current) => (current || 0) + 1);
   }
 
   /**
    * Increment OCR counter
    */
   async incrementOCRCounter(userId: string): Promise<void> {
-    await database()
-      .ref(`/users/${userId}/usageCounters/ocrProcessed`)
-      .transaction((current) => (current || 0) + 1);
+    await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/ocrProcessed`), (current) => (current || 0) + 1);
   }
 
   /**

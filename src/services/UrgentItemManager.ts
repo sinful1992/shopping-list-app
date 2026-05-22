@@ -1,6 +1,6 @@
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, set, remove } from '@react-native-firebase/database';
 import { UrgentItem, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
@@ -17,8 +17,8 @@ class UrgentItemManager {
    * Sync urgent item to Firebase Realtime Database (for real-time sync)
    */
   private async syncToFirebase(urgentItem: UrgentItem): Promise<void> {
-    const urgentItemRef = database().ref(`urgentItems/${urgentItem.familyGroupId}/${urgentItem.id}`);
-    await urgentItemRef.set({
+    const urgentItemRef = ref(getDatabase(), `urgentItems/${urgentItem.familyGroupId}/${urgentItem.id}`);
+    await set(urgentItemRef, {
       id: urgentItem.id,
       name: urgentItem.name,
       familyGroupId: urgentItem.familyGroupId,
@@ -38,8 +38,8 @@ class UrgentItemManager {
    */
   private async deleteFromFirebase(urgentItemId: string, familyGroupId: string): Promise<void> {
     try {
-      const urgentItemRef = database().ref(`urgentItems/${familyGroupId}/${urgentItemId}`);
-      await urgentItemRef.remove();
+      const urgentItemRef = ref(getDatabase(), `urgentItems/${familyGroupId}/${urgentItemId}`);
+      await remove(urgentItemRef);
     } catch {
       // Silently handle removal error
     }

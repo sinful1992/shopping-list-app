@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, get, update } from '@react-native-firebase/database';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import AuthenticationModule from '../services/AuthenticationModule';
 import NotificationManager from '../services/NotificationManager';
@@ -146,8 +146,9 @@ export function useSettings() {
   const loadFamilyMembers = async (memberIds: string[]): Promise<User[]> => {
     if (memberIds.length === 0) return [];
 
+    const db = getDatabase();
     const snapshots = await Promise.all(
-      memberIds.map(id => database().ref(`/users/${id}`).once('value'))
+      memberIds.map(id => get(ref(db, `/users/${id}`)))
     );
 
     return snapshots
@@ -163,7 +164,7 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
       await firebaseUser.updateProfile({ displayName: newName.trim() });
     }
 
-    await database().ref(`/users/${user.uid}`).update({ displayName: newName.trim() });
+    await update(ref(getDatabase(), `/users/${user.uid}`), { displayName: newName.trim() });
 
     setUser({ ...user, displayName: newName.trim() });
   }, [user]);
@@ -173,7 +174,7 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
 
     const avatar = getRoleAvatar(role);
 
-    await database().ref(`/users/${user.uid}`).update({
+    await update(ref(getDatabase(), `/users/${user.uid}`), {
       role: role,
       avatar: avatar,
     });

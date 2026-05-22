@@ -1,4 +1,4 @@
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, onValue, child } from '@react-native-firebase/database';
 import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, Unsubscribe } from '../models/types';
 import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
@@ -25,12 +25,13 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const listsRef = database().ref(`familyGroups/${familyGroupId}/lists`);
+    const db = getDatabase();
+    const listsRef = ref(db, `familyGroups/${familyGroupId}/lists`);
     const initialIds = new Set<string>();
     let initialLoadDone = false;
 
     // child_added: no-op during initial load, handles new records after
-    const onChildAdded = listsRef.on('child_added', async (snapshot) => {
+    const unsubChildAdded = onChildAdded(listsRef, async (snapshot) => {
       if (!snapshot.key || !snapshot.val()) return;
       if (!initialLoadDone) return;
       if (initialIds.has(snapshot.key)) return;
@@ -38,7 +39,7 @@ class FirebaseSyncListener {
     });
 
     // once('value'): sole initial load path
-    listsRef.once('value').then(async (snapshot) => {
+    get(listsRef).then(async (snapshot) => {
       const lists: ShoppingList[] = [];
       snapshot.forEach(child => {
         if (child.key && child.val()) {
@@ -81,7 +82,7 @@ class FirebaseSyncListener {
       CrashReporting.recordError(err as Error, 'FirebaseSyncListener lists initial load');
     });
 
-    const onChildChanged = listsRef.on('child_changed', async (snapshot) => {
+    const unsubChildChanged = onChildChanged(listsRef, async (snapshot) => {
       const listId = snapshot.key;
       const listData = snapshot.val();
 
@@ -90,7 +91,7 @@ class FirebaseSyncListener {
       }
     });
 
-    const onChildRemoved = listsRef.on('child_removed', async (snapshot) => {
+    const unsubChildRemoved = onChildRemoved(listsRef, async (snapshot) => {
       const listId = snapshot.key;
 
       if (listId) {
@@ -106,9 +107,9 @@ class FirebaseSyncListener {
     });
 
     const unsubscribe = () => {
-      listsRef.off('child_added', onChildAdded);
-      listsRef.off('child_changed', onChildChanged);
-      listsRef.off('child_removed', onChildRemoved);
+      unsubChildAdded();
+      unsubChildChanged();
+      unsubChildRemoved();
       this.activeListeners.delete(key);
     };
 
@@ -125,15 +126,16 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const itemsRef = database().ref(`familyGroups/${familyGroupId}/items`);
+    const db = getDatabase();
+    const itemsRef = ref(db, `familyGroups/${familyGroupId}/items`);
     let isCancelled = false;
     const initialItemIds = new Set<string>();
 
-    const filteredRef = itemsRef.orderByChild('listId').equalTo(listId);
+    const filteredRef = query(itemsRef, orderByChild('listId'), equalTo(listId));
     let initialLoadDone = false;
 
     // child_added: no-op during initial load, handles new records after
-    const childAddedCb = filteredRef.on('child_added', async (snap) => {
+    const unsubChildAdded = onChildAdded(filteredRef, async (snap) => {
       if (!snap.key) return;
       if (!initialLoadDone) return;
       if (initialItemIds.has(snap.key)) return;
@@ -141,7 +143,7 @@ class FirebaseSyncListener {
     });
 
     // once('value'): sole initial load path
-    filteredRef.once('value').then(async (snapshot) => {
+    get(filteredRef).then(async (snapshot) => {
       if (isCancelled) return;
       const entries: { id: string; data: any }[] = [];
       snapshot.forEach(child => {
@@ -171,7 +173,7 @@ class FirebaseSyncListener {
       CrashReporting.recordError(err as Error, 'FirebaseSyncListener items initial load');
     });
 
-    const onChildChanged = filteredRef.on('child_changed', async (snapshot) => {
+    const unsubChildChanged = onChildChanged(filteredRef, async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
       if (itemId && itemData) {
@@ -179,11 +181,11 @@ class FirebaseSyncListener {
       }
     });
 
-    const onChildRemoved = filteredRef.on('child_removed', async (snapshot) => {
+    const unsubChildRemoved = onChildRemoved(filteredRef, async (snapshot) => {
       const itemId = snapshot.key;
       if (!itemId) return;
       try {
-        const snap = await itemsRef.child(itemId).once('value');
+        const snap = await get(child(itemsRef, itemId));
         if (snap.exists()) return;
         await LocalStorageManager.deleteItem(itemId);
       } catch (error) {
@@ -193,9 +195,9 @@ class FirebaseSyncListener {
 
     const unsubscribe = () => {
       isCancelled = true;
-      filteredRef.off('child_added', childAddedCb);
-      filteredRef.off('child_changed', onChildChanged);
-      filteredRef.off('child_removed', onChildRemoved);
+      unsubChildAdded();
+      unsubChildChanged();
+      unsubChildRemoved();
       this.activeListeners.delete(key);
     };
 
@@ -361,9 +363,10 @@ class FirebaseSyncListener {
    * Saves results to WatermelonDB so subsequent opens are instant.
    */
   async fetchItemsOnceForHistory(familyGroupId: string, listId: string): Promise<Item[]> {
-    const itemsRef = database().ref(`familyGroups/${familyGroupId}/items`);
-    const filteredRef = itemsRef.orderByChild('listId').equalTo(listId);
-    const snapshot = await filteredRef.once('value');
+    const db = getDatabase();
+    const itemsRef = ref(db, `familyGroups/${familyGroupId}/items`);
+    const filteredRef = query(itemsRef, orderByChild('listId'), equalTo(listId));
+    const snapshot = await get(filteredRef);
     const items: Item[] = [];
     snapshot.forEach(child => {
       if (child.key) {
@@ -416,7 +419,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const urgentItemsRef = database().ref(`urgentItems/${familyGroupId}`);
+    const urgentItemsRef = ref(getDatabase(), `urgentItems/${familyGroupId}`);
     const initialBuffer: { itemId: string; data: any }[] = [];
     let initialLoadDone = false;
 
@@ -448,7 +451,7 @@ class FirebaseSyncListener {
       catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener urgentItems flush'); }
     };
 
-    const onChildAdded = urgentItemsRef.on('child_added', async (snapshot) => {
+    const unsubChildAdded = onChildAdded(urgentItemsRef, async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
       if (!itemId || !itemData) return;
@@ -461,12 +464,12 @@ class FirebaseSyncListener {
       await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
     });
 
-    urgentItemsRef.once('value').then(safeFlush, async (err) => {
+    get(urgentItemsRef).then(safeFlush, async (err) => {
       CrashReporting.recordError(err as Error, 'FirebaseSyncListener urgentItems value sentinel');
       await safeFlush();
     });
 
-    const onChildChanged = urgentItemsRef.on('child_changed', async (snapshot) => {
+    const unsubChildChanged = onChildChanged(urgentItemsRef, async (snapshot) => {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
 
@@ -475,7 +478,7 @@ class FirebaseSyncListener {
       }
     });
 
-    const onChildRemoved = urgentItemsRef.on('child_removed', async (snapshot) => {
+    const unsubChildRemoved = onChildRemoved(urgentItemsRef, async (snapshot) => {
       const itemId = snapshot.key;
 
       if (itemId) {
@@ -488,9 +491,9 @@ class FirebaseSyncListener {
     });
 
     const unsubscribe = () => {
-      urgentItemsRef.off('child_added', onChildAdded);
-      urgentItemsRef.off('child_changed', onChildChanged);
-      urgentItemsRef.off('child_removed', onChildRemoved);
+      unsubChildAdded();
+      unsubChildChanged();
+      unsubChildRemoved();
       this.activeListeners.delete(key);
     };
 
@@ -569,7 +572,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const categoryHistoryRef = database().ref(`familyGroups/${familyGroupId}/categoryHistory`);
+    const categoryHistoryRef = ref(getDatabase(), `familyGroups/${familyGroupId}/categoryHistory`);
     const initialBuffer: { itemHash: string; category: string; data: any }[] = [];
     let initialLoadDone = false;
 
@@ -586,7 +589,7 @@ class FirebaseSyncListener {
       catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener categoryHistory flush'); }
     };
 
-    const onChildAdded = categoryHistoryRef.on('child_added', async (itemSnapshot) => {
+    const unsubChildAdded = onChildAdded(categoryHistoryRef, async (itemSnapshot) => {
       const itemHash = itemSnapshot.key;
       if (!itemHash) return;
       const categoriesForItem = itemSnapshot.val();
@@ -604,12 +607,12 @@ class FirebaseSyncListener {
       }
     });
 
-    categoryHistoryRef.once('value').then(safeFlush, async (err) => {
+    get(categoryHistoryRef).then(safeFlush, async (err) => {
       CrashReporting.recordError(err as Error, 'FirebaseSyncListener categoryHistory value sentinel');
       await safeFlush();
     });
 
-    const onChildChanged = categoryHistoryRef.on('child_changed', async (itemSnapshot) => {
+    const unsubChildChanged = onChildChanged(categoryHistoryRef, async (itemSnapshot) => {
       const itemHash = itemSnapshot.key;
       if (itemHash) {
         const categoriesForItem = itemSnapshot.val();
@@ -621,8 +624,8 @@ class FirebaseSyncListener {
     });
 
     const unsubscribe = () => {
-      categoryHistoryRef.off('child_added', onChildAdded);
-      categoryHistoryRef.off('child_changed', onChildChanged);
+      unsubChildAdded();
+      unsubChildChanged();
       this.activeListeners.delete(key);
     };
 
@@ -718,9 +721,10 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const baseRef = database().ref(`familyGroups/${familyGroupId}/priceHistory`);
+    const db = getDatabase();
+    const baseRef = ref(db, `familyGroups/${familyGroupId}/priceHistory`);
     const sessionStart = Date.now();
-    baseRef.once('value').then(async (snapshot) => {
+    get(baseRef).then(async (snapshot) => {
       const records: PriceHistoryRecord[] = [];
       snapshot.forEach(child => {
         const data = child.val();
@@ -732,8 +736,8 @@ class FirebaseSyncListener {
       await LocalStorageManager.savePriceHistoryBatch(records);
     }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
 
-    const ongoingRef = baseRef.orderByChild('recordedAt').startAt(sessionStart);
-    const onChildAdded = ongoingRef.on('child_added', async (snapshot) => {
+    const ongoingRef = query(baseRef, orderByChild('recordedAt'), startAt(sessionStart));
+    const unsubChildAdded = onChildAdded(ongoingRef, async (snapshot) => {
       try {
         const data = snapshot.val();
         if (data) {
@@ -746,7 +750,7 @@ class FirebaseSyncListener {
     });
 
     const unsubscribe = () => {
-      ongoingRef.off('child_added', onChildAdded);
+      unsubChildAdded();
       this.activeListeners.delete(key);
     };
     this.activeListeners.set(key, unsubscribe);
@@ -763,7 +767,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
-    const layoutsRef = database().ref(`familyGroups/${familyGroupId}/storeLayouts`);
+    const layoutsRef = ref(getDatabase(), `familyGroups/${familyGroupId}/storeLayouts`);
     const initialBuffer: { layoutId: string; data: any }[] = [];
     let initialLoadDone = false;
 
@@ -780,7 +784,7 @@ class FirebaseSyncListener {
       catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener storeLayouts flush'); }
     };
 
-    const onChildAdded = layoutsRef.on('child_added', async (snapshot) => {
+    const unsubChildAdded = onChildAdded(layoutsRef, async (snapshot) => {
       const layoutId = snapshot.key;
       const data = snapshot.val();
       if (!layoutId || !data) return;
@@ -793,12 +797,12 @@ class FirebaseSyncListener {
       await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
     });
 
-    layoutsRef.once('value').then(safeFlush, async (err) => {
+    get(layoutsRef).then(safeFlush, async (err) => {
       CrashReporting.recordError(err as Error, 'FirebaseSyncListener storeLayouts value sentinel');
       await safeFlush();
     });
 
-    const onChildChanged = layoutsRef.on('child_changed', async (snapshot) => {
+    const unsubChildChanged = onChildChanged(layoutsRef, async (snapshot) => {
       const layoutId = snapshot.key;
       const data = snapshot.val();
       if (layoutId && data) {
@@ -806,7 +810,7 @@ class FirebaseSyncListener {
       }
     });
 
-    const onChildRemoved = layoutsRef.on('child_removed', async (snapshot) => {
+    const unsubChildRemoved = onChildRemoved(layoutsRef, async (snapshot) => {
       const layoutId = snapshot.key;
       if (layoutId) {
         try {
@@ -818,9 +822,9 @@ class FirebaseSyncListener {
     });
 
     const unsubscribe = () => {
-      layoutsRef.off('child_added', onChildAdded);
-      layoutsRef.off('child_changed', onChildChanged);
-      layoutsRef.off('child_removed', onChildRemoved);
+      unsubChildAdded();
+      unsubChildChanged();
+      unsubChildRemoved();
       this.activeListeners.delete(key);
     };
 

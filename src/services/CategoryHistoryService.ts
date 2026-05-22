@@ -1,6 +1,6 @@
 import LocalStorageManager from './LocalStorageManager';
 import { v4 as uuidv4 } from 'uuid';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, runTransaction } from '@react-native-firebase/database';
 
 /**
  * CategoryHistoryService
@@ -67,12 +67,12 @@ class CategoryHistoryService {
   ): Promise<void> {
     try {
       const itemHash = this.hashItemName(itemNameNormalized);
-      const ref = database().ref(
+      const categoryRef = ref(getDatabase(),
         `/familyGroups/${familyGroupId}/categoryHistory/${itemHash}/${category}`
       );
 
       // Atomic increment transaction
-      await ref.transaction((current) => {
+      await runTransaction(categoryRef, (current) => {
         if (current === null) {
           return {
             usageCount: 1,

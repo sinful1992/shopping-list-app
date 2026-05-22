@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, set, update } from '@react-native-firebase/database';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { PriceHistoryRecord } from '../models/types';
@@ -96,9 +96,7 @@ class PriceHistoryService {
       return;
     }
 
-    database()
-      .ref(`familyGroups/${familyGroupId}/priceHistory/${record.id}`)
-      .set(record)
+    set(ref(getDatabase(), `familyGroups/${familyGroupId}/priceHistory/${record.id}`), record)
       .catch(err => CrashReporting.recordError(err as Error, 'PriceHistoryService.recordPrice firebase'));
   }
 
@@ -158,7 +156,7 @@ class PriceHistoryService {
       chunk.forEach(r => {
         updateMap[`familyGroups/${familyGroupId}/priceHistory/${r.id}`] = r;
       });
-      await database().ref().update(updateMap);
+      await update(ref(getDatabase()), updateMap);
     }
 
     await AsyncStorage.setItem(`priceHistoryBackfillDone_v1_${familyGroupId}`, 'true');

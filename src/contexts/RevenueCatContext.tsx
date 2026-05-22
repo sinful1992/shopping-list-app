@@ -6,7 +6,7 @@ import Purchases, {
   LOG_LEVEL,
 } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, onValue } from '@react-native-firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubscriptionTier, User } from '../models/types';
 import { ENTITLEMENT_ID, TIER_CACHE_KEY } from '../models/SubscriptionConfig';
@@ -138,7 +138,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       return;
     }
 
-    const tierRef = database().ref(`/familyGroups/${user.familyGroupId}/subscriptionTier`);
+    const tierRef = ref(getDatabase(), `/familyGroups/${user.familyGroupId}/subscriptionTier`);
 
     const onTierChange = (snapshot: any) => {
       const newTier: SubscriptionTier = snapshot.val() ?? 'free';
@@ -155,10 +155,10 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       }
     };
 
-    tierRef.on('value', onTierChange);
+    const unsubTier = onValue(tierRef, onTierChange);
 
     return () => {
-      tierRef.off('value', onTierChange);
+      unsubTier();
     };
   }, [user?.familyGroupId]);
 

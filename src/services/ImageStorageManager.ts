@@ -1,4 +1,4 @@
-import storage from '@react-native-firebase/storage';
+import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile } from '@react-native-firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
@@ -29,10 +29,10 @@ class ImageStorageManager {
       const storagePath = `receipts/${familyGroupId}/${listId}/${timestamp}.jpg`;
 
       // Create storage reference
-      const reference = storage().ref(storagePath);
+      const reference = storageRef(getStorage(), storagePath);
 
       // Upload file
-      const task = reference.putFile(filePath);
+      const task = putFile(reference, filePath);
 
       // Monitor progress
       if (onProgress) {
@@ -62,8 +62,8 @@ class ImageStorageManager {
    */
   async getReceiptDownloadUrl(storagePath: string): Promise<string> {
     try {
-      const reference = storage().ref(storagePath);
-      return await reference.getDownloadURL();
+      const reference = storageRef(getStorage(), storagePath);
+      return await getDownloadURL(reference);
     } catch (error: any) {
       throw new Error(`Failed to get receipt URL: ${error.message}`);
     }
@@ -74,8 +74,8 @@ class ImageStorageManager {
    */
   async deleteReceipt(storagePath: string): Promise<void> {
     try {
-      const reference = storage().ref(storagePath);
-      await reference.delete();
+      const reference = storageRef(getStorage(), storagePath);
+      await deleteObject(reference);
     } catch (error: any) {
       throw new Error(`Failed to delete receipt: ${error.message}`);
     }
