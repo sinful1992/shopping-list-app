@@ -1,4 +1,4 @@
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, set, remove } from '@react-native-firebase/database';
 import NetInfo from '@react-native-community/netinfo';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -355,13 +355,14 @@ class SyncEngine {
       entityType === 'item'        ? `/familyGroups/${this.familyGroupId}/items/${entityId}` :
                                      `/familyGroups/${this.familyGroupId}/storeLayouts/${entityId}`;
 
+    const db = getDatabase();
     if (operation === 'delete') {
-      await database().ref(path).remove();
+      await remove(ref(db, path));
     } else {
       if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
       // Strip syncStatus before syncing to Firebase (keep it local-only)
       const { syncStatus: _, ...dataWithoutSyncStatus } = data;
-      await database().ref(path).set(dataWithoutSyncStatus);
+      await set(ref(db, path), dataWithoutSyncStatus);
     }
   }
 

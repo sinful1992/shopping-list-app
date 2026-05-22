@@ -1,6 +1,6 @@
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import database from '@react-native-firebase/database';
-import storage from '@react-native-firebase/storage';
+import { getDatabase, ref, get, set, update, remove, runTransaction, push, query, orderByChild, equalTo, onValue } from '@react-native-firebase/database';
+import { getStorage, ref as storageRef, deleteObject } from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import {
@@ -54,7 +54,7 @@ class AuthenticationModule {
       };
 
       // Store user data in Realtime Database
-      await database().ref(`/users/${user.uid}`).set(user);
+      await set(ref(getDatabase(), `/users/${user.uid}`), user);
 
       // Cache locally
       await this.storeAuthData(user, token);
@@ -75,7 +75,7 @@ class AuthenticationModule {
       const token = await userCredential.user.getIdToken();
 
       // Fetch user data from database
-      const userSnapshot = await database().ref(`/users/${userCredential.user.uid}`).once('value');
+      const userSnapshot = await get(ref(getDatabase(), `/users/${userCredential.user.uid}`));
       const user: User = userSnapshot.val();
 
       if (!user) {
@@ -136,7 +136,7 @@ class AuthenticationModule {
       const token = await firebaseUser.getIdToken();
 
       // Check if this user already exists in RTDB (returning user)
-      const userSnapshot = await database().ref(`/users/${firebaseUser.uid}`).once('value');
+      const userSnapshot = await get(ref(getDatabase(), `/users/${firebaseUser.uid}`));
       const existingUser: User | null = userSnapshot.val();
 
       if (existingUser) {
@@ -159,7 +159,7 @@ class AuthenticationModule {
         },
       };
 
-      await database().ref(`/users/${user.uid}`).set(user);
+      await set(ref(getDatabase(), `/users/${user.uid}`), user);
       await this.storeAuthData(user, token);
 
       return { user, token };
@@ -224,16 +224,15 @@ class AuthenticationModule {
    */
   async getUserFamilyGroup(userId: string): Promise<FamilyGroup | null> {
     try {
-      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const db = getDatabase();
+      const userSnapshot = await get(ref(db, `/users/${userId}`));
       const user = userSnapshot.val();
 
       if (!user || !user.familyGroupId) {
         return null;
       }
 
-      const groupSnapshot = await database()
-        .ref(`/familyGroups/${user.familyGroupId}`)
-        .once('value');
+      const groupSnapshot = await get(ref(db, `/familyGroups/${user.familyGroupId}`));
 
       return groupSnapshot.val();
     } catch (error: unknown) {
@@ -247,9 +246,7 @@ class AuthenticationModule {
    */
   async validateFamilyGroupExists(groupId: string): Promise<boolean> {
     try {
-      const groupSnapshot = await database()
-        .ref(`/familyGroups/${groupId}`)
-        .once('value');
+      const groupSnapshot = await get(ref(getDatabase(), `/familyGroups/${groupId}`));
       return groupSnapshot.exists();
     } catch {
       return false;
@@ -262,7 +259,8 @@ class AuthenticationModule {
    */
   async createFamilyGroup(groupName: string, userId: string): Promise<{ group: FamilyGroup; invitationCode: string }> {
     try {
-      const groupId = database().ref().push().key;
+      const db = getDatabase();
+      const groupId = push(ref(db)).key;
       if (!groupId) {
         throw new Error('Failed to generate group ID');
       }
@@ -289,10 +287,10 @@ class AuthenticationModule {
       };
       updates[`/users/${userId}/familyGroupId`] = groupId;
 
-      await database().ref().update(updates);
+      await update(ref(db), updates);
 
       // Update cached user data
-      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const userSnapshot = await get(ref(db, `/users/${userId}`));
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
         await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
@@ -310,10 +308,9 @@ class AuthenticationModule {
    */
   async joinFamilyGroup(invitationCode: string, userId: string): Promise<FamilyGroup> {
     try {
+      const db = getDatabase();
       // STEP 1: Lookup groupId from invitation table (O(1) operation)
-      const invitationSnapshot = await database()
-        .ref(`/invitations/${invitationCode}`)
-        .once('value');
+      const invitationSnapshot = await get(ref(db, `/invitations/${invitationCode}`));
 
       if (!invitationSnapshot.exists()) {
         throw new Error('Invalid invitation code');
@@ -327,24 +324,22 @@ class AuthenticationModule {
       updates[`/familyGroups/${groupId}/memberIds/${userId}`] = true;
       updates[`/users/${userId}/familyGroupId`] = groupId;
 
-      await database().ref().update(updates);
+      await update(ref(db), updates);
 
       // STEP 3: Now we can read the group (we're a member now)
-      const groupSnapshot = await database()
-        .ref(`/familyGroups/${groupId}`)
-        .once('value');
+      const groupSnapshot = await get(ref(db, `/familyGroups/${groupId}`));
 
       if (!groupSnapshot.exists()) {
         // Group was deleted - remove our membership
-        await database().ref(`/familyGroups/${groupId}/memberIds/${userId}`).remove();
-        await database().ref(`/users/${userId}/familyGroupId`).remove();
+        await remove(ref(db, `/familyGroups/${groupId}/memberIds/${userId}`));
+        await remove(ref(db, `/users/${userId}/familyGroupId`));
         throw new Error('Family group no longer exists');
       }
 
       const familyGroup: FamilyGroup = groupSnapshot.val();
 
       // STEP 4: Update cached user data
-      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const userSnapshot = await get(ref(db, `/users/${userId}`));
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
         await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
@@ -380,7 +375,7 @@ class AuthenticationModule {
       }
 
       // Always fetch fresh data from database to ensure familyGroupId is current
-      const userSnapshot = await database().ref(`/users/${currentUser.uid}`).once('value');
+      const userSnapshot = await get(ref(getDatabase(), `/users/${currentUser.uid}`));
       const userData = userSnapshot.val();
 
       if (userData) {
@@ -461,8 +456,9 @@ class AuthenticationModule {
       lastClaimsUpdatedAt = null;
 
       if (firebaseUser) {
-        const userRef = database().ref(`/users/${firebaseUser.uid}`);
-        const claimsRef = database().ref(`/users/${firebaseUser.uid}/claimsUpdatedAt`);
+        const db = getDatabase();
+        const userRef = ref(db, `/users/${firebaseUser.uid}`);
+        const claimsRef = ref(db, `/users/${firebaseUser.uid}/claimsUpdatedAt`);
 
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
@@ -487,16 +483,12 @@ class AuthenticationModule {
           lastClaimsUpdatedAt = claimsUpdatedAt;
         };
 
-        userRef.on('value', onUserDataChanged);
-        claimsRef.on('value', onClaimsUpdated);
+        const unsubUserData = onValue(userRef, onUserDataChanged);
+        const unsubClaims = onValue(claimsRef, onClaimsUpdated);
 
         // Store unsubscribe functions
-        userDataUnsubscribe = () => {
-          userRef.off('value', onUserDataChanged);
-        };
-        claimsUnsubscribe = () => {
-          claimsRef.off('value', onClaimsUpdated);
-        };
+        userDataUnsubscribe = () => unsubUserData();
+        claimsUnsubscribe = () => unsubClaims();
       } else {
         callback(null);
       }
@@ -528,8 +520,9 @@ class AuthenticationModule {
 
       const userId = currentUser.uid;
 
+      const db = getDatabase();
       // Step 1: Get user data to find family group
-      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const userSnapshot = await get(ref(db, `/users/${userId}`));
       const userData: User | null = userSnapshot.val();
 
       if (!userData) {
@@ -545,18 +538,14 @@ class AuthenticationModule {
         const storageDeletePromises: Promise<void>[] = [];
 
         // Get all lists created by this user
-        const listsSnapshot = await database()
-          .ref(`/familyGroups/${familyGroupId}/lists`)
-          .orderByChild('createdBy')
-          .equalTo(userId)
-          .once('value');
+        const listsSnapshot = await get(
+          query(ref(db, `/familyGroups/${familyGroupId}/lists`), orderByChild('createdBy'), equalTo(userId))
+        );
 
         const lists = listsSnapshot.val() || {};
 
         // Get ALL items once (instead of per-list N+1 queries)
-        const allItemsSnapshot = await database()
-          .ref(`/familyGroups/${familyGroupId}/items`)
-          .once('value');
+        const allItemsSnapshot = await get(ref(db, `/familyGroups/${familyGroupId}/items`));
         const allItems = allItemsSnapshot.val() || {};
 
         // Queue list deletions and find their items
@@ -574,7 +563,7 @@ class AuthenticationModule {
           const list = lists[listId];
           if (list.receiptUrl) {
             storageDeletePromises.push(
-              storage().ref(list.receiptUrl).delete().catch(() => {
+              deleteObject(storageRef(getStorage(), list.receiptUrl)).catch(() => {
                 // Ignore errors if receipt doesn't exist
               })
             );
@@ -583,7 +572,7 @@ class AuthenticationModule {
 
         // Single atomic update for all deletions
         if (Object.keys(updates).length > 0) {
-          await database().ref().update(updates);
+          await update(ref(db), updates);
         }
 
         // Delete storage files in parallel
@@ -592,24 +581,20 @@ class AuthenticationModule {
         }
 
         // Step 3: Delete all urgent items created by this user
-        const urgentItemsSnapshot = await database()
-          .ref(`/urgentItems/${familyGroupId}`)
-          .orderByChild('createdBy')
-          .equalTo(userId)
-          .once('value');
+        const urgentItemsSnapshot = await get(
+          query(ref(db, `/urgentItems/${familyGroupId}`), orderByChild('createdBy'), equalTo(userId))
+        );
 
         const urgentItems = urgentItemsSnapshot.val();
         if (urgentItems) {
           const urgentDeletePromises = Object.keys(urgentItems).map(itemId =>
-            database().ref(`/urgentItems/${familyGroupId}/${itemId}`).remove()
+            remove(ref(db, `/urgentItems/${familyGroupId}/${itemId}`))
           );
           await Promise.all(urgentDeletePromises);
         }
 
         // Step 4: Remove user from family group members list
-        const familyGroupSnapshot = await database()
-          .ref(`/familyGroups/${familyGroupId}`)
-          .once('value');
+        const familyGroupSnapshot = await get(ref(db, `/familyGroups/${familyGroupId}`));
         const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
 
         if (familyGroup && familyGroup.memberIds) {
@@ -625,9 +610,9 @@ class AuthenticationModule {
             if (familyGroup.invitationCode) {
               deletions[`/invitations/${familyGroup.invitationCode}`] = null;
             }
-            await database().ref().update(deletions);
+            await update(ref(db), deletions);
           } else {
-            await database().ref(`/familyGroups/${familyGroupId}/memberIds/${userId}`).remove();
+            await remove(ref(db, `/familyGroups/${familyGroupId}/memberIds/${userId}`));
           }
         }
       }
@@ -636,7 +621,7 @@ class AuthenticationModule {
       await NotificationManager.clearToken();
 
       // Step 6: Delete user profile from Realtime Database
-      await database().ref(`/users/${userId}`).remove();
+      await remove(ref(db, `/users/${userId}`));
 
       // Step 7: Clear all local WatermelonDB data
       await LocalStorageManager.clearAllData();
@@ -669,9 +654,10 @@ class AuthenticationModule {
    * Uses a transaction so concurrent calls from multiple devices produce exactly one code.
    */
   async ensureInvitationCode(familyGroupId: string): Promise<string> {
-    const ref = database().ref(`/familyGroups/${familyGroupId}/invitationCode`);
+    const db = getDatabase();
+    const invCodeRef = ref(db, `/familyGroups/${familyGroupId}/invitationCode`);
 
-    const result = await ref.transaction((current) => {
+    const result = await runTransaction(invCodeRef, (current) => {
       if (current === null) return this.generateInvitationCode();
       return; // abort — code already exists, keep it
     });
@@ -679,7 +665,7 @@ class AuthenticationModule {
     const code: string = result.snapshot.val();
 
     if (result.committed) {
-      await database().ref(`/invitations/${code}`).set({
+      await set(ref(db, `/invitations/${code}`), {
         groupId: familyGroupId,
         createdAt: Date.now(),
       });
@@ -695,13 +681,14 @@ class AuthenticationModule {
    */
   async submitJoinRequest(invitationCode: string, userId: string): Promise<{ groupId: string; groupName: string }> {
     try {
-      const invitationSnapshot = await database().ref(`/invitations/${invitationCode}`).once('value');
+      const db = getDatabase();
+      const invitationSnapshot = await get(ref(db, `/invitations/${invitationCode}`));
       if (!invitationSnapshot.exists()) {
         throw new Error('Invalid invitation code. Please check and try again.');
       }
       const { groupId } = invitationSnapshot.val();
 
-      const groupSnapshot = await database().ref(`/familyGroups/${groupId}`).once('value');
+      const groupSnapshot = await get(ref(db, `/familyGroups/${groupId}`));
       if (!groupSnapshot.exists()) {
         throw new Error('This family group no longer exists.');
       }
@@ -711,7 +698,7 @@ class AuthenticationModule {
         throw new Error('You are already a member of this family group.');
       }
 
-      const userSnapshot = await database().ref(`/users/${userId}`).once('value');
+      const userSnapshot = await get(ref(db, `/users/${userId}`));
       const userData: User = userSnapshot.val();
       if (userData.familyGroupId) {
         throw new Error('You are already in a family group.');
@@ -726,7 +713,7 @@ class AuthenticationModule {
         status: 'pending',
       };
 
-      await database().ref(`/familyGroups/${groupId}/joinRequests/${userId}`).set(joinRequest);
+      await set(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`), joinRequest);
 
       return { groupId, groupName: familyGroup.name };
     } catch (error: unknown) {
@@ -748,21 +735,21 @@ class AuthenticationModule {
     const updates: { [key: string]: any } = {};
     updates[`/familyGroups/${groupId}/joinRequests/${requestUserId}/status`] = 'approved';
     updates[`/familyGroups/${groupId}/memberIds/${requestUserId}`] = true;
-    await database().ref().update(updates);
+    await update(ref(getDatabase()), updates);
   }
 
   /**
    * Reject a pending join request (called by an existing group member).
    */
   async rejectJoinRequest(groupId: string, requestUserId: string): Promise<void> {
-    await database().ref(`/familyGroups/${groupId}/joinRequests/${requestUserId}/status`).set('rejected');
+    await set(ref(getDatabase(), `/familyGroups/${groupId}/joinRequests/${requestUserId}/status`), 'rejected');
   }
 
   /**
    * Cancel a pending join request (called by the requesting user themselves).
    */
   async cancelJoinRequest(groupId: string, userId: string): Promise<void> {
-    await database().ref(`/familyGroups/${groupId}/joinRequests/${userId}`).remove();
+    await remove(ref(getDatabase(), `/familyGroups/${groupId}/joinRequests/${userId}`));
   }
 
   /**
@@ -774,10 +761,10 @@ class AuthenticationModule {
     userId: string,
     onUpdate: (status: JoinRequestStatus | null) => void,
   ): () => void {
-    const ref = database().ref(`/familyGroups/${groupId}/joinRequests/${userId}/status`);
+    const statusRef = ref(getDatabase(), `/familyGroups/${groupId}/joinRequests/${userId}/status`);
     const handler = (snapshot: any) => onUpdate(snapshot.val() as JoinRequestStatus | null);
-    ref.on('value', handler);
-    return () => ref.off('value', handler);
+    const unsub = onValue(statusRef, handler);
+    return () => unsub();
   }
 
   /**
@@ -786,13 +773,14 @@ class AuthenticationModule {
    * cleans up the join request, and refreshes the local cache.
    */
   async completeJoinAfterApproval(groupId: string, userId: string): Promise<FamilyGroup> {
-    await database().ref(`/users/${userId}/familyGroupId`).set(groupId);
+    const db = getDatabase();
+    await set(ref(db, `/users/${userId}/familyGroupId`), groupId);
 
-    await database().ref(`/familyGroups/${groupId}/joinRequests/${userId}`).remove().catch(() => {});
+    await remove(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`)).catch(() => {});
 
     const [userSnapshot, groupSnapshot] = await Promise.all([
-      database().ref(`/users/${userId}`).once('value'),
-      database().ref(`/familyGroups/${groupId}`).once('value'),
+      get(ref(db, `/users/${userId}`)),
+      get(ref(db, `/familyGroups/${groupId}`)),
     ]);
 
     const updatedUser = userSnapshot.val();
@@ -811,7 +799,7 @@ class AuthenticationModule {
     groupId: string,
     onUpdate: (requests: JoinRequest[]) => void,
   ): () => void {
-    const ref = database().ref(`/familyGroups/${groupId}/joinRequests`);
+    const requestsRef = ref(getDatabase(), `/familyGroups/${groupId}/joinRequests`);
     const handler = (snapshot: any) => {
       const data = snapshot.val();
       if (!data) { onUpdate([]); return; }
@@ -820,8 +808,8 @@ class AuthenticationModule {
       ) as JoinRequest[];
       onUpdate(pending);
     };
-    ref.on('value', handler);
-    return () => ref.off('value', handler);
+    const unsub = onValue(requestsRef, handler);
+    return () => unsub();
   }
 
   /**
@@ -846,7 +834,7 @@ class AuthenticationModule {
       }
 
       // Fetch latest user data from Firebase Database
-      const userSnapshot = await database().ref(`/users/${currentUser.uid}`).once('value');
+      const userSnapshot = await get(ref(getDatabase(), `/users/${currentUser.uid}`));
       const user: User = userSnapshot.val();
 
       if (user) {

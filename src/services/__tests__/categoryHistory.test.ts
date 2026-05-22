@@ -5,10 +5,15 @@
  * as a field inside the data payload, and reads must use the node key, not data.category.
  */
 
-const mockTransaction = jest.fn();
-const mockRef = jest.fn().mockReturnValue({ transaction: mockTransaction });
+const mockRunTransaction = jest.fn();
+const mockRef = jest.fn().mockReturnValue({});
+const mockGetDatabase = jest.fn().mockReturnValue({});
 
-jest.mock('@react-native-firebase/database', () => () => ({ ref: mockRef }));
+jest.mock('@react-native-firebase/database', () => ({
+  getDatabase: () => mockGetDatabase(),
+  ref: (...args: any[]) => mockRef(...args),
+  runTransaction: (...args: any[]) => mockRunTransaction(...args),
+}));
 jest.mock('../LocalStorageManager', () => ({
   default: {
     getCategoryHistoryForItem: jest.fn().mockResolvedValue([]),
@@ -22,12 +27,12 @@ import CategoryHistoryService from '../CategoryHistoryService';
 describe('CategoryHistoryService — Firebase write path', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockTransaction.mockImplementation(async (cb) => cb(null));
+    mockRunTransaction.mockImplementation(async (_ref: any, cb: any) => cb(null));
   });
 
   it('does not write category field in transaction data for a new entry', async () => {
     let writtenData: any;
-    mockTransaction.mockImplementation(async (cb) => {
+    mockRunTransaction.mockImplementation(async (_ref: any, cb: any) => {
       writtenData = cb(null);
     });
 
@@ -42,7 +47,7 @@ describe('CategoryHistoryService — Firebase write path', () => {
 
   it('does not write category field when incrementing an existing entry', async () => {
     let writtenData: any;
-    mockTransaction.mockImplementation(async (cb) => {
+    mockRunTransaction.mockImplementation(async (_ref: any, cb: any) => {
       writtenData = cb({ usageCount: 3, lastUsedAt: 1000, createdAt: 500 });
     });
 
@@ -56,6 +61,7 @@ describe('CategoryHistoryService — Firebase write path', () => {
     await (CategoryHistoryService as any).syncCategoryToFirebase('group1', 'banana', 'Produce');
 
     expect(mockRef).toHaveBeenCalledWith(
+      expect.anything(),
       expect.stringContaining('/Produce')
     );
   });

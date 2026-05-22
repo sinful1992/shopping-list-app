@@ -16,7 +16,7 @@ import type { RootStackParamList } from './src/types/navigation';
 import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
 import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
@@ -314,39 +314,36 @@ function App(): JSX.Element {
   // Listen for family group deletion
   useEffect(() => {
     if (user?.familyGroupId) {
-      const familyGroupRef = database().ref(`/familyGroups/${user.familyGroupId}`);
+      const db = getDatabase();
+      const familyGroupRef = ref(db, `/familyGroups/${user.familyGroupId}/createdAt`);
 
       const onFamilyGroupChange = async (snapshot: any) => {
-        if (!snapshot.exists()) {
-          // Family group was deleted
-
-          // Clear user's familyGroupId
-          await database().ref(`/users/${user.uid}`).update({
-            familyGroupId: null,
-          });
-
-          // Show alert and sign out user
-          showAlert(
-            'Family Group Deleted',
-            'Your family group was deleted. You will be signed out. Please sign in and create or join a new group.',
-            [
-              {
-                text: 'OK',
-                onPress: async () => {
-                  await AuthenticationModule.signOut();
+        try {
+          if (!snapshot.exists()) {
+            await update(ref(db, `/users/${user.uid}`), { familyGroupId: null });
+            showAlert(
+              'Family Group Deleted',
+              'Your family group was deleted. You will be signed out. Please sign in and create or join a new group.',
+              [
+                {
+                  text: 'OK',
+                  onPress: async () => {
+                    await AuthenticationModule.signOut();
+                  },
                 },
-              },
-            ],
-            { icon: 'warning' }
-          );
+              ],
+              { icon: 'warning' }
+            );
+          }
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'App onFamilyGroupChange');
         }
       };
 
-      familyGroupRef.on('value', onFamilyGroupChange);
+      const unsubscribe = onValue(familyGroupRef, onFamilyGroupChange);
 
-      // Store cleanup function
       return () => {
-        familyGroupRef.off('value', onFamilyGroupChange);
+        unsubscribe();
       };
     }
   }, [user?.familyGroupId, user?.uid, showAlert]);

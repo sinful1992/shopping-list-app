@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, update } from '@react-native-firebase/database';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -35,7 +35,7 @@ const TermsAcceptanceScreen = () => {
         throw new Error('No authenticated user found');
       }
 
-      await database().ref(`/users/${user.uid}`).update({
+      await update(ref(getDatabase(), `/users/${user.uid}`), {
         termsAcceptedVersion: CURRENT_TERMS_VERSION,
         termsAcceptedAt: Date.now(),
       });
