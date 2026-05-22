@@ -318,28 +318,25 @@ function App(): JSX.Element {
       const familyGroupRef = ref(db, `/familyGroups/${user.familyGroupId}/createdAt`);
 
       const onFamilyGroupChange = async (snapshot: any) => {
-        if (!snapshot.exists()) {
-          // Family group was deleted
-
-          // Clear user's familyGroupId
-          await update(ref(db, `/users/${user.uid}`), {
-            familyGroupId: null,
-          });
-
-          // Show alert and sign out user
-          showAlert(
-            'Family Group Deleted',
-            'Your family group was deleted. You will be signed out. Please sign in and create or join a new group.',
-            [
-              {
-                text: 'OK',
-                onPress: async () => {
-                  await AuthenticationModule.signOut();
+        try {
+          if (!snapshot.exists()) {
+            await update(ref(db, `/users/${user.uid}`), { familyGroupId: null });
+            showAlert(
+              'Family Group Deleted',
+              'Your family group was deleted. You will be signed out. Please sign in and create or join a new group.',
+              [
+                {
+                  text: 'OK',
+                  onPress: async () => {
+                    await AuthenticationModule.signOut();
+                  },
                 },
-              },
-            ],
-            { icon: 'warning' }
-          );
+              ],
+              { icon: 'warning' }
+            );
+          }
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'App onFamilyGroupChange');
         }
       };
 
