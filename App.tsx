@@ -315,7 +315,7 @@ function App(): JSX.Element {
   useEffect(() => {
     if (user?.familyGroupId) {
       const db = getDatabase();
-      const familyGroupRef = ref(db, `/familyGroups/${user.familyGroupId}`);
+      const familyGroupRef = ref(db, `/familyGroups/${user.familyGroupId}/createdAt`);
 
       const onFamilyGroupChange = async (snapshot: any) => {
         if (!snapshot.exists()) {

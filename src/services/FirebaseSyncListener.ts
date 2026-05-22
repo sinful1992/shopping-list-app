@@ -420,53 +420,45 @@ class FirebaseSyncListener {
     }
 
     const urgentItemsRef = ref(getDatabase(), `urgentItems/${familyGroupId}`);
-    const initialBuffer: { itemId: string; data: any }[] = [];
     let initialLoadDone = false;
 
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
-      initialLoadDone = true;
-      if (initialBuffer.length === 0) return;
-
-      const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) => ({
-        id: itemId,
-        name: data.name || '',
-        familyGroupId: data.familyGroupId || familyGroupId,
-        createdBy: data.createdBy || '',
-        createdByName: data.createdByName || '',
-        createdAt: data.createdAt ?? Date.now(),
-        resolvedBy: data.resolvedBy || null,
-        resolvedByName: data.resolvedByName || null,
-        resolvedAt: data.resolvedAt || null,
-        price: data.price ?? null,
-        status: data.status || 'active',
-        syncStatus: 'synced' as const,
-      }));
-
-      await LocalStorageManager.saveUrgentItemsBatch(urgentItems);
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener urgentItems flush'); }
-    };
-
     const unsubChildAdded = onChildAdded(urgentItemsRef, async (snapshot) => {
+      if (!initialLoadDone) return;
       const itemId = snapshot.key;
       const itemData = snapshot.val();
       if (!itemId || !itemData) return;
-
-      if (!initialLoadDone) {
-        initialBuffer.push({ itemId, data: itemData });
-        return;
-      }
-
       await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
     });
 
-    get(urgentItemsRef).then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener urgentItems value sentinel');
-      await safeFlush();
+    get(urgentItemsRef).then(async (snapshot) => {
+      const urgentItems: UrgentItem[] = [];
+      snapshot.forEach(child => {
+        const itemId = child.key;
+        const data = child.val();
+        if (itemId && data) {
+          urgentItems.push({
+            id: itemId,
+            name: data.name || '',
+            familyGroupId: data.familyGroupId || familyGroupId,
+            createdBy: data.createdBy || '',
+            createdByName: data.createdByName || '',
+            createdAt: data.createdAt ?? Date.now(),
+            resolvedBy: data.resolvedBy || null,
+            resolvedByName: data.resolvedByName || null,
+            resolvedAt: data.resolvedAt || null,
+            price: data.price ?? null,
+            status: data.status || 'active',
+            syncStatus: 'synced' as const,
+          });
+        }
+      });
+      if (urgentItems.length > 0) {
+        await LocalStorageManager.saveUrgentItemsBatch(urgentItems);
+      }
+      initialLoadDone = true;
+    }).catch(err => {
+      initialLoadDone = true;
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener urgentItems initial load');
     });
 
     const unsubChildChanged = onChildChanged(urgentItemsRef, async (snapshot) => {
@@ -573,43 +565,37 @@ class FirebaseSyncListener {
     }
 
     const categoryHistoryRef = ref(getDatabase(), `familyGroups/${familyGroupId}/categoryHistory`);
-    const initialBuffer: { itemHash: string; category: string; data: any }[] = [];
     let initialLoadDone = false;
 
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
-      initialLoadDone = true;
-      if (initialBuffer.length > 0) {
-        await LocalStorageManager.saveCategoryHistoryBatch(familyGroupId, initialBuffer);
-      }
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener categoryHistory flush'); }
-    };
-
     const unsubChildAdded = onChildAdded(categoryHistoryRef, async (itemSnapshot) => {
+      if (!initialLoadDone) return;
       const itemHash = itemSnapshot.key;
       if (!itemHash) return;
       const categoriesForItem = itemSnapshot.val();
       if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
-
-      if (!initialLoadDone) {
-        for (const category of Object.keys(categoriesForItem)) {
-          initialBuffer.push({ itemHash, category, data: categoriesForItem[category] });
-        }
-        return;
-      }
-
       for (const category of Object.keys(categoriesForItem)) {
         await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category]);
       }
     });
 
-    get(categoryHistoryRef).then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener categoryHistory value sentinel');
-      await safeFlush();
+    get(categoryHistoryRef).then(async (snapshot) => {
+      const batch: { itemHash: string; category: string; data: any }[] = [];
+      snapshot.forEach(itemSnapshot => {
+        const itemHash = itemSnapshot.key;
+        if (!itemHash) return;
+        const categoriesForItem = itemSnapshot.val();
+        if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
+        for (const category of Object.keys(categoriesForItem)) {
+          batch.push({ itemHash, category, data: categoriesForItem[category] });
+        }
+      });
+      if (batch.length > 0) {
+        await LocalStorageManager.saveCategoryHistoryBatch(familyGroupId, batch);
+      }
+      initialLoadDone = true;
+    }).catch(err => {
+      initialLoadDone = true;
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener categoryHistory initial load');
     });
 
     const unsubChildChanged = onChildChanged(categoryHistoryRef, async (itemSnapshot) => {
@@ -724,16 +710,26 @@ class FirebaseSyncListener {
     const db = getDatabase();
     const baseRef = ref(db, `familyGroups/${familyGroupId}/priceHistory`);
     const sessionStart = Date.now();
-    get(baseRef).then(async (snapshot) => {
-      const records: PriceHistoryRecord[] = [];
-      snapshot.forEach(child => {
-        const data = child.val();
-        if (data) {
-          const record = this.mapToPriceRecord(data);
-          if (record) records.push(record);
+
+    // Delta sync: only fetch records newer than what's already cached locally.
+    // Falls back to a full fetch on first install (latestLocal === null).
+    LocalStorageManager.getLatestPriceHistoryTimestamp(familyGroupId).then(latestLocal => {
+      const bulkRef = latestLocal !== null
+        ? query(baseRef, orderByChild('recordedAt'), startAt(latestLocal))
+        : baseRef;
+      return get(bulkRef).then(async (snapshot) => {
+        const records: PriceHistoryRecord[] = [];
+        snapshot.forEach(child => {
+          const data = child.val();
+          if (data) {
+            const record = this.mapToPriceRecord(data);
+            if (record) records.push(record);
+          }
+        });
+        if (records.length > 0) {
+          await LocalStorageManager.savePriceHistoryBatch(records);
         }
       });
-      await LocalStorageManager.savePriceHistoryBatch(records);
     }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
 
     const ongoingRef = query(baseRef, orderByChild('recordedAt'), startAt(sessionStart));
@@ -768,38 +764,32 @@ class FirebaseSyncListener {
     }
 
     const layoutsRef = ref(getDatabase(), `familyGroups/${familyGroupId}/storeLayouts`);
-    const initialBuffer: { layoutId: string; data: any }[] = [];
     let initialLoadDone = false;
 
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
-      initialLoadDone = true;
-      if (initialBuffer.length > 0) {
-        await LocalStorageManager.saveStoreLayoutsBatch(familyGroupId, initialBuffer);
-      }
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener storeLayouts flush'); }
-    };
-
     const unsubChildAdded = onChildAdded(layoutsRef, async (snapshot) => {
+      if (!initialLoadDone) return;
       const layoutId = snapshot.key;
       const data = snapshot.val();
       if (!layoutId || !data) return;
-
-      if (!initialLoadDone) {
-        initialBuffer.push({ layoutId, data });
-        return;
-      }
-
       await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
     });
 
-    get(layoutsRef).then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener storeLayouts value sentinel');
-      await safeFlush();
+    get(layoutsRef).then(async (snapshot) => {
+      const batch: { layoutId: string; data: any }[] = [];
+      snapshot.forEach(child => {
+        const layoutId = child.key;
+        const data = child.val();
+        if (layoutId && data) {
+          batch.push({ layoutId, data });
+        }
+      });
+      if (batch.length > 0) {
+        await LocalStorageManager.saveStoreLayoutsBatch(familyGroupId, batch);
+      }
+      initialLoadDone = true;
+    }).catch(err => {
+      initialLoadDone = true;
+      CrashReporting.recordError(err as Error, 'FirebaseSyncListener storeLayouts initial load');
     });
 
     const unsubChildChanged = onChildChanged(layoutsRef, async (snapshot) => {

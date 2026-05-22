@@ -1604,6 +1604,18 @@ class LocalStorageManager {
     }
   }
 
+  async getLatestPriceHistoryTimestamp(familyGroupId: string): Promise<number | null> {
+    try {
+      const collection = this.database.get<PriceHistoryModel>('price_history');
+      const records = await collection
+        .query(Q.where('family_group_id', familyGroupId), Q.sortBy('recorded_at', Q.desc), Q.take(1))
+        .fetch();
+      return records[0]?.recordedAt ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async getDistinctTrackedItems(
     familyGroupId: string
   ): Promise<Array<{ itemName: string; itemNameNormalized: string }>> {

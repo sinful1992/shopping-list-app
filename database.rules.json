@@ -124,6 +124,7 @@
 
     "urgentItems": {
       "$familyGroupId": {
+        ".indexOn": ["createdAt"],
         ".read": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
         ".write": "auth != null && root.child('familyGroups').child($familyGroupId).child('memberIds').hasChild(auth.uid)",
         "$itemId": {
