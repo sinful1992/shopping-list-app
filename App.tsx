@@ -16,7 +16,7 @@ import type { RootStackParamList } from './src/types/navigation';
 import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import database from '@react-native-firebase/database';
+import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
 import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
@@ -314,14 +314,15 @@ function App(): JSX.Element {
   // Listen for family group deletion
   useEffect(() => {
     if (user?.familyGroupId) {
-      const familyGroupRef = database().ref(`/familyGroups/${user.familyGroupId}`);
+      const db = getDatabase();
+      const familyGroupRef = ref(db, `/familyGroups/${user.familyGroupId}`);
 
       const onFamilyGroupChange = async (snapshot: any) => {
         if (!snapshot.exists()) {
           // Family group was deleted
 
           // Clear user's familyGroupId
-          await database().ref(`/users/${user.uid}`).update({
+          await update(ref(db, `/users/${user.uid}`), {
             familyGroupId: null,
           });
 
@@ -342,11 +343,10 @@ function App(): JSX.Element {
         }
       };
 
-      familyGroupRef.on('value', onFamilyGroupChange);
+      const unsubscribe = onValue(familyGroupRef, onFamilyGroupChange);
 
-      // Store cleanup function
       return () => {
-        familyGroupRef.off('value', onFamilyGroupChange);
+        unsubscribe();
       };
     }
   }, [user?.familyGroupId, user?.uid, showAlert]);
