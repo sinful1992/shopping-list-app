@@ -74,7 +74,8 @@ const ReceiptViewScreen = () => {
       setList(fetchedList);
 
       if (fetchedList.receiptUrl) {
-        setReceiptUrl(fetchedList.receiptUrl);
+        const raw = fetchedList.receiptUrl;
+        setReceiptUrl(/^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `file://${raw}`);
       }
 
       const data = await LocalStorageManager.getReceiptData(listId);

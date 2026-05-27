@@ -134,7 +134,7 @@ class HistoryTracker {
         try {
           receiptUrl = await ImageStorageManager.getReceiptDownloadUrl(list.receiptUrl);
         } catch {
-          // Receipt URL retrieval failed silently
+          receiptUrl = list.receiptUrl;
         }
       }
 
