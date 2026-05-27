@@ -1,4 +1,4 @@
-import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, onValue, child } from '@react-native-firebase/database';
+import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, child } from '@react-native-firebase/database';
 import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, Unsubscribe } from '../models/types';
 import { CategoryType } from './CategoryService';
 import LocalStorageManager from './LocalStorageManager';
@@ -41,12 +41,12 @@ class FirebaseSyncListener {
     // once('value'): sole initial load path
     get(listsRef).then(async (snapshot) => {
       const lists: ShoppingList[] = [];
-      snapshot.forEach(child => {
-        if (child.key && child.val()) {
-          initialIds.add(child.key);
-          const data = child.val();
+      snapshot.forEach(snap => {
+        if (snap.key && snap.val()) {
+          initialIds.add(snap.key);
+          const data = snap.val();
           lists.push({
-            id: child.key,
+            id: snap.key,
             name: data.name || '',
             familyGroupId: data.familyGroupId || familyGroupId,
             createdBy: data.createdBy || '',
@@ -146,10 +146,10 @@ class FirebaseSyncListener {
     get(filteredRef).then(async (snapshot) => {
       if (isCancelled) return;
       const entries: { id: string; data: any }[] = [];
-      snapshot.forEach(child => {
-        if (child.key && child.val()) {
-          initialItemIds.add(child.key);
-          entries.push({ id: child.key, data: child.val() });
+      snapshot.forEach(snap => {
+        if (snap.key && snap.val()) {
+          initialItemIds.add(snap.key);
+          entries.push({ id: snap.key, data: snap.val() });
         }
       });
       initialLoadDone = true;
@@ -368,9 +368,9 @@ class FirebaseSyncListener {
     const filteredRef = query(itemsRef, orderByChild('listId'), equalTo(listId));
     const snapshot = await get(filteredRef);
     const items: Item[] = [];
-    snapshot.forEach(child => {
-      if (child.key) {
-        items.push(this.buildItemFromFirebase(child.key, listId, child.val()));
+    snapshot.forEach(snap => {
+      if (snap.key) {
+        items.push(this.buildItemFromFirebase(snap.key, listId, snap.val()));
       }
     });
     if (items.length > 0) {
@@ -725,8 +725,8 @@ class FirebaseSyncListener {
         : baseRef;
       return get(bulkRef).then(async (snapshot) => {
         const records: PriceHistoryRecord[] = [];
-        snapshot.forEach(child => {
-          const data = child.val();
+        snapshot.forEach(snap => {
+          const data = snap.val();
           if (data) {
             const record = this.mapToPriceRecord(data);
             if (record) records.push(record);
@@ -782,9 +782,9 @@ class FirebaseSyncListener {
 
     get(layoutsRef).then(async (snapshot) => {
       const batch: { layoutId: string; data: any }[] = [];
-      snapshot.forEach(child => {
-        const layoutId = child.key;
-        const data = child.val();
+      snapshot.forEach(snap => {
+        const layoutId = snap.key;
+        const data = snap.val();
         if (layoutId && data) {
           batch.push({ layoutId, data });
         }
