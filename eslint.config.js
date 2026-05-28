@@ -7,6 +7,7 @@ module.exports = [
   {
     rules: {
       'prettier/prettier': 'off',
+      'react/no-unstable-nested-components': ['warn', { allowAsProps: true }],
     },
   },
   {

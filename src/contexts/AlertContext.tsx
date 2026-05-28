@@ -84,4 +84,3 @@ export const useAlert = (): AlertContextType => {
   return context;
 };
 
-export default AlertContext;

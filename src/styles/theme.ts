@@ -3,7 +3,7 @@
  * Liquid Glass Dark Theme with glassmorphism effects — v2
  */
 
-export const COLORS = {
+const COLORS = {
   // Background colors
   background: {
     primary: '#12121C',
@@ -157,134 +157,6 @@ export const TYPOGRAPHY = {
     semibold: '600' as const,
     bold: '700' as const,
   },
-} as const;
-
-// Common style combinations for reusability
-export const COMMON_STYLES = {
-  // Standard glassmorphic card
-  glassCard: {
-    backgroundColor: COLORS.glass.subtle,
-    borderRadius: RADIUS.xlarge,
-    borderWidth: 1,
-    borderColor: COLORS.border.subtle,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  // Elevated glassmorphic card
-  glassCardElevated: {
-    backgroundColor: COLORS.glass.elevated,
-    borderRadius: RADIUS.xlarge,
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  // Active/selected state for buttons
-  buttonActive: {
-    backgroundColor: COLORS.accent.blueLight,
-    borderWidth: 1,
-    borderColor: COLORS.accent.blueDim,
-    borderRadius: RADIUS.large,
-    shadowColor: COLORS.accent.blue,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-
-  // Standard button
-  button: {
-    backgroundColor: COLORS.glass.subtle,
-    borderWidth: 1,
-    borderColor: COLORS.border.medium,
-    borderRadius: RADIUS.large,
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-  },
-
-  // Input field
-  input: {
-    backgroundColor: COLORS.glass.subtle,
-    borderWidth: 1.5,
-    borderColor: COLORS.border.medium,
-    borderRadius: RADIUS.large,
-    color: COLORS.text.primary,
-    padding: 14,
-  },
-
-  // Modal container
-  modal: {
-    backgroundColor: COLORS.background.secondary,
-    borderTopLeftRadius: RADIUS.modal,
-    borderTopRightRadius: RADIUS.modal,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  // Modal handle bar container
-  modalHandleContainer: {
-    alignItems: 'center' as const,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-
-  // Modal handle bar
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-
-  // Section header
-  sectionHeader: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    marginBottom: SPACING.lg,
-  },
-
-  // Uppercase label
-  label: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1.2,
-    color: COLORS.text.tertiary,
-    marginBottom: SPACING.sm,
-  },
-
-  // Card with colored accent
-  accentCard: (color: string, dimColor: string) => ({
-    backgroundColor: color,
-    borderWidth: 1,
-    borderColor: dimColor,
-    borderRadius: RADIUS.large,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  }),
-};
-
-// Budget alert color states
-export const BUDGET_ALERT_COLORS = {
-  safe: COLORS.accent.green, // <50%
-  warning: COLORS.accent.yellow, // 50-75%
-  caution: COLORS.accent.orange, // 75-90%
-  danger: COLORS.accent.red, // >90%
 } as const;
 
 // Animation durations (milliseconds)

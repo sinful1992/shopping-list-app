@@ -3,8 +3,6 @@
  * Last updated: February 2026
  */
 
-export const PRIVACY_POLICY_URL = 'https://sinful1992.github.io/familyshoppinglist-legal/privacy.html';
-
 export const PRIVACY_POLICY_CONTENT = `
 # Privacy Policy for Family Shopping List
 

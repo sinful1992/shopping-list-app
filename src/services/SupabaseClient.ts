@@ -7,6 +7,6 @@ const supabaseAnonKey = SUPABASE_ANON_KEY || '';
 
 // Supabase credentials validation happens at runtime
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 export default supabase;

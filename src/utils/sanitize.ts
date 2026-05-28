@@ -92,22 +92,6 @@ export function sanitizeQuantity(quantity: string | null | undefined): string | 
 }
 
 /**
- * Sanitize display name
- * Max 50 characters
- */
-export function sanitizeDisplayName(name: string): string {
-  return sanitizeText(name, 50);
-}
-
-/**
- * Sanitize family group name
- * Max 50 characters
- */
-export function sanitizeGroupName(name: string): string {
-  return sanitizeText(name, 50);
-}
-
-/**
  * Sanitize category name
  * Max 50 characters
  */

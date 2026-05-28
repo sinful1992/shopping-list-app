@@ -3,8 +3,6 @@
  * Last updated: February 2026
  */
 
-export const TERMS_OF_SERVICE_URL = 'https://sinful1992.github.io/familyshoppinglist-legal/terms.html';
-
 export const TERMS_OF_SERVICE_CONTENT = `
 # Terms of Service for Family Shopping List
 

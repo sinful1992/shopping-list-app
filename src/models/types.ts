@@ -42,11 +42,6 @@ export interface FamilyGroup {
   subscriptionTier: SubscriptionTier; // Subscription is at family level, not user level
 }
 
-export interface InvitationEntry {
-  groupId: string;
-  createdAt: number;
-}
-
 export type JoinRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface JoinRequest {
@@ -148,36 +143,6 @@ export interface ReceiptLineItem {
   vatCode: string | null; // e.g., 'A', 'B', '*'
 }
 
-// Google Cloud Vision API Response Types
-export interface VisionVertex {
-  x?: number;
-  y?: number;
-}
-
-export interface VisionBoundingPoly {
-  vertices: VisionVertex[];
-}
-
-export interface VisionEntityAnnotation {
-  locale?: string;
-  description: string;
-  boundingPoly: VisionBoundingPoly;
-  confidence?: number;
-}
-
-export interface VisionApiResponse {
-  responses: VisionAnnotateImageResponse[];
-}
-
-export interface VisionAnnotateImageResponse {
-  textAnnotations?: VisionEntityAnnotation[];
-  error?: {
-    code: number;
-    message: string;
-    status: string;
-  };
-}
-
 export interface CaptureResult {
   success: boolean;
   filePath: string | null;
@@ -200,20 +165,6 @@ export interface OCRResult {
   confidence: number;
   error: string | null;
   apiUsageCount: number;
-}
-
-export interface OCRStatus {
-  status: OCRStatusType;
-  confidence: number | null;
-  processedAt: number | null;
-}
-
-export interface QueuedOCRRequest {
-  id: string;
-  imageUrl: string;
-  listId: string;
-  timestamp: number;
-  retryCount: number;
 }
 
 // Sync Types
@@ -245,14 +196,6 @@ export interface SyncError {
   error: string;
 }
 
-export interface RemoteChange {
-  entityType: EntityType;
-  entityId: string;
-  operation: Operation;
-  data: any;
-  timestamp: number;
-}
-
 export interface SyncEngineStatus {
   isOnline: boolean;
   pendingOperations: number;
@@ -280,13 +223,6 @@ export interface UploadError {
   listId: string;
   filePath: string;
   error: string;
-}
-
-export interface OCRQueueResult {
-  processedCount: number;
-  successCount: number;
-  failedCount: number;
-  errors: OCRError[];
 }
 
 export interface OCRError {

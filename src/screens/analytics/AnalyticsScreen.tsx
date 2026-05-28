@@ -22,6 +22,18 @@ import SmartSavingsCard from './SmartSavingsCard';
 
 const screenWidth = Dimensions.get('window').width;
 
+const PieCenterLabel = ({ totalSpent, containerStyle, totalStyle, labelStyle }: {
+  totalSpent: number;
+  containerStyle: object;
+  totalStyle: object;
+  labelStyle: object;
+}) => (
+  <View style={containerStyle}>
+    <Text style={totalStyle}>£{totalSpent.toFixed(0)}</Text>
+    <Text style={labelStyle}>total</Text>
+  </View>
+);
+
 const errorBoundaryStyles = StyleSheet.create({
   centered:     { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#12121C', paddingHorizontal: 40 },
   errorIcon:    { fontSize: 52, marginBottom: 12 },
@@ -260,12 +272,12 @@ const AnalyticsScreen = () => {
               innerRadius={46}
               innerCircleColor={theme.glass.subtle}
               centerLabelComponent={() => (
-                <View style={styles.pieCenterContainer}>
-                  <Text style={styles.pieCenterTotal}>
-                    £{analytics.totalSpent.toFixed(0)}
-                  </Text>
-                  <Text style={styles.pieCenterLabel}>total</Text>
-                </View>
+                <PieCenterLabel
+                  totalSpent={analytics.totalSpent}
+                  containerStyle={styles.pieCenterContainer}
+                  totalStyle={styles.pieCenterTotal}
+                  labelStyle={styles.pieCenterLabel}
+                />
               )}
               focusOnPress
               sectionAutoFocus={false}

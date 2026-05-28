@@ -1,7 +1,3 @@
-import type { StackScreenProps } from '@react-navigation/stack';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { CompositeScreenProps } from '@react-navigation/native';
-
 export type RootStackParamList = {
   MainTabs: undefined;
   Settings: undefined;
@@ -14,14 +10,6 @@ export type AuthStackParamList = {
   EmailLogin: undefined;
   SignUp: undefined;
   EmailSignUp: undefined;
-  FamilyGroup: undefined;
-};
-
-export type TermsStackParamList = {
-  TermsAcceptance: undefined;
-};
-
-export type FamilyGroupStackParamList = {
   FamilyGroup: undefined;
 };
 
@@ -47,22 +35,6 @@ export type HistoryStackParamList = {
   HistoryDetail: { listId: string };
   ReceiptView: { listId: string };
 };
-
-export type ListDetailScreenProps = CompositeScreenProps<
-  StackScreenProps<ListsStackParamList, 'ListDetail'>,
-  CompositeScreenProps<
-    BottomTabScreenProps<MainTabParamList, 'Lists'>,
-    StackScreenProps<RootStackParamList>
-  >
->;
-
-export type HomeScreenProps = CompositeScreenProps<
-  StackScreenProps<ListsStackParamList, 'Home'>,
-  CompositeScreenProps<
-    BottomTabScreenProps<MainTabParamList, 'Lists'>,
-    StackScreenProps<RootStackParamList>
-  >
->;
 
 declare global {
   namespace ReactNavigation {
