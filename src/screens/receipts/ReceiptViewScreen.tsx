@@ -13,6 +13,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { sanitizeError } from '../../utils/sanitize';
+import { toFileUri } from '../../utils/uri';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -74,8 +75,7 @@ const ReceiptViewScreen = () => {
       setList(fetchedList);
 
       if (fetchedList.receiptUrl) {
-        const raw = fetchedList.receiptUrl;
-        setReceiptUrl(/^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `file://${raw}`);
+        setReceiptUrl(toFileUri(fetchedList.receiptUrl));
       }
 
       const data = await LocalStorageManager.getReceiptData(listId);

@@ -3,6 +3,7 @@ import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
 import { sanitizeText } from '../utils/sanitize';
+import { toFileUri } from '../utils/uri';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
@@ -14,20 +15,6 @@ const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
  * spinner the UI indefinitely.
  */
 const OCR_REQUEST_TIMEOUT_MS = 120_000;
-
-/**
- * Build a fetch-compatible URI from a local file path. Handles three inputs:
- *   - Already-schemed URI (file://, content://, http(s)://) → pass through.
- *     Android gallery picks often return content:// URIs and RN's fetch
- *     resolves them natively; the previous code turned them into
- *     "file://content://..." which broke uploads.
- *   - Unschemed absolute path (/data/…) → prepend file://.
- *   - Anything else → prepend file:// defensively.
- */
-function toFetchUri(path: string): string {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
-  return `file://${path}`;
-}
 
 /**
  * Parse a numeric string from the OCR server into a money-valued number.
@@ -144,7 +131,7 @@ class ReceiptOCRService {
     try {
       const formData = new FormData();
       formData.append('file', {
-        uri: toFetchUri(localFilePath),
+        uri: toFileUri(localFilePath),
         type: 'image/jpeg',
         name: 'receipt.jpg',
       } as any);

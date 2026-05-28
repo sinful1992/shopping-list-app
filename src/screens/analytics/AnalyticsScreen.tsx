@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Dimensions,
+  type ViewStyle,
+  type TextStyle,
 } from 'react-native';
 import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
@@ -24,9 +26,9 @@ const screenWidth = Dimensions.get('window').width;
 
 const PieCenterLabel = ({ totalSpent, containerStyle, totalStyle, labelStyle }: {
   totalSpent: number;
-  containerStyle: object;
-  totalStyle: object;
-  labelStyle: object;
+  containerStyle: ViewStyle;
+  totalStyle: TextStyle;
+  labelStyle: TextStyle;
 }) => (
   <View style={containerStyle}>
     <Text style={totalStyle}>£{totalSpent.toFixed(0)}</Text>
