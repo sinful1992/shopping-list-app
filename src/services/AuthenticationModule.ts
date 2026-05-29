@@ -288,7 +288,6 @@ class AuthenticationModule {
       updates[`/users/${userId}/familyGroupId`] = groupId;
 
       await update(ref(db), updates);
-      console.log('[AUDIT-DEBUG] createFamilyGroup atomic write OK', groupId);
 
       // Update cached user data
       const userSnapshot = await get(ref(db, `/users/${userId}`));
@@ -736,13 +735,7 @@ class AuthenticationModule {
     const updates: { [key: string]: any } = {};
     updates[`/familyGroups/${groupId}/joinRequests/${requestUserId}/status`] = 'approved';
     updates[`/familyGroups/${groupId}/memberIds/${requestUserId}`] = true;
-    try {
-      await update(ref(getDatabase()), updates);
-      console.log('[AUDIT-DEBUG] approveJoinRequest write OK', groupId, requestUserId);
-    } catch (e) {
-      console.log('[AUDIT-DEBUG] approveJoinRequest write FAILED', (e as Error)?.message);
-      throw e;
-    }
+    await update(ref(getDatabase()), updates);
   }
 
   /**
@@ -781,13 +774,7 @@ class AuthenticationModule {
    */
   async completeJoinAfterApproval(groupId: string, userId: string): Promise<FamilyGroup> {
     const db = getDatabase();
-    try {
-      await set(ref(db, `/users/${userId}/familyGroupId`), groupId);
-      console.log('[AUDIT-DEBUG] completeJoinAfterApproval familyGroupId write OK', groupId, userId);
-    } catch (e) {
-      console.log('[AUDIT-DEBUG] completeJoinAfterApproval familyGroupId write FAILED', (e as Error)?.message);
-      throw e;
-    }
+    await set(ref(db, `/users/${userId}/familyGroupId`), groupId);
 
     await remove(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`)).catch(() => {});
 

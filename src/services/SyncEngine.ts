@@ -356,19 +356,13 @@ class SyncEngine {
                                      `/familyGroups/${this.familyGroupId}/storeLayouts/${entityId}`;
 
     const db = getDatabase();
-    try {
-      if (operation === 'delete') {
-        await remove(ref(db, path));
-      } else {
-        if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
-        // Strip syncStatus before syncing to Firebase (keep it local-only)
-        const { syncStatus: _, ...dataWithoutSyncStatus } = data;
-        await set(ref(db, path), dataWithoutSyncStatus);
-      }
-      console.log('[AUDIT-DEBUG] syncToFirebase OK', operation, path);
-    } catch (e) {
-      console.log('[AUDIT-DEBUG] syncToFirebase FAILED', operation, path, (e as Error)?.message);
-      throw e;
+    if (operation === 'delete') {
+      await remove(ref(db, path));
+    } else {
+      if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
+      // Strip syncStatus before syncing to Firebase (keep it local-only)
+      const { syncStatus: _, ...dataWithoutSyncStatus } = data;
+      await set(ref(db, path), dataWithoutSyncStatus);
     }
   }
 

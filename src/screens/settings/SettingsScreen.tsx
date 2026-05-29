@@ -130,7 +130,6 @@ const SettingsScreen = () => {
   const handleCopyInvitationCode = () => {
     if (invitationCode && invitationCode !== 'ERROR' && invitationCode !== 'NOT_FOUND') {
       Clipboard.setString(invitationCode);
-      console.log('[AUDIT-DEBUG] Clipboard.setString OK', invitationCode);
       showAlert('Success', 'Invitation code copied to clipboard', undefined, { icon: 'success' });
     }
   };

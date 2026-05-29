@@ -69,13 +69,7 @@ class UsageTracker {
       };
 
       // Update Firebase
-      try {
-        await set(ref(getDatabase(), `/users/${user.uid}/usageCounters`), resetCounters);
-        console.log('[AUDIT-DEBUG] usageCounters monthly reset write OK', user.uid);
-      } catch (e) {
-        console.log('[AUDIT-DEBUG] usageCounters monthly reset write FAILED', (e as Error)?.message);
-        throw e;
-      }
+      await set(ref(getDatabase(), `/users/${user.uid}/usageCounters`), resetCounters);
 
       return resetCounters;
     }
@@ -151,26 +145,14 @@ class UsageTracker {
    * Increment list counter
    */
   async incrementListCounter(userId: string): Promise<void> {
-    try {
-      await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/listsCreated`), (current) => (current || 0) + 1);
-      console.log('[AUDIT-DEBUG] listsCreated increment OK', userId);
-    } catch (e) {
-      console.log('[AUDIT-DEBUG] listsCreated increment FAILED', (e as Error)?.message);
-      throw e;
-    }
+    await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/listsCreated`), (current) => (current || 0) + 1);
   }
 
   /**
    * Increment OCR counter
    */
   async incrementOCRCounter(userId: string): Promise<void> {
-    try {
-      await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/ocrProcessed`), (current) => (current || 0) + 1);
-      console.log('[AUDIT-DEBUG] ocrProcessed increment OK', userId);
-    } catch (e) {
-      console.log('[AUDIT-DEBUG] ocrProcessed increment FAILED', (e as Error)?.message);
-      throw e;
-    }
+    await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/ocrProcessed`), (current) => (current || 0) + 1);
   }
 
   /**
