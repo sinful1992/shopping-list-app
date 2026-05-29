@@ -7,23 +7,26 @@
       "$uid": {
         ".read": "auth != null && (auth.uid == $uid || (root.child('users').child(auth.uid).child('familyGroupId').val() != null && root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()))",
         ".write": "auth != null && auth.uid == $uid && (
-          !newData.hasChild('familyGroupId') ||
-          newData.child('familyGroupId').val() == null ||
-          root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
+          !newData.exists() ||
+          (
+            (
+              !newData.hasChild('familyGroupId') ||
+              newData.child('familyGroupId').val() == null ||
+              root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
+            ) &&
+            newData.child('claimsUpdatedAt').val() == data.child('claimsUpdatedAt').val() &&
+            (
+              newData.child('usageCounters/lastResetDate').val() != data.child('usageCounters/lastResetDate').val() ||
+              (
+                newData.child('usageCounters/listsCreated').val() >= data.child('usageCounters/listsCreated').val() &&
+                newData.child('usageCounters/ocrProcessed').val() >= data.child('usageCounters/ocrProcessed').val() &&
+                newData.child('usageCounters/urgentItemsCreated').val() >= data.child('usageCounters/urgentItemsCreated').val()
+              )
+            )
+          )
         )",
 
-        "claimsUpdatedAt": {
-          ".write": false
-        },
-
         "usageCounters": {
-          ".read": "auth != null && auth.uid == $uid",
-          ".write": "auth != null && auth.uid == $uid && (
-            !newData.exists() ||
-            (newData.child('listsCreated').val() >= data.child('listsCreated').val() &&
-             newData.child('ocrProcessed').val() >= data.child('ocrProcessed').val() &&
-             newData.child('urgentItemsCreated').val() >= data.child('urgentItemsCreated').val())
-          )",
           ".validate": "newData.hasChildren(['listsCreated', 'ocrProcessed', 'urgentItemsCreated', 'lastResetDate'])"
         }
       }
@@ -32,7 +35,15 @@
     "familyGroups": {
       "$groupId": {
         ".read": "auth != null && data.child('memberIds').child(auth.uid).exists()",
-        ".write": "auth != null && (data.child('memberIds').child(auth.uid).exists() || !data.exists())",
+        ".write": "auth != null && (
+          (
+            !data.exists() &&
+            newData.child('memberIds').child(auth.uid).val() === true &&
+            (!newData.hasChild('subscriptionTier') || newData.child('subscriptionTier').val() === 'free') &&
+            !newData.hasChild('tierUpdatedAt')
+          ) ||
+          (data.child('memberIds').child(auth.uid).exists() && !newData.exists())
+        )",
 
         "memberIds": {
           "$userId": {
@@ -66,6 +77,11 @@
 
         "subscriptionTier": {
           ".write": "auth != null && auth.token.admin === true"
+        },
+
+        "invitationCode": {
+          ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
+          ".validate": "newData.isString()"
         },
 
         "lists": {
