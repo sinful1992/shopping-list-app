@@ -165,10 +165,16 @@ const ListDetailScreen = () => {
   const insets = useSafeAreaInsets();
   const { listId } = route.params;
   const [items, setItems] = useState<Item[]>([]);
+  // Optimistic update SETS an explicit target `checked` (not a toggle/negate).
+  // useOptimistic re-runs this reducer whenever the base `items` changes while
+  // the transition is pending — and the WatermelonDB observer updates `items`
+  // before the transition ends. A negating reducer (`!item.checked`) would then
+  // flip the item back when the real state lands, causing a visible bounce.
+  // Setting an explicit target is idempotent, so the re-apply is a no-op.
   const [optimisticItems, applyOptimisticToggle] = useOptimistic(
     items,
-    (state, itemId: string) =>
-      state.map(item => item.id === itemId ? { ...item, checked: !item.checked } : item),
+    (state, payload: { id: string; checked: boolean }) =>
+      state.map(item => item.id === payload.id ? { ...item, checked: payload.checked } : item),
   );
   const [newItemName, setNewItemName] = useState('');
   const [list, setList] = useState<ShoppingList | null>(null);
@@ -646,8 +652,9 @@ const ListDetailScreen = () => {
     if (hapticEnabledRef.current && Vibration && typeof Vibration.vibrate === 'function') {
       try { Vibration.vibrate(50); } catch {}
     }
+    const targetChecked = !(itemsRef.current.find(i => i.id === itemId)?.checked === true);
     startTransition(async () => {
-      applyOptimisticToggle(itemId);
+      applyOptimisticToggle({ id: itemId, checked: targetChecked });
       try {
         await ItemManager.toggleItemChecked(itemId);
       } catch (error: any) {
