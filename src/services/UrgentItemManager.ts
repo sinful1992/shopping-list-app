@@ -1,5 +1,6 @@
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
+import auth from '@react-native-firebase/auth';
 import { getDatabase, ref, set, remove } from '@react-native-firebase/database';
 import { UrgentItem, Unsubscribe } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
@@ -50,8 +51,10 @@ class UrgentItemManager {
    */
   private async syncToSupabase(urgentItem: UrgentItem): Promise<void> {
     try {
+      const idToken = await auth().currentUser?.getIdToken();
       const { error } = await supabase.functions.invoke('upsert-urgent-item', {
         body: {
+          idToken,
           id: urgentItem.id,
           name: urgentItem.name,
           family_group_id: urgentItem.familyGroupId,

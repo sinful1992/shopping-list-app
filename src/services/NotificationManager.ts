@@ -1,4 +1,5 @@
 import messaging from '@react-native-firebase/messaging';
+import auth from '@react-native-firebase/auth';
 import { PermissionsAndroid, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
@@ -93,8 +94,10 @@ class NotificationManager {
         return;
       }
 
+      const idToken = await auth().currentUser?.getIdToken();
       const { error } = await supabase.functions.invoke('register-device-token', {
         body: {
+          idToken,
           user_id: userId,
           family_group_id: familyGroupId,
           fcm_token: token,
@@ -187,8 +190,10 @@ class NotificationManager {
     listName: string
   ): Promise<void> {
     try {
+      const idToken = await auth().currentUser?.getIdToken();
       await supabase.functions.invoke('notify-shopping-started', {
         body: {
+          idToken,
           family_group_id: familyGroupId,
           user_id: userId,
           user_name: userName,
