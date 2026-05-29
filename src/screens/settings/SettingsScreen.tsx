@@ -5,11 +5,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Clipboard,
   TextInput,
   Modal,
   Switch,
 } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { createStyles } from './SettingsScreen.styles';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -130,6 +130,7 @@ const SettingsScreen = () => {
   const handleCopyInvitationCode = () => {
     if (invitationCode && invitationCode !== 'ERROR' && invitationCode !== 'NOT_FOUND') {
       Clipboard.setString(invitationCode);
+      console.log('[AUDIT-DEBUG] Clipboard.setString OK', invitationCode);
       showAlert('Success', 'Invitation code copied to clipboard', undefined, { icon: 'success' });
     }
   };
