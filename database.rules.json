@@ -133,7 +133,15 @@
     "invitations": {
       "$code": {
         ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid))",
+        ".write": "auth != null && (
+          (newData.exists() && data.exists() &&
+            root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid)) ||
+          (newData.exists() && !data.exists() && (
+            root.child('familyGroups').child(newData.child('groupId').val()).child('memberIds').hasChild(auth.uid) ||
+            !root.child('familyGroups').child(newData.child('groupId').val()).exists())) ||
+          (!newData.exists() &&
+            root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid))
+        )",
         ".validate": "newData.hasChildren(['groupId', 'createdAt']) && newData.child('groupId').isString() && newData.child('createdAt').isNumber()"
       }
     },
