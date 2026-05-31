@@ -35,3 +35,35 @@ export const setFamilyGroupClaim = functions.database
       throw error;
     }
   });
+
+/**
+ * Cloud Function: clearClaimOnMembershipRemoval
+ *
+ * Triggers when a user is removed from a family group's memberIds. The Storage
+ * familyGroupId custom claim is derived from /users/{uid}/familyGroupId, which
+ * a remover other than the user themselves cannot write (DB rules restrict it
+ * to the owner). Without this, an involuntarily-removed user keeps their claim
+ * — and thus receipt-image access — until their own familyGroupId changes.
+ *
+ * Clearing /users/{uid}/familyGroupId here cascades to setFamilyGroupClaim,
+ * which clears the claim. Guarded so it only fires when the user's record still
+ * points at the group they were removed from (don't clobber a later re-join).
+ */
+export const clearClaimOnMembershipRemoval = functions.database
+  .ref('/familyGroups/{groupId}/memberIds/{uid}')
+  .onDelete(async (_snapshot, context) => {
+    const { groupId, uid } = context.params;
+    const userGroupRef = admin.database().ref(`/users/${uid}/familyGroupId`);
+
+    try {
+      const current = await userGroupRef.once('value');
+      if (current.val() === groupId) {
+        // Cascades to setFamilyGroupClaim, which clears the custom claim.
+        await userGroupRef.set(null);
+        functions.logger.info(`Cleared familyGroupId for user ${uid} removed from ${groupId}`);
+      }
+    } catch (error) {
+      functions.logger.error(`Failed to clear claim for removed user ${uid}:`, error);
+      throw error;
+    }
+  });
