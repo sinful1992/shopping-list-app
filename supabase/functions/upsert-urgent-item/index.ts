@@ -148,12 +148,13 @@ serve(async (req) => {
       )
     }
 
-    // Verify caller identity and family-group membership.
-    // Any member may create or resolve an item, so membership (not created_by)
-    // is the correct authorization boundary.
+    // Verify caller identity and family-group membership. Any member may create
+    // or resolve an item, so membership is the authorization boundary — but
+    // created_by attribution is locked to the caller / original creator below.
+    let callerUid: string
     try {
-      const uid = await verifyFirebaseIdToken(idToken)
-      await assertGroupMember(uid, family_group_id)
+      callerUid = await verifyFirebaseIdToken(idToken)
+      await assertGroupMember(callerUid, family_group_id)
     } catch (authError) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized', detail: (authError as Error).message }),
@@ -163,11 +164,22 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+    // Lock created_by: keep whatever was stored on first insert, and default to
+    // the verified caller on creation. The body's created_by is never trusted,
+    // so a member can't attribute an item to another member.
+    const { data: existingItem, error: lookupError } = await supabase
+      .from('urgent_items')
+      .select('created_by')
+      .eq('id', id)
+      .maybeSingle()
+    if (lookupError) throw lookupError
+    const effectiveCreatedBy = existingItem?.created_by ?? callerUid
+
     const { error } = await supabase
       .from('urgent_items')
       .upsert(
         {
-          id, name, family_group_id, created_by, created_by_name, created_at,
+          id, name, family_group_id, created_by: effectiveCreatedBy, created_by_name, created_at,
           resolved_by: resolved_by ?? null,
           resolved_by_name: resolved_by_name ?? null,
           resolved_at: resolved_at ?? null,
