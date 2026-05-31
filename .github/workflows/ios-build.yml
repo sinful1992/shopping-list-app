@@ -11,6 +11,10 @@ on:
 jobs:
   build-ios:
     runs-on: macos-latest
+    env:
+      # Run Node 20 JS actions (checkout, setup-ruby) on Node 24 — GitHub forces
+      # this default on 2026-06-16 and removes Node 20 on 2026-09-16.
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
