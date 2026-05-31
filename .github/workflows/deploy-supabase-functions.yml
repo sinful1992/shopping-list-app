@@ -27,8 +27,6 @@ jobs:
         run: |
           supabase link --project-ref $SUPABASE_PROJECT_ID
           supabase functions deploy notify-urgent-item --no-verify-jwt
-          supabase functions deploy process-ocr --no-verify-jwt
-          supabase functions deploy create-list --no-verify-jwt
           supabase functions deploy revenuecat-webhook --no-verify-jwt
           supabase functions deploy reconcile-subscription --no-verify-jwt
           supabase functions deploy register-device-token --no-verify-jwt
@@ -42,4 +40,3 @@ jobs:
         run: |
           supabase secrets set FIREBASE_SERVICE_ACCOUNT='${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' --project-ref $SUPABASE_PROJECT_ID
           supabase secrets set FIREBASE_DATABASE_URL='${{ secrets.FIREBASE_DATABASE_URL }}' --project-ref $SUPABASE_PROJECT_ID
-          supabase secrets set VISION_API_KEY='${{ secrets.GOOGLE_CLOUD_VISION_API_KEY }}' --project-ref $SUPABASE_PROJECT_ID

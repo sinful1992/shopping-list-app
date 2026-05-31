@@ -28,12 +28,6 @@ enabled = true
 file_size_limit = "50MiB"
 
 [functions]
-[functions.process-ocr]
-verify_jwt = true
-
-[functions.create-list]
-verify_jwt = true
-
 [functions.notify-urgent-item]
 verify_jwt = false
 
