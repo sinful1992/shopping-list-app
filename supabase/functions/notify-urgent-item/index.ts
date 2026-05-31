@@ -76,6 +76,25 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 
 serve(async (req) => {
   try {
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 405,
+      })
+    }
+
+    // This function is a Supabase DB-trigger webhook (see setup-urgent-items.sql),
+    // not a client-facing endpoint. The trigger calls it with the service-role key
+    // as a bearer token; verify it so the public URL can't be used to blast
+    // arbitrary push notifications to any family group.
+    const authHeader = req.headers.get('authorization')
+    if (!SUPABASE_SERVICE_KEY || authHeader !== `Bearer ${SUPABASE_SERVICE_KEY}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
     const { record } = await req.json()
 
     // Only send notification for new urgent items
@@ -204,7 +223,7 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Error:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: 'Internal error' }), {
       headers: { 'Content-Type': 'application/json' },
       status: 500,
     })
