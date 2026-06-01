@@ -11,7 +11,7 @@ const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
  * ~20s when the model isn't resident; warm requests are a few seconds.
- * 45s is generous for cold-start without letting a truly stuck request
+ * 120s is generous for cold-start without letting a truly stuck request
  * spinner the UI indefinitely.
  */
 const OCR_REQUEST_TIMEOUT_MS = 120_000;

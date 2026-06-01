@@ -166,7 +166,6 @@ class LocalStorageManager {
 
     const existingMap = new Map(existingRecords.map(r => [r.id, r]));
 
-    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const list of lists) {
@@ -202,7 +201,6 @@ class LocalStorageManager {
         }
       }
     }, 'saveListsBatch');
-    console.log(`[Perf] saveListsBatch: ${lists.length} lists, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   /**
@@ -491,7 +489,6 @@ class LocalStorageManager {
     const ids = updates.map(u => u.id);
     const updatedItems: Item[] = [];
 
-    const t0 = performance.now();
     await this.database.write(async () => {
       const records = await itemsCollection
         .query(Q.where('id', Q.oneOf(ids)))
@@ -525,7 +522,6 @@ class LocalStorageManager {
         updatedItems.push(this.itemModelToType(record));
       }
     }, 'updateItemsBatch');
-    console.log(`[Perf] updateItemsBatch: ${updates.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
 
     return updatedItems;
   }
@@ -553,7 +549,6 @@ class LocalStorageManager {
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
 
-      const t0 = performance.now();
       await this.database.write(async () => {
         const ops: any[] = items.map(item =>
           itemsCollection.prepareCreate(r => applyItemCreate(r, item))
@@ -571,7 +566,6 @@ class LocalStorageManager {
           }
         }
       }, 'saveItemsBatch');
-      console.log(`[Perf] saveItemsBatch: ${items.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
     } catch (error: any) {
       throw new Error(`Failed to batch save items: ${error.message}`);
     }
@@ -583,7 +577,6 @@ class LocalStorageManager {
     try {
       const ids = items.map(i => i.id);
 
-      const t0 = performance.now();
       await this.database.write(async () => {
         // Destroy tombstones inside the transaction to prevent a race where a concurrent
         // markAsDeleted() could soft-delete a record between the fetch and the upsert.
@@ -630,7 +623,6 @@ class LocalStorageManager {
           }
         }
       }, 'saveItemsBatchUpsert');
-      console.log(`[Perf] saveItemsBatchUpsert: ${items.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
     } catch (error: any) {
       throw new Error(`Failed to batch upsert items: ${error.message}`);
     }
@@ -906,7 +898,6 @@ class LocalStorageManager {
       record.status = item.status;
     };
 
-    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const item of urgentItems) {
@@ -942,7 +933,6 @@ class LocalStorageManager {
         }
       }
     }, 'saveUrgentItemsBatch');
-    console.log(`[Perf] saveUrgentItemsBatch: ${urgentItems.length} items, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
@@ -1431,7 +1421,6 @@ class LocalStorageManager {
       r.lastUsedAt = data.lastUsedAt ?? Date.now();
     };
 
-    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const { itemHash, category, data } of entries) {
@@ -1473,7 +1462,6 @@ class LocalStorageManager {
         }
       }
     }, 'saveCategoryHistoryBatch');
-    console.log(`[Perf] saveCategoryHistoryBatch: ${entries.length} entries, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   private categoryHistoryModelToType(model: CategoryHistoryModel): CategoryHistory {
@@ -1547,7 +1535,6 @@ class LocalStorageManager {
       r.familyGroupId = record.familyGroupId;
     };
 
-    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = toCreate.map(record =>
         collection.prepareCreate(r => applyCreate(r, record))
@@ -1568,7 +1555,6 @@ class LocalStorageManager {
         }
       }
     }, 'savePriceHistoryBatch');
-    console.log(`[Perf] savePriceHistoryBatch: ${toCreate.length} records, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   /**
@@ -1767,7 +1753,6 @@ class LocalStorageManager {
       r.syncStatus = 'synced';
     };
 
-    const t0 = performance.now();
     await this.database.write(async () => {
       const ops: any[] = [];
       for (const { layoutId, data } of entries) {
@@ -1799,7 +1784,6 @@ class LocalStorageManager {
         }
       }
     }, 'saveStoreLayoutsBatch');
-    console.log(`[Perf] saveStoreLayoutsBatch: ${entries.length} entries, ${(performance.now() - t0).toFixed(1)}ms`);
   }
 
   async deleteStoreLayout(id: string): Promise<void> {
