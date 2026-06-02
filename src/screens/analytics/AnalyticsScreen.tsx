@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import PriceHistoryService from '../../services/PriceHistoryService';
 import { RADIUS } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import ErrorBoundary from '../../components/ErrorBoundary';
 import ItemStoreComparison from './ItemStoreComparison';
 import VolatileItemsChart from './VolatileItemsChart';
 import SmartSavingsCard from './SmartSavingsCard';
@@ -35,49 +36,6 @@ const PieCenterLabel = ({ totalSpent, containerStyle, totalStyle, labelStyle }: 
     <Text style={labelStyle}>total</Text>
   </View>
 );
-
-const errorBoundaryStyles = StyleSheet.create({
-  centered:     { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#12121C', paddingHorizontal: 40 },
-  errorIcon:    { fontSize: 52, marginBottom: 12 },
-  errorTitle:   { fontSize: 18, fontWeight: '700', color: '#ffffff', marginBottom: 6, textAlign: 'center' },
-  errorSub:     { fontSize: 14, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 20 },
-  retryBtn:     { backgroundColor: 'rgba(110,168,254,0.8)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-});
-
-// ─── Error Boundary ──────────────────────────────────────────────────────────
-
-class ErrorBoundary extends Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {}
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={errorBoundaryStyles.centered}>
-          <Text style={errorBoundaryStyles.errorIcon}>⚠️</Text>
-          <Text style={errorBoundaryStyles.errorTitle}>Something went wrong</Text>
-          <Text style={errorBoundaryStyles.errorSub}>{this.state.error?.message}</Text>
-          <TouchableOpacity
-            style={errorBoundaryStyles.retryBtn}
-            onPress={() => this.setState({ hasError: false, error: null })}
-          >
-            <Text style={errorBoundaryStyles.retryBtnText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 // ─── Tab definition ───────────────────────────────────────────────────────────
 
