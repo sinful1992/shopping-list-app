@@ -355,7 +355,7 @@ function App(): JSX.Element {
       try {
         await CrashReporting.initialize();
         await FirebaseAnalytics.initialize();
-      } catch (error) {
+      } catch (_error) {
         // Can't report to Crashlytics if it failed to initialize
       }
     };
