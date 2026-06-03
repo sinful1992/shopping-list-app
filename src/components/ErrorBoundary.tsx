@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import SplashScreen from 'react-native-splash-screen';
 import CrashReporting from '../services/CrashReporting';
 
 interface Props {
@@ -32,6 +33,11 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    // If App throws before its own "hide splash" effect runs, the native splash
+    // stays on top and covers this fallback — leaving the user stuck on the
+    // splash instead of the recoverable error screen. Hide it here too. Wrapped
+    // so a splash-module failure can't re-throw while we're handling a crash.
+    try { SplashScreen.hide(); } catch { /* never throw from the fallback path */ }
     CrashReporting.recordJSError(error, errorInfo.componentStack ?? undefined);
   }
 
