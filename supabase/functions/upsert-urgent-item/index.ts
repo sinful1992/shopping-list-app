@@ -127,10 +127,13 @@ async function assertGroupMember(uid: string, familyGroupId: unknown): Promise<v
 //            client version regresses. Promote a rule to `hard` only once
 //            validation_shadow_log shows no legit client trips it.
 const upsertHard = z.object({
+  // id is a client-generated uuidv4 (UrgentItemManager) — keep the uuid check.
+  // family_group_id is a push() key and created_by is a Firebase Auth UID —
+  // neither is a UUID, so validate as non-empty strings.
   id: z.string().uuid(),
   name: z.string().min(1),
-  family_group_id: z.string().uuid(),
-  created_by: z.string().uuid(),
+  family_group_id: z.string().min(1),
+  created_by: z.string().min(1),
   created_by_name: z.string().min(1),
   created_at: z.number(),
 }).passthrough()
@@ -140,7 +143,7 @@ const upsertStrict = z.object({
   created_by_name: z.string().max(100),
   status: z.enum(['active', 'resolved']).optional(),
   price: z.number().min(0).max(99999).nullish(),
-  resolved_by: z.string().uuid().nullish(),
+  resolved_by: z.string().min(1).nullish(),
   resolved_at: z.number().nullish(),
 }).passthrough()
 

@@ -121,8 +121,11 @@ async function assertGroupMember(uid: string, familyGroupId: unknown): Promise<v
 // ../_shared imports). hard = would-500-today set → 400; strict = stricter rules
 // shadow-logged post-auth, never rejected, so no shipped client regresses.
 const deviceHard = z.object({
-  user_id: z.string().uuid(),
-  family_group_id: z.string().uuid(),
+  // user_id is a Firebase Auth UID and family_group_id is a push() key — neither
+  // is a UUID, so validate them as non-empty strings. They do not 500 today, so
+  // they must not be in the hard (would-500) reject set.
+  user_id: z.string().min(1),
+  family_group_id: z.string().min(1),
   fcm_token: z.string().min(1),
   platform: z.string().min(1),
 }).passthrough()

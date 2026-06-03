@@ -188,12 +188,13 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 }
 
 // --- Request validation (inlined; the Supabase bundler does not resolve
-// ../_shared imports). hard = would-500-today set (malformed UUID breaks the
-// device_tokens query) → 400; strict = length caps shadow-logged post-auth,
-// never rejected, so no shipped client regresses.
+// ../_shared imports). hard = would-500-today set → 400; strict = length caps
+// shadow-logged post-auth, never rejected, so no shipped client regresses.
 const notifyHard = z.object({
-  user_id: z.string().uuid(),
-  family_group_id: z.string().uuid(),
+  // user_id is a Firebase Auth UID and family_group_id is a push() key — neither
+  // is a UUID. They do not 500 today, so they stay out of the hard reject set.
+  user_id: z.string().min(1),
+  family_group_id: z.string().min(1),
   store_name: z.string().min(1),
 }).passthrough()
 
