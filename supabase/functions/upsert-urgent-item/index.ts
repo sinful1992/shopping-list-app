@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://esm.sh/zod@3.23.8'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -116,6 +117,60 @@ async function assertGroupMember(uid: string, familyGroupId: unknown): Promise<v
   if (isMember !== true) throw new Error('Caller is not a member of this family group')
 }
 
+// --- Request validation (inlined; the Supabase bundler does not resolve
+// ../_shared imports). Two layers:
+//   hard   — payloads that already 500 today (missing NOT NULL columns, wrong
+//            type, malformed UUID). Rejected up front with a clean 400 instead
+//            of an ugly 500, and before any DB write.
+//   strict — stricter rules (enum, length caps) that do NOT fail today. These are
+//            shadow-logged for one release and never rejected, so no shipped
+//            client version regresses. Promote a rule to `hard` only once
+//            validation_shadow_log shows no legit client trips it.
+const upsertHard = z.object({
+  // id is a client-generated uuidv4 (UrgentItemManager) — keep the uuid check.
+  // family_group_id is a push() key and created_by is a Firebase Auth UID —
+  // neither is a UUID, so validate as non-empty strings.
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  family_group_id: z.string().min(1),
+  created_by: z.string().min(1),
+  created_by_name: z.string().min(1),
+  created_at: z.number(),
+}).passthrough()
+
+const upsertStrict = z.object({
+  name: z.string().max(200),
+  created_by_name: z.string().max(100),
+  status: z.enum(['active', 'resolved']).optional(),
+  price: z.number().min(0).max(99999).nullish(),
+  resolved_by: z.string().min(1).nullish(),
+  resolved_at: z.number().nullish(),
+}).passthrough()
+
+const SHADOW_SAMPLE_RATE = 0.1
+
+function strictIssues(schema: z.ZodTypeAny, body: unknown): { rule: string; field: string }[] {
+  const r = schema.safeParse(body)
+  if (r.success) return []
+  return r.error.issues.map((i) => ({ rule: i.code, field: i.path.join('.') || '(root)' }))
+}
+
+// Post-auth, sampled write. Diagnostic only — a failure here must never fail the
+// request.
+async function shadowLog(
+  supabase: ReturnType<typeof createClient>,
+  fn: string,
+  issues: { rule: string; field: string }[],
+): Promise<void> {
+  if (issues.length === 0) return
+  if (Math.random() > SHADOW_SAMPLE_RATE) return
+  try {
+    await supabase
+      .from('validation_shadow_log')
+      .insert(issues.map((i) => ({ fn, rule: i.rule, field: i.field })))
+  } catch (_e) { /* never fail the request on a diagnostic log error */ }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -141,9 +196,10 @@ serve(async (req) => {
       resolved_by, resolved_by_name, resolved_at, price, status,
     } = body
 
-    if (!id || !name || !family_group_id || !created_by || !created_at) {
+    // Hard reject the version-independent invalid set (would 500 at insert anyway).
+    if (!upsertHard.safeParse(body).success) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: id, name, family_group_id, created_by, created_at' }),
+        JSON.stringify({ error: 'Invalid request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -163,6 +219,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    // Shadow-log stricter-rule violations (post-auth, sampled). Never rejects.
+    await shadowLog(supabase, 'upsert-urgent-item', strictIssues(upsertStrict, body))
 
     // Lock created_by: keep whatever was stored on first insert, and default to
     // the verified caller on creation. The body's created_by is never trusted,

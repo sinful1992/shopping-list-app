@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://esm.sh/zod@3.23.8'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -116,6 +117,46 @@ async function assertGroupMember(uid: string, familyGroupId: unknown): Promise<v
   if (isMember !== true) throw new Error('Caller is not a member of this family group')
 }
 
+// --- Request validation (inlined; the Supabase bundler does not resolve
+// ../_shared imports). hard = would-500-today set → 400; strict = stricter rules
+// shadow-logged post-auth, never rejected, so no shipped client regresses.
+const deviceHard = z.object({
+  // user_id is a Firebase Auth UID and family_group_id is a push() key — neither
+  // is a UUID, so validate them as non-empty strings. They do not 500 today, so
+  // they must not be in the hard (would-500) reject set.
+  user_id: z.string().min(1),
+  family_group_id: z.string().min(1),
+  fcm_token: z.string().min(1),
+  platform: z.string().min(1),
+}).passthrough()
+
+const deviceStrict = z.object({
+  platform: z.enum(['android', 'ios']),
+  fcm_token: z.string().max(4096),
+}).passthrough()
+
+const SHADOW_SAMPLE_RATE = 0.1
+
+function strictIssues(schema: z.ZodTypeAny, body: unknown): { rule: string; field: string }[] {
+  const r = schema.safeParse(body)
+  if (r.success) return []
+  return r.error.issues.map((i) => ({ rule: i.code, field: i.path.join('.') || '(root)' }))
+}
+
+async function shadowLog(
+  supabase: ReturnType<typeof createClient>,
+  fn: string,
+  issues: { rule: string; field: string }[],
+): Promise<void> {
+  if (issues.length === 0) return
+  if (Math.random() > SHADOW_SAMPLE_RATE) return
+  try {
+    await supabase
+      .from('validation_shadow_log')
+      .insert(issues.map((i) => ({ fn, rule: i.rule, field: i.field })))
+  } catch (_e) { /* never fail the request on a diagnostic log error */ }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -135,11 +176,13 @@ serve(async (req) => {
       )
     }
 
-    const { idToken, user_id, family_group_id, fcm_token, platform } = await req.json()
+    const body = await req.json()
+    const { idToken, user_id, family_group_id, fcm_token, platform } = body
 
-    if (!user_id || !family_group_id || !fcm_token || !platform) {
+    // Hard reject the version-independent invalid set (would 500 at upsert anyway).
+    if (!deviceHard.safeParse(body).success) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: user_id, family_group_id, fcm_token, platform' }),
+        JSON.stringify({ error: 'Invalid request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -164,6 +207,9 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    // Shadow-log stricter-rule violations (post-auth, sampled). Never rejects.
+    await shadowLog(supabase, 'register-device-token', strictIssues(deviceStrict, body))
 
     const { error } = await supabase
       .from('device_tokens')
