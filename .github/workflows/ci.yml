@@ -1,9 +1,8 @@
 name: CI
 
-# Fast pre-merge gate: typecheck + tests. Runs on every PR into master, and is
-# reused by android-build.yml so the release artifact can't be built on a red
-# tree. Lint is intentionally NOT here yet — it has never run successfully under
-# flat config (see PR3); it joins this gate once it's clean.
+# Fast pre-merge gate: typecheck + tests + lint. Runs on every PR into master,
+# and is reused by android-build.yml so the release artifact can't be built on a
+# red tree. Lint gates on errors only (warnings are non-blocking).
 on:
   pull_request:
     branches: [ master ]
@@ -30,3 +29,6 @@ jobs:
 
       - name: Tests
         run: npm test
+
+      - name: Lint
+        run: npm run lint
