@@ -3,8 +3,6 @@ name: Android Build
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       build_type:
@@ -17,7 +15,13 @@ on:
           - release
 
 jobs:
+  # Gate the release artifact on the same checks PRs run, so an APK/AAB can never
+  # be built on a red tree.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
   build-android:
+    needs: verify
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
