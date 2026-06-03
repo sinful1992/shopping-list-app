@@ -33,6 +33,7 @@ import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 import { AdMobProvider } from './src/contexts/AdMobContext';
 import AdBanner from './src/components/AdBanner';
 import AdConsentGate from './src/components/AdConsentGate';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { User } from './src/models/types';
 
 // Deep linking configuration
@@ -481,11 +482,13 @@ function App(): JSX.Element {
 // useTheme(), so CustomAlert must be a descendant of ThemeProvider.
 function AppWithProvider(): JSX.Element {
   return (
-    <ThemeProvider>
-      <AlertProvider>
-        <App />
-      </AlertProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AlertProvider>
+          <App />
+        </AlertProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
