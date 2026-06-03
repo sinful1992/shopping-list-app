@@ -1,0 +1,58 @@
+name: RTDB Backup
+
+# Firebase RTDB on the free tier has no automated backups — a bad delete is
+# otherwise unrecoverable. This exports the full database daily and stores it
+# ENCRYPTED so the user's shopping data + tokens never sit in plaintext CI
+# storage (consistent with the Play Data Safety declaration).
+#
+# Encryption is asymmetric (age): only the PUBLIC key lives in CI (AGE_PUBLIC_KEY
+# secret); the private identity is held offline by the maintainer and escrowed in
+# two places (see RUNBOOK.md). So the backup survives both GitHub/account
+# compromise (CI can't decrypt) and single-key loss (escrow copy).
+on:
+  schedule:
+    - cron: '0 4 * * *'   # daily 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install age
+        run: sudo apt-get update && sudo apt-get install -y age
+
+      - name: Write service account credentials
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > "$RUNNER_TEMP/sa.json"
+
+      - name: Export full RTDB
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: |
+          firebase database:get / \
+            --project "${{ secrets.FIREBASE_PROJECT_ID }}" \
+            --output "$RUNNER_TEMP/rtdb-backup.json"
+          ls -lh "$RUNNER_TEMP/rtdb-backup.json"
+
+      - name: Encrypt with age (public key only)
+        run: |
+          age -r "${{ secrets.AGE_PUBLIC_KEY }}" \
+            -o "$RUNNER_TEMP/rtdb-backup.json.age" \
+            "$RUNNER_TEMP/rtdb-backup.json"
+          # Never let plaintext PII leave the runner.
+          rm -f "$RUNNER_TEMP/rtdb-backup.json" "$RUNNER_TEMP/sa.json"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtdb-backup-encrypted
+          path: ${{ runner.temp }}/rtdb-backup.json.age
+          retention-days: 30
+          if-no-files-found: error
