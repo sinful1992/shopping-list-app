@@ -192,7 +192,7 @@ serve(async (req) => {
 
     const body = await req.json()
     const {
-      idToken, id, name, family_group_id, created_by, created_by_name, created_at,
+      idToken, id, name, family_group_id, created_by_name, created_at,
       resolved_by, resolved_by_name, resolved_at, price, status,
     } = body
 

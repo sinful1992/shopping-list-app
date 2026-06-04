@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.22.3] - 2026-06-05
+
+### Fixed
+- **CI lint failure in `upsert-urgent-item`** — removed the unused `created_by` destructured from the request body; the body's `created_by` is intentionally never trusted (attribution uses the verified caller / stored value), so the binding was dead code tripping `no-unused-vars`
+
 ## [1.22.2] - 2026-06-05
 
 ### Added
