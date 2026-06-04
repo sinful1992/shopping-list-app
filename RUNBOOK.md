@@ -1,136 +1,177 @@
 # Operations Runbook
 
-Recovery and operational procedures for the Family Shopping List app
-(Firebase RTDB/Auth/Storage + Supabase edge functions/Postgres, React Native).
+What to do when something breaks, or when you need to restore, redeploy, or
+rotate keys for the Family Shopping List app.
+
+**The app runs on two backends:**
+- **Firebase** — login, the realtime database (RTDB), and receipt image storage.
+- **Supabase** — edge functions and the Postgres database.
+- The app itself is React Native.
+
+**Jump to what you need:**
+- [1. Set up backup keys](#1-set-up-backup-encryption-keys-one-time) (one-time)
+- [2. Restore the database from a backup](#2-restore-the-database-from-a-backup)
+- [3. Redeploy the backend](#3-redeploy-the-backend)
+- [4. Replace a leaked Firebase key](#4-replace-a-leaked-firebase-service-account-key)
+- [5. Check everything works after a restore](#5-check-everything-works-after-a-restore)
+- [6. Uptime monitoring](#6-uptime-monitoring)
+- [7. Stop broken code reaching master](#7-stop-broken-code-reaching-master)
+- [8. Test a release before users get it](#8-test-a-release-before-users-get-it)
+- [9. Turn on App Check](#9-turn-on-app-check-anti-scripting)
 
 ---
 
-## 1. One-time setup: backup encryption keys
+## 1. Set up backup encryption keys (one-time)
 
-The `RTDB Backup` workflow (`.github/workflows/rtdb-backup.yml`) encrypts each
-export with [age](https://github.com/FiloSottile/age) using **asymmetric** keys.
-Only the public key is ever in CI.
+Every night, the `RTDB Backup` workflow
+(`.github/workflows/rtdb-backup.yml`) saves a copy of the database and **locks
+it with encryption** using a tool called [age](https://github.com/FiloSottile/age).
 
+age uses a **pair of keys**: a *public* key that locks (encrypts) the backup,
+and a *private* key that unlocks (decrypts) it. Only the public key is ever in
+GitHub — so even if someone breaks into the GitHub account, they get locked
+backups they can't open.
+
+**Create the key pair:**
 ```bash
 age-keygen -o rtdb-backup-key.txt
-# Output:
-#   Public key: age1qz...        <- goes in the AGE_PUBLIC_KEY GitHub secret
-#   (file contents = the private identity)
+# Prints:
+#   Public key: age1qz...        <- this goes in GitHub
+#   (the file itself = the private key)
 ```
 
-1. Add the **public key** as repo secret `AGE_PUBLIC_KEY`.
-2. Store the **private identity** (`rtdb-backup-key.txt`) **offline, in two
-   places** — e.g. a password manager entry **and** a printed paper copy in a
-   safe. It must NEVER be committed or placed in GitHub secrets: keeping it out of
-   CI is what makes the backup survive a GitHub/account compromise. Keeping a
-   second copy is what makes it survive losing the first.
+**Then:**
+1. Put the **public key** in a GitHub repo secret named `AGE_PUBLIC_KEY`.
+2. Keep the **private key** (`rtdb-backup-key.txt`) **offline, in two separate
+   places** — e.g. a password manager *and* a printed copy in a safe.
+   - Never commit it. Never put it in GitHub secrets. Keeping it out of GitHub
+     is the whole point — it's what lets the backup survive a GitHub or account
+     breach.
+   - Two copies means losing one doesn't lock you out forever.
 
-Required existing secrets (already used by `android-build.yml`):
-`FIREBASE_SERVICE_ACCOUNT_JSON`, `FIREBASE_PROJECT_ID`.
+You also need two secrets that already exist (used by `android-build.yml`):
+`FIREBASE_SERVICE_ACCOUNT_JSON` and `FIREBASE_PROJECT_ID`.
 
 ---
 
-## 2. Restore RTDB from a backup
+## 2. Restore the database from a backup
 
-> ⚠️ `database:set /` **overwrites the entire database**. Confirm you have the
-> right backup and consider exporting the current state first.
+> ⚠️ **This wipes the entire database and replaces it.** Double-check you picked
+> the right backup. Consider exporting the current database first, in case you
+> need to undo.
 
 ```bash
-# 1. Download the encrypted artifact from the RTDB Backup workflow run.
-# 2. Decrypt with the OFFLINE private identity (not available in CI):
+# 1. Download the encrypted backup file from a "RTDB Backup" workflow run.
+
+# 2. Unlock it with your OFFLINE private key (the one not in CI):
 age -d -i rtdb-backup-key.txt -o rtdb-backup.json rtdb-backup.json.age
 
-# 3. Sanity-check it is valid, non-empty JSON:
+# 3. Confirm it's real, non-empty data before restoring:
 jq 'keys' rtdb-backup.json
 
-# 4. Authenticate and restore:
-export GOOGLE_APPLICATION_CREDENTIALS=./sa.json   # service account JSON
+# 4. Log in and restore:
+export GOOGLE_APPLICATION_CREDENTIALS=./sa.json   # service account JSON file
 firebase database:set / rtdb-backup.json --project <PROJECT_ID>
 ```
 
-Backups are retained 30 days. If corruption is suspected, restore from a backup
-dated **before** the suspected corruption, not the latest.
+Backups are kept for **30 days**. If you think the data got corrupted, restore
+a backup from **before** the corruption started — not the most recent one (which
+may already contain the bad data).
 
 ---
 
-## 3. Redeploy backend
+## 3. Redeploy the backend
 
-**Supabase edge functions** (auto-deploy on push to master via
-`deploy-supabase-functions.yml`, or manually):
+**Supabase edge functions** — these deploy automatically when you push to
+`master` (via `deploy-supabase-functions.yml`). To deploy one by hand:
 ```bash
 supabase functions deploy <name> --project-ref <ref>
 ```
-Functions: `upsert-urgent-item`, `register-device-token`, `notify-shopping-started`,
-`notify-urgent-item`, `revenuecat-webhook`, `reconcile-subscription`.
+The functions are: `upsert-urgent-item`, `register-device-token`,
+`notify-shopping-started`, `notify-urgent-item`, `revenuecat-webhook`,
+`reconcile-subscription`.
 
-**RTDB security rules** (deployed by `android-build.yml` on master push, or):
+**Firebase database security rules** — these deploy automatically on a `master`
+push (via `android-build.yml`). To deploy by hand:
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS=./sa.json
 firebase deploy --only database --project <PROJECT_ID>
 ```
 
-**Database migrations** (Supabase): apply files under `supabase/migrations/` in
-order. They require `pg_cron` + `pg_net` (Dashboard → Database → Extensions).
+**Database migrations (Supabase)** — apply the files in `supabase/migrations/`
+**in order**. They need the `pg_cron` and `pg_net` extensions turned on
+(Supabase Dashboard → Database → Extensions).
 
 ---
 
-## 4. Rotate the Firebase service-account key
+## 4. Replace a leaked Firebase service-account key
 
-If `FIREBASE_SERVICE_ACCOUNT_JSON` is exposed:
+If `FIREBASE_SERVICE_ACCOUNT_JSON` is ever exposed:
 1. Firebase Console → Project Settings → Service accounts → generate a new
-   private key; disable the old one in Google Cloud IAM.
-2. Update the `FIREBASE_SERVICE_ACCOUNT_JSON` repo secret and the Supabase
-   function secret (`supabase secrets set FIREBASE_SERVICE_ACCOUNT=...`).
+   private key. Then disable the old key in Google Cloud IAM.
+2. Update the new key in two places: the `FIREBASE_SERVICE_ACCOUNT_JSON` GitHub
+   secret, and the Supabase function secret
+   (`supabase secrets set FIREBASE_SERVICE_ACCOUNT=...`).
 3. Re-run a backup and confirm it succeeds with the new key.
 
 ---
 
-## 5. Post-recovery verification checklist
+## 5. Check everything works after a restore
 
-After any restore/redeploy, verify on a device/AVD:
-- [ ] Sign in (email + Google).
-- [ ] **Family-group join → approve → join** flow end-to-end (the one rule path
-      historically under-tested).
-- [ ] Create a list + item; confirm it syncs across two accounts in the group.
-- [ ] Urgent item create/resolve (exercises `upsert-urgent-item`).
-- [ ] OCR health: `curl https://sinful1-receipt-ocr.hf.space/health` → 200.
-- [ ] Push notification arrives for a second group member.
-
----
-
-## 6. Uptime monitoring (external, no CI noise)
-
-Use a free external monitor (e.g. UptimeRobot) — do **not** build a CI cron
-(cold-starting HF Spaces + no dedup = alert spam):
-- HTTP(s) monitor on `https://sinful1-receipt-ocr.hf.space/health`, 5–15 min
-  interval, alert after 2 consecutive failures (absorbs cold starts).
+After any restore or redeploy, run through this on a real device or emulator:
+- [ ] Sign in (both email and Google).
+- [ ] **Family-group join → approve → join**, all the way through. (This path
+      has historically been the least tested — pay extra attention here.)
+- [ ] Create a list and an item; confirm it shows up on a second account in the
+      same group.
+- [ ] Create and resolve an urgent item (this exercises `upsert-urgent-item`).
+- [ ] OCR is up: `curl https://sinful1-receipt-ocr.hf.space/health` returns 200.
+- [ ] A push notification reaches a second group member.
 
 ---
 
-## 7. CI / merge protection
+## 6. Uptime monitoring
 
-`ci.yml` runs typecheck + tests + lint on every PR into `master` and gates the
-release build (`android-build.yml` → `needs: verify`). To make it enforced:
-- GitHub → Settings → Branches → add a rule for `master` → **Require status
-  checks to pass** → select the `verify` / CI check.
-
----
-
-## 8. Staging via Play Store testing tracks
-
-There is no separate staging server — use Play Console **internal/closed/open
-testing tracks** as staging/preview:
-- Promote a release to **Internal testing** first; validate against production
-  backend with the checklist in §5 before promoting to Production.
+Use a free external monitor like **UptimeRobot** — don't build a CI cron job for
+this (HF Spaces is slow to wake from cold, and a cron with no de-duplication
+will spam you with false alarms):
+- Monitor `https://sinful1-receipt-ocr.hf.space/health` over HTTP(s).
+- Check every 5–15 minutes.
+- Only alert after **2 failures in a row** (this rides out normal cold starts).
 
 ---
 
-## 9. App Check rollout (Play Integrity) — see PR6
+## 7. Stop broken code reaching master
 
-App Check attests requests come from the genuine app (anti-scripting). It is
-**not** a request-volume ceiling. Rollout:
-1. Register the app in Firebase Console → App Check with the **Play Integrity**
-   provider; add a **debug token** for any emulator/AVD (Play Integrity fails on
-   emulators by default — without this, legit AVD traffic fails attestation).
-2. Run in **monitor mode** and watch the metrics until legit traffic passes.
-3. Only then **enforce** on RTDB, Storage, and the client-facing edge functions.
+`ci.yml` runs typecheck + tests + lint on every PR into `master`, and the
+release build (`android-build.yml`) won't run unless that passes (`needs:
+verify`). Right now those checks run but aren't *required*. To make them
+mandatory:
+- GitHub → Settings → Branches → add a rule for `master` → turn on **Require
+  status checks to pass** → select the `verify` / CI check.
+
+---
+
+## 8. Test a release before users get it
+
+There's no separate staging server. Use the Play Console **testing tracks** as
+your staging area:
+- Push a release to **Internal testing** first.
+- Validate it against the real backend using the checklist in §5.
+- Only then promote it to **Production**.
+
+---
+
+## 9. Turn on App Check (anti-scripting)
+
+App Check confirms that requests are coming from the genuine app, not a script
+or bot. (Note: it does **not** cap how many requests can be made — it's about
+authenticity, not rate limiting.) Roll it out gradually:
+1. Firebase Console → App Check → register the app with the **Play Integrity**
+   provider. Add a **debug token** for any emulator/AVD — Play Integrity
+   normally fails on emulators, so without this token your legit test traffic
+   gets rejected.
+2. Run in **monitor mode** first and watch the metrics until you're sure real
+   traffic is passing.
+3. Only then **enforce** it — on RTDB, Storage, and the client-facing edge
+   functions.
