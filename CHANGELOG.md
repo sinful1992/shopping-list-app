@@ -4,9 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.22.2] - 2026-06-05
+
+### Added
+- **Pre-push static-analysis gate** — `.git/hooks/pre-push` runs `knip` (dead code + unused deps), `tsc --noEmit` (type errors), and `eslint src/` (lint) before every push; any failure blocks the push (bypass with `git push --no-verify`)
+- **`knip` dev dependency** — pinned locally so the pre-push hook runs offline and fast instead of fetching via `npx`; `knip.json` tuned to ignore React Native tooling false positives (`@env`, `metro-config`, gradle plugin, etc.)
+- **Changelog enforcement** — pre-commit hook now blocks a `package.json` version bump unless `CHANGELOG.md` is also staged
+
+### Changed
+- **Rewrote `RUNBOOK.md` in plain language** — added a two-backend intro, clickable section index, and why-before-how explanations; no procedures, commands, or secrets changed
+
 ### Removed
+- **Dead exports flagged by knip** — removed unused `PRODUCT_TIER_MAP` (`SubscriptionConfig.ts`), `OCRStatusType` + `OCRError` (`types.ts`), and `MainTabParamList` (`navigation.ts`); each had zero references
 - **Unused `ReceiptOCRProcessor` service** — dead Google Cloud Vision code path; OCR has routed through `ReceiptOCRService` (self-hosted PaddleOCR) since v1.x
 - **`react-native-fs` dependency** — last consumer removed alongside `ReceiptOCRProcessor`; file uploads now stream from URI via FormData
+- **13 stale local-only doc files** — removed git-ignored, ~4-month-stale reference docs (`API_DOCUMENTATION`, `COMPONENT_DOCUMENTATION`, `DATABASE_SCHEMA`, `design`, setup guides, etc.); were never tracked in git
 
 ## [1.17.0] - 2026-04-12
 ### Added

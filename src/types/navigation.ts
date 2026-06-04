@@ -13,14 +13,6 @@ export type AuthStackParamList = {
   FamilyGroup: undefined;
 };
 
-export type MainTabParamList = {
-  Lists: undefined;
-  Urgent: undefined;
-  History: undefined;
-  Analytics: undefined;
-  Budget: undefined;
-};
-
 export type ListsStackParamList = {
   Home: undefined;
   ListDetail: { listId: string };

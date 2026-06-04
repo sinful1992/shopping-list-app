@@ -153,8 +153,6 @@ export interface CaptureResult {
 
 // OCR Types
 
-export type OCRStatusType = 'pending' | 'processing' | 'completed' | 'failed';
-
 export interface OCRResult {
   success: boolean;
   receiptData: ReceiptData | null;
@@ -222,11 +220,6 @@ export interface UploadQueueResult {
 export interface UploadError {
   listId: string;
   filePath: string;
-  error: string;
-}
-
-export interface OCRError {
-  listId: string;
   error: string;
 }
 

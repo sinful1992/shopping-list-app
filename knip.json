@@ -1,6 +1,14 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": ["index.js", "App.tsx"],
+  "entry": ["App.tsx", "scripts/**/*.{ts,js}"],
   "project": ["src/**/*.{ts,tsx}"],
-  "ignoreExportsUsedInFile": true
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": [
+    "@babel/preset-env",
+    "@react-native/gradle-plugin",
+    "postinstall-postinstall",
+    "react-test-renderer",
+    "metro-config",
+    "@env"
+  ]
 }

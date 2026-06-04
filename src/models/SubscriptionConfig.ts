@@ -2,7 +2,6 @@ import { SubscriptionTier, SubscriptionLimits } from './types';
 import productConfig from '../../shared/product-config.json';
 
 export const ENTITLEMENT_ID: string = productConfig.entitlementId;
-export const PRODUCT_TIER_MAP: Record<string, SubscriptionTier> = productConfig.productTierMap as Record<string, SubscriptionTier>;
 export const TIER_CACHE_KEY = '@cached_subscription_tier';
 
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
