@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.22.5] - 2026-06-06
+
+### Security
+- **`reconcile-subscription` now verifies the caller** — the edge function previously authorized only by an ownership check (does this `appUserId` belong to this `familyGroupId`), leaving it callable by anyone who could guess a valid uid/group pair. It now requires a Firebase ID token, verifies the signature/claims inline (same pattern as `upsert-urgent-item`), and rejects unless the verified `uid === appUserId` (401/403). The client sends a fresh ID token with the reconcile call.
+- **Removed the unused Google Cloud Vision API key from the build** — OCR has routed through a server-side function since the key was dropped from `ReceiptOCRProcessor` (v earlier), but `GOOGLE_CLOUD_VISION_API_KEY` was still injected into the APK/IPA build `.env` by CI and declared in `@env`. Removed the dead references from `android-build.yml`, `ios-build.yml`, `src/types/env.d.ts`, `setup-secrets.ps1`, and `.env.example` so the key never enters the client bundle env. (The GitHub secret can be deleted separately.)
+
 ## [1.22.4] - 2026-06-05
 
 ### Fixed

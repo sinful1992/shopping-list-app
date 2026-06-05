@@ -119,7 +119,6 @@ if (Test-Path ".env") {
     $firebaseStorageBucket = if ($envContent -match "FIREBASE_STORAGE_BUCKET=(.+)") { $matches[1].Trim() } else { "" }
     $firebaseMessagingSenderId = if ($envContent -match "FIREBASE_MESSAGING_SENDER_ID=(.+)") { $matches[1].Trim() } else { "" }
     $firebaseAppId = if ($envContent -match "FIREBASE_APP_ID=(.+)") { $matches[1].Trim() } else { "" }
-    $googleCloudVisionApiKey = if ($envContent -match "GOOGLE_CLOUD_VISION_API_KEY=(.+)") { $matches[1].Trim() } else { "" }
 
     Write-Host "✓ Firebase config loaded from .env" -ForegroundColor Green
 } else {
@@ -132,7 +131,6 @@ if (Test-Path ".env") {
     $firebaseStorageBucket = Read-Host "FIREBASE_STORAGE_BUCKET"
     $firebaseMessagingSenderId = Read-Host "FIREBASE_MESSAGING_SENDER_ID"
     $firebaseAppId = Read-Host "FIREBASE_APP_ID"
-    $googleCloudVisionApiKey = Read-Host "GOOGLE_CLOUD_VISION_API_KEY"
 }
 
 Write-Host ""
@@ -149,7 +147,6 @@ gh secret set FIREBASE_PROJECT_ID --body $firebaseProjectId
 gh secret set FIREBASE_STORAGE_BUCKET --body $firebaseStorageBucket
 gh secret set FIREBASE_MESSAGING_SENDER_ID --body $firebaseMessagingSenderId
 gh secret set FIREBASE_APP_ID --body $firebaseAppId
-gh secret set GOOGLE_CLOUD_VISION_API_KEY --body $googleCloudVisionApiKey
 
 Write-Host "✓ Firebase secrets set" -ForegroundColor Green
 
