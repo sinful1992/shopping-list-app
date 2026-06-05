@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.22.4] - 2026-06-05
+
+### Fixed
+- **Family group join was impossible (`permission-denied`)** — `submitJoinRequest` read the whole `/familyGroups/$groupId` node, which RTDB rules restrict to existing members, so a prospective joiner was always denied before a request could be sent. The flow now reads only joiner-permitted paths: the group name comes from the world-readable invitation, and the "already a member" check reads the user's own `memberIds/$uid` entry. No security rules were changed. Validated end-to-end on device (submit → approve → auto-complete → navigate into group)
+
+### Changed
+- **Invitations now store `groupName`** — written in both `createFamilyGroup` and `ensureInvitationCode` so a joiner can show the group name on the waiting screen without reading the members-only group node. Invitations created before this release have no `groupName` and fall back to "your family group" (display-only; self-heals on the next invite-code regeneration)
+
 ## [1.22.3] - 2026-06-05
 
 ### Fixed
