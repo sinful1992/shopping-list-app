@@ -283,6 +283,7 @@ class AuthenticationModule {
       updates[`/familyGroups/${groupId}`] = familyGroup;
       updates[`/invitations/${invitationCode}`] = {
         groupId: groupId,
+        groupName: groupName,
         createdAt: timestamp,
       };
       updates[`/users/${userId}/familyGroupId`] = groupId;
@@ -665,8 +666,11 @@ class AuthenticationModule {
     const code: string = result.snapshot.val();
 
     if (result.committed) {
+      // Caller is a group member, so reading the group name here is permitted.
+      const nameSnapshot = await get(ref(db, `/familyGroups/${familyGroupId}/name`));
       await set(ref(db, `/invitations/${code}`), {
         groupId: familyGroupId,
+        groupName: nameSnapshot.val() ?? '',
         createdAt: Date.now(),
       });
     }
@@ -686,22 +690,22 @@ class AuthenticationModule {
       if (!invitationSnapshot.exists()) {
         throw new Error('Invalid invitation code. Please check and try again.');
       }
-      const { groupId } = invitationSnapshot.val();
-
-      const groupSnapshot = await get(ref(db, `/familyGroups/${groupId}`));
-      if (!groupSnapshot.exists()) {
-        throw new Error('This family group no longer exists.');
-      }
-      const familyGroup: FamilyGroup = groupSnapshot.val();
-
-      if (familyGroup.memberIds?.[userId]) {
-        throw new Error('You are already a member of this family group.');
-      }
+      const { groupId, groupName } = invitationSnapshot.val();
+      // A non-member cannot read /familyGroups/$groupId (members-only by rule), so
+      // resolve the display name from the world-readable invitation, with a fallback
+      // for legacy invitations created before groupName was stored.
+      const resolvedGroupName: string = groupName || 'your family group';
 
       const userSnapshot = await get(ref(db, `/users/${userId}`));
       const userData: User = userSnapshot.val();
       if (userData.familyGroupId) {
         throw new Error('You are already in a family group.');
+      }
+
+      // Check membership via our own memberIds entry — readable per rule, unlike the whole group node.
+      const membershipSnapshot = await get(ref(db, `/familyGroups/${groupId}/memberIds/${userId}`));
+      if (membershipSnapshot.val() === true) {
+        throw new Error('You are already a member of this family group.');
       }
 
       const joinRequest: JoinRequest = {
@@ -715,7 +719,7 @@ class AuthenticationModule {
 
       await set(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`), joinRequest);
 
-      return { groupId, groupName: familyGroup.name };
+      return { groupId, groupName: resolvedGroupName };
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes('Invalid invitation') || msg.includes('no longer exists') ||
