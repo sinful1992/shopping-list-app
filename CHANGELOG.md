@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-06-06
+
+### Added
+- **Per-UID rate limiting on edge functions** — the one missing security control before a public release. A Postgres fixed-window counter (`rate_limit_buckets` + atomic `check_rate_limit()` RPC, RLS-deny, hourly pg_cron sweep) is checked post-auth, keyed on the verified Firebase uid, in `upsert-urgent-item` (30/min), `notify-shopping-started` (20/min), `register-device-token` (10/min), and `reconcile-subscription` (5/min). Over-limit returns 429 + `Retry-After`. The check **fails open** on any limiter error — it's abuse/cost protection layered on top of auth + membership, never the access boundary itself, so a limiter blip never denies a legit caller. **Apply migration `20260606000000_add_rate_limit_buckets.sql` before/with deploy** (functions degrade gracefully if it's missing).
+
 ## [1.22.5] - 2026-06-06
 
 ### Security

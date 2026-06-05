@@ -1,9 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // --- Firebase RTDB helpers (inlined to avoid _shared import issues) ---
 
 const FIREBASE_DATABASE_URL = Deno.env.get('FIREBASE_DATABASE_URL')!
 const FIREBASE_SERVICE_ACCOUNT = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 let serviceAccount: any = null
 try {
@@ -185,6 +188,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// --- Per-UID rate limiting (inlined; the Supabase bundler does not resolve
+// ../_shared imports). Postgres fixed-window counter keyed on the verified uid.
+// Abuse/cost protection only — fails OPEN so a limiter blip never denies a legit
+// caller; a working limiter caps spam (and RevenueCat API hammering). ---
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  uid: string,
+  fn: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      p_uid: uid, p_fn: fn, p_window_seconds: windowSeconds,
+    })
+    if (error) { console.error('rate-limit rpc error:', error.message); return true }
+    return typeof data === 'number' ? data <= limit : true
+  } catch (e) {
+    console.error('rate-limit check failed:', (e as Error).message)
+    return true
+  }
+}
+function rateLimited(): Response {
+  return new Response(
+    JSON.stringify({ error: 'Too many requests' }),
+    { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } }
+  )
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { status: 200, headers: corsHeaders })
@@ -234,6 +266,13 @@ serve(async (req) => {
       JSON.stringify({ error: 'Forbidden' }),
       { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+  }
+
+  // Per-UID rate limit (post-auth). Keeps a client from hammering the RevenueCat
+  // API via repeated reconciles. Low cap — reconcile is a cold-start operation.
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  if (!(await checkRateLimit(supabase, callerUid, 'reconcile-subscription', 5, 60))) {
+    return rateLimited()
   }
 
   if (appUserId.includes('/') || appUserId.includes('..')) {

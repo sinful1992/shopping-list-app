@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.22.5",
+  "version": "1.23.0",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
