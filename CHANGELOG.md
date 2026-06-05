@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.0] - 2026-06-06
+
+### Added
+- **`health` edge function** — a public liveness probe for an external uptime monitor. Checks that both backends are reachable (Postgres via a trivial select, RTDB via an unauthenticated shallow probe) and returns 200 (`ok`) or 503 (`degraded`). Returns no data, and caches its result for 15s so a monitor (or abuser) can't add load. Added to the deploy workflow; RUNBOOK §6 lists it as a second monitor target alongside OCR.
+- **One-command backend rollback** — `scripts/rollback.ps1` (+ `.sh`) redeploys the edge functions *and* RTDB rules from a known-good git ref via a throwaway git worktree (working tree untouched). Does not touch migrations (forward-only). Documented in RUNBOOK §3.
+
+### Changed
+- **RUNBOOK refresh** — §3 documents the rollback script; §6 adds the backend health endpoint; §7 rewritten to match reality (server-side CI verify job was dropped — quality is gated by local git hooks, branch protection is Pro-gated); new §10 documents a quarterly secret-rotation schedule.
+
 ## [1.24.0] - 2026-06-06
 
 ### Added
