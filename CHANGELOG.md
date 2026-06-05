@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.1] - 2026-06-06
+
+### Changed
+- **Removed dead `UsageTracker` numeric-limit code** — `canProcessOCR`, `incrementOCRCounter`, and `getRemainingUsage` had zero callers (OCR is ad-gated now), and the surviving comments falsely claimed "enforcement is in Cloud Functions" (no such function exists). Removed the three dead methods and corrected the class/method docs to state the truth: numeric caps are disabled on every tier (ad-based model), `canCreateList` always allows today and is a UX gate only, and there is no server-side count enforcement. No behavior change — `getUsageSummary` (subscription screen) and `canCreateList`/`incrementListCounter` (list create flow) are untouched.
+
+### Notes
+- **Backlog — family-member cap is unenforced.** `TIER_FEATURES` advertises "Up to 10 Family Members" for the family tier, but `maxFamilyMembers` is null on every tier and nothing enforces it. Deferred deliberately (this pass was infra/security only). When implemented, enforce server-side at join-approval — either a maintained `memberCount` checked in the RTDB rule, or a join-approval edge function — not client-side.
+
 ## [1.25.0] - 2026-06-06
 
 ### Added
