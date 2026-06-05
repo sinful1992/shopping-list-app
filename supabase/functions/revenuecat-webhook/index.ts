@@ -1,9 +1,12 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // --- Firebase RTDB helpers (inlined to avoid _shared import issues) ---
 
 const FIREBASE_DATABASE_URL = Deno.env.get('FIREBASE_DATABASE_URL')!
 const FIREBASE_SERVICE_ACCOUNT = Deno.env.get('FIREBASE_SERVICE_ACCOUNT')!
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 let serviceAccount: any = null
 try {
@@ -124,6 +127,33 @@ async function lookupFamilyGroupId(appUserId: string): Promise<string | null> {
   return familyGroupId || null
 }
 
+// --- Idempotency (inlined; the Supabase bundler does not resolve ../_shared
+// imports). Claim an event id before processing; release it if processing fails
+// so RevenueCat's retry can re-run. Fails OPEN (treat as new → process) on any
+// ledger error — the tierUpdatedAt ratchet keeps a reprocess harmless. ---
+async function claimEvent(
+  supabase: ReturnType<typeof createClient>,
+  eventId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('processed_webhook_events')
+    .upsert({ event_id: eventId }, { onConflict: 'event_id', ignoreDuplicates: true })
+    .select('event_id')
+  if (error) {
+    console.error('idempotency claim error:', error.message)
+    return true
+  }
+  return !!data && data.length > 0
+}
+async function releaseEvent(
+  supabase: ReturnType<typeof createClient>,
+  eventId: string
+): Promise<void> {
+  try {
+    await supabase.from('processed_webhook_events').delete().eq('event_id', eventId)
+  } catch (_e) { /* best-effort release */ }
+}
+
 async function setFamilyTier(
   familyGroupId: string,
   newTier: string,
@@ -176,9 +206,18 @@ serve(async (req) => {
   }
 
   const event = payload.event
-  const { type, app_user_id, product_id, event_timestamp_ms } = event
+  const { id: eventId, type, app_user_id, product_id, event_timestamp_ms } = event
 
-  console.log(`Webhook event: type=${type}, user=${app_user_id}, product=${product_id}`)
+  console.log(`Webhook event: id=${eventId}, type=${type}, user=${app_user_id}, product=${product_id}`)
+
+  // Idempotency: claim the event id. A duplicate delivery (RC retry) is acked
+  // without reprocessing. The claim is released in the catch below if processing
+  // throws, so a failed delivery is retried.
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+  if (eventId && !(await claimEvent(supabase, eventId))) {
+    console.log(`Duplicate webhook event ${eventId} (${type}) — skipping`)
+    return new Response('OK', { status: 200 })
+  }
 
   try {
     if (TIER_UPGRADE_EVENTS.has(type)) {
@@ -247,6 +286,8 @@ serve(async (req) => {
     return new Response('OK', { status: 200 })
   } catch (error) {
     console.error(`Webhook error processing ${type} for user ${app_user_id}:`, error)
+    // Release the idempotency claim so RevenueCat's retry re-processes this event.
+    if (eventId) await releaseEvent(supabase, eventId)
     return new Response('Internal error', { status: 500 })
   }
 })

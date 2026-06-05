@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.23.1] - 2026-06-06
+
+### Fixed
+- **RevenueCat webhook is now idempotent on retries** — RC re-delivers the same `event.id` on any non-2xx/blip. The webhook already ratcheted tier writes on `tierUpdatedAt` (a replay couldn't move a tier backward), but it re-did Firebase/RevenueCat work each time. It now claims the event id in a new `processed_webhook_events` ledger (RLS-deny, 30-day pg_cron sweep) before processing and **acks duplicates with 200 without reprocessing**; if processing throws, the claim is released so RC's retry re-runs. Fails open on any ledger error (the ratchet keeps a reprocess harmless). **Apply migration `20260606010000_add_processed_webhook_events.sql` before/with deploy.**
+
 ## [1.23.0] - 2026-06-06
 
 ### Added
