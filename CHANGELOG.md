@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.24.0] - 2026-06-06
+
+### Added
+- **App Check (device attestation) wired into the client** — added `@react-native-firebase/app-check` and `src/services/AppCheckService.ts`, initialized first in `App.tsx` so attestation tokens attach to subsequent Firebase traffic. Release builds use Play Integrity (Android) / App Attest (iOS); `__DEV__` uses the debug provider so the AVD keeps working. Init is resilient — a failure never blocks startup. **Enforcement is a deliberate console step, not enabled here:** every API stays unenforced (monitor mode) until App Check metrics show verified traffic dominates, then enforce one API at a time. Requires a native rebuild. See RUNBOOK §9 for the debug-token + enforcement ramp.
+
 ## [1.23.1] - 2026-06-06
 
 ### Fixed

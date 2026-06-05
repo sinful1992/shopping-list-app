@@ -166,12 +166,23 @@ your staging area:
 
 App Check confirms that requests are coming from the genuine app, not a script
 or bot. (Note: it does **not** cap how many requests can be made — it's about
-authenticity, not rate limiting.) Roll it out gradually:
-1. Firebase Console → App Check → register the app with the **Play Integrity**
-   provider. Add a **debug token** for any emulator/AVD — Play Integrity
-   normally fails on emulators, so without this token your legit test traffic
-   gets rejected.
-2. Run in **monitor mode** first and watch the metrics until you're sure real
-   traffic is passing.
-3. Only then **enforce** it — on RTDB, Storage, and the client-facing edge
-   functions.
+authenticity, not rate limiting; rate limiting is handled separately in the edge
+functions.)
+
+**The client SDK is already wired** — `src/services/AppCheckService.ts` attaches
+the Play Integrity provider (debug provider in `__DEV__`) and is initialized first
+in `App.tsx`. So step 1 below is the only code-side thing; the rest is console.
+
+Roll it out gradually:
+1. **Get the debug token for your AVD/emulator.** Play Integrity fails on
+   emulators, so the debug provider prints a token to logcat on first launch
+   (filter for `DebugAppCheckProvider`). Copy it.
+2. Firebase Console → App Check → register the app with the **Play Integrity**
+   provider, then **Apps → Manage debug tokens** → paste the token from step 1.
+   Without this, your legit emulator traffic gets rejected once you enforce.
+3. Leave every API **UNENFORCED (monitor mode)** at first and watch the App Check
+   metrics until verified traffic dominates. Do **not** enforce at launch — a
+   legitimate-but-unattested client (old app version, token blip) would be locked
+   out.
+4. Only then **enforce**, one API at a time, watching for a drop in legit
+   traffic: RTDB → Storage → the client-facing edge functions.

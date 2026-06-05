@@ -24,6 +24,7 @@ import { runReceiptSyncBackfill } from './src/services/receiptSyncBackfill';
 import { runHoistedFieldsBackfill } from './src/services/hoistedFieldsBackfill';
 import NotificationManager from './src/services/NotificationManager';
 import CrashReporting from './src/services/CrashReporting';
+import AppCheckService from './src/services/AppCheckService';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
@@ -349,10 +350,13 @@ function App(): JSX.Element {
     }
   }, [user?.familyGroupId, user?.uid, showAlert]);
 
-  // Initialize Crashlytics and Analytics on app launch
+  // Initialize App Check, Crashlytics and Analytics on app launch.
+  // App Check goes first so attestation tokens are attached to subsequent
+  // Firebase traffic.
   useEffect(() => {
     const initializeServices = async () => {
       try {
+        await AppCheckService.initialize();
         await CrashReporting.initialize();
         await FirebaseAnalytics.initialize();
       } catch (_error) {
