@@ -41,14 +41,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$functions = @(
-  'notify-urgent-item', 'revenuecat-webhook', 'reconcile-subscription',
-  'register-device-token', 'notify-shopping-started', 'upsert-urgent-item', 'health'
-)
-
 # Resolve the ref to a concrete commit so the message is unambiguous.
 $sha = (git rev-parse --short $Ref 2>$null)
 if (-not $sha) { throw "Cannot resolve git ref '$Ref'." }
+
+# Derive the function list from the TARGET ref, not a hard-coded list: rolling
+# back to a ref that predates a function (e.g. health) must not try to deploy one
+# absent from that tree — $ErrorActionPreference=Stop would abort the rollback.
+$functions = @(git ls-tree -d --name-only "${Ref}:supabase/functions" 2>$null |
+  Where-Object { $_ -and $_ -ne '_shared' })
+if ($functions.Count -eq 0) { throw "No edge functions found in $Ref." }
 
 Write-Host "Roll back backend to $Ref ($sha):" -ForegroundColor Yellow
 if (-not $RulesOnly)     { Write-Host "  - redeploy edge functions: $($functions -join ', ')" }

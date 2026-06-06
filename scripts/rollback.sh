@@ -30,10 +30,13 @@ for arg in "$@"; do
   esac
 done
 
-FUNCTIONS=(notify-urgent-item revenuecat-webhook reconcile-subscription \
-  register-device-token notify-shopping-started upsert-urgent-item health)
-
 SHA="$(git rev-parse --short "$REF")" || { echo "Cannot resolve git ref '$REF'."; exit 1; }
+
+# Derive the function list from the TARGET ref, not a hard-coded list: rolling
+# back to a ref that predates a function (e.g. health) must not try to deploy one
+# that is absent from that tree — set -e would abort the rollback mid-flight.
+mapfile -t FUNCTIONS < <(git ls-tree -d --name-only "$REF":supabase/functions 2>/dev/null | grep -v '^_shared$')
+if [ "${#FUNCTIONS[@]}" -eq 0 ]; then echo "No edge functions found in $REF."; exit 1; fi
 
 echo "Roll back backend to $REF ($SHA):"
 [ "$RULES_ONLY" -eq 0 ]     && echo "  - redeploy edge functions: ${FUNCTIONS[*]}"

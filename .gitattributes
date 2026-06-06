@@ -1,0 +1,6 @@
+# Keep shell scripts LF on every platform — a CRLF shebang (`#!...bash^M`)
+# breaks execution on Unix/git-bash, which would sink the rollback tooling.
+*.sh text eol=lf
+
+# PowerShell prefers CRLF.
+*.ps1 text eol=crlf

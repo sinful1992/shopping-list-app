@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.3] - 2026-06-06
+
+### Fixed
+- **Rollback scripts now derive the edge-function list from the target ref** (`scripts/rollback.sh` + `.ps1`). They hard-coded the current function set including `health`, so rolling back to a ref that predates a function (e.g. `health`, added in 1.25.0) would run `supabase functions deploy health` from a worktree where `supabase/functions/health` doesn't exist — and with `set -e` / `$ErrorActionPreference="Stop"` that aborted the rollback partway. Now each script lists `git ls-tree -d <ref>:supabase/functions`, deploying exactly the functions present in that ref. (Codex PR #36 P2.)
+
 ## [1.25.2] - 2026-06-06
 
 ### Changed
