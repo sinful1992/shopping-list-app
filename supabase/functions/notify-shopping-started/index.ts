@@ -309,7 +309,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
     // Per-UID rate limit (post-auth, keyed on the verified caller).
-    if (!(await checkRateLimit(supabase, callerUid, 'notify-shopping-started', 20, 60))) {
+    if (!(await checkRateLimit(supabase, callerUid, 'notify-shopping-started', 5, 60))) {
       return rateLimited()
     }
 

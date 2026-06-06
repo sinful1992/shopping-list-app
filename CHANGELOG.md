@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.2] - 2026-06-06
+
+### Changed
+- **Tightened edge-function rate limits to real usage.** `upsert-urgent-item` 30→10/min: it's the single sync path for create *and* resolve, so the per-UID budget is shared — 10/min covers normal use (one tap-type-done = 1 call) and only rapid bulk-resolve of 10+ items in a minute trips it, which fails safe (resolves locally, syncs on retry). `notify-shopping-started` 20→5/min: each call pushes a notification to *every* family member, so a loose cap is notification-spam exposure, not just backend cost — nobody legitimately starts shopping 5+ times a minute. `reconcile-subscription` (5) and `register-device-token` (10) unchanged.
+
 ## [1.25.1] - 2026-06-06
 
 ### Changed

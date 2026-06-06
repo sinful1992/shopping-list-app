@@ -250,7 +250,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
     // Per-UID rate limit (post-auth, keyed on the verified caller).
-    if (!(await checkRateLimit(supabase, callerUid, 'upsert-urgent-item', 30, 60))) {
+    if (!(await checkRateLimit(supabase, callerUid, 'upsert-urgent-item', 10, 60))) {
       return rateLimited()
     }
 
