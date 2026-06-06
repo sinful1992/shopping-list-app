@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.3] - 2026-06-06
+
+### Fixed
+- **Rollback scripts now derive the edge-function list from the target ref** (`scripts/rollback.sh` + `.ps1`). They hard-coded the current function set including `health`, so rolling back to a ref that predates a function (e.g. `health`, added in 1.25.0) would run `supabase functions deploy health` from a worktree where `supabase/functions/health` doesn't exist — and with `set -e` / `$ErrorActionPreference="Stop"` that aborted the rollback partway. Now each script lists `git ls-tree -d <ref>:supabase/functions`, deploying exactly the functions present in that ref. (Codex PR #36 P2.)
+
+## [1.25.2] - 2026-06-06
+
+### Changed
+- **Tightened edge-function rate limits to real usage.** `upsert-urgent-item` 30→10/min: it's the single sync path for create *and* resolve, so the per-UID budget is shared — 10/min covers normal use (one tap-type-done = 1 call) and only rapid bulk-resolve of 10+ items in a minute trips it, which fails safe (resolves locally, syncs on retry). `notify-shopping-started` 20→5/min: each call pushes a notification to *every* family member, so a loose cap is notification-spam exposure, not just backend cost — nobody legitimately starts shopping 5+ times a minute. `reconcile-subscription` (5) and `register-device-token` (10) unchanged.
+
+## [1.25.1] - 2026-06-06
+
+### Changed
+- **Removed dead `UsageTracker` numeric-limit code** — `canProcessOCR`, `incrementOCRCounter`, and `getRemainingUsage` had zero callers (OCR is ad-gated now), and the surviving comments falsely claimed "enforcement is in Cloud Functions" (no such function exists). Removed the three dead methods and corrected the class/method docs to state the truth: numeric caps are disabled on every tier (ad-based model), `canCreateList` always allows today and is a UX gate only, and there is no server-side count enforcement. No behavior change — `getUsageSummary` (subscription screen) and `canCreateList`/`incrementListCounter` (list create flow) are untouched.
+
+### Notes
+- **Backlog — family-member cap is unenforced.** `TIER_FEATURES` advertises "Up to 10 Family Members" for the family tier, but `maxFamilyMembers` is null on every tier and nothing enforces it. Deferred deliberately (this pass was infra/security only). When implemented, enforce server-side at join-approval — either a maintained `memberCount` checked in the RTDB rule, or a join-approval edge function — not client-side.
+
+## [1.25.0] - 2026-06-06
+
+### Added
+- **`health` edge function** — a public liveness probe for an external uptime monitor. Checks that both backends are reachable (Postgres via a trivial select, RTDB via an unauthenticated shallow probe) and returns 200 (`ok`) or 503 (`degraded`). Returns no data, and caches its result for 15s so a monitor (or abuser) can't add load. Added to the deploy workflow; RUNBOOK §6 lists it as a second monitor target alongside OCR.
+- **One-command backend rollback** — `scripts/rollback.ps1` (+ `.sh`) redeploys the edge functions *and* RTDB rules from a known-good git ref via a throwaway git worktree (working tree untouched). Does not touch migrations (forward-only). Documented in RUNBOOK §3.
+
+### Changed
+- **RUNBOOK refresh** — §3 documents the rollback script; §6 adds the backend health endpoint; §7 rewritten to match reality (server-side CI verify job was dropped — quality is gated by local git hooks, branch protection is Pro-gated); new §10 documents a quarterly secret-rotation schedule.
+
+## [1.24.0] - 2026-06-06
+
+### Added
+- **App Check (device attestation) wired into the client** — added `@react-native-firebase/app-check` and `src/services/AppCheckService.ts`, initialized first in `App.tsx` so attestation tokens attach to subsequent Firebase traffic. Release builds use Play Integrity (Android) / App Attest (iOS); `__DEV__` uses the debug provider so the AVD keeps working. Init is resilient — a failure never blocks startup. **Enforcement is a deliberate console step, not enabled here:** every API stays unenforced (monitor mode) until App Check metrics show verified traffic dominates, then enforce one API at a time. Requires a native rebuild. See RUNBOOK §9 for the debug-token + enforcement ramp.
+
+## [1.23.1] - 2026-06-06
+
+### Fixed
+- **RevenueCat webhook is now idempotent on retries** — RC re-delivers the same `event.id` on any non-2xx/blip. The webhook already ratcheted tier writes on `tierUpdatedAt` (a replay couldn't move a tier backward), but it re-did Firebase/RevenueCat work each time. It now claims the event id in a new `processed_webhook_events` ledger (RLS-deny, 30-day pg_cron sweep) before processing and **acks duplicates with 200 without reprocessing**; if processing throws, the claim is released so RC's retry re-runs. Fails open on any ledger error (the ratchet keeps a reprocess harmless). **Apply migration `20260606010000_add_processed_webhook_events.sql` before/with deploy.**
+
+## [1.23.0] - 2026-06-06
+
+### Added
+- **Per-UID rate limiting on edge functions** — the one missing security control before a public release. A Postgres fixed-window counter (`rate_limit_buckets` + atomic `check_rate_limit()` RPC, RLS-deny, hourly pg_cron sweep) is checked post-auth, keyed on the verified Firebase uid, in `upsert-urgent-item` (30/min), `notify-shopping-started` (20/min), `register-device-token` (10/min), and `reconcile-subscription` (5/min). Over-limit returns 429 + `Retry-After`. The check **fails open** on any limiter error — it's abuse/cost protection layered on top of auth + membership, never the access boundary itself, so a limiter blip never denies a legit caller. **Apply migration `20260606000000_add_rate_limit_buckets.sql` before/with deploy** (functions degrade gracefully if it's missing).
+
+## [1.22.5] - 2026-06-06
+
+### Security
+- **`reconcile-subscription` now verifies the caller** — the edge function previously authorized only by an ownership check (does this `appUserId` belong to this `familyGroupId`), leaving it callable by anyone who could guess a valid uid/group pair. It now requires a Firebase ID token, verifies the signature/claims inline (same pattern as `upsert-urgent-item`), and rejects unless the verified `uid === appUserId` (401/403). The client sends a fresh ID token with the reconcile call.
+- **Removed the unused Google Cloud Vision API key from the build** — OCR has routed through a server-side function since the key was dropped from `ReceiptOCRProcessor` (v earlier), but `GOOGLE_CLOUD_VISION_API_KEY` was still injected into the APK/IPA build `.env` by CI and declared in `@env`. Removed the dead references from `android-build.yml`, `ios-build.yml`, `src/types/env.d.ts`, `setup-secrets.ps1`, and `.env.example` so the key never enters the client bundle env. (The GitHub secret can be deleted separately.)
+
 ## [1.22.4] - 2026-06-05
 
 ### Fixed

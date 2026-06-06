@@ -7,6 +7,7 @@ import Purchases, {
 } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { getDatabase, ref, onValue } from '@react-native-firebase/database';
+import auth from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubscriptionTier, User } from '../models/types';
 import { ENTITLEMENT_ID, TIER_CACHE_KEY } from '../models/SubscriptionConfig';
@@ -175,9 +176,13 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       reconciledGroupRef.current !== currentGroupId
     ) {
       reconciledGroupRef.current = currentGroupId;
-      supabase.functions.invoke('reconcile-subscription', {
-        body: { appUserId: user.uid, familyGroupId: currentGroupId },
-      }).catch((error) => {
+      // Send a fresh Firebase ID token so the edge function can verify the caller
+      // server-side (reconcile writes the family's subscription tier).
+      auth().currentUser?.getIdToken().then((idToken) =>
+        supabase.functions.invoke('reconcile-subscription', {
+          body: { appUserId: user.uid, familyGroupId: currentGroupId, idToken },
+        })
+      ).catch((error) => {
         console.warn('Tier reconciliation failed:', error);
       });
     }

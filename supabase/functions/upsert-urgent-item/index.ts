@@ -177,6 +177,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// --- Per-UID rate limiting (inlined; the Supabase bundler does not resolve
+// ../_shared imports). Postgres fixed-window counter keyed on the verified uid.
+// Abuse/cost protection only — fails OPEN so a limiter blip never denies a legit
+// caller; a working limiter caps spam. ---
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  uid: string,
+  fn: string,
+  limit: number,
+  windowSeconds: number,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('check_rate_limit', {
+      p_uid: uid, p_fn: fn, p_window_seconds: windowSeconds,
+    })
+    if (error) { console.error('rate-limit rpc error:', error.message); return true }
+    return typeof data === 'number' ? data <= limit : true
+  } catch (e) {
+    console.error('rate-limit check failed:', (e as Error).message)
+    return true
+  }
+}
+function rateLimited(): Response {
+  return new Response(
+    JSON.stringify({ error: 'Too many requests' }),
+    { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' } }
+  )
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -219,6 +248,11 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+    // Per-UID rate limit (post-auth, keyed on the verified caller).
+    if (!(await checkRateLimit(supabase, callerUid, 'upsert-urgent-item', 10, 60))) {
+      return rateLimited()
+    }
 
     // Shadow-log stricter-rule violations (post-auth, sampled). Never rejects.
     await shadowLog(supabase, 'upsert-urgent-item', strictIssues(upsertStrict, body))

@@ -36,6 +36,7 @@ jobs:
           supabase functions deploy register-device-token --no-verify-jwt
           supabase functions deploy notify-shopping-started --no-verify-jwt
           supabase functions deploy upsert-urgent-item --no-verify-jwt
+          supabase functions deploy health --no-verify-jwt
 
       - name: Set Edge Function Secrets
         env:

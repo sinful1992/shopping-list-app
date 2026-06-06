@@ -5,15 +5,21 @@ import { SUBSCRIPTION_LIMITS } from '../models/SubscriptionConfig';
 
 /**
  * UsageTracker
- * Tracks and enforces usage limits for subscription tiers
- * Implements Sprint 2: Freemium Model & Usage Limits
- * Subscription is at FAMILY level - one person pays, everyone benefits
+ * Tracks monthly usage counters per family for display on the subscription
+ * screen. Subscription is at FAMILY level - one person pays, everyone benefits.
+ *
+ * Numeric caps are currently DISABLED: every tier's limits are null in
+ * SubscriptionConfig because the freemium gate is ad-based (free = ads; paid =
+ * no ads), not a per-month count. So canCreateList() always allows today — it's
+ * kept as the single place a numeric cap could be reintroduced. There is no
+ * server-side count enforcement; if one is ever needed it must live in an edge
+ * function or RTDB rule, not here.
  */
 class UsageTracker {
   /**
-   * Check if current user has admin custom claim
-   * Admin users bypass all subscription limits
-   * This is validated server-side in Cloud Functions for actual operations
+   * Check if current user has admin custom claim.
+   * Admin users bypass numeric limits here. The admin claim itself is enforced
+   * server-side by the RTDB rules (only auth.token.admin may write a tier).
    */
   private async isAdmin(): Promise<boolean> {
     try {
@@ -78,10 +84,10 @@ class UsageTracker {
   }
 
   /**
-   * Check if user can create a shopping list
-   * Uses FAMILY subscription tier, not individual user tier
-   * Admin users (via Custom Claims) bypass all limits
-   * NOTE: This is a client-side UX check. Actual enforcement is in Cloud Functions.
+   * Check if user can create a shopping list, using the FAMILY subscription tier.
+   * Returns allowed:true today because maxLists is null on every tier (caps are
+   * ad-based, not numeric). Kept as the single seam for reintroducing a numeric
+   * cap; it is a client-side UX gate only, never an enforcement boundary.
    */
   async canCreateList(user: User): Promise<{ allowed: boolean; reason?: string }> {
     // Admin check via Firebase Custom Claims
@@ -108,79 +114,11 @@ class UsageTracker {
   }
 
   /**
-   * Check if user can process OCR
-   * Uses FAMILY subscription tier, not individual user tier
-   * Admin users (via Custom Claims) bypass all limits
-   * NOTE: This is a client-side UX check. Actual enforcement is in Cloud Functions.
-   */
-  async canProcessOCR(user: User): Promise<{ allowed: boolean; reason?: string }> {
-    // Admin check via Firebase Custom Claims
-    if (await this.isAdmin()) {
-      return { allowed: true };
-    }
-
-    const counters = await this.checkAndResetIfNeeded(user);
-    const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
-    const limits = SUBSCRIPTION_LIMITS[familyTier];
-
-    if (limits.maxOCRPerMonth === null) {
-      return { allowed: true };
-    }
-
-    if (limits.maxOCRPerMonth === 0) {
-      return { allowed: false, reason: 'Receipt scanning is available on Premium and above.' };
-    }
-
-    if (counters.ocrProcessed >= limits.maxOCRPerMonth) {
-      return {
-        allowed: false,
-        reason: `You've used your ${limits.maxOCRPerMonth} OCR scan${limits.maxOCRPerMonth > 1 ? 's' : ''} this month. Upgrade for more!`,
-      };
-    }
-
-    return { allowed: true };
-  }
-
-  /**
-   * Increment list counter
+   * Increment list counter (drives the used/limit display on the subscription
+   * screen; not an enforcement gate).
    */
   async incrementListCounter(userId: string): Promise<void> {
     await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/listsCreated`), (current) => (current || 0) + 1);
-  }
-
-  /**
-   * Increment OCR counter
-   */
-  async incrementOCRCounter(userId: string): Promise<void> {
-    await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/ocrProcessed`), (current) => (current || 0) + 1);
-  }
-
-  /**
-   * Get remaining usage for display
-   */
-  async getRemainingUsage(user: User): Promise<{
-    lists: number | 'unlimited';
-    ocr: number | 'unlimited';
-    urgentItems: number | 'unlimited';
-  }> {
-    const counters = await this.checkAndResetIfNeeded(user);
-    const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
-    const limits = SUBSCRIPTION_LIMITS[familyTier];
-
-    return {
-      lists:
-        limits.maxLists === null
-          ? 'unlimited'
-          : Math.max(0, limits.maxLists - counters.listsCreated),
-      ocr:
-        limits.maxOCRPerMonth === null
-          ? 'unlimited'
-          : Math.max(0, limits.maxOCRPerMonth - counters.ocrProcessed),
-      urgentItems:
-        limits.maxUrgentItemsPerMonth === null
-          ? 'unlimited'
-          : Math.max(0, limits.maxUrgentItemsPerMonth - counters.urgentItemsCreated),
-    };
   }
 
   /**

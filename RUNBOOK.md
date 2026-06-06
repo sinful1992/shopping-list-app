@@ -18,6 +18,7 @@ rotate keys for the Family Shopping List app.
 - [7. Stop broken code reaching master](#7-stop-broken-code-reaching-master)
 - [8. Test a release before users get it](#8-test-a-release-before-users-get-it)
 - [9. Turn on App Check](#9-turn-on-app-check-anti-scripting)
+- [10. Rotate secrets on a schedule](#10-rotate-secrets-on-a-schedule)
 
 ---
 
@@ -89,7 +90,17 @@ supabase functions deploy <name> --project-ref <ref>
 ```
 The functions are: `upsert-urgent-item`, `register-device-token`,
 `notify-shopping-started`, `notify-urgent-item`, `revenuecat-webhook`,
-`reconcile-subscription`.
+`reconcile-subscription`, `health`.
+
+**To roll the whole backend back to a known-good release** (redeploy the edge
+functions *and* RTDB rules from an older git ref, in one command):
+```powershell
+./scripts/rollback.ps1 -Ref v1.23.0          # or scripts/rollback.sh v1.23.0
+```
+It checks the ref out into a throwaway git worktree (your working tree is never
+touched) and redeploys. It does **not** roll back migrations — those are
+forward-only (see the migration note below). Flags: `-FunctionsOnly`,
+`-RulesOnly`, `-Yes` (skip the prompt).
 
 **Firebase database security rules** — these deploy automatically on a `master`
 push (via `android-build.yml`). To deploy by hand:
@@ -134,21 +145,31 @@ After any restore or redeploy, run through this on a real device or emulator:
 
 Use a free external monitor like **UptimeRobot** — don't build a CI cron job for
 this (HF Spaces is slow to wake from cold, and a cron with no de-duplication
-will spam you with false alarms):
-- Monitor `https://sinful1-receipt-ocr.hf.space/health` over HTTP(s).
-- Check every 5–15 minutes.
-- Only alert after **2 failures in a row** (this rides out normal cold starts).
+will spam you with false alarms). Monitor **two** endpoints:
+- **OCR:** `https://sinful1-receipt-ocr.hf.space/health`
+- **Backend (RTDB + Postgres):** `https://cwpzfsfjrlxekghfyqub.supabase.co/functions/v1/health`
+  — the `health` edge function returns **200** when both backends are reachable,
+  **503** if either is down (body: `{ status, db, rtdb }`). It's public, returns
+  no data, and caches its result for 15s so the monitor can't add load.
+
+For each: check every 5–15 minutes, and only alert after **2 failures in a row**
+(this rides out normal cold starts).
 
 ---
 
 ## 7. Stop broken code reaching master
 
-`ci.yml` runs typecheck + tests + lint on every PR into `master`, and the
-release build (`android-build.yml`) won't run unless that passes (`needs:
-verify`). Right now those checks run but aren't *required*. To make them
-mandatory:
-- GitHub → Settings → Branches → add a rule for `master` → turn on **Require
-  status checks to pass** → select the `verify` / CI check.
+Quality is gated **locally** by git hooks (a deliberate choice — the server-side
+CI verify job was dropped in favour of fast local gates):
+- **pre-commit** runs the full Jest suite, and enforces a `package.json` version
+  bump + a matching `CHANGELOG.md` entry on any `src/`/`supabase/` change.
+- **pre-push** runs `knip` (dead code), `tsc --noEmit` (types), and `eslint src/`.
+
+These block a bad commit/push unless bypassed with `--no-verify`. They are **not**
+server-enforced: GitHub branch-protection rulesets are gated behind GitHub Pro on
+this free private repo, so "master stays green" relies on not bypassing the hooks.
+If you later upgrade to Pro: GitHub → Settings → Branches → add a rule for
+`master` → **Require status checks to pass** (after re-adding a CI workflow).
 
 ---
 
@@ -166,12 +187,41 @@ your staging area:
 
 App Check confirms that requests are coming from the genuine app, not a script
 or bot. (Note: it does **not** cap how many requests can be made — it's about
-authenticity, not rate limiting.) Roll it out gradually:
-1. Firebase Console → App Check → register the app with the **Play Integrity**
-   provider. Add a **debug token** for any emulator/AVD — Play Integrity
-   normally fails on emulators, so without this token your legit test traffic
-   gets rejected.
-2. Run in **monitor mode** first and watch the metrics until you're sure real
-   traffic is passing.
-3. Only then **enforce** it — on RTDB, Storage, and the client-facing edge
-   functions.
+authenticity, not rate limiting; rate limiting is handled separately in the edge
+functions.)
+
+**The client SDK is already wired** — `src/services/AppCheckService.ts` attaches
+the Play Integrity provider (debug provider in `__DEV__`) and is initialized first
+in `App.tsx`. So step 1 below is the only code-side thing; the rest is console.
+
+Roll it out gradually:
+1. **Get the debug token for your AVD/emulator.** Play Integrity fails on
+   emulators, so the debug provider prints a token to logcat on first launch
+   (filter for `DebugAppCheckProvider`). Copy it.
+2. Firebase Console → App Check → register the app with the **Play Integrity**
+   provider, then **Apps → Manage debug tokens** → paste the token from step 1.
+   Without this, your legit emulator traffic gets rejected once you enforce.
+3. Leave every API **UNENFORCED (monitor mode)** at first and watch the App Check
+   metrics until verified traffic dominates. Do **not** enforce at launch — a
+   legitimate-but-unattested client (old app version, token blip) would be locked
+   out.
+4. Only then **enforce**, one API at a time, watching for a drop in legit
+   traffic: RTDB → Storage → the client-facing edge functions.
+
+---
+
+## 10. Rotate secrets on a schedule
+
+Long-lived secrets are a standing risk. Rotate the shared ones **quarterly**, and
+immediately if you ever suspect exposure. Rotating is just "make a new one, update
+every place that holds it, confirm, retire the old one."
+
+| Secret | Where it lives | How to rotate |
+| --- | --- | --- |
+| Firebase service-account key | `FIREBASE_SERVICE_ACCOUNT_JSON` (GitHub secret) + `FIREBASE_SERVICE_ACCOUNT` (Supabase fn secret) | Full steps in §4 (same procedure, planned instead of reactive). |
+| RevenueCat webhook secret | `REVENUECAT_WEBHOOK_SECRET` (Supabase fn secret) + RevenueCat dashboard webhook config | Generate a new value, set it in **both** the RevenueCat webhook config and `supabase secrets set REVENUECAT_WEBHOOK_SECRET=...`, then send a test event. |
+| RevenueCat REST secret key | `REVENUECAT_SECRET_KEY` (Supabase fn secret) | Roll in the RevenueCat dashboard, `supabase secrets set`, then confirm a `reconcile-subscription` call still succeeds. |
+| age backup key pair | public key in `AGE_PUBLIC_KEY`; private key offline (§1) | Regenerate the pair (§1), update `AGE_PUBLIC_KEY`, re-escrow the new private key, and **keep the old private key** until every backup encrypted with it has aged out (30 days). |
+| Android signing keystore | GitHub signing secrets | Do **not** rotate routinely — the Play upload key is fixed for the app's life. Only touch it via Play App Signing key reset if compromised. |
+
+After any rotation, run the §5 checklist to confirm nothing broke.
