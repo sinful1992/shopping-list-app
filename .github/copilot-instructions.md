@@ -33,7 +33,7 @@ Short goal: help contributors implement features and fixes quickly while preserv
 
 - Environment and integrations you must configure locally
   - Firebase: add `GoogleService-Info.plist` (iOS) and `android/app/google-services.json` (Android). Follow README -> "Configure Firebase".
-  - Google Cloud Vision API: API key required for OCR features; see `.env.example` and README.
+  - OCR: receipts are processed by a self-hosted PaddleOCR server (see `src/services/ReceiptOCRService.ts`); no cloud OCR API key is needed.
   - RevenueCat (payments) is initialized in `App.tsx` via `PaymentService` — check `src/services/PaymentService.ts` before changing payments.
 
 - Conventions and pitfalls
