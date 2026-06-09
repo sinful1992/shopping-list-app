@@ -136,8 +136,9 @@
         ".write": "auth != null && (
           (newData.exists() && data.exists() &&
             root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid)) ||
-          (newData.exists() && !data.exists() &&
-            root.child('familyGroups').child(newData.child('groupId').val()).child('memberIds').hasChild(auth.uid)) ||
+          (newData.exists() && !data.exists() && (
+            root.child('familyGroups').child(newData.child('groupId').val()).child('memberIds').hasChild(auth.uid) ||
+            !root.child('familyGroups').child(newData.child('groupId').val()).exists())) ||
           (!newData.exists() &&
             root.child('familyGroups').child(data.child('groupId').val()).child('memberIds').hasChild(auth.uid))
         )",
