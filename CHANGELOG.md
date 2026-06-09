@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.5] - 2026-06-09
+
+### Fixed
+- **Editable receipt prices no longer mangle zero / blank input.** `ReceiptViewScreen` parsed the total with `parseFloat(text) || null` (typing `0` saved `null`, so a £0 total was impossible) and line-item prices with `parseFloat(text) || 0` (clearing a price silently saved £0.00 instead of empty). Both now use the existing NaN-safe `sanitizePrice()` helper, which returns `null` for blank/invalid and preserves a genuine `0`.
+- **`HistoryDetailScreen` total math uses `??` instead of `||`** for item-price defaults, so a stored `0` is no longer treated as falsy when summing list totals.
+
 ## [1.25.4] - 2026-06-09
 
 ### Fixed

@@ -12,7 +12,7 @@ import {
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
-import { sanitizeError } from '../../utils/sanitize';
+import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { toFileUri } from '../../utils/uri';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -310,7 +310,7 @@ const ReceiptViewScreen = () => {
                   onChangeText={(text) =>
                     setEditedData((prev) =>
                       prev
-                        ? { ...prev, totalAmount: parseFloat(text) || null }
+                        ? { ...prev, totalAmount: sanitizePrice(text) }
                         : null
                     )
                   }
@@ -356,7 +356,7 @@ const ReceiptViewScreen = () => {
                             setEditedData(prev => {
                               if (!prev) return null;
                               const updatedItems = [...prev.lineItems];
-                              updatedItems[index] = { ...updatedItems[index], price: parseFloat(text) || 0 };
+                              updatedItems[index] = { ...updatedItems[index], price: sanitizePrice(text) };
                               return { ...prev, lineItems: updatedItems };
                             });
                           }}

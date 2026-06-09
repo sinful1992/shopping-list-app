@@ -106,7 +106,7 @@ const HistoryDetailScreen = () => {
       // Backfill totalAmount from item prices when not yet saved (including zero)
       let resolvedList = details.list;
       if (details.list.totalAmount == null && loadedItems.length > 0) {
-        const calcTotal = loadedItems.reduce((sum, item) => sum + (item.price || 0), 0);
+        const calcTotal = loadedItems.reduce((sum, item) => sum + (item.price ?? 0), 0);
         await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
         resolvedList = { ...details.list, totalAmount: calcTotal };
       }
@@ -169,7 +169,7 @@ const HistoryDetailScreen = () => {
       const newItems = items.map(item =>
         item.id === itemId ? { ...item, ...updates } : item
       );
-      const newTotal = newItems.reduce((sum, item) => sum + (item.price || 0), 0);
+      const newTotal = newItems.reduce((sum, item) => sum + (item.price ?? 0), 0);
 
       if (newTotal > 0) {
         await ShoppingListManager.updateList(listId, { totalAmount: newTotal });
@@ -183,7 +183,7 @@ const HistoryDetailScreen = () => {
   // Calculate total from item prices
   const calculatedTotal = useMemo(() => {
     if (!items.length) return 0;
-    return items.reduce((sum, item) => sum + (item.price || 0), 0);
+    return items.reduce((sum, item) => sum + (item.price ?? 0), 0);
   }, [items]);
 
   const { uncheckedItems, checkedItems } = useMemo(() => ({
