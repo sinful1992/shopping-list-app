@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.4] - 2026-06-09
+
+### Fixed
+- **`reconcile-subscription` no longer rejects every legitimate call.** It validated `familyGroupId` against a UUID regex, but family-group IDs are Firebase `push()` keys (e.g. `-NEb7Jk-qLmnOp12Q34R5`), never UUIDs — so every reconcile returned `400 Invalid familyGroupId format` and a paying user's tier never synced from RevenueCat to RTDB on cold-start. `familyGroupId` is only string-compared to the user's stored group at the ownership check (it's never a path segment), so the UUID check added no security. Replaced it with a light injection guard (length + no `/` or `..`), matching the sibling `upsert-urgent-item` function.
+
 ## [1.25.3] - 2026-06-06
 
 ### Fixed

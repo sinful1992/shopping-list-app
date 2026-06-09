@@ -180,8 +180,6 @@ const PRODUCT_TIER_MAP: Record<string, string> = {
   lifetime: 'family',
 }
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -282,7 +280,10 @@ serve(async (req) => {
     )
   }
 
-  if (!UUID_REGEX.test(familyGroupId)) {
+  // familyGroupId is a Firebase push() key, not a UUID. It is never used as a
+  // path segment here (only string-compared to the user's stored group at the
+  // ownership check below), so a light injection guard is all that's needed.
+  if (familyGroupId.length > 128 || familyGroupId.includes('/') || familyGroupId.includes('..')) {
     return new Response(
       JSON.stringify({ error: 'Invalid familyGroupId format' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
