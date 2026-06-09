@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.6] - 2026-06-09
+
+### Changed
+- **Removed dead `AuthenticationModule.joinFamilyGroup`** — zero callers (the live path is `submitJoinRequest` → member approval), and it wrote `memberIds` directly, which the current RTDB rules reject anyway. Deleting it removes a misleading second join path.
+- **Gated production debug logging.** Unconditional `console.warn` calls that reached release logcat are now `__DEV__`-guarded (`RevenueCatContext` config/paywall/restore warnings, `useShoppingLists` group-consistency diagnostics, the two backfill failures, and `LocalStorageManager`'s corrupt-queue-entry skip). The one genuinely silent background failure — tier reconciliation — now routes to `CrashReporting.recordError` instead of a swallowed `console.warn`.
+
 ## [1.25.5] - 2026-06-09
 
 ### Fixed

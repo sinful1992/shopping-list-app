@@ -60,7 +60,7 @@ export async function runHoistedFieldsBackfill(): Promise<void> {
 
         await AsyncStorage.setItem(BACKFILL_FLAG, 'done');
       } catch (e) {
-        console.warn('Hoisted fields backfill failed:', e);
+        if (__DEV__) console.warn('Hoisted fields backfill failed:', e);
         const current = await AsyncStorage.getItem(BACKFILL_FLAG);
         const count = current ? parseInt(current, 10) : 0;
         if (!isNaN(count) && count >= MAX_ATTEMPTS) {
