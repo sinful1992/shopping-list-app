@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.7] - 2026-06-13
+
+### Security
+- **Resolved Supabase database-linter findings on `urgent_items` / `device_tokens`** (live DB had drifted from migration history — objects were created by hand in the dashboard and never captured in a committed migration). Migration `20260613000000_harden_supabase_linter_findings.sql` (idempotent):
+  - **Dropped the permissive "for all users" RLS policies** on both tables. These granted `anon`/`authenticated` full `SELECT`/`INSERT`/`UPDATE`/`DELETE` with `USING(true)`. The `SELECT USING(true)` pair (which the linter hides) let any holder of the public anon key read **every family's** urgent items and **every device's** FCM token cross-tenant. The client never reaches these via PostgREST (urgent items sync over Firebase RTDB; edge functions use the service role), so removing them closes a real cross-tenant data exposure with no app impact.
+  - **Dropped orphan `notify_urgent_item_created()`** — wired to no trigger, a weaker hand-created duplicate of `handle_new_urgent_item` (hardcoded project URL, forwarded the caller's own `Authorization` header instead of the service-role key). Clears its mutable-search_path and PUBLIC-executable findings at once.
+  - **Pinned `search_path = ''`** on `handle_new_urgent_item` and `check_rate_limit` (bodies verified fully schema-qualified against the live definitions), and **revoked the default PUBLIC/anon/authenticated `EXECUTE`** on `handle_new_urgent_item` (the trigger still fires).
+  - Root fix mirrored in `setup-urgent-items.sql` so a re-run cannot reintroduce any of it.
+
 ## [1.25.6] - 2026-06-09
 
 ### Changed
