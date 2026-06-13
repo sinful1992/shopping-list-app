@@ -60,7 +60,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       try {
         const apiKey = REVENUECAT_ANDROID_API_KEY;
         if (!apiKey) {
-          console.warn('REVENUECAT_ANDROID_API_KEY is not set');
+          if (__DEV__) console.warn('REVENUECAT_ANDROID_API_KEY is not set');
           setIsLoading(false);
           return;
         }
@@ -183,7 +183,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
           body: { appUserId: user.uid, familyGroupId: currentGroupId, idToken },
         })
       ).catch((error) => {
-        console.warn('Tier reconciliation failed:', error);
+        CrashReporting.recordError(error as Error, 'RevenueCatContext tier reconciliation');
       });
     }
   }, [user?.familyGroupId, user?.uid]);
@@ -223,7 +223,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
         }, PURCHASE_TIMEOUT_MS);
       }
     } catch (error) {
-      console.warn('Paywall presentation failed:', error);
+      if (__DEV__) console.warn('Paywall presentation failed:', error);
     }
   }, [isPurchasing]);
 
@@ -231,7 +231,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
     try {
       await RevenueCatUI.presentCustomerCenter();
     } catch (error) {
-      console.warn('Customer Center failed:', error);
+      if (__DEV__) console.warn('Customer Center failed:', error);
     }
   }, []);
 
@@ -249,7 +249,7 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       }, PURCHASE_TIMEOUT_MS);
     } catch (error) {
       setIsPurchasing(false);
-      console.warn('Restore purchases failed:', error);
+      if (__DEV__) console.warn('Restore purchases failed:', error);
     }
   }, [isPurchasing]);
 

@@ -140,12 +140,14 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
     if (creatingRef.current) return null;
     if (!user) return null;
     if (!familyGroupId) {
-      if (user.familyGroupId) {
-        console.warn('useShoppingLists.createList called without familyGroupId while user has one.', {
-          userFamilyGroupId: user.familyGroupId,
-        });
-      } else {
-        console.warn('useShoppingLists.createList called without familyGroupId.');
+      if (__DEV__) {
+        if (user.familyGroupId) {
+          console.warn('useShoppingLists.createList called without familyGroupId while user has one.', {
+            userFamilyGroupId: user.familyGroupId,
+          });
+        } else {
+          console.warn('useShoppingLists.createList called without familyGroupId.');
+        }
       }
       return null;
     }

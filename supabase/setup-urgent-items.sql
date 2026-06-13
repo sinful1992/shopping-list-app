@@ -59,17 +59,27 @@ ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
 -- can read/write these tables. service_role bypasses RLS automatically.
 -- ============================================
 
--- Drop all existing policies
+-- Drop all existing policies. Both the "for authenticated users" set and the
+-- older "for all users" set (which earlier revisions of this script left behind,
+-- tripping linter 0024) so the tables end up with zero permissive policies.
 DROP POLICY IF EXISTS "Allow all operations for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow insert for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow select for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow update for authenticated users" ON public.urgent_items;
 DROP POLICY IF EXISTS "Allow delete for authenticated users" ON public.urgent_items;
+DROP POLICY IF EXISTS "Allow select for all users" ON public.urgent_items;
+DROP POLICY IF EXISTS "Allow insert for all users" ON public.urgent_items;
+DROP POLICY IF EXISTS "Allow update for all users" ON public.urgent_items;
+DROP POLICY IF EXISTS "Allow delete for all users" ON public.urgent_items;
 
 DROP POLICY IF EXISTS "Allow insert for authenticated users" ON public.device_tokens;
 DROP POLICY IF EXISTS "Allow select for authenticated users" ON public.device_tokens;
 DROP POLICY IF EXISTS "Allow update for authenticated users" ON public.device_tokens;
 DROP POLICY IF EXISTS "Allow delete for authenticated users" ON public.device_tokens;
+DROP POLICY IF EXISTS "Allow select for all users" ON public.device_tokens;
+DROP POLICY IF EXISTS "Allow insert for all users" ON public.device_tokens;
+DROP POLICY IF EXISTS "Allow update for all users" ON public.device_tokens;
+DROP POLICY IF EXISTS "Allow delete for all users" ON public.device_tokens;
 
 -- No new policies are created. RLS is enabled (below) with no permissive policies,
 -- so anon and authenticated roles have zero direct access.
@@ -101,7 +111,12 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+-- Trigger functions don't need EXECUTE granted to anon/authenticated (Postgres
+-- doesn't check it when firing a trigger), and granting it exposes the function
+-- via /rpc. Revoke the default PUBLIC grant (linter 0028/0029).
+REVOKE EXECUTE ON FUNCTION public.handle_new_urgent_item() FROM PUBLIC, anon, authenticated;
 
 -- Create trigger
 CREATE TRIGGER on_urgent_item_created

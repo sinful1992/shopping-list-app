@@ -304,66 +304,6 @@ class AuthenticationModule {
   }
 
   /**
-   * Join existing family group using invitation code
-   * Implements Req 1.4
-   */
-  async joinFamilyGroup(invitationCode: string, userId: string): Promise<FamilyGroup> {
-    try {
-      const db = getDatabase();
-      // STEP 1: Lookup groupId from invitation table (O(1) operation)
-      const invitationSnapshot = await get(ref(db, `/invitations/${invitationCode}`));
-
-      if (!invitationSnapshot.exists()) {
-        throw new Error('Invalid invitation code');
-      }
-
-      const invitationData = invitationSnapshot.val();
-      const groupId = invitationData.groupId;
-
-      // STEP 2: Add user to family group first (so we can read it after)
-      const updates: { [key: string]: any } = {};
-      updates[`/familyGroups/${groupId}/memberIds/${userId}`] = true;
-      updates[`/users/${userId}/familyGroupId`] = groupId;
-
-      await update(ref(db), updates);
-
-      // STEP 3: Now we can read the group (we're a member now)
-      const groupSnapshot = await get(ref(db, `/familyGroups/${groupId}`));
-
-      if (!groupSnapshot.exists()) {
-        // Group was deleted - remove our membership
-        await remove(ref(db, `/familyGroups/${groupId}/memberIds/${userId}`));
-        await remove(ref(db, `/users/${userId}/familyGroupId`));
-        throw new Error('Family group no longer exists');
-      }
-
-      const familyGroup: FamilyGroup = groupSnapshot.val();
-
-      // STEP 4: Update cached user data
-      const userSnapshot = await get(ref(db, `/users/${userId}`));
-      const updatedUser = userSnapshot.val();
-      if (updatedUser) {
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
-      }
-
-      return familyGroup;
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : String(error);
-      const code = typeof error === 'object' && error !== null && 'code' in error ? (error as { code: string }).code : '';
-
-      if (msg.includes('Invalid invitation code')) {
-        throw new Error('Invalid invitation code. Please check and try again.');
-      } else if (msg.includes('no longer exists')) {
-        throw new Error('This family group has been deleted.');
-      } else if (code === 'PERMISSION_DENIED') {
-        throw new Error('Permission denied. Please contact support.');
-      } else {
-        throw new Error(`Failed to join family group: ${msg}`);
-      }
-    }
-  }
-
-  /**
    * Get current authenticated user
    * Implements Req 1.2
    * Always fetches fresh data from database to ensure familyGroupId is up-to-date

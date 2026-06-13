@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.7] - 2026-06-13
+
+### Security
+- **Resolved Supabase database-linter findings on `urgent_items` / `device_tokens`** (live DB had drifted from migration history — objects were created by hand in the dashboard and never captured in a committed migration). Migration `20260613000000_harden_supabase_linter_findings.sql` (idempotent):
+  - **Dropped the permissive "for all users" RLS policies** on both tables. These granted `anon`/`authenticated` full `SELECT`/`INSERT`/`UPDATE`/`DELETE` with `USING(true)`. The `SELECT USING(true)` pair (which the linter hides) let any holder of the public anon key read **every family's** urgent items and **every device's** FCM token cross-tenant. The client never reaches these via PostgREST (urgent items sync over Firebase RTDB; edge functions use the service role), so removing them closes a real cross-tenant data exposure with no app impact.
+  - **Dropped orphan `notify_urgent_item_created()`** — wired to no trigger, a weaker hand-created duplicate of `handle_new_urgent_item` (hardcoded project URL, forwarded the caller's own `Authorization` header instead of the service-role key). Clears its mutable-search_path and PUBLIC-executable findings at once.
+  - **Pinned `search_path = ''`** on `handle_new_urgent_item` and `check_rate_limit` (bodies verified fully schema-qualified against the live definitions), and **revoked the default PUBLIC/anon/authenticated `EXECUTE`** on `handle_new_urgent_item` (the trigger still fires).
+  - Root fix mirrored in `setup-urgent-items.sql` so a re-run cannot reintroduce any of it.
+
+## [1.25.6] - 2026-06-09
+
+### Changed
+- **Removed dead `AuthenticationModule.joinFamilyGroup`** — zero callers (the live path is `submitJoinRequest` → member approval), and it wrote `memberIds` directly, which the current RTDB rules reject anyway. Deleting it removes a misleading second join path.
+- **Gated production debug logging.** Unconditional `console.warn` calls that reached release logcat are now `__DEV__`-guarded (`RevenueCatContext` config/paywall/restore warnings, `useShoppingLists` group-consistency diagnostics, the two backfill failures, and `LocalStorageManager`'s corrupt-queue-entry skip). The one genuinely silent background failure — tier reconciliation — now routes to `CrashReporting.recordError` instead of a swallowed `console.warn`.
+
+## [1.25.5] - 2026-06-09
+
+### Fixed
+- **Editable receipt prices no longer mangle zero / blank input.** `ReceiptViewScreen` parsed the total with `parseFloat(text) || null` (typing `0` saved `null`, so a £0 total was impossible) and line-item prices with `parseFloat(text) || 0` (clearing a price silently saved £0.00 instead of empty). Both now use the existing NaN-safe `sanitizePrice()` helper, which returns `null` for blank/invalid and preserves a genuine `0`.
+- **`HistoryDetailScreen` total math uses `??` instead of `||`** for item-price defaults, so a stored `0` is no longer treated as falsy when summing list totals.
+
+## [1.25.4] - 2026-06-09
+
+### Fixed
+- **`reconcile-subscription` no longer rejects every legitimate call.** It validated `familyGroupId` against a UUID regex, but family-group IDs are Firebase `push()` keys (e.g. `-NEb7Jk-qLmnOp12Q34R5`), never UUIDs — so every reconcile returned `400 Invalid familyGroupId format` and a paying user's tier never synced from RevenueCat to RTDB on cold-start. `familyGroupId` is only string-compared to the user's stored group at the ownership check (it's never a path segment), so the UUID check added no security. Replaced it with a light injection guard (length + no `/` or `..`), matching the sibling `upsert-urgent-item` function.
+
 ## [1.25.3] - 2026-06-06
 
 ### Fixed

@@ -16,10 +16,8 @@ A React Native mobile application for collaborative family shopping list managem
 - **In-App Legal Viewer** - Privacy Policy and Terms of Service rendered in-app with markdown
 - **Terms Acceptance** - Versioned terms acceptance flow with decline/logout option
 - **Subscription Management** - RevenueCat integration with free/premium/family tiers
-
-### 🚧 To Be Implemented
-- **Receipt Capture** - Photo capture with automatic boundary detection
-- **Receipt OCR** - Extract merchant, date, total, and line items using Google Cloud Vision API
+- **Receipt Capture** - Photo capture of receipts
+- **Receipt OCR** - Extract merchant, date, total, and line items via a self-hosted PaddleOCR server
 - **Expenditure Tracking** - Track spending with date-range filtering
 - **Shopping History** - View completed shopping trips with receipts
 - **Budget Analysis** - Analyze spending patterns over time
@@ -31,7 +29,7 @@ The app follows a rigorous specification-architect methodology with complete tra
 - **Frontend**: React Native with TypeScript
 - **Backend**: Firebase (Authentication, Realtime Database, Cloud Storage)
 - **Local Database**: WatermelonDB for offline-first architecture
-- **OCR**: Google Cloud Vision API (1,000 free requests/month)
+- **OCR**: Self-hosted PaddleOCR server (no per-request cloud cost)
 - **State Management**: React Context API + local storage
 
 ### Core Services
@@ -51,7 +49,6 @@ The app follows a rigorous specification-architect methodology with complete tra
   - **iOS**: Xcode, CocoaPods
   - **Android**: Android Studio, Java JDK
 - Firebase project
-- Google Cloud account (for Vision API)
 
 ### Setup Steps
 
@@ -102,24 +99,14 @@ The app follows a rigorous specification-architect methodology with complete tra
       - iOS: `GoogleService-Info.plist` → Place in `ios/` folder
       - Android: `google-services.json` → Place in `android/app/` folder
 
-5. **Configure Google Cloud Vision API**
-
-   a. Enable Cloud Vision API in [console.cloud.google.com](https://console.cloud.google.com)
-
-   b. Create API key and restrict it to:
-      - Vision API only
-      - Your iOS bundle ID and Android package name
-
-   c. Set up billing (required even for free tier)
-
-6. **Configure environment variables**
+5. **Configure environment variables**
    ```bash
    cp .env.example .env
    ```
 
-   Edit `.env` and add your Firebase and Google Cloud credentials
+   Edit `.env` and add your Firebase, Supabase, and RevenueCat credentials
 
-7. **Run the app**
+6. **Run the app**
    ```bash
    # iOS
    npm run ios
@@ -170,16 +157,16 @@ shoping/
 │       │   ├── HomeScreen.tsx       # Main list view
 │       │   └── ListDetailScreen.tsx # Item management
 │       ├── budget/
-│       │   └── BudgetScreen.tsx     # Expenditure tracking (TBD)
+│       │   └── BudgetScreen.tsx     # Expenditure tracking
 │       └── history/
-│           └── HistoryScreen.tsx    # Shopping history (TBD)
+│           └── HistoryScreen.tsx    # Shopping history
 ```
 
 ## 🔐 Security
 
 - Firebase Security Rules enforce family group access control
-- JWT tokens for API authentication
-- Google Cloud Vision API key restricted to specific bundle IDs
+- Firebase ID tokens verified server-side in Supabase edge functions
+- Per-UID rate limiting on sensitive edge functions
 - Offline data encrypted at rest (platform-provided)
 
 ## 💰 Cost Estimate
@@ -191,24 +178,14 @@ shoping/
 
 ### Ongoing Costs
 - **Firebase**: Free tier sufficient for small families; ~$25-50/month for larger usage
-- **Google Cloud Vision API**: 1,000 receipts/month free; $1.50 per 1,000 after
+- **OCR**: Self-hosted PaddleOCR — no per-request cost
 - **App Store Fees**: $99/year (Apple) + $25 one-time (Google)
 
 ## 📋 Documentation
 
-### Specification Documents
-Complete architectural specifications available in project root:
-
-1. **research.md** - Technology research with citations
-2. **blueprint.md** - System architecture and components
-3. **requirements.md** - 67 testable acceptance criteria
-4. **design.md** - Complete technical specifications
-5. **tasks.md** - 95 implementation subtasks
-6. **validation.md** - 100% traceability verification
-
-### Setup & Build Guides
-- **[GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md)** - CI/CD pipeline configuration
-- **[CHANGELOG.md](./CHANGELOG.md)** - Recent fixes and changes (Nov 2025)
+- **[CHANGELOG.md](./CHANGELOG.md)** - Recent fixes and changes
+- **[RUNBOOK.md](./RUNBOOK.md)** - Operational runbook (backups, rollback, secrets)
+- **[CLAUDE.md](./CLAUDE.md)** - Project workflow and conventions
 
 ## 🧪 Testing
 

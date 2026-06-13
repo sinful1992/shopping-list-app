@@ -690,7 +690,7 @@ class LocalStorageManager {
       const parseResults = operations.map((op) => {
         const data = safeJsonParse<unknown>(op.data, undefined);
         if (data === undefined) {
-          console.warn('getSyncQueue: skipping corrupt entry', op.id);
+          if (__DEV__) console.warn('getSyncQueue: skipping corrupt entry', op.id);
           return null;
         }
         return {
