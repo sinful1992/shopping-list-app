@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.10] - 2026-06-28
+
+### Changed
+- **Native dependency minor/patch bumps** — `react-native-screens` 4.24→4.25.2, `react-native-safe-area-context` 5.7→5.8, `react-native-google-mobile-ads` 16.3.3→16.4, `react-native-purchases(-ui)` 10.0.1→10.4, `@react-native-async-storage/async-storage` 3.0.2→3.1.1. (`react-native-svg` held at 15.15.4 to keep its pinned patch valid.)
+  - ⚠️ **NEEDS DEVICE VALIDATION** — native modules; verified at JS level (tsc + 60 tests) only. Run an AVD/device build before merging to master.
+
 ## [1.25.9] - 2026-06-28
 
 ### Changed
