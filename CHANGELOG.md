@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 - **`targetSdkVersion` 35 → 36** (compileSdk was already 36) to get ahead of Google Play's API 36 targeting deadline (~Aug 2026). Opts into Android 16 behaviour changes (edge-to-edge enforcement, etc.) — requires on-device validation before release.
 - **Renamed `patches/react-native-svg+15.15.0.patch` → `+15.15.4.patch`** to match the installed version. The patch content was already applying to 15.15.4; the stale filename only produced a version-mismatch warning on every install, now silenced.
 - **`firebase-admin` 12 → 14** (Node maintenance scripts in `scripts/` only — not in the app bundle). Cleared part of the moderate-severity transitive tree.
+- **`@babel/*` bumped to 7.29.7** (patch within babel 7). Held at babel 7 deliberately: `@react-native/babel-preset` depends on `@babel/core ^7.25.2` and dozens of `@babel/plugin-* ^7.x`, so babel 8 would break Metro transforms.
 - **Pinned `brace-expansion` override to `5.0.6`** (was `^2.0.2`, which didn't cover the vulnerable 5.x line under `minimatch`). brace-expansion's API is a single stable `expand()` export, so forcing one version everywhere is safe. Cleared the brace-expansion DoS advisory.
 
 ### Security notes
