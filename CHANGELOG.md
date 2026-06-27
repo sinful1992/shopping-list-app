@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.13] - 2026-06-28
+
+### Changed
+- **`react-native-reanimated` 4.3 → 4.5** with **`react-native-worklets` 0.8 → 0.10** (bumped together — reanimated 4.5 peer-requires worklets 0.10.x). Both dedupe cleanly across reanimated and reorderable-list; babel already wires `react-native-worklets/plugin`. tsc clean, 60 tests pass.
+  - ⚠️ **NEEDS DEVICE VALIDATION** — native modules + worklets runtime. Verify reorder animations, charts, and any reanimated-driven UI on a device.
+
 ## [1.25.12] - 2026-06-28
 
 ### Changed
