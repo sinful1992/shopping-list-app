@@ -9,6 +9,11 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **`targetSdkVersion` 35 → 36** (compileSdk was already 36) to get ahead of Google Play's API 36 targeting deadline (~Aug 2026). Opts into Android 16 behaviour changes (edge-to-edge enforcement, etc.) — requires on-device validation before release.
 - **Renamed `patches/react-native-svg+15.15.0.patch` → `+15.15.4.patch`** to match the installed version. The patch content was already applying to 15.15.4; the stale filename only produced a version-mismatch warning on every install, now silenced.
+- **`firebase-admin` 12 → 14** (Node maintenance scripts in `scripts/` only — not in the app bundle). Cleared part of the moderate-severity transitive tree.
+- **Pinned `brace-expansion` override to `5.0.6`** (was `^2.0.2`, which didn't cover the vulnerable 5.x line under `minimatch`). brace-expansion's API is a single stable `expand()` export, so forcing one version everywhere is safe. Cleared the brace-expansion DoS advisory.
+
+### Security notes
+- **Remaining audit advisories (26, all moderate, all dev/build-only): accepted risk.** Two roots remain — `js-yaml` 3.x (inside jest's `@istanbuljs/load-nyc-config` coverage tooling) and `uuid` <11.1.1 (inside `firebase-admin`'s internals). npm's only offered "fix" for each is a **destructive downgrade** (jest→25, firebase-admin→10), so they are intentionally not applied. Both are DoS-class and neither ships in the release APK. Net: 48 → 26, with the critical and all 11 highs eliminated.
 
 ## [1.25.8] - 2026-06-28
 
