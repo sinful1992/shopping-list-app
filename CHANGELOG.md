@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.9] - 2026-06-28
+
+### Changed
+- **`targetSdkVersion` 35 → 36** (compileSdk was already 36) to get ahead of Google Play's API 36 targeting deadline (~Aug 2026). Opts into Android 16 behaviour changes (edge-to-edge enforcement, etc.) — requires on-device validation before release.
+- **Renamed `patches/react-native-svg+15.15.0.patch` → `+15.15.4.patch`** to match the installed version. The patch content was already applying to 15.15.4; the stale filename only produced a version-mismatch warning on every install, now silenced.
+
 ## [1.25.8] - 2026-06-28
 
 ### Security
