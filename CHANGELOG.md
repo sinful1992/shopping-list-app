@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.12] - 2026-06-28
+
+### Changed
+- **`react-native-gesture-handler` 2.31.1 → 2.32.0** (minor). tsc clean, 60 tests pass.
+  - ⚠️ **NEEDS DEVICE VALIDATION** — native module.
+
+### Notes
+- **gesture-handler 3 deferred (blocked upstream).** v3 introduces an incompatible `PanGesture` type that clashes with `react-native-reorderable-list@0.18.0` (the app's list-reorder dependency, used in `ListDetailScreen`'s `panGesture` prop). 0.18.0 is the latest reorderable-list and is still built against gesture-handler 2; there is no GH3-compatible release. Revisit when reorderable-list ships GH3 support.
+
 ## [1.25.11] - 2026-06-28
 
 ### Changed

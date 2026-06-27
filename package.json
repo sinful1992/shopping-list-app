@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.25.11",
+  "version": "1.25.12",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -34,7 +34,7 @@
     "react-native": "0.85.2",
     "react-native-document-scanner-plugin": "^2.0.4",
     "react-native-encrypted-storage": "^4.0.3",
-    "react-native-gesture-handler": "^2.31.1",
+    "react-native-gesture-handler": "^2.32.0",
     "react-native-get-random-values": "^2.0.0",
     "react-native-gifted-charts": "^1.4.77",
     "react-native-google-mobile-ads": "^16.4.0",
