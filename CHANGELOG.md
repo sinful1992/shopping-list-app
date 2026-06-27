@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.8] - 2026-06-28
+
+### Security
+- **Cleared the critical and all high-severity dependency advisories** via `npm audit fix` (non-breaking). The critical (`shell-quote`) and 11 highs (`axios`, `ws`, `lodash`, `@grpc/grpc-js`, `node-forge`, `fast-xml-parser`/`fast-xml-builder`, `protobufjs`, `form-data`, `tmp`, `@babel/*`) all live in build/dev/CI tooling, not in the shipped APK. Vulnerability count dropped 48 → 29 (remaining are all in the `firebase-admin` tree, addressed by the 12→14 upgrade).
+
+### Fixed
+- **Test suite no longer breaks from a jest internal version skew.** `audit fix` bumped `jest-runtime` to 30.4.2, which calls `jest-mock`'s `clearMocksOnScope`; `@react-native/jest-preset` pinned a nested `jest-mock@29.7.0` lacking that API, failing all 5 suites. Added a `jest-mock ^30.4.1` override to align the tree.
+
 ## [1.25.7] - 2026-06-13
 
 ### Security

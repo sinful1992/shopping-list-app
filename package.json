@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.25.7",
+  "version": "1.25.8",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -96,6 +96,7 @@
     "@xmldom/xmldom": ">=0.8.13",
     "brace-expansion": "^2.0.2",
     "yaml": ">=2.7.0",
-    "eslint-plugin-ft-flow": ">=3.0.11"
+    "eslint-plugin-ft-flow": ">=3.0.11",
+    "jest-mock": "^30.4.1"
   }
 }
