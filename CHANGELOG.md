@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - **Test suite no longer breaks from a jest internal version skew.** `audit fix` bumped `jest-runtime` to 30.4.2, which calls `jest-mock`'s `clearMocksOnScope`; `@react-native/jest-preset` pinned a nested `jest-mock@29.7.0` lacking that API, failing all 5 suites. Added a `jest-mock ^30.4.1` override to align the tree.
 
+### Changed
+- **Bumped JS-only and dev-tooling dependencies to latest minor/patch** (no native modules touched, fully verified by typecheck + tests + lint): `@react-navigation/native` 7.2.2→7.3.4, `@react-navigation/bottom-tabs` 7.15.11→7.18.3, `@react-navigation/stack` 7.8.11→7.10.6, `@supabase/supabase-js` 2.105.1→2.108.2, `uuid` 14.0.0→14.0.1, `react-native-gifted-charts` 1.4.76→1.4.77, `prettier` 3.8.3→3.9.1, `knip` 6.15.0→6.22.0, `@types/node`, `@types/react`, `@react-native-community/cli(-platform-android)` 20.1.3→20.2.0.
+
 ## [1.25.7] - 2026-06-13
 
 ### Security
