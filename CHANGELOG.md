@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.25.11] - 2026-06-28
+
+### Changed
+- **`@react-native-firebase/*` 24 → 25.1.0** (all 8 modules in lockstep: app, analytics, app-check, auth, crashlytics, database, messaging, storage; app-check kept exact-pinned). Typecheck is clean against the v25 typed API (no removed-API breakage at the JS layer) and all 60 tests pass.
+  - ⚠️ **NEEDS DEVICE VALIDATION** — bumps the native Firebase Android SDK. Verify auth, RTDB sync, messaging/FCM, crashlytics, storage, and App Check attestation on an AVD/device before merging.
+
 ## [1.25.10] - 2026-06-28
 
 ### Changed
