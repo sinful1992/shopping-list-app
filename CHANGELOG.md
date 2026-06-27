@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Deferred (tracked, not yet applied)
+- **React Native 0.86 — deferred to a dedicated session.** The npm bump alone does not resolve cleanly: `@react-native/virtualized-lists@0.85.2` (a transitive dep of RN) pins `react-native@"0.85.2"` exactly, so 0.86 needs a clean `node_modules` reinstall, not an in-place bump. It also requires the native `android/` template diff (gradle plugin / build files via the RN upgrade-helper) plus a real build — none verifiable from the test suite. Highest blast radius of the pending upgrades; do it on its own branch with a build in the loop.
+- **gesture-handler 3 — blocked upstream** (see 1.25.12): `react-native-reorderable-list@0.18.0` is not GH3-compatible.
+
 ## [1.25.13] - 2026-06-28
 
 ### Changed
