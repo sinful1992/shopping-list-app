@@ -19,6 +19,11 @@ Not testable on the AVD (environmental, physical-device only): FCM push delivery
 - **gesture-handler 3 — blocked upstream** (see 1.25.12): `react-native-reorderable-list@0.18.0` is not GH3-compatible.
 - **`react-native-google-mobile-ads` 16.4 — blocked by project Kotlin version** (see 1.25.14): 16.4.0 pulls `play-services-ads 25.4.0`, compiled with Kotlin metadata 2.3.0, but the project is on Kotlin 2.1.20 → `:react-native-google-mobile-ads:compileDebugKotlin` fails. Revisit when the project's Kotlin is raised to 2.3.x (couples to the RN 0.86 upgrade).
 
+## [1.25.16] - 2026-06-29
+
+### Fixed
+- **`brace-expansion` override broke ESLint (regression from 1.25.09 batch)** — the override had been pinned to an exact `5.0.6`, which forced an API-incompatible major into `@eslint/config-array`'s bundled `minimatch` (it calls the older `expand()` default-export signature). Result: `npx eslint .` crashed with `TypeError: expand is not a function`, failing the pre-push hook and the CI verify job's lint step. Reverted the override to `^2.0.2` (master's value) — still resolves the brace-expansion ReDoS (CVE-2025-5889, fixed in 2.0.2) and restores the export shape ESLint expects. Verified: `eslint .` exits 0 (0 errors), `npm audit` shows 0 high/0 critical (6 moderate dev-tooling, accepted), tsc clean, 60/60 tests.
+
 ## [1.25.15] - 2026-06-29
 
 ### Fixed
