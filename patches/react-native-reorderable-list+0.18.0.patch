@@ -1,8 +1,22 @@
 diff --git a/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx b/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
-index 908155c..9831d5a 100644
+index 908155c..ac1c390 100644
 --- a/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
 +++ b/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
-@@ -1102,13 +1102,12 @@ const ReorderableListCore = <T,>(
+@@ -509,6 +509,13 @@ const ReorderableListCore = <T,>(
+   };
+ 
+   const reorder = (fromIndex: number, toIndex: number) => {
++    // PATCH: ignore the spurious double-fire of the drop withTiming callback
++    // (reanimated 4.5/worklets 0.10) where draggedIndex was already reset to -1.
++    // A negative index reaches markCells(-1, ...) -> data[-1] undefined -> corrupts
++    // cell animation bookkeeping and leaves cards hidden until remount.
++    if (fromIndex < 0 || toIndex < 0) {
++      return;
++    }
+     runOnUI(resetSharedValues)();
+ 
+     if (fromIndex !== toIndex) {
+@@ -1102,13 +1109,12 @@ const ReorderableListCore = <T,>(
    );
  
    const combinedGesture = useMemo(() => {
