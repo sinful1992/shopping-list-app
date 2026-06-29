@@ -4,6 +4,88 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Device validation (AVD, 2026-06-29)
+The native-dependency batch (1.25.10–1.25.14) was validated on a Pixel 6 AVD (Android 16 image). `assembleDebug` + `installDebug` build clean, app launches on the New Architecture (Fabric), and a full logcat error sweep was empty (no FATAL / native crash / worklet error). Confirmed working at runtime:
+- **firebase 25** — auth session restored, RTDB lists synced and rendered, crashlytics native crash handler initialized, analytics + crashlytics collection enabled.
+- **reanimated 4.5 / worklets 0.10 / gesture-handler 2.32** — `ListDetailScreen` (host of the `react-native-reorderable-list` panGesture) mounts, scrolls, and re-renders cleanly. Manual drag-reorder testing **surfaced a real regression** under reanimated 4.5 (crash + cards left hidden) — **fixed via a library patch** in 1.25.15 below; reorder now works correctly (up/down, all rows, data persists). Worklet-driven UI otherwise healthy.
+- **purchases 10.4** — SDK initializes, offerings API call returns 304 (auth/network OK), CustomerInfo cache works. The `[RevenueCat] Error fetching offerings` toast is a benign dashboard config message (Test Store key, no test products registered) — not a regression.
+- **targetSdk 36 edge-to-edge** — status bar and bottom tab bar render correctly, no clipped/overlapping UI.
+- Native minors (screens 4.25, safe-area 5.8, async-storage 3.1) — exercised implicitly by the rendered nav/list UI.
+
+Not testable on the AVD (environmental, physical-device only): FCM push delivery, Firebase Storage (free-tier has no bucket), App Check attestation (needs console). These remain open.
+
+### Deferred (tracked, not yet applied)
+- **React Native 0.86 — deferred to a dedicated session.** The npm bump alone does not resolve cleanly: `@react-native/virtualized-lists@0.85.2` (a transitive dep of RN) pins `react-native@"0.85.2"` exactly, so 0.86 needs a clean `node_modules` reinstall, not an in-place bump. It also requires the native `android/` template diff (gradle plugin / build files via the RN upgrade-helper) plus a real build — none verifiable from the test suite. Highest blast radius of the pending upgrades; do it on its own branch with a build in the loop.
+- **gesture-handler 3 — blocked upstream** (see 1.25.12): `react-native-reorderable-list@0.18.0` is not GH3-compatible.
+- **`react-native-google-mobile-ads` 16.4 — blocked by project Kotlin version** (see 1.25.14): 16.4.0 pulls `play-services-ads 25.4.0`, compiled with Kotlin metadata 2.3.0, but the project is on Kotlin 2.1.20 → `:react-native-google-mobile-ads:compileDebugKotlin` fails. Revisit when the project's Kotlin is raised to 2.3.x (couples to the RN 0.86 upgrade).
+
+## [1.25.16] - 2026-06-29
+
+### Fixed
+- **`brace-expansion` override broke ESLint (regression from 1.25.09 batch)** — the override had been pinned to an exact `5.0.6`, which forced an API-incompatible major into `@eslint/config-array`'s bundled `minimatch` (it calls the older `expand()` default-export signature). Result: `npx eslint .` crashed with `TypeError: expand is not a function`, failing the pre-push hook and the CI verify job's lint step. Reverted the override to `^2.0.2` (master's value) — still resolves the brace-expansion ReDoS (CVE-2025-5889, fixed in 2.0.2) and restores the export shape ESLint expects. Verified: `eslint .` exits 0 (0 errors), `npm audit` shows 0 high/0 critical (6 moderate dev-tooling, accepted), tsc clean, 60/60 tests.
+
+## [1.25.15] - 2026-06-29
+
+### Fixed
+- **List item reorder broken under reanimated 4.5 (regression from 1.25.13)** — dragging an item to reorder it threw `TypeError: Cannot read property 'id' of undefined` (red box + surface reload), and dragging downward left cards hidden until the screen was remounted. Root cause traced via on-device debug logging: on drop, `react-native-reorderable-list@0.18.0`'s `withTiming` completion callback fires **twice** under reanimated 4.5 / worklets 0.10's worklet scheduling; the second fire runs with `draggedIndex` already reset to `-1`, so the library's internal `reorder(-1, …)` calls `markCells(-1, …)` → `keyExtractor(data[-1])` = `undefined`, corrupting cell animation bookkeeping. The data was always correct; only the library's animation state was left stuck (hence "remount heals it").
+  - **Fix:** patched `react-native-reorderable-list@0.18.0` (`reorder()` now early-returns on a negative `fromIndex`/`toIndex`), persisted via `patch-package`. This keeps reanimated **4.5** (no revert) and is a one-line guard at the source of the spurious event. Verified on the Pixel 6 AVD: 3/3 drags log only valid reorders, zero `from=-1` fires, zero `undefined` keyExtractor calls, items stay visible and land in the correct order.
+  - The repo's existing `react-native-reorderable-list` patch (the Android `Gesture.Simultaneous` duplicate-handler crash fix, commit 877fd01) was regenerated in patch-package 8's current format alongside this change; both hunks now live in one patch file. No behavior change to the Android fix.
+
+## [1.25.14] - 2026-06-29
+
+### Reverted
+- **`react-native-google-mobile-ads` 16.4.0 → 16.3.3** (back to pre-1.25.10 version). The 16.4.0 bump dragged in `play-services-ads 25.4.0`, which is compiled with Kotlin metadata 2.3.0 while the project's Kotlin compiler is 2.1.20 — the Android build fails at `compileDebugKotlin` with "Module was compiled with an incompatible version of Kotlin". Surfaced only by an actual device build (passed tsc + tests). 16.3.3 is known-good and builds clean (`assembleDebug` SUCCESSFUL). See Deferred note above.
+
+## [1.25.13] - 2026-06-28
+
+### Changed
+- **`react-native-reanimated` 4.3 → 4.5** with **`react-native-worklets` 0.8 → 0.10** (bumped together — reanimated 4.5 peer-requires worklets 0.10.x). Both dedupe cleanly across reanimated and reorderable-list; babel already wires `react-native-worklets/plugin`. tsc clean, 60 tests pass.
+  - ⚠️ **NEEDS DEVICE VALIDATION** — native modules + worklets runtime. Verify reorder animations, charts, and any reanimated-driven UI on a device.
+
+## [1.25.12] - 2026-06-28
+
+### Changed
+- **`react-native-gesture-handler` 2.31.1 → 2.32.0** (minor). tsc clean, 60 tests pass.
+  - ⚠️ **NEEDS DEVICE VALIDATION** — native module.
+
+### Notes
+- **gesture-handler 3 deferred (blocked upstream).** v3 introduces an incompatible `PanGesture` type that clashes with `react-native-reorderable-list@0.18.0` (the app's list-reorder dependency, used in `ListDetailScreen`'s `panGesture` prop). 0.18.0 is the latest reorderable-list and is still built against gesture-handler 2; there is no GH3-compatible release. Revisit when reorderable-list ships GH3 support.
+
+## [1.25.11] - 2026-06-28
+
+### Changed
+- **`@react-native-firebase/*` 24 → 25.1.0** (all 8 modules in lockstep: app, analytics, app-check, auth, crashlytics, database, messaging, storage; app-check kept exact-pinned). Typecheck is clean against the v25 typed API (no removed-API breakage at the JS layer) and all 60 tests pass.
+  - ⚠️ **NEEDS DEVICE VALIDATION** — bumps the native Firebase Android SDK. Verify auth, RTDB sync, messaging/FCM, crashlytics, storage, and App Check attestation on an AVD/device before merging.
+
+## [1.25.10] - 2026-06-28
+
+### Changed
+- **Native dependency minor/patch bumps** — `react-native-screens` 4.24→4.25.2, `react-native-safe-area-context` 5.7→5.8, `react-native-google-mobile-ads` 16.3.3→16.4, `react-native-purchases(-ui)` 10.0.1→10.4, `@react-native-async-storage/async-storage` 3.0.2→3.1.1. (`react-native-svg` held at 15.15.4 to keep its pinned patch valid.)
+  - ⚠️ **NEEDS DEVICE VALIDATION** — native modules; verified at JS level (tsc + 60 tests) only. Run an AVD/device build before merging to master.
+
+## [1.25.9] - 2026-06-28
+
+### Changed
+- **`targetSdkVersion` 35 → 36** (compileSdk was already 36) to get ahead of Google Play's API 36 targeting deadline (~Aug 2026). Opts into Android 16 behaviour changes (edge-to-edge enforcement, etc.) — requires on-device validation before release.
+- **Renamed `patches/react-native-svg+15.15.0.patch` → `+15.15.4.patch`** to match the installed version. The patch content was already applying to 15.15.4; the stale filename only produced a version-mismatch warning on every install, now silenced.
+- **`firebase-admin` 12 → 14** (Node maintenance scripts in `scripts/` only — not in the app bundle). Cleared part of the moderate-severity transitive tree.
+- **`@babel/*` bumped to 7.29.7** (patch within babel 7). Held at babel 7 deliberately: `@react-native/babel-preset` depends on `@babel/core ^7.25.2` and dozens of `@babel/plugin-* ^7.x`, so babel 8 would break Metro transforms.
+- **Pinned `brace-expansion` override to `5.0.6`** (was `^2.0.2`, which didn't cover the vulnerable 5.x line under `minimatch`). brace-expansion's API is a single stable `expand()` export, so forcing one version everywhere is safe. Cleared the brace-expansion DoS advisory.
+
+### Security notes
+- **Remaining audit advisories (26, all moderate, all dev/build-only): accepted risk.** Two roots remain — `js-yaml` 3.x (inside jest's `@istanbuljs/load-nyc-config` coverage tooling) and `uuid` <11.1.1 (inside `firebase-admin`'s internals). npm's only offered "fix" for each is a **destructive downgrade** (jest→25, firebase-admin→10), so they are intentionally not applied. Both are DoS-class and neither ships in the release APK. Net: 48 → 26, with the critical and all 11 highs eliminated.
+
+## [1.25.8] - 2026-06-28
+
+### Security
+- **Cleared the critical and all high-severity dependency advisories** via `npm audit fix` (non-breaking). The critical (`shell-quote`) and 11 highs (`axios`, `ws`, `lodash`, `@grpc/grpc-js`, `node-forge`, `fast-xml-parser`/`fast-xml-builder`, `protobufjs`, `form-data`, `tmp`, `@babel/*`) all live in build/dev/CI tooling, not in the shipped APK. Vulnerability count dropped 48 → 29 (remaining are all in the `firebase-admin` tree, addressed by the 12→14 upgrade).
+
+### Fixed
+- **Test suite no longer breaks from a jest internal version skew.** `audit fix` bumped `jest-runtime` to 30.4.2, which calls `jest-mock`'s `clearMocksOnScope`; `@react-native/jest-preset` pinned a nested `jest-mock@29.7.0` lacking that API, failing all 5 suites. Added a `jest-mock ^30.4.1` override to align the tree.
+
+### Changed
+- **Bumped JS-only and dev-tooling dependencies to latest minor/patch** (no native modules touched, fully verified by typecheck + tests + lint): `@react-navigation/native` 7.2.2→7.3.4, `@react-navigation/bottom-tabs` 7.15.11→7.18.3, `@react-navigation/stack` 7.8.11→7.10.6, `@supabase/supabase-js` 2.105.1→2.108.2, `uuid` 14.0.0→14.0.1, `react-native-gifted-charts` 1.4.76→1.4.77, `prettier` 3.8.3→3.9.1, `knip` 6.15.0→6.22.0, `@types/node`, `@types/react`, `@react-native-community/cli(-platform-android)` 20.1.3→20.2.0.
+
 ## [1.25.7] - 2026-06-13
 
 ### Security
