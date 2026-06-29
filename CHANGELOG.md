@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Device validation (AVD, 2026-06-29)
+The native-dependency batch (1.25.10–1.25.14) was validated on a Pixel 6 AVD (Android 16 image). `assembleDebug` + `installDebug` build clean, app launches on the New Architecture (Fabric), and a full logcat error sweep was empty (no FATAL / native crash / worklet error). Confirmed working at runtime:
+- **firebase 25** — auth session restored, RTDB lists synced and rendered, crashlytics native crash handler initialized, analytics + crashlytics collection enabled.
+- **reanimated 4.5 / worklets 0.10 / gesture-handler 2.32** — `ListDetailScreen` (host of the `react-native-reorderable-list` panGesture) mounts and survives scroll/drag interaction with no worklet runtime errors.
+- **purchases 10.4** — SDK initializes, offerings API call returns 304 (auth/network OK), CustomerInfo cache works. The `[RevenueCat] Error fetching offerings` toast is a benign dashboard config message (Test Store key, no test products registered) — not a regression.
+- **targetSdk 36 edge-to-edge** — status bar and bottom tab bar render correctly, no clipped/overlapping UI.
+- Native minors (screens 4.25, safe-area 5.8, async-storage 3.1) — exercised implicitly by the rendered nav/list UI.
+
+Not testable on the AVD (environmental, physical-device only): FCM push delivery, Firebase Storage (free-tier has no bucket), App Check attestation (needs console). These remain open.
+
 ### Deferred (tracked, not yet applied)
 - **React Native 0.86 — deferred to a dedicated session.** The npm bump alone does not resolve cleanly: `@react-native/virtualized-lists@0.85.2` (a transitive dep of RN) pins `react-native@"0.85.2"` exactly, so 0.86 needs a clean `node_modules` reinstall, not an in-place bump. It also requires the native `android/` template diff (gradle plugin / build files via the RN upgrade-helper) plus a real build — none verifiable from the test suite. Highest blast radius of the pending upgrades; do it on its own branch with a build in the loop.
 - **gesture-handler 3 — blocked upstream** (see 1.25.12): `react-native-reorderable-list@0.18.0` is not GH3-compatible.
