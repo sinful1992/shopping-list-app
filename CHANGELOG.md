@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Pending device validation
+- **React Compiler (1.26.0) — NEEDS DEVICE VALIDATION.** Enabled globally; verify on an AVD/device build that the app launches on the New Architecture, the **list reorder drag on `ListDetailScreen`** still works (highest-risk path — compiler memoization stacked on the reanimated-4.5 reorder flow patched in 1.25.15), animated screens (analytics charts) render, and a logcat sweep is clean. tsc + 60 tests + lint pass but do **not** exercise compiled runtime behavior.
+
+## [1.26.0] - 2026-06-30
+
+### Added
+- **React Compiler enabled** (`babel-plugin-react-compiler@1.0.0`, exact-pinned) for automatic memoization across all components. Build-time only — no new runtime dependency: React 19.2.3 ships the compiler runtime (`react/compiler-runtime`), so no `react-compiler-runtime` polyfill is required.
+  - **babel wiring:** added as the **first** plugin in `babel.config.js` with `{ target: '19' }`; `react-native-worklets/plugin` remains **last** (reanimated requirement). Verified the transform emits the `react/compiler-runtime` memo-cache for a sample component.
+  - **Mode:** global (`'all'`) — the compiler attempts every component and conservatively **bails** (skips, leaving code untouched) on any it can't prove safe, so it cannot emit incorrect output.
+  - **Readiness:** `react-compiler-healthcheck` compiled 30/30 sampled components, found **no incompatible libraries** (reanimated 4.5 / worklets 0.10 are compatible) and no StrictMode. A full pass of the `eslint-plugin-react-hooks@7` compiler diagnostics surfaced 55 advisory findings — all resolve to per-component bailouts, none to miscompilation. The 6 in the behavior-sensitive categories were reviewed: 4 `preserve-manual-memoization` are explicit "Compilation Skipped" (manual memo retained untouched), and 2 `purity` (`Date.now()`) trigger bailouts (one is in an async handler, not render). No source changes were required.
+  - Verified at the JS layer: tsc clean, 60/60 tests, `eslint .` 0 errors. ⚠️ Device validation pending (see above).
+
 ### Device validation (AVD, 2026-06-29)
 The native-dependency batch (1.25.10–1.25.14) was validated on a Pixel 6 AVD (Android 16 image). `assembleDebug` + `installDebug` build clean, app launches on the New Architecture (Fabric), and a full logcat error sweep was empty (no FATAL / native crash / worklet error). Confirmed working at runtime:
 - **firebase 25** — auth session restored, RTDB lists synced and rendered, crashlytics native crash handler initialized, analytics + crashlytics collection enabled.
