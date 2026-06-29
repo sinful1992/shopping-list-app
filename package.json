@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.25.13",
+  "version": "1.25.14",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -37,7 +37,7 @@
     "react-native-gesture-handler": "^2.32.0",
     "react-native-get-random-values": "^2.0.0",
     "react-native-gifted-charts": "^1.4.77",
-    "react-native-google-mobile-ads": "^16.4.0",
+    "react-native-google-mobile-ads": "^16.3.3",
     "react-native-image-picker": "^8.2.1",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-purchases": "^10.4.0",

@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 ### Deferred (tracked, not yet applied)
 - **React Native 0.86 — deferred to a dedicated session.** The npm bump alone does not resolve cleanly: `@react-native/virtualized-lists@0.85.2` (a transitive dep of RN) pins `react-native@"0.85.2"` exactly, so 0.86 needs a clean `node_modules` reinstall, not an in-place bump. It also requires the native `android/` template diff (gradle plugin / build files via the RN upgrade-helper) plus a real build — none verifiable from the test suite. Highest blast radius of the pending upgrades; do it on its own branch with a build in the loop.
 - **gesture-handler 3 — blocked upstream** (see 1.25.12): `react-native-reorderable-list@0.18.0` is not GH3-compatible.
+- **`react-native-google-mobile-ads` 16.4 — blocked by project Kotlin version** (see 1.25.14): 16.4.0 pulls `play-services-ads 25.4.0`, compiled with Kotlin metadata 2.3.0, but the project is on Kotlin 2.1.20 → `:react-native-google-mobile-ads:compileDebugKotlin` fails. Revisit when the project's Kotlin is raised to 2.3.x (couples to the RN 0.86 upgrade).
+
+## [1.25.14] - 2026-06-29
+
+### Reverted
+- **`react-native-google-mobile-ads` 16.4.0 → 16.3.3** (back to pre-1.25.10 version). The 16.4.0 bump dragged in `play-services-ads 25.4.0`, which is compiled with Kotlin metadata 2.3.0 while the project's Kotlin compiler is 2.1.20 — the Android build fails at `compileDebugKotlin` with "Module was compiled with an incompatible version of Kotlin". Surfaced only by an actual device build (passed tsc + tests). 16.3.3 is known-good and builds clean (`assembleDebug` SUCCESSFUL). See Deferred note above.
 
 ## [1.25.13] - 2026-06-28
 
