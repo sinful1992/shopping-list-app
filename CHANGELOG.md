@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.27.0] - 2026-06-30
+
+### Changed
+- **Upgraded React Native 0.85.2 → 0.86.0** and the `@react-native/*` toolchain in lockstep: `babel-preset`, `metro-config`, `eslint-config`, `typescript-config`, `gradle-plugin`, and `jest-preset` all → `^0.86.0`. `react` stays `19.2.3` (RN 0.86 peer is `^19.2.3`); `@react-native-community/cli*` stay `^20.2.0` (latest, RN-aligned).
+  - **No native template changes required.** The official `rn-diff-purge` `0.85.2..0.86.0` upgrade-helper diff touches **only `package.json`** — every Android template file (`build.gradle`, `app/build.gradle`, `settings.gradle`, `gradle.properties`, `gradle-wrapper.properties`, `MainApplication.java`, `MainActivity.java`) is unchanged between the two releases, so the repo's native customizations were left untouched. The app stays on Java (template did not migrate to Kotlin) and on Gradle 8.13 / AGP 8.6.0 / Kotlin 2.1.20.
+  - **Clean reinstall** regenerated `node_modules` + `package-lock.json` at 0.86.0 — this sidesteps the `@react-native/virtualized-lists@0.85.2` exact-pin that blocked an in-place bump (the blocker noted in 1.26.0's "Deferred" section). `@react-native/jest-preset` was **kept** (RN 0.86 template dropped it, but `jest.config.js` references `preset: '@react-native/jest-preset'` — removing it would break the suite).
+  - **patch-package:** both patches re-apply cleanly against the 0.86 tree — `react-native-reorderable-list@0.18.0` ✔ and `react-native-svg@15.15.4` ✔ (both libs are version-pinned and unchanged by the RN bump).
+  - **Peer-dep compatibility (verified, no coordinated bumps needed):** `react-native-reanimated@4.5.0` and `react-native-worklets@0.10.0` both declare `react-native: "0.83 - 0.86"` (0.86 is the upper bound, supported); `gesture-handler@2.32`, `@react-native-firebase/*@25`, `screens@4.25`, `safe-area-context@5.8`, `svg@15.15`, `reorderable-list@0.18` all accept RN 0.86.
+  - **babel chain preserved:** `babel-plugin-react-compiler` (target 19) remains **first**, `react-native-worklets/plugin` remains **last** — unchanged by the babel-preset bump.
+  - **JS gates green:** `tsc --noEmit` clean, **61/61** jest tests pass, `eslint .` 0 errors (11 pre-existing warnings).
+  - **NOT device-validated** — pending owner AVD build (`assembleDebug`/`installDebug`), New-Arch launch check, logcat sweep, and drag-to-reorder re-test on `ListDetailScreen` (reanimated + native bump + compiler interaction).
+
 ## [1.26.1] - 2026-06-30
 
 ### Fixed
