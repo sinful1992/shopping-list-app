@@ -215,14 +215,19 @@ class ShoppingListManager {
   /**
    * Delete list (soft delete)
    * Implements Req 2.6, 2.2
+   *
+   * Soft delete only: updateList() marks status='deleted' locally and pushes an
+   * 'update' op that set()s the node in Firebase with status='deleted' (node kept),
+   * mirroring how markListAsCompleted() works. We must NOT additionally push a
+   * 'delete' op — that hard-removes the Firebase node, which orphans devices that
+   * were offline at delete time: their cold-start load is upsert-only and cannot
+   * prune a locally-present list that is absent from the snapshot, leaving a stale
+   * "active" ghost. Keeping the tombstone lets every device reconcile on next load.
    */
   async deleteList(listId: string): Promise<void> {
     await this.updateList(listId, {
       status: 'deleted',
     });
-
-    // Trigger sync for delete operation
-    await SyncEngine.pushChange('list', listId, 'delete');
   }
 
   /**

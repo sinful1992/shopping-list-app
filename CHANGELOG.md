@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.26.1] - 2026-06-30
+
+### Fixed
+- **Deleted lists no longer reappear as stale "active" ghosts on devices that were offline at delete time.** `ShoppingListManager.deleteList` was soft-deleting locally (`status='deleted'`) but syncing the delete to Firebase as a **hard node removal** (`SyncEngine.pushChange('list', id, 'delete')` → `remove()`). A device that was closed/offline during the delete missed the live `onChildRemoved` event, and the cold-start list load is upsert-only — it cannot prune a locally-present list that is absent from the Firebase snapshot — so the deleted list lingered as an `active` ghost forever (e.g. one device showing 2 lists while another showed 1). Delete is now soft on Firebase too: it writes `status='deleted'` to the node (kept as a tombstone), mirroring `markListAsCompleted`, so every device — online or returning from offline — reconciles it on the next load. The `onChildRemoved` handler is retained for backward-compat with older clients still doing hard removes. Added a regression test asserting `deleteList` pushes an `update` (status=deleted) and never a hard `delete` op. (Surfaced during 1.26.0 device validation.)
+
 ## [1.26.0] - 2026-06-30
 
 ### Device validation (AVD, 2026-06-30) — React Compiler
