@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.28.2] - 2026-07-02
+
+### Changed
+- **Raised secondary/tertiary text contrast.** Dark theme: secondary 45%→65% white, tertiary 30%→45%, dim 20%→25%; light theme: secondary 55%→70%, tertiary 40%→50%, dim 25%→30%. The old tertiary/dim values failed WCAG small-text contrast on the app backgrounds (e.g. the 11px FAB hint was near-invisible in bright light). `dim` is now documented as disabled/placeholder-only.
+
 ## [1.28.1] - 2026-07-02
 
 ### Fixed

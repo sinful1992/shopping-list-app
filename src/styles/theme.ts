@@ -45,12 +45,13 @@ const COLORS = {
     failed: '#FF453A',
   },
 
-  // Text colors
+  // Text colors. secondary/tertiary must stay readable at small sizes on
+  // background.primary (WCAG-ish); dim is for disabled/placeholder only.
   text: {
     primary: '#ffffff',
-    secondary: 'rgba(255, 255, 255, 0.45)',
-    tertiary: 'rgba(255, 255, 255, 0.3)',
-    dim: 'rgba(255, 255, 255, 0.2)',
+    secondary: 'rgba(255, 255, 255, 0.65)',
+    tertiary: 'rgba(255, 255, 255, 0.45)',
+    dim: 'rgba(255, 255, 255, 0.25)',
   },
 
   // Border colors
@@ -221,9 +222,9 @@ export const LIGHT_THEME: Theme = {
 
   text: {
     primary: '#111827',
-    secondary: 'rgba(17, 24, 39, 0.55)',
-    tertiary: 'rgba(17, 24, 39, 0.4)',
-    dim: 'rgba(17, 24, 39, 0.25)',
+    secondary: 'rgba(17, 24, 39, 0.70)',
+    tertiary: 'rgba(17, 24, 39, 0.50)',
+    dim: 'rgba(17, 24, 39, 0.30)',
   },
 
   border: {
