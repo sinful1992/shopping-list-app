@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.27.1] - 2026-07-01
+
+### Fixed
+- **Google Sign-In failed on every attempt** with `[auth/unknown] Exception in HostFunction: accessToken cannot be empty`. `AuthenticationModule.signInWithGoogle` built the Firebase credential with `auth.GoogleAuthProvider.credential(idToken)` — no `accessToken`. RNFB's `OAuthCredential` resolves the native bridge's secret slot to `''` (empty string, not `null`) when `accessToken` is omitted (`OAuthCredential.ts` → `resolveOAuthBridgeFields`), and that empty string is passed straight to the native `GoogleAuthProvider.getCredential(idToken, accessToken)` call, which the current firebase-auth Android SDK rejects as empty rather than tolerating it. Fixed by fetching the real access token via `GoogleSignin.getTokens()` and passing both to the credential. **Not yet device-validated** — pending AVD/device Google Sign-In retest.
+
 ## [1.27.0] - 2026-06-30
 
 ### Changed

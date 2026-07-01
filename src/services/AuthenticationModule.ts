@@ -130,7 +130,11 @@ class AuthenticationModule {
         throw new Error('Google Sign-In failed: no ID token returned');
       }
 
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      // The native Firebase Auth SDK rejects an empty accessToken (throws
+      // "accessToken cannot be empty"), so fetch it explicitly rather than
+      // relying on the idToken-only credential overload.
+      const { accessToken } = await GoogleSignin.getTokens();
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken, accessToken);
       const firebaseUserCredential = await auth().signInWithCredential(googleCredential);
       const firebaseUser = firebaseUserCredential.user;
       const token = await firebaseUser.getIdToken();
