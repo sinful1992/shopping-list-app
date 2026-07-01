@@ -3,12 +3,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   Modal,
   Platform,
 } from 'react-native';
+import type { ShoppingList } from '../../models/types';
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -187,51 +188,52 @@ const HomeScreen = () => {
     );
   };
 
+  const renderListCard = ({ item: list, index }: { item: ShoppingList; index: number }) => {
+    const isCompleted = list.status === 'completed';
+    const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
+
+    const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
+    const formattedDate = formatDateShort(date);
+
+    const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
+      ? list.syncStatus
+      : 'failed';
+
+    return (
+      <AnimatedListCard
+        index={index}
+        listId={list.id}
+        listName={list.name}
+        isCompleted={isCompleted}
+        isLocked={list.isLocked}
+        lockedByRole={list.lockedByRole}
+        lockedByName={list.lockedByName}
+        storeName={list.storeName}
+        formattedDate={formattedDate}
+        syncStatus={syncStatus}
+        onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
+        onDelete={() => handleDeleteList(list.id, list.name)}
+        listCardStyle={styles.listCard}
+        completedCardStyle={styles.completedCard}
+        theme={theme}
+      />
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView
+      <FlatList
+        data={lists}
+        keyExtractor={(list) => list.id}
+        renderItem={renderListCard}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      >
-        {lists.length === 0 ? (
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No shopping lists yet</Text>
             <Text style={styles.emptySubtext}>Tap + to create your first list</Text>
           </View>
-        ) : (
-          lists.map((list, index) => {
-              const isCompleted = list.status === 'completed';
-              const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
-
-              const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
-              const formattedDate = formatDateShort(date);
-
-              const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
-                ? list.syncStatus
-                : 'failed';
-
-              return (
-                <AnimatedListCard
-                  key={list.id}
-                  index={index}
-                  listId={list.id}
-                  listName={list.name}
-                  isCompleted={isCompleted}
-                  isLocked={list.isLocked}
-                  lockedByRole={list.lockedByRole}
-                  lockedByName={list.lockedByName}
-                  storeName={list.storeName}
-                  formattedDate={formattedDate}
-                  syncStatus={syncStatus}
-                  onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
-                  onDelete={() => handleDeleteList(list.id, list.name)}
-                  listCardStyle={styles.listCard}
-                  completedCardStyle={styles.completedCard}
-                  theme={theme}
-                />
-              );
-            })
-        )}
-      </ScrollView>
+        }
+      />
 
       <View style={styles.fabContainer}>
         <TouchableOpacity

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.5] - 2026-07-02
+
+### Changed
+- `HomeScreen` renders lists with `FlatList` (virtualized) instead of `ScrollView` + `.map()`.
+
 ## [1.29.4] - 2026-07-02
 
 ### Changed
