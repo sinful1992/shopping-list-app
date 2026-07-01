@@ -23,6 +23,7 @@ import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import SortDropdown, { SortOption } from '../../components/SortDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
 
 /**
  * HistoryScreen
@@ -664,6 +665,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
   },
   listTotal: {
+    ...NUMERIC,
     fontSize: 15,
     color: theme.accent.green,
     fontWeight: '700',

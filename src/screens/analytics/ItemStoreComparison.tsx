@@ -13,6 +13,7 @@ import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PricePoint } from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -408,6 +409,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   singleStorePrice: {
+    ...NUMERIC,
     color: theme.accent.green,
     fontSize: 18,
     fontWeight: '700',

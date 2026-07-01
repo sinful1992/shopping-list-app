@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.28.3] - 2026-07-02
+
+### Changed
+- **All money text now uses tabular (fixed-width) numerals** via a shared `NUMERIC` style token (`fontVariant: ['tabular-nums']`): item prices and totals in list/history/receipt/budget/analytics/subscription screens. Digit columns align vertically and totals no longer shift width as values change.
+
 ## [1.28.2] - 2026-07-02
 
 ### Changed

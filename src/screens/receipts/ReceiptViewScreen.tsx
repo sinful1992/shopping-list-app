@@ -12,6 +12,7 @@ import {
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { toFileUri } from '../../utils/uri';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -541,6 +542,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   totalValue: {
+    ...NUMERIC,
     fontSize: 20,
     fontWeight: '700',
     color: theme.accent.green,
@@ -600,6 +602,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   itemPrice: {
+    ...NUMERIC,
     fontSize: 14,
     fontWeight: '600',
     color: theme.accent.green,

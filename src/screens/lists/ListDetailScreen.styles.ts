@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS } from '../../styles/theme';
+import { Theme, RADIUS, NUMERIC } from '../../styles/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -172,6 +172,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.tertiary,
   },
   itemPriceText: {
+    ...NUMERIC,
     fontSize: 16,
     fontWeight: '600',
     color: theme.text.secondary,
@@ -186,6 +187,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.tertiary,
   },
   itemPriceCompact: {
+    ...NUMERIC,
     fontSize: 14,
     fontWeight: '600',
     color: theme.accent.green,
@@ -202,6 +204,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
   },
   itemPrice: {
+    ...NUMERIC,
     fontSize: 16,
     fontWeight: '600',
     color: theme.accent.green,
@@ -212,6 +215,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.tertiary,
   },
   priceText: {
+    ...NUMERIC,
     fontSize: 14,
     color: theme.accent.green,
     marginTop: 4,
@@ -438,6 +442,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.9)',
   },
   budgetBadgeText: {
+    ...NUMERIC,
     color: theme.text.primary,
     fontSize: 11,
     fontWeight: 'bold',

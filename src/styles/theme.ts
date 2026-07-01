@@ -169,6 +169,12 @@ export const TYPOGRAPHY = {
   },
 } as const;
 
+// Tabular (fixed-width) numerals for money and quantities — keeps digit
+// columns aligned in lists and stops totals jiggling as values change.
+export const NUMERIC = {
+  fontVariant: ['tabular-nums' as const],
+};
+
 // Animation durations (milliseconds)
 export const ANIMATION = {
   fast: 200,

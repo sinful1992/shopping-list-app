@@ -17,6 +17,7 @@ import { UsageIndicator } from '../../components/UsageIndicator';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
 
 export const SubscriptionScreen: React.FC = () => {
   const { showAlert } = useAlert();
@@ -344,6 +345,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   price: {
+    ...NUMERIC,
     color: theme.accent.green,
     fontSize: 24,
     fontWeight: 'bold',

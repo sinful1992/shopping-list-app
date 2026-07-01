@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
@@ -431,6 +432,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 8,
   },
   totalAmount: {
+    ...NUMERIC,
     fontSize: 20,
     fontWeight: '700',
     color: theme.accent.green,
@@ -479,6 +481,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   totalValue: {
+    ...NUMERIC,
     fontSize: 18,
     fontWeight: '700',
     color: theme.accent.green,
@@ -529,6 +532,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 2,
   },
   itemPrice: {
+    ...NUMERIC,
     fontSize: 14,
     fontWeight: '600',
     color: theme.accent.green,
@@ -632,6 +636,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: '#FF9500',
   },
   itemPriceNotPurchased: {
+    ...NUMERIC,
     color: '#FF9500',
   },
   itemsMarginTop: { marginTop: 12 },
