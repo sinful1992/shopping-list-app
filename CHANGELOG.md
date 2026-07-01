@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.0] - 2026-07-02
+
+### Added
+- **Receipt scanning gets its own visible button** — a small camera FAB above the main one. Scanning was only reachable via an undiscoverable long-press with a permanent "Hold to scan receipt" hint caption; the hint is gone, the long-press still works, and the main FAB's `+` is now a real icon (optically centered) instead of a text glyph.
+
 ## [1.28.5] - 2026-07-02
 
 ### Changed

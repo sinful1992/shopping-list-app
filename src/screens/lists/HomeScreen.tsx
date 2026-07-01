@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
@@ -236,12 +237,19 @@ const HomeScreen = () => {
       </ScrollView>
 
       <View style={styles.fabContainer}>
-        <Text style={styles.fabHint}>Hold to scan receipt</Text>
+        <TouchableOpacity
+          style={styles.scanFab}
+          onPress={handleQuickScan}
+          accessibilityLabel="Scan receipt into a new list"
+        >
+          <Icon name="camera-outline" size={22} color={theme.text.primary} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.fab}
           onPress={handleCreateList}
           onLongPress={handleQuickScan}
           delayLongPress={500}
+          accessibilityLabel="Create shopping list"
         >
           <LinearGradient
             colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
@@ -249,7 +257,7 @@ const HomeScreen = () => {
             end={{ x: 1, y: 1 }}
             style={styles.fabGradient}
           >
-            <Text style={styles.fabText}>+</Text>
+            <Icon name="add" size={32} color="#FFFFFF" />
           </LinearGradient>
         </TouchableOpacity>
       </View>

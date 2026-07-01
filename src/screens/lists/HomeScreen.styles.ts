@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS, SPACING } from '../../styles/theme';
+import { Theme, RADIUS, SPACING, SHADOWS } from '../../styles/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -118,12 +118,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     right: 20,
     bottom: 20,
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
   },
-  fabHint: {
-    fontSize: 11,
-    color: theme.text.tertiary,
-    letterSpacing: 0.2,
+  scanFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.background.secondary,
+    borderWidth: 1,
+    borderColor: theme.border.strong,
+    ...SHADOWS.small,
   },
   fab: {
     width: 64,
@@ -144,11 +150,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fabText: {
-    fontSize: 36,
-    color: theme.text.primary,
-    fontWeight: '300',
   },
   modalOverlay: {
     flex: 1,
