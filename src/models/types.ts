@@ -141,6 +141,7 @@ export interface ReceiptLineItem {
   unitPrice: number | null;
   price: number | null;
   vatCode: string | null; // e.g., 'A', 'B', '*'
+  needsReview?: boolean; // OCR server flagged this item's parse as suspect (e.g. no description/price)
 }
 
 export interface CaptureResult {

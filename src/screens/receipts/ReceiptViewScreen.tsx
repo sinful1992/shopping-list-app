@@ -55,6 +55,10 @@ const ReceiptViewScreen = () => {
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<EditableReceipt | null>(null);
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const needsReviewCount = useMemo(
+    () => receiptData?.lineItems.filter(item => item.needsReview).length ?? 0,
+    [receiptData],
+  );
 
   useEffect(() => {
     loadReceiptData();
@@ -332,7 +336,10 @@ const ReceiptViewScreen = () => {
               <View style={styles.lineItemsContainer}>
                 <Text style={styles.sectionTitle}>Items ({receiptData.lineItems.length})</Text>
                 {receiptData.lineItems.map((item, index) => (
-                  <View key={index} style={styles.lineItem}>
+                  <View
+                    key={index}
+                    style={[styles.lineItem, item.needsReview && styles.lineItemNeedsReview]}
+                  >
                     {editing ? (
                       <>
                         <TextInput
@@ -346,8 +353,8 @@ const ReceiptViewScreen = () => {
                               return { ...prev, lineItems: updatedItems };
                             });
                           }}
-                          placeholder="Item name"
-                          placeholderTextColor={theme.text.tertiary}
+                          placeholder={item.needsReview ? 'Check this item' : 'Item name'}
+                          placeholderTextColor={item.needsReview ? theme.accent.yellow : theme.text.tertiary}
                         />
                         <TextInput
                           style={[styles.input, styles.itemPriceInput]}
@@ -367,16 +374,35 @@ const ReceiptViewScreen = () => {
                       </>
                     ) : (
                       <>
-                        <Text style={styles.itemDescription}>
-                          {item.description}
-                        </Text>
-                        <Text style={styles.itemPrice}>
+                        <View style={styles.itemDescRow}>
+                          {item.needsReview && (
+                            <Text style={styles.itemReviewIcon}>⚠️</Text>
+                          )}
+                          <Text
+                            style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
+                          >
+                            {item.description || '(check this item)'}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[styles.itemPrice, item.needsReview && styles.itemTextNeedsReview]}
+                        >
                           {list?.currency || '£'}{item.price?.toFixed(2) || '0.00'}
                         </Text>
                       </>
                     )}
                   </View>
                 ))}
+              </View>
+            )}
+
+            {/* Items Needing Review */}
+            {needsReviewCount > 0 && (
+              <View style={styles.warningContainer}>
+                <Text style={styles.warningText}>
+                  ⚠️ Check the highlighted item{needsReviewCount > 1 ? 's' : ''} above — the
+                  scanner wasn't sure about the description or price.
+                </Text>
               </View>
             )}
 
@@ -543,10 +569,35 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderBottomColor: theme.border.medium,
     gap: 10,
   },
+  lineItemNeedsReview: {
+    // Yellow, not orange: matches this app's own severity ladder
+    // (BudgetAlertService: safe=green, warning=yellow, caution=orange,
+    // danger=red). A single suspect field is a minor, one-tap fix — it
+    // shouldn't outrank the orange "low confidence" banner for the whole
+    // receipt a tier below it.
+    backgroundColor: 'rgba(255, 214, 10, 0.1)',
+    borderLeftWidth: 4, // matches BudgetScreen's alertCard left-accent pattern
+    borderLeftColor: theme.accent.yellow,
+    paddingLeft: 8,
+    marginLeft: -8,
+  },
+  itemDescRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  itemReviewIcon: {
+    fontSize: 12,
+  },
   itemDescription: {
     flex: 1,
     fontSize: 14,
     color: theme.text.primary,
+  },
+  itemTextNeedsReview: {
+    color: theme.accent.yellow,
+    fontWeight: '600',
   },
   itemPrice: {
     fontSize: 14,

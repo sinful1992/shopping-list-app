@@ -42,10 +42,14 @@ interface OCRServerResponse {
     unit_price: string;
     total_price: string;
     discount: string | null;
+    needs_review?: boolean;
   }>;
   subtotal: string | null;
   savings: string | null;
   total: string | null;
+  // Receipt-level anomalies (item_index: null) alongside the per-item
+  // needs_review flags above — e.g. no_items, no_total.
+  anomalies?: Array<{ type: string; item_index: number | null }>;
 }
 
 /**
@@ -251,14 +255,19 @@ class ReceiptOCRService {
    * Map the server's snake_case response to the app's ReceiptData type.
    */
   private mapToReceiptData(data: OCRServerResponse): { receiptData: ReceiptData; totalAmount: number | null; merchantName: string | null; purchaseDate: string | null; currency: string } {
+    // Previously dropped any item with no description entirely — but that's
+    // exactly the case the server flags via needs_review (e.g. a price-only
+    // row where OCR missed the description text). Keep it with an empty
+    // description and needsReview=true so the user can see and fix it,
+    // rather than silently losing a real priced item off the receipt.
     const lineItems: ReceiptLineItem[] = (data.line_items || [])
-      .filter(item => item.description)
       .map(item => ({
-        description: sanitizeText(item.description!, 200),
+        description: item.description ? sanitizeText(item.description, 200) : '',
         quantity: item.quantity ?? null,
         unitPrice: parseNumber(item.unit_price),
         price: parseNumber(item.total_price),
         vatCode: null,
+        needsReview: item.needs_review === true,
       }));
 
     const totalAmount = parseNumber(data.total);
