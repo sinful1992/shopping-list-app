@@ -55,6 +55,10 @@ const ReceiptViewScreen = () => {
   const [editing, setEditing] = useState(false);
   const [editedData, setEditedData] = useState<EditableReceipt | null>(null);
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const needsReviewCount = useMemo(
+    () => receiptData?.lineItems.filter(item => item.needsReview).length ?? 0,
+    [receiptData],
+  );
 
   useEffect(() => {
     loadReceiptData();
@@ -332,7 +336,10 @@ const ReceiptViewScreen = () => {
               <View style={styles.lineItemsContainer}>
                 <Text style={styles.sectionTitle}>Items ({receiptData.lineItems.length})</Text>
                 {receiptData.lineItems.map((item, index) => (
-                  <View key={index} style={styles.lineItem}>
+                  <View
+                    key={index}
+                    style={[styles.lineItem, item.needsReview && styles.lineItemNeedsReview]}
+                  >
                     {editing ? (
                       <>
                         <TextInput
@@ -346,8 +353,8 @@ const ReceiptViewScreen = () => {
                               return { ...prev, lineItems: updatedItems };
                             });
                           }}
-                          placeholder="Item name"
-                          placeholderTextColor={theme.text.tertiary}
+                          placeholder={item.needsReview ? 'Check this item' : 'Item name'}
+                          placeholderTextColor={item.needsReview ? theme.accent.orange : theme.text.tertiary}
                         />
                         <TextInput
                           style={[styles.input, styles.itemPriceInput]}
@@ -367,16 +374,32 @@ const ReceiptViewScreen = () => {
                       </>
                     ) : (
                       <>
-                        <Text style={styles.itemDescription}>
-                          {item.description}
+                        <Text
+                          style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
+                        >
+                          {item.needsReview && '⚠ '}
+                          {item.description || '(check this item)'}
                         </Text>
-                        <Text style={styles.itemPrice}>
+                        <Text
+                          style={[styles.itemPrice, item.needsReview && styles.itemTextNeedsReview]}
+                        >
                           {list?.currency || '£'}{item.price?.toFixed(2) || '0.00'}
                         </Text>
                       </>
                     )}
                   </View>
                 ))}
+              </View>
+            )}
+
+            {/* Items Needing Review */}
+            {needsReviewCount > 0 && (
+              <View style={styles.warningContainer}>
+                <Text style={styles.warningText}>
+                  ⚠ {needsReviewCount} item{needsReviewCount > 1 ? 's' : ''} marked above may
+                  need a manual check — the scanner wasn't confident about the description or
+                  price.
+                </Text>
               </View>
             )}
 
@@ -543,10 +566,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderBottomColor: theme.border.medium,
     gap: 10,
   },
+  lineItemNeedsReview: {
+    backgroundColor: 'rgba(255, 159, 10, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: theme.accent.orange,
+    paddingLeft: 8,
+    marginLeft: -8,
+  },
   itemDescription: {
     flex: 1,
     fontSize: 14,
     color: theme.text.primary,
+  },
+  itemTextNeedsReview: {
+    color: theme.accent.orange,
+    fontWeight: '600',
   },
   itemPrice: {
     fontSize: 14,
