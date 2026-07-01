@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.28.4] - 2026-07-02
+
+### Changed
+- **List sync status is now a cloud icon instead of a bare colored dot** (`cloud-done` / `cloud-upload-outline` / `cloud-offline-outline`, themed via `theme.sync`). The dot communicated by color alone — colorblind-hostile and unexplained. `AnimatedListCard` takes `syncStatus` instead of a raw `syncColor`.
+
 ## [1.28.3] - 2026-07-02
 
 ### Changed

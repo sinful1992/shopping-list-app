@@ -216,9 +216,9 @@ const HomeScreen = () => {
               const year = date.getFullYear();
               const formattedDate = `${day}/${month}/${year}`;
 
-              const syncColor = list.syncStatus === 'synced' ? theme.sync.synced :
-                               list.syncStatus === 'pending' ? theme.sync.pending :
-                               theme.sync.failed;
+              const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
+                ? list.syncStatus
+                : 'failed';
 
               return (
                 <AnimatedListCard
@@ -232,7 +232,7 @@ const HomeScreen = () => {
                   lockedByName={list.lockedByName}
                   storeName={list.storeName}
                   formattedDate={formattedDate}
-                  syncColor={syncColor}
+                  syncStatus={syncStatus}
                   onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
                   onDelete={() => handleDeleteList(list.id, list.name)}
                   listCardStyle={styles.listCard}
