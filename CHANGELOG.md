@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.6] - 2026-07-02
+
+### Changed
+- Extracted `CategoryItemList` + `DraggableItemRow` from `ListDetailScreen` into `src/components/CategoryItemList.tsx` (screen now 1,494 lines, from 1,627 at the start of this pass). Deeper decomposition (sync/observer hooks) deliberately deferred: the drag-reorder and sync paths are the app's twice-broken, device-validated hot spots and shouldn't be restructured without an AVD pass.
+
 ## [1.29.5] - 2026-07-02
 
 ### Changed
