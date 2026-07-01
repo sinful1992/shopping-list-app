@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.28.0] - 2026-07-02
+
+### Added
+- **Store detection now covers the full retailer set the OCR server recognises** (17 chains: Asda, Aldi, Morrisons, Waitrose, Costco, Iceland, Spar, Nisa, Booths, Budgens, Londis, One Stop, M&S added to the existing Tesco/Lidl/Sainsbury's/Co-op). Previously anything outside the original four collapsed to `'other'`. `ReceiptData['store']` widened to the new `ReceiptStoreSlug` union; the mapping mirrors `_KNOWN_RETAILERS` in the receipt-ocr repo.
+
 ## [1.27.3] - 2026-07-02
 
 ### Fixed

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
+import { ReceiptData, ReceiptLineItem, ReceiptStoreSlug, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
 import ImageStorageManager from './ImageStorageManager';
@@ -15,6 +15,31 @@ const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 const OCR_SHARED_KEY = 'fsl-ocr-7f3d9a2e8b514c06';
 
 const DEFAULT_CURRENCY = 'GBP';
+
+// Uppercase substring → canonical slug, mirroring the retailer set the OCR
+// server recognises (_KNOWN_RETAILERS in receipt-ocr/ocr/parser.py). Ordered:
+// multi-word / apostrophe variants before shorter substrings they contain.
+const MERCHANT_TO_SLUG: ReadonlyArray<[string, ReceiptStoreSlug]> = [
+  ['TESCO', 'tesco'],
+  ['ASDA', 'asda'],
+  ['ALDI', 'aldi'],
+  ['SAINSBURY', 'sainsburys'],
+  ['MORRISONS', 'morrisons'],
+  ['WAITROSE', 'waitrose'],
+  ['COSTCO', 'costco'],
+  ['ICELAND', 'iceland'],
+  ['ONE STOP', 'onestop'],
+  ['BOOTHS', 'booths'],
+  ['BUDGENS', 'budgens'],
+  ['LONDIS', 'londis'],
+  ['LIDL', 'lidl'],
+  ['CO-OP', 'coop'],
+  ['COOP', 'coop'],
+  ['M&S', 'mands'],
+  ['MARKS & SPENCER', 'mands'],
+  ['SPAR', 'spar'],
+  ['NISA', 'nisa'],
+];
 
 /** Health probes should answer fast; don't let a dead server hang the UI. */
 const HEALTH_CHECK_TIMEOUT_MS = 10_000;
@@ -359,10 +384,9 @@ class ReceiptOCRService {
   private detectStore(merchantName: string | null | undefined): ReceiptData['store'] {
     if (!merchantName) return null;
     const name = merchantName.toUpperCase();
-    if (name.includes('LIDL')) return 'lidl';
-    if (name.includes('TESCO')) return 'tesco';
-    if (name.includes('SAINSBURY')) return 'sainsburys';
-    if (name.includes('CO-OP') || name.includes('COOP')) return 'coop';
+    for (const [needle, slug] of MERCHANT_TO_SLUG) {
+      if (name.includes(needle)) return slug;
+    }
     return 'other';
   }
 }
