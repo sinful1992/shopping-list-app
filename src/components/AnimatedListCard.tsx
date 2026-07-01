@@ -71,12 +71,12 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
         <View style={staticStyles.listBadges}>
           {isLocked && (
             <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange }]}>
-              🛒 {lockedByRole || lockedByName || 'Shopping'}
+              <Icon name="cart" size={11} color={theme.accent.orange} /> {lockedByRole || lockedByName || 'Shopping'}
             </Text>
           )}
           {isCompleted && (
             <Text style={[staticStyles.completedBadge, { color: theme.accent.green }]}>
-              ✓ Completed
+              <Icon name="checkmark" size={11} color={theme.accent.green} /> Completed
             </Text>
           )}
           <TouchableOpacity
@@ -86,7 +86,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
             }}
             style={staticStyles.deleteIconButton}
           >
-            <Text style={staticStyles.deleteIcon}>🗑</Text>
+            <Icon name="trash-outline" size={18} color={theme.text.secondary} />
           </TouchableOpacity>
         </View>
       </View>

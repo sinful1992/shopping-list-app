@@ -4,6 +4,7 @@ import Animated, { useSharedValue, withSequence, withTiming, useAnimatedStyle } 
 import { RADIUS } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import CategoryService from '../services/CategoryService';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const VOLUME_UNITS = ['ml', 'L'];
 
@@ -248,7 +249,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           {showSuggestion && suggestion && (
             <View style={suggestionRowStyle}>
               <Text style={suggestionTextStyle}>
-                💡 £{(suggestion.bestPrice * qty).toFixed(2)} at {suggestion.bestStore} (save £{(suggestion.savings * qty).toFixed(2)})
+                <Icon name="bulb-outline" size={12} color={theme.accent.yellow} /> £{(suggestion.bestPrice * qty).toFixed(2)} at {suggestion.bestStore} (save £{(suggestion.savings * qty).toFixed(2)})
               </Text>
             </View>
           )}

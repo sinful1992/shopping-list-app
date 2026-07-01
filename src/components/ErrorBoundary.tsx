@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import SplashScreen from 'react-native-splash-screen';
 import CrashReporting from '../services/CrashReporting';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface Props {
   children: ReactNode;
@@ -49,7 +50,7 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <View style={styles.centered}>
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <Icon name="warning-outline" size={52} color="#FFB340" style={styles.errorIcon} />
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorSub}>{this.state.error?.message}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={this.handleReset}>

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.1] - 2026-07-02
+
+### Changed
+- **UI control emoji replaced with Ionicons across 15 files** — close (✕), save/cancel (✔️/✖️), edit (✏️), delete (🗑), checkmarks, status-bar icons (🛒/🔒/✅/📡), expand chevrons (▼/▲), calendar (📅), camera (📷), receipt (📄), store (🏪), history/stats (📊), time (🕐), warning (⚠️ in ErrorBoundary), and the suggestion bulb (💡). Emoji render differently per Android vendor and can't take theme colors. **Deliberately kept as emoji (content, not controls):** category icons (🥬🥛…), role avatars, the urgent screen's 🔥 identity, notification message text, and inline-sentence emphasis (e.g. "⚠️ Low confidence…").
+
 ## [1.29.0] - 2026-07-02
 
 ### Added

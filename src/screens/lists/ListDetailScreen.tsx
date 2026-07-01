@@ -1145,10 +1145,10 @@ const ListDetailScreen = () => {
               editable={!isListLocked}
             />
             <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked}>
-              <Text style={styles.titleSaveButtonText}>✔️</Text>
+              <Icon name="checkmark" size={20} color={theme.accent.green} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName}>
-              <Text style={styles.titleCancelButtonText}>✖️</Text>
+              <Icon name="close" size={20} color={theme.accent.red} />
             </TouchableOpacity>
           </>
         ) : (
@@ -1165,7 +1165,7 @@ const ListDetailScreen = () => {
             )}
             {!isListLocked && !isLayoutDirty && (
               <TouchableOpacity onPress={handleEditListName}>
-                <Text style={styles.editIcon}>✏️</Text>
+                <Icon name="pencil" size={20} color={theme.text.secondary} />
               </TouchableOpacity>
             )}
           </>
@@ -1184,7 +1184,7 @@ const ListDetailScreen = () => {
           {isShoppingMode && !isShoppingHeaderExpanded && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Text style={styles.statusIcon}>🛒</Text>
+                <Icon name="cart" size={16} color={theme.text.primary} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   £{runningTotal.toFixed(2)} • {checkedCount}/{checkedCount + uncheckedCount}
                 </Text>
@@ -1199,11 +1199,11 @@ const ListDetailScreen = () => {
                     </Text>
                   </View>
                 )}
-                {!isOnline && <Text style={styles.statusIcon}>📡</Text>}
+                {!isOnline && <Icon name="cloud-offline-outline" size={16} color={theme.text.primary} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton}>
-                  <Text style={styles.expandIcon}>▼</Text>
+                  <Icon name="chevron-down" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
                   <Text style={styles.doneButtonText}>Done</Text>
@@ -1218,7 +1218,7 @@ const ListDetailScreen = () => {
               <View style={styles.expandedHeader}>
                 <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton}>
-                  <Text style={styles.expandIcon}>▲</Text>
+                  <Icon name="chevron-up" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
               </View>
               <View style={styles.expandedStats}>
@@ -1272,7 +1272,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && isListLocked && list && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Text style={styles.statusIcon}>🔒</Text>
+                <Icon name="lock-closed" size={16} color={theme.text.primary} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now
                 </Text>
@@ -1284,7 +1284,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && !isListLocked && isListCompleted && !canAddItems && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Text style={styles.statusIcon}>✅</Text>
+                <Icon name="checkmark-circle" size={16} color={theme.accent.green} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   Completed - Only shopper can add items
                 </Text>
@@ -1335,7 +1335,7 @@ const ListDetailScreen = () => {
           onPress={() => setFrequentItemsVisible(true)}
           disabled={!canAddItems}
         >
-          <Text style={styles.frequentItemsIcon}>🕐</Text>
+          <Icon name="time-outline" size={20} color={theme.text.secondary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
@@ -1435,7 +1435,7 @@ const ListDetailScreen = () => {
             {Object.keys(checkedGrouped).length > 0 && (
               <View>
                 <View style={styles.categoryHeader}>
-                  <Text style={styles.categoryIcon}>✅</Text>
+                  <Icon name="checkmark-circle" size={16} color={theme.accent.green} style={styles.categoryIcon} />
                   <Text style={styles.categoryName}>Completed</Text>
                 </View>
                 {CategoryService.getCategories().map(cat => {
@@ -1535,7 +1535,7 @@ const ListDetailScreen = () => {
                 style={styles.viewReceiptButton}
                 onPress={() => navigation.navigate('ReceiptView', { listId })}
               >
-                <Text style={styles.viewReceiptIcon}>📄</Text>
+                <Icon name="document-text-outline" size={20} color={theme.text.primary} style={styles.viewReceiptIcon} />
                 <Text style={styles.viewReceiptText}>View Receipt</Text>
               </TouchableOpacity>
             )}
@@ -1545,7 +1545,7 @@ const ListDetailScreen = () => {
               onPress={handleTakeReceiptPhoto}
               disabled={isListLocked}
             >
-              <Text style={styles.attachPhotoIcon}>📷</Text>
+              <Icon name="camera-outline" size={20} color={theme.text.primary} style={styles.attachPhotoIcon} />
               <Text style={styles.attachPhotoText}>Attach Receipt Photo</Text>
             </TouchableOpacity>
           </View>

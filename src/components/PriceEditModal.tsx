@@ -14,6 +14,7 @@ import { useAlert } from '../contexts/AlertContext';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface PriceEditModalProps {
   visible: boolean;
@@ -123,7 +124,7 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
         style={styles.historyButton}
         onPress={() => onViewPriceHistory(item.name)}
       >
-        <Text style={styles.historyIcon}>📊</Text>
+        <Icon name="stats-chart-outline" size={18} color={theme.accent.blue} style={styles.historyIcon} />
         <Text style={styles.historyText}>View Price History</Text>
       </TouchableOpacity>
 

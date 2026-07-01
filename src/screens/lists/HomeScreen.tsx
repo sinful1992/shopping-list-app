@@ -283,7 +283,7 @@ const HomeScreen = () => {
               <Text style={styles.dateButtonText}>
                 {formatDateLong(selectedDate)}
               </Text>
-              <Text style={styles.calendarIcon}>📅</Text>
+              <Icon name="calendar-outline" size={22} color={theme.text.secondary} />
             </TouchableOpacity>
 
             <Text style={styles.datePreview}>

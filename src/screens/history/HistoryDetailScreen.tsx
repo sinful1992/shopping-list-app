@@ -24,6 +24,7 @@ import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryServ
 import { ListDetails, Item } from '../../models/types';
 import PriceEditModal from '../../components/PriceEditModal';
 import PriceHistoryModal from '../../components/PriceHistoryModal';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 /**
  * HistoryDetailScreen
@@ -302,7 +303,7 @@ const HistoryDetailScreen = () => {
                     onPress={() => handleItemPress(item)}
                   >
                     <View style={styles.checkboxContainer}>
-                      <Text style={styles.checkboxChecked}>✓</Text>
+                      <Icon name="checkmark" size={20} color={theme.accent.green} />
                     </View>
                     <View style={styles.itemContent}>
                       <View style={styles.itemNameRow}>
@@ -343,7 +344,7 @@ const HistoryDetailScreen = () => {
       {receiptUrl && (
         <View style={styles.section}>
           <TouchableOpacity style={styles.receiptButton} onPress={handleViewReceipt}>
-            <Text style={styles.receiptButtonIcon}>📷</Text>
+            <Icon name="camera-outline" size={20} color={theme.text.primary} style={styles.receiptButtonIcon} />
             <Text style={styles.receiptButtonText}>View Receipt Photo</Text>
           </TouchableOpacity>
         </View>

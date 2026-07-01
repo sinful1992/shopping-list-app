@@ -15,6 +15,7 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDateShort } from '../utils/date';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 export interface FilterOptions {
   startDate: Date | null;
@@ -147,7 +148,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             )}
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Icon name="close" size={24} color={theme.text.tertiary} />
             </TouchableOpacity>
           </View>
 

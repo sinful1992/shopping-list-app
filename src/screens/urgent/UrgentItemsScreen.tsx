@@ -17,6 +17,7 @@ import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
 import { useUrgentItems } from '../../hooks';
 import type { Theme } from '../../styles/theme';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 /**
  * UrgentItemsScreen
@@ -170,7 +171,7 @@ const UrgentItemsScreen = () => {
               {resolvedItems.map((item) => (
                 <View key={item.id} style={styles.resolvedItemCard}>
                   <View style={styles.itemHeader}>
-                    <Text style={styles.checkEmoji}>✓</Text>
+                    <Icon name="checkmark-circle" size={28} color={theme.accent.green} style={styles.checkEmoji} />
                     <View style={styles.itemInfo}>
                       <Text style={styles.resolvedItemName}>{item.name}</Text>
                       <Text style={styles.itemMeta}>
