@@ -26,6 +26,7 @@ import { ReceiptData, ShoppingList } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateTime } from '../../utils/date';
+import ReceiptCard, { ReceiptRule, RECEIPT_FONT } from '../../components/ReceiptCard';
 
 type EditableReceipt = ReceiptData & {
   merchantName: string | null;
@@ -217,8 +218,8 @@ const ReceiptViewScreen = () => {
         </View>
       )}
 
-      {/* OCR Data Section */}
-      <View style={styles.dataContainer}>
+      {/* OCR Data Section — styled as the till receipt it came from */}
+      <ReceiptCard>
         <View style={styles.headerRow}>
           <Text style={styles.sectionTitle}>Receipt Data</Text>
           {!editing && receiptData && (
@@ -306,33 +307,6 @@ const ReceiptViewScreen = () => {
               )}
             </View>
 
-            {/* Total Amount */}
-            <View style={styles.fieldRow}>
-              <Text style={styles.label}>Total:</Text>
-              {editing ? (
-                <TextInput
-                  style={styles.input}
-                  value={editedData?.totalAmount?.toString() || ''}
-                  onChangeText={(text) =>
-                    setEditedData((prev) =>
-                      prev
-                        ? { ...prev, totalAmount: sanitizePrice(text) }
-                        : null
-                    )
-                  }
-                  placeholder="0.00"
-                  keyboardType="decimal-pad"
-                  placeholderTextColor={theme.text.tertiary}
-                />
-              ) : (
-                <Text style={styles.totalValue}>
-                  {list?.totalAmount
-                    ? `${list.currency || '£'}${list.totalAmount.toFixed(2)}`
-                    : 'N/A'}
-                </Text>
-              )}
-            </View>
-
             {/* Line Items */}
             {receiptData.lineItems && receiptData.lineItems.length > 0 && (
               <View style={styles.lineItemsContainer}>
@@ -398,6 +372,35 @@ const ReceiptViewScreen = () => {
               </View>
             )}
 
+            {/* Total — below the items behind a dashed rule, the way a
+                till prints it */}
+            <ReceiptRule />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>TOTAL</Text>
+              {editing ? (
+                <TextInput
+                  style={[styles.input, styles.itemPriceInput]}
+                  value={editedData?.totalAmount?.toString() || ''}
+                  onChangeText={(text) =>
+                    setEditedData((prev) =>
+                      prev
+                        ? { ...prev, totalAmount: sanitizePrice(text) }
+                        : null
+                    )
+                  }
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={theme.text.tertiary}
+                />
+              ) : (
+                <Text style={styles.totalValue}>
+                  {list?.totalAmount
+                    ? `${list.currency || '£'}${list.totalAmount.toFixed(2)}`
+                    : 'N/A'}
+                </Text>
+              )}
+            </View>
+
             {/* Items Needing Review */}
             {needsReviewCount > 0 && (
               <View style={styles.warningContainer}>
@@ -452,7 +455,7 @@ const ReceiptViewScreen = () => {
             )}
           </>
         )}
-      </View>
+      </ReceiptCard>
     </ScrollView>
   );
 };
@@ -484,15 +487,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   receiptImage: {
     width: '100%',
     height: 400,
-  },
-  dataContainer: {
-    padding: 20,
-    backgroundColor: theme.glass.subtle,
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    borderRadius: 16,
-    marginHorizontal: 10,
   },
   headerRow: {
     flexDirection: 'row',
@@ -538,15 +532,30 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 5,
   },
   value: {
-    fontSize: 16,
+    fontSize: 15,
     color: theme.text.primary,
     fontWeight: '600',
+    fontFamily: RECEIPT_FONT,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  totalLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+    letterSpacing: 1,
   },
   totalValue: {
     ...NUMERIC,
     fontSize: 20,
     fontWeight: '700',
     color: theme.accent.green,
+    fontFamily: RECEIPT_FONT,
   },
   input: {
     fontSize: 16,
@@ -595,8 +604,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   itemDescription: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
   },
   itemTextNeedsReview: {
     color: theme.accent.yellow,
@@ -604,11 +614,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   itemPrice: {
     ...NUMERIC,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: theme.accent.green,
     minWidth: 60,
     textAlign: 'right',
+    fontFamily: RECEIPT_FONT,
   },
   itemDescInput: {
     flex: 1,

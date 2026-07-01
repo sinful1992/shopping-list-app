@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.2] - 2026-07-02
+
+### Added
+- **Receipt data now renders as a thermal receipt** — new `ReceiptCard` component with SVG serrated top/bottom edges, dashed rules (`ReceiptRule`), and monospaced "print" (`RECEIPT_FONT`: Menlo/monospace) for merchant, items and prices. The TOTAL moved below the item list behind a dashed rule, the way a till prints it. This is the app's signature visual — reserved for receipt/cost breakdowns.
+
 ## [1.29.1] - 2026-07-02
 
 ### Changed
