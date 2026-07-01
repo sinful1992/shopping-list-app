@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.27.3] - 2026-07-02
+
+### Fixed
+- **OCR server health check could hang forever.** RN's `fetch` has no default timeout, so a dead/unreachable OCR server left the settings-screen health probe spinning indefinitely. Now aborts after 10s.
+
+### Changed
+- OCR requests send an `X-OCR-Key` header. The server (receipt-ocr repo) enforces it only when its `OCR_SHARED_SECRET` env var is set to the matching value — set `OCR_SHARED_SECRET=fsl-ocr-7f3d9a2e8b514c06` as a secret on the HF Space to close the public `/ocr` endpoint to drive-by use. Until then the header is ignored and nothing changes.
+- `currency` default extracted to a named `DEFAULT_CURRENCY` constant.
+
 ## [1.27.2] - 2026-07-02
 
 ### Fixed

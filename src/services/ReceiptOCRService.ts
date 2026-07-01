@@ -9,6 +9,16 @@ import { toFileUri } from '../utils/uri';
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 
+// Sent as X-OCR-Key on every OCR request. The server only enforces it when
+// its OCR_SHARED_SECRET env var is set to the same value — abuse deterrence
+// for the public Space URL, not real auth (the key ships in the app).
+const OCR_SHARED_KEY = 'fsl-ocr-7f3d9a2e8b514c06';
+
+const DEFAULT_CURRENCY = 'GBP';
+
+/** Health probes should answer fast; don't let a dead server hang the UI. */
+const HEALTH_CHECK_TIMEOUT_MS = 10_000;
+
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
  * ~20s when the model isn't resident; warm requests are a few seconds.
@@ -101,10 +111,16 @@ class ReceiptOCRService {
       return { ok: false, modelLoaded: false };
     }
 
+    // RN's fetch never times out on its own — a dead server would hang
+    // the settings screen's health check indefinitely.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+
     try {
       const response = await fetch(`${serverUrl}/health`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -115,6 +131,8 @@ class ReceiptOCRService {
       return { ok: true, modelLoaded: data.model_loaded === true };
     } catch {
       return { ok: false, modelLoaded: false };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -146,6 +164,7 @@ class ReceiptOCRService {
         body: formData,
         headers: {
           'Accept': 'application/json',
+          'X-OCR-Key': OCR_SHARED_KEY,
         },
         signal: timeoutController.signal,
       });
@@ -323,7 +342,7 @@ class ReceiptOCRService {
       totalAmount,
       merchantName,
       purchaseDate: data.date,
-      currency: 'GBP',
+      currency: DEFAULT_CURRENCY,
       receiptData: {
         subtotal,
         lineItems,
