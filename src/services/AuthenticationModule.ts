@@ -258,6 +258,16 @@ class AuthenticationModule {
   }
 
   /**
+   * Detach a user from a family group that no longer exists, so the app
+   * can prompt them to create or join a new one.
+   */
+  async clearFamilyGroupReference(userId: string): Promise<void> {
+    await update(ref(getDatabase(), `/users/${userId}`), {
+      familyGroupId: null,
+    });
+  }
+
+  /**
    * Create new family group
    * Implements Req 1.5
    */

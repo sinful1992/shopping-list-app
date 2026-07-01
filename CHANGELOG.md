@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.4] - 2026-07-02
+
+### Changed
+- `HomeScreen` no longer writes to Firebase RTDB directly — the "family group deleted" cleanup moved into `AuthenticationModule.clearFamilyGroupReference()`. It was the only place a screen bypassed the service layer.
+
 ## [1.29.3] - 2026-07-02
 
 ### Changed

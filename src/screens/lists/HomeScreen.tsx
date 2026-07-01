@@ -15,7 +15,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
-import { getDatabase, ref, update } from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -66,9 +65,7 @@ const HomeScreen = () => {
           { icon: 'warning' }
         );
 
-        await update(ref(getDatabase(), `/users/${user.uid}`), {
-          familyGroupId: null,
-        });
+        await AuthenticationModule.clearFamilyGroupReference(user.uid);
 
         return;
       }
