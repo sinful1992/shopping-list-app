@@ -354,7 +354,7 @@ const ReceiptViewScreen = () => {
                             });
                           }}
                           placeholder={item.needsReview ? 'Check this item' : 'Item name'}
-                          placeholderTextColor={item.needsReview ? theme.accent.orange : theme.text.tertiary}
+                          placeholderTextColor={item.needsReview ? theme.accent.yellow : theme.text.tertiary}
                         />
                         <TextInput
                           style={[styles.input, styles.itemPriceInput]}
@@ -374,12 +374,16 @@ const ReceiptViewScreen = () => {
                       </>
                     ) : (
                       <>
-                        <Text
-                          style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
-                        >
-                          {item.needsReview && '⚠ '}
-                          {item.description || '(check this item)'}
-                        </Text>
+                        <View style={styles.itemDescRow}>
+                          {item.needsReview && (
+                            <Text style={styles.itemReviewIcon}>⚠️</Text>
+                          )}
+                          <Text
+                            style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
+                          >
+                            {item.description || '(check this item)'}
+                          </Text>
+                        </View>
                         <Text
                           style={[styles.itemPrice, item.needsReview && styles.itemTextNeedsReview]}
                         >
@@ -396,9 +400,8 @@ const ReceiptViewScreen = () => {
             {needsReviewCount > 0 && (
               <View style={styles.warningContainer}>
                 <Text style={styles.warningText}>
-                  ⚠ {needsReviewCount} item{needsReviewCount > 1 ? 's' : ''} marked above may
-                  need a manual check — the scanner wasn't confident about the description or
-                  price.
+                  ⚠️ Check the highlighted item{needsReviewCount > 1 ? 's' : ''} above — the
+                  scanner wasn't sure about the description or price.
                 </Text>
               </View>
             )}
@@ -567,11 +570,25 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 10,
   },
   lineItemNeedsReview: {
-    backgroundColor: 'rgba(255, 159, 10, 0.1)',
-    borderLeftWidth: 3,
-    borderLeftColor: theme.accent.orange,
+    // Yellow, not orange: matches this app's own severity ladder
+    // (BudgetAlertService: safe=green, warning=yellow, caution=orange,
+    // danger=red). A single suspect field is a minor, one-tap fix — it
+    // shouldn't outrank the orange "low confidence" banner for the whole
+    // receipt a tier below it.
+    backgroundColor: 'rgba(255, 214, 10, 0.1)',
+    borderLeftWidth: 4, // matches BudgetScreen's alertCard left-accent pattern
+    borderLeftColor: theme.accent.yellow,
     paddingLeft: 8,
     marginLeft: -8,
+  },
+  itemDescRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  itemReviewIcon: {
+    fontSize: 12,
   },
   itemDescription: {
     flex: 1,
@@ -579,7 +596,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   itemTextNeedsReview: {
-    color: theme.accent.orange,
+    color: theme.accent.yellow,
     fontWeight: '600',
   },
   itemPrice: {
