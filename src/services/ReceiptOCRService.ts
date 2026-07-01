@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
+import ImageStorageManager from './ImageStorageManager';
 import { sanitizeText } from '../utils/sanitize';
 import { toFileUri } from '../utils/uri';
 
@@ -248,7 +249,29 @@ class ReceiptOCRService {
       };
     }
 
-    return this.processReceipt(list.receiptUrl, listId);
+    // After upload, receiptUrl holds the Cloud Storage path
+    // ("receipts/{group}/{list}/...") instead of the local capture file —
+    // fetch it back to cache before re-running OCR.
+    let filePath = list.receiptUrl;
+    if (filePath.startsWith('receipts/')) {
+      try {
+        filePath = await ImageStorageManager.downloadReceiptToCache(filePath, listId);
+      } catch (error: any) {
+        return {
+          success: false,
+          receiptData: null,
+          confidence: 0,
+          error: error.message || 'Could not download the receipt image',
+          apiUsageCount: 0,
+          totalAmount: null,
+          merchantName: null,
+          purchaseDate: null,
+          currency: null,
+        };
+      }
+    }
+
+    return this.processReceipt(filePath, listId);
   }
 
   /**

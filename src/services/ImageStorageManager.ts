@@ -1,4 +1,5 @@
-import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile } from '@react-native-firebase/storage';
+import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile, writeToFile } from '@react-native-firebase/storage';
+import { utils } from '@react-native-firebase/app';
 import { v4 as uuidv4 } from 'uuid';
 import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
@@ -53,6 +54,22 @@ class ImageStorageManager {
       return storagePath;
     } catch (error: any) {
       throw new Error(`Failed to upload receipt: ${error.message}`);
+    }
+  }
+
+  /**
+   * Download a receipt from Cloud Storage back to the local cache so it can
+   * be re-processed (e.g. OCR retry after the local capture file is gone).
+   * Returns the local file path.
+   */
+  async downloadReceiptToCache(storagePath: string, listId: string): Promise<string> {
+    try {
+      const localPath = `${utils.FilePath.CACHES_DIRECTORY}/ocr-retry-${listId}.jpg`;
+      const reference = storageRef(getStorage(), storagePath);
+      await writeToFile(reference, localPath);
+      return localPath;
+    } catch (error: any) {
+      throw new Error(`Failed to download receipt: ${error.message}`);
     }
   }
 

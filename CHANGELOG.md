@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.27.2] - 2026-07-02
+
+### Fixed
+- **"Try again" (retry OCR) failed for any receipt already uploaded to Cloud Storage.** `ImageStorageManager.uploadReceipt` overwrites the list's `receiptUrl` with the Storage path (`receipts/{group}/{list}/…jpg`), and `ReceiptOCRService.retryOCR` fed that path straight into the OCR upload as if it were a local file — the form part had nothing to read, so the request always failed. Retry now detects a Storage path and downloads the image back to the local cache (`storage writeToFile` → `CACHES_DIRECTORY/ocr-retry-{listId}.jpg`) before re-running OCR. Not reproducible on the AVD (free tier has no Storage bucket — receipt uploads are device-only), which is why it survived emulator validation.
+
 ## [1.27.1] - 2026-07-01
 
 ### Fixed
