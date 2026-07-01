@@ -78,7 +78,6 @@ interface CategoryItemListProps {
   onItemTap: (item: Item, focusField?: 'name' | 'price' | 'measurement') => void;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
-  styles: any;
 }
 
 const CategoryItemList = memo(({
@@ -92,7 +91,6 @@ const CategoryItemList = memo(({
   onItemTap,
   onIncrement,
   onDecrement,
-  styles,
 }: CategoryItemListProps) => {
   const panGesture = useMemo(() => Gesture.Pan().activateAfterLongPress(250), []);
   return (
@@ -123,22 +121,6 @@ const CategoryItemList = memo(({
                 onItemTap={(focusField) => onItemTap(item, focusField)}
                 onIncrement={onIncrement}
                 onDecrement={onDecrement}
-                itemRowStyle={styles.itemRow}
-                itemRowCheckedStyle={styles.itemRowChecked}
-                checkboxStyle={styles.checkbox}
-                checkboxDisabledStyle={styles.checkboxDisabled}
-                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                itemContentTouchableStyle={styles.itemContentTouchable}
-                itemContentColumnStyle={styles.itemContentColumn}
-                itemContentRowStyle={styles.itemContentRow}
-                itemNameTextStyle={styles.itemNameText}
-                itemNameCheckedStyle={styles.itemNameChecked}
-                itemPriceTextStyle={styles.itemPriceText}
-                itemPricePredictedStyle={styles.itemPricePredicted}
-                itemPriceCheckedStyle={styles.itemPriceChecked}
-                suggestionRowStyle={styles.suggestionRow}
-                suggestionTextStyle={styles.suggestionText}
               />
             )}
           </DraggableItemRow>
@@ -1395,7 +1377,6 @@ const ListDetailScreen = () => {
                       onItemTap={handleItemTap}
                       onIncrement={handleIncrement}
                       onDecrement={handleDecrement}
-                      styles={styles}
                     />
                   </View>
                 );
@@ -1425,7 +1406,6 @@ const ListDetailScreen = () => {
                       onItemTap={handleItemTap}
                       onIncrement={handleIncrement}
                       onDecrement={handleDecrement}
-                      styles={styles}
                     />
                   </View>
                 );
@@ -1458,22 +1438,6 @@ const ListDetailScreen = () => {
                         onItemTap={(focusField) => handleItemTap(item, focusField)}
                         onIncrement={handleIncrement}
                         onDecrement={handleDecrement}
-                        itemRowStyle={styles.itemRow}
-                        itemRowCheckedStyle={styles.itemRowChecked}
-                        checkboxStyle={styles.checkbox}
-                        checkboxDisabledStyle={styles.checkboxDisabled}
-                        checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                        checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                        itemContentTouchableStyle={styles.itemContentTouchable}
-                        itemContentColumnStyle={styles.itemContentColumn}
-                        itemContentRowStyle={styles.itemContentRow}
-                        itemNameTextStyle={styles.itemNameText}
-                        itemNameCheckedStyle={styles.itemNameChecked}
-                        itemPriceTextStyle={styles.itemPriceText}
-                        itemPricePredictedStyle={styles.itemPricePredicted}
-                        itemPriceCheckedStyle={styles.itemPriceChecked}
-                        suggestionRowStyle={styles.suggestionRow}
-                        suggestionTextStyle={styles.suggestionText}
                       />
                     );
                   });
@@ -1501,22 +1465,6 @@ const ListDetailScreen = () => {
                           onItemTap={(focusField) => handleItemTap(item, focusField)}
                           onIncrement={handleIncrement}
                           onDecrement={handleDecrement}
-                          itemRowStyle={styles.itemRow}
-                          itemRowCheckedStyle={styles.itemRowChecked}
-                          checkboxStyle={styles.checkbox}
-                          checkboxDisabledStyle={styles.checkboxDisabled}
-                          checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                          checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                          itemContentTouchableStyle={styles.itemContentTouchable}
-                          itemContentColumnStyle={styles.itemContentColumn}
-                          itemContentRowStyle={styles.itemContentRow}
-                          itemNameTextStyle={styles.itemNameText}
-                          itemNameCheckedStyle={styles.itemNameChecked}
-                          itemPriceTextStyle={styles.itemPriceText}
-                          itemPricePredictedStyle={styles.itemPricePredicted}
-                          itemPriceCheckedStyle={styles.itemPriceChecked}
-                          suggestionRowStyle={styles.suggestionRow}
-                          suggestionTextStyle={styles.suggestionText}
                         />
                       );
                     });

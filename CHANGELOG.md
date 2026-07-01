@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.3] - 2026-07-02
+
+### Changed
+- **`AnimatedItemCard` owns its styles.** The card took 16 style props from `ListDetailScreen` despite already having a theme hook; the styles moved inside (net −90 lines) and the checkbox ✓ became a themed Ionicons checkmark. `CategoryItemList` lost its now-unused `styles: any` prop.
+
 ## [1.29.2] - 2026-07-02
 
 ### Added
