@@ -16,6 +16,7 @@ import { RADIUS, SPACING, TYPOGRAPHY, SHADOWS, NUMERIC } from '../../styles/them
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBudgetData } from '../../hooks';
+import { formatDateShort } from '../../utils/date';
 
 /**
  * BudgetScreen
@@ -73,7 +74,7 @@ const BudgetScreen = () => {
       <View style={styles.breakdownLeft}>
         <Text style={styles.listName}>{item.listName}</Text>
         <Text style={styles.listDate}>
-          {new Date(item.completedAt).toLocaleDateString()}
+          {formatDateShort(new Date(item.completedAt))}
         </Text>
         {item.merchantName && (
           <Text style={styles.merchantName}>{item.merchantName}</Text>

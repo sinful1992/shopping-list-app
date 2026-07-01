@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.28.5] - 2026-07-02
+
+### Changed
+- **Dates unified to en-GB via a shared `src/utils/date.ts`** (`formatDateLong` "Tue, 1 Jul 2026", `formatDateShort` "01/07/2026", `formatDateTime`). Replaces en-US strings in HomeScreen list names/date button ("Jul 1" → "1 Jul"), the hand-rolled DD/MM/YYYY in HomeScreen, the device-locale-dependent dates in BudgetScreen/ReceiptViewScreen, and the analytics month labels.
+
 ## [1.28.4] - 2026-07-02
 
 ### Changed

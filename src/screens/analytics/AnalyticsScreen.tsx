@@ -152,7 +152,7 @@ const AnalyticsScreen = () => {
     if (Array.isArray(analytics.monthlyTrend)) {
       monthlyChartData = analytics.monthlyTrend.map(trend => ({
         value: trend.amount,
-        label: new Date(trend.date).toLocaleDateString('en-US', { month: 'short' }),
+        label: new Date(trend.date).toLocaleDateString('en-GB', { month: 'short' }),
         labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
       }));
     }

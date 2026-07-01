@@ -23,6 +23,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import DatabaseMigration from '../../services/DatabaseMigration';
 import { useAuth, useShoppingLists } from '../../hooks';
+import { formatDateLong, formatDateShort } from '../../utils/date';
 
 /**
  * HomeScreen
@@ -106,9 +107,7 @@ const HomeScreen = () => {
       return;
     }
     try {
-      const listName = new Date().toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-      });
+      const listName = formatDateLong(new Date());
       const list = await createList(listName);
       if (!list) return;
       navigation.navigate('ReceiptCamera', { listId: list.id, autoAddAll: true });
@@ -157,12 +156,7 @@ const HomeScreen = () => {
       return;
     }
 
-    const listName = selectedDate.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const listName = formatDateLong(selectedDate);
 
     setShowCreateModal(false);
 
@@ -211,10 +205,7 @@ const HomeScreen = () => {
               const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
               const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
-              const day = String(date.getDate()).padStart(2, '0');
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const year = date.getFullYear();
-              const formattedDate = `${day}/${month}/${year}`;
+              const formattedDate = formatDateShort(date);
 
               const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
                 ? list.syncStatus
@@ -282,12 +273,7 @@ const HomeScreen = () => {
               onPress={handleOpenDatePicker}
             >
               <Text style={styles.dateButtonText}>
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {formatDateLong(selectedDate)}
               </Text>
               <Text style={styles.calendarIcon}>📅</Text>
             </TouchableOpacity>

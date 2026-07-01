@@ -25,6 +25,7 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import { ReceiptData, ShoppingList } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
+import { formatDateTime } from '../../utils/date';
 
 type EditableReceipt = ReceiptData & {
   merchantName: string | null;
@@ -410,7 +411,7 @@ const ReceiptViewScreen = () => {
             {/* Extracted At */}
             <Text style={styles.extractedText}>
               Processed:{' '}
-              {new Date(receiptData.extractedAt).toLocaleString()}
+              {formatDateTime(new Date(receiptData.extractedAt))}
             </Text>
 
             {/* Low Confidence Warning */}
