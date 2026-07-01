@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.28.1] - 2026-07-02
+
+### Fixed
+- **Light theme showed dark-theme colors in several places.** Sync-status dot colors were hardcoded dark-theme hexes in `HomeScreen`; the completed-list card tint, shopping badge background, and `AnimatedItemCard` measurement colors were hardcoded rgba/hex too. Added semantic theme tokens (`theme.sync.synced/pending/failed`, `accent.greenSubtle`, `accent.orangeDim`) with proper light-theme values and switched all four call sites over. Removed dead `scanButton*` styles from `HomeScreen.styles`.
+
 ## [1.28.0] - 2026-07-02
 
 ### Added

@@ -216,9 +216,9 @@ const HomeScreen = () => {
               const year = date.getFullYear();
               const formattedDate = `${day}/${month}/${year}`;
 
-              const syncColor = list.syncStatus === 'synced' ? '#30D158' :
-                               list.syncStatus === 'pending' ? '#FFD60A' :
-                               '#FF453A'; // failed
+              const syncColor = list.syncStatus === 'synced' ? theme.sync.synced :
+                               list.syncStatus === 'pending' ? theme.sync.pending :
+                               theme.sync.failed;
 
               return (
                 <AnimatedListCard

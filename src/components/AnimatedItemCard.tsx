@@ -147,7 +147,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const totalPrice = itemPrice * qty;
   const categoryInfo = item.category ? CategoryService.getCategory(item.category as any) : null;
   const categoryColorStyle = categoryInfo ? { color: categoryInfo.color } : null;
-  const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? '#6EA8FE' : '#A78BFA' };
+  const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? theme.accent.blue : theme.accent.purple };
 
   const checkScale = useSharedValue(isChecked ? 1 : 0);
   const cardScale = useSharedValue(1);

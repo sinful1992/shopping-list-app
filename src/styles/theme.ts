@@ -27,13 +27,22 @@ const COLORS = {
     blueSubtle: 'rgba(110, 168, 254, 0.15)',
     green: '#30D158',
     greenDim: 'rgba(48, 209, 88, 0.3)',
+    greenSubtle: 'rgba(48, 209, 88, 0.1)',
     yellow: '#FFD60A',
     yellowDim: 'rgba(255, 214, 10, 0.3)',
     red: '#FF453A',
     redDim: 'rgba(255, 69, 58, 0.3)',
     redSubtle: 'rgba(255, 59, 48, 0.15)',
     orange: '#FFB340',
+    orangeDim: 'rgba(255, 179, 64, 0.2)',
     purple: '#A78BFA',
+  },
+
+  // Sync status indicators
+  sync: {
+    synced: '#30D158',
+    pending: '#FFD60A',
+    failed: '#FF453A',
   },
 
   // Text colors
@@ -193,13 +202,21 @@ export const LIGHT_THEME: Theme = {
     blueSubtle: 'rgba(37, 99, 235, 0.12)',
     green: '#16A34A',
     greenDim: 'rgba(22, 163, 74, 0.3)',
+    greenSubtle: 'rgba(22, 163, 74, 0.08)',
     yellow: '#CA8A04',
     yellowDim: 'rgba(202, 138, 4, 0.3)',
     red: '#DC2626',
     redDim: 'rgba(220, 38, 38, 0.3)',
     redSubtle: 'rgba(220, 38, 38, 0.12)',
     orange: '#EA580C',
+    orangeDim: 'rgba(234, 88, 12, 0.15)',
     purple: '#7C3AED',
+  },
+
+  sync: {
+    synced: '#16A34A',
+    pending: '#CA8A04',
+    failed: '#DC2626',
   },
 
   text: {
