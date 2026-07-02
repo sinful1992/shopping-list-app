@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.12] - 2026-07-03
+
+### Changed
+- **Storage split step 5/6 — urgent-items domain extracted.** 10 methods (urgent-item CRUD, batch upsert with `hasUrgentItemChanged` no-op guard, active/resolved observers) moved verbatim into `src/services/storage/urgentItems.ts` (`UrgentItemsStorage`). Facade API unchanged.
+
 ## [1.29.11] - 2026-07-03
 
 ### Changed
