@@ -1,12 +1,9 @@
 import { Database, Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
 import { safeJsonParse } from '../utils/safeJsonParse';
 import { CategoryType } from './CategoryService';
 import CrashReporting from './CrashReporting';
-import { schema } from '../database/schema';
-import migrations from '../database/migrations';
 import { ShoppingListModel } from '../database/models/ShoppingList';
 import { ItemModel } from '../database/models/Item';
 import { SyncQueueModel } from '../database/models/SyncQueue';
@@ -14,85 +11,17 @@ import { UrgentItemModel } from '../database/models/UrgentItem';
 import { CategoryHistoryModel } from '../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../database/models/PriceHistory';
 import StoreLayoutModel from '../database/models/StoreLayout';
-import { ItemPreferenceModel } from '../database/models/ItemPreference';
-
-function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
-  record._raw.id = list.id;
-  record.name = list.name;
-  record.familyGroupId = list.familyGroupId;
-  record.createdBy = list.createdBy;
-  record.status = list.status;
-  record.completedAt = list.completedAt;
-  record.completedBy = list.completedBy;
-  record.receiptUrl = list.receiptUrl;
-  record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-  record.syncStatus = list.syncStatus || 'pending';
-  record.isLocked = list.isLocked;
-  record.lockedBy = list.lockedBy;
-  record.lockedByName = list.lockedByName;
-  record.lockedByRole = list.lockedByRole;
-  record.lockedAt = list.lockedAt;
-  record.budget = list.budget;
-  record.storeName = list.storeName || null;
-  record.archived = list.archived || null;
-  record.layoutApplied = list.layoutApplied ?? null;
-  record.totalAmount = list.totalAmount ?? null;
-  record.merchantName = list.merchantName ?? null;
-  record.purchaseDate = list.purchaseDate ?? null;
-  record.currency = list.currency ?? null;
-}
-
-function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
-  record.name = list.name;
-  record.status = list.status;
-  record.completedAt = list.completedAt;
-  record.completedBy = list.completedBy;
-  record.receiptUrl = list.receiptUrl;
-  record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-  record.syncStatus = list.syncStatus || 'pending';
-  record.isLocked = list.isLocked;
-  record.lockedBy = list.lockedBy;
-  record.lockedByName = list.lockedByName;
-  record.lockedByRole = list.lockedByRole;
-  record.lockedAt = list.lockedAt;
-  record.budget = list.budget;
-  record.storeName = list.storeName || null;
-  record.archived = list.archived || null;
-  record.layoutApplied = list.layoutApplied ?? null;
-  record.totalAmount = list.totalAmount ?? null;
-  record.merchantName = list.merchantName ?? null;
-  record.purchaseDate = list.purchaseDate ?? null;
-  record.currency = list.currency ?? null;
-}
-
-function applyItemCreate(record: ItemModel, item: Item): void {
-  record._raw.id = item.id;
-  record.listId = item.listId;
-  record.name = item.name;
-  record.quantity = item.quantity;
-  record.price = item.price;
-  record.checked = item.checked;
-  record.createdBy = item.createdBy;
-  record.updatedAt = item.updatedAt;
-  record.category = item.category || null;
-  record.sortOrder = item.sortOrder ?? null;
-  record.unitQty = item.unitQty ?? null;
-  record.measurementUnit = item.measurementUnit ?? null;
-  record.measurementValue = item.measurementValue ?? null;
-}
-
-function applyItemFullUpdate(record: ItemModel, item: Item): void {
-  record.name = item.name;
-  record.quantity = item.quantity;
-  record.price = item.price;
-  record.checked = item.checked;
-  record.updatedAt = item.updatedAt;
-  record.category = item.category || null;
-  record.sortOrder = item.sortOrder ?? null;
-  record.unitQty = item.unitQty ?? null;
-  record.measurementUnit = item.measurementUnit ?? null;
-  record.measurementValue = item.measurementValue ?? null;
-}
+import { createDatabase } from './storage/database';
+import {
+  applyListCreate,
+  applyListFullUpdate,
+  applyItemCreate,
+  applyItemFullUpdate,
+  hasListChanged,
+  listModelToType,
+  itemModelToType,
+  urgentItemModelToType,
+} from './storage/mappers';
 
 /**
  * LocalStorageManager
@@ -103,20 +32,7 @@ class LocalStorageManager {
   private database: Database;
 
   constructor() {
-    const adapter = new SQLiteAdapter({
-      schema,
-      migrations, // Enable schema migrations
-      jsi: true, // Use JSI for better performance
-      onSetUpError: (error) => {
-        // Crashlytics native SDK is active by default — no JS init required
-        CrashReporting.recordError(error, 'WatermelonDB onSetUpError');
-      },
-    });
-
-    this.database = new Database({
-      adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel],
-    });
+    this.database = createDatabase();
   }
 
   /** Expose the database instance for direct access (e.g. backfill migrations). */
@@ -145,7 +61,7 @@ class LocalStorageManager {
         }
       }, 'saveList');
 
-      return this.listModelToType(listRecord!);
+      return listModelToType(listRecord!);
     } catch (error: any) {
       throw new Error(`Failed to save list: ${error.message}`);
     }
@@ -171,8 +87,8 @@ class LocalStorageManager {
       for (const list of lists) {
         const existing = existingMap.get(list.id);
         if (existing) {
-          const local = this.listModelToType(existing);
-          if (!this.hasListChanged(local, list)) continue;
+          const local = listModelToType(existing);
+          if (!hasListChanged(local, list)) continue;
           ops.push(existing.prepareUpdate(r => applyListFullUpdate(r, list)));
         } else {
           ops.push(collection.prepareCreate(r => applyListCreate(r, list)));
@@ -189,8 +105,8 @@ class LocalStorageManager {
             const records = await collection.query(Q.where('id', list.id)).fetch();
             const rec = records[0];
             if (rec) {
-              const local = this.listModelToType(rec);
-              if (!this.hasListChanged(local, list)) continue;
+              const local = listModelToType(rec);
+              if (!hasListChanged(local, list)) continue;
               await rec.update(r => applyListFullUpdate(r, list));
             } else {
               await collection.create(r => applyListCreate(r, list));
@@ -210,7 +126,7 @@ class LocalStorageManager {
     try {
       const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
       const listRecord = await listsCollection.find(listId);
-      return this.listModelToType(listRecord);
+      return listModelToType(listRecord);
     } catch {
       return null;
     }
@@ -228,7 +144,7 @@ class LocalStorageManager {
         )
         .fetch();
 
-      return lists.map((list) => this.listModelToType(list));
+      return lists.map((list) => listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get lists: ${error.message}`);
     }
@@ -249,7 +165,7 @@ class LocalStorageManager {
         )
         .fetch();
 
-      return lists.map((list) => this.listModelToType(list));
+      return lists.map((list) => listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get active lists: ${error.message}`);
     }
@@ -288,7 +204,7 @@ class LocalStorageManager {
       }
 
       const lists = await listsCollection.query(...conditions).fetch();
-      return lists.map((list) => this.listModelToType(list));
+      return lists.map((list) => listModelToType(list));
     } catch (error: any) {
       throw new Error(`Failed to get completed lists: ${error.message}`);
     }
@@ -349,7 +265,7 @@ class LocalStorageManager {
         });
       }, 'updateList');
 
-      return this.listModelToType(listRecord);
+      return listModelToType(listRecord);
     } catch (error: any) {
       throw new Error(`Failed to update list: ${error.message}`);
     }
@@ -396,7 +312,7 @@ class LocalStorageManager {
         throw new Error('Failed to create or update item record');
       }
 
-      return this.itemModelToType(itemRecord);
+      return itemModelToType(itemRecord);
     } catch (error: any) {
       throw new Error(`Failed to save item: ${error.message}`);
     }
@@ -409,7 +325,7 @@ class LocalStorageManager {
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
       const itemRecord = await itemsCollection.find(itemId);
-      return this.itemModelToType(itemRecord);
+      return itemModelToType(itemRecord);
     } catch {
       return null;
     }
@@ -428,7 +344,7 @@ class LocalStorageManager {
         )
         .fetch();
 
-      return items.map((item) => this.itemModelToType(item));
+      return items.map((item) => itemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get items: ${error.message}`);
     }
@@ -444,7 +360,7 @@ class LocalStorageManager {
       const items = await itemsCollection
         .query(Q.where('list_id', Q.oneOf(listIds)))
         .fetch();
-      return items.map(item => this.itemModelToType(item));
+      return items.map(item => itemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get items for lists: ${error.message}`);
     }
@@ -474,7 +390,7 @@ class LocalStorageManager {
         });
       }, 'updateItem');
 
-      return this.itemModelToType(itemRecord);
+      return itemModelToType(itemRecord);
     } catch (error: any) {
       throw new Error(`Failed to update item: ${error.message}`);
     }
@@ -519,7 +435,7 @@ class LocalStorageManager {
         await this.database.batch(ops);
       }
       for (const record of processedRecords) {
-        updatedItems.push(this.itemModelToType(record));
+        updatedItems.push(itemModelToType(record));
       }
     }, 'updateItemsBatch');
 
@@ -855,7 +771,7 @@ class LocalStorageManager {
         throw new Error('Failed to create or update urgent item record');
       }
 
-      return this.urgentItemModelToType(itemRecord);
+      return urgentItemModelToType(itemRecord);
     } catch (error: any) {
       throw new Error(`Failed to save urgent item: ${error.message}`);
     }
@@ -903,7 +819,7 @@ class LocalStorageManager {
       for (const item of urgentItems) {
         const existing = existingMap.get(item.id);
         if (existing) {
-          const local = this.urgentItemModelToType(existing);
+          const local = urgentItemModelToType(existing);
           if (!this.hasUrgentItemChanged(local, item)) continue;
           ops.push(existing.prepareUpdate(r => applyUpdate(r as UrgentItemModel, item)));
         } else {
@@ -921,7 +837,7 @@ class LocalStorageManager {
             const records = await collection.query(Q.where('id', item.id)).fetch();
             const rec = records[0];
             if (rec) {
-              const local = this.urgentItemModelToType(rec);
+              const local = urgentItemModelToType(rec);
               if (!this.hasUrgentItemChanged(local, item)) continue;
               await rec.update(r => applyUpdate(r, item));
             } else {
@@ -953,7 +869,7 @@ class LocalStorageManager {
     try {
       const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
       const itemRecord = await urgentItemsCollection.find(itemId);
-      return this.urgentItemModelToType(itemRecord);
+      return urgentItemModelToType(itemRecord);
     } catch {
       return null;
     }
@@ -973,7 +889,7 @@ class LocalStorageManager {
         )
         .fetch();
 
-      return items.map((item) => this.urgentItemModelToType(item));
+      return items.map((item) => urgentItemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get active urgent items: ${error.message}`);
     }
@@ -1004,7 +920,7 @@ class LocalStorageManager {
       conditions.push(Q.sortBy('resolved_at', Q.desc));
 
       const items = await urgentItemsCollection.query(...conditions).fetch();
-      return items.map((item) => this.urgentItemModelToType(item));
+      return items.map((item) => urgentItemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get resolved urgent items: ${error.message}`);
     }
@@ -1023,7 +939,7 @@ class LocalStorageManager {
         )
         .fetch();
 
-      return items.map((item) => this.urgentItemModelToType(item));
+      return items.map((item) => urgentItemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get all urgent items: ${error.message}`);
     }
@@ -1048,7 +964,7 @@ class LocalStorageManager {
         });
       }, 'updateUrgentItem');
 
-      return this.urgentItemModelToType(itemRecord);
+      return urgentItemModelToType(itemRecord);
     } catch (error: any) {
       throw new Error(`Failed to update urgent item: ${error.message}`);
     }
@@ -1105,7 +1021,7 @@ class LocalStorageManager {
       'locked_by_role',
       'store_name',
     ]).subscribe((listModels) => {
-      const lists = listModels.map((model) => this.listModelToType(model));
+      const lists = listModels.map((model) => listModelToType(model));
       callback(lists);
     });
 
@@ -1120,7 +1036,7 @@ class LocalStorageManager {
 
     const subscription = listsCollection.findAndObserve(listId).subscribe({
       next: (model) => {
-        callback(this.listModelToType(model));
+        callback(listModelToType(model));
       },
       error: () => {
         callback(null);
@@ -1146,7 +1062,7 @@ class LocalStorageManager {
     // Without this, observer only fires on record add/delete, not field updates
     const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value']).subscribe((itemModels) => {
       // Convert to Item types
-      let items = itemModels.map((model) => this.itemModelToType(model));
+      let items = itemModels.map((model) => itemModelToType(model));
 
       // Sort by sortOrder when available, falling back to createdAt
       items = items.sort((a, b) => {
@@ -1173,7 +1089,7 @@ class LocalStorageManager {
     const subscription = query.observeWithColumns(['status']).subscribe((itemModels) => {
       const items = itemModels
         .filter((model) => model.status === 'active')
-        .map((model) => this.urgentItemModelToType(model))
+        .map((model) => urgentItemModelToType(model))
         .sort((a, b) => b.createdAt - a.createdAt);
       callback(items);
     });
@@ -1194,7 +1110,7 @@ class LocalStorageManager {
     const subscription = query.observeWithColumns(['status']).subscribe((itemModels) => {
       const items = itemModels
         .filter((model) => model.status === 'resolved')
-        .map((model) => this.urgentItemModelToType(model))
+        .map((model) => urgentItemModelToType(model))
         .sort((a, b) => (b.resolvedAt ?? 0) - (a.resolvedAt ?? 0));
       callback(items);
     });
@@ -1204,89 +1120,6 @@ class LocalStorageManager {
 
   // ===== HELPER METHODS =====
 
-
-  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.isLocked !== incoming.isLocked ||
-      local.lockedBy !== incoming.lockedBy ||
-      local.completedAt !== incoming.completedAt ||
-      local.completedBy !== incoming.completedBy ||
-      local.budget !== incoming.budget ||
-      local.storeName !== incoming.storeName ||
-      local.archived !== incoming.archived ||
-      local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
-    );
-  }
-
-  private listModelToType(model: ShoppingListModel): ShoppingList {
-    return {
-      id: model.id,
-      name: model.name,
-      familyGroupId: model.familyGroupId,
-      createdBy: model.createdBy,
-      createdAt: Number(model.createdAt),
-      status: model.status as 'active' | 'completed' | 'deleted',
-      completedAt: model.completedAt,
-      completedBy: model.completedBy,
-      receiptUrl: model.receiptUrl,
-      receiptData: safeJsonParse<ReceiptData | null>(model.receiptData, null),
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-      isLocked: model.isLocked,
-      lockedBy: model.lockedBy,
-      lockedByName: model.lockedByName,
-      lockedByRole: model.lockedByRole as 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter' | null,
-      lockedAt: model.lockedAt,
-      budget: model.budget,
-      storeName: model.storeName,
-      archived: model.archived,
-      layoutApplied: model.layoutApplied,
-      uncheckedItemsCount: model.uncheckedItemsCount,
-      totalAmount: model.totalAmount,
-      merchantName: model.merchantName,
-      purchaseDate: model.purchaseDate,
-      currency: model.currency,
-    };
-  }
-
-  private itemModelToType(model: ItemModel): Item {
-    return {
-      id: model.id,
-      listId: model.listId,
-      name: model.name,
-      quantity: model.quantity,
-      price: model.price,
-      checked: model.checked,
-      createdBy: model.createdBy,
-      createdAt: Number(model.createdAt),
-      updatedAt: model.updatedAt,
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-      category: model.category,
-      sortOrder: model.sortOrder,
-      unitQty: model.unitQty,
-      measurementUnit: model.measurementUnit,
-      measurementValue: model.measurementValue,
-    };
-  }
-
-  private urgentItemModelToType(model: UrgentItemModel): UrgentItem {
-    return {
-      id: model.id,
-      name: model.name,
-      familyGroupId: model.familyGroupId,
-      createdBy: model.createdBy,
-      createdByName: model.createdByName,
-      createdAt: Number(model.createdAt),
-      resolvedBy: model.resolvedBy,
-      resolvedByName: model.resolvedByName,
-      resolvedAt: model.resolvedAt,
-      price: model.price,
-      status: model.status as 'active' | 'resolved',
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-    };
-  }
 
   // ===== CATEGORY HISTORY METHODS =====
 
