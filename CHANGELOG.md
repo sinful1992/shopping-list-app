@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.13] - 2026-07-03
+
+### Changed
+- **Storage split step 6/6 (domains) — history extracted.** Category-history (5 methods + model mapper) and price-history (5 methods) moved verbatim into `src/services/storage/history.ts` (`HistoryStorage`). Existing `saveCategoryHistoryBatch` regression tests stay green against the unchanged facade API.
+
 ## [1.29.12] - 2026-07-03
 
 ### Changed
