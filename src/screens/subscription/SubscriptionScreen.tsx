@@ -17,6 +17,8 @@ import { UsageIndicator } from '../../components/UsageIndicator';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import UsageTracker from '../../services/UsageTracker';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 export const SubscriptionScreen: React.FC = () => {
   const { showAlert } = useAlert();
@@ -179,7 +181,7 @@ export const SubscriptionScreen: React.FC = () => {
               <View style={styles.featuresContainer}>
                 {TIER_FEATURES.premium.map((feature, index) => (
                   <View key={index} style={styles.featureRow}>
-                    <Text style={styles.checkmark}>✓</Text>
+                    <Icon name="checkmark" size={16} color={theme.accent.green} style={styles.checkmark} />
                     <Text style={styles.featureText}>{feature}</Text>
                   </View>
                 ))}
@@ -222,7 +224,7 @@ export const SubscriptionScreen: React.FC = () => {
         <View style={styles.currentFeaturesContainer}>
           {TIER_FEATURES[tier].map((feature, index) => (
             <View key={index} style={styles.currentFeatureRow}>
-              <Text style={styles.currentFeatureCheckmark}>✓</Text>
+              <Icon name="checkmark" size={18} color={theme.accent.green} style={styles.currentFeatureCheckmark} />
               <Text style={styles.currentFeatureText}>{feature}</Text>
             </View>
           ))}
@@ -344,6 +346,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   price: {
+    ...NUMERIC,
     color: theme.accent.green,
     fontSize: 24,
     fontWeight: 'bold',

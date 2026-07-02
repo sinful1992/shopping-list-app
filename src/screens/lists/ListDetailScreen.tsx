@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo, useOptimistic, startTransition } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, useOptimistic, startTransition } from 'react';
 import {
   View,
   Text,
@@ -12,17 +12,11 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './ListDetailScreen.styles';
-import {
-  ScrollViewContainer,
-  NestedReorderableList,
-  useReorderableDrag,
-  reorderItems,
-  ReorderableListReorderEvent,
-} from 'react-native-reorderable-list';
-import { Gesture } from 'react-native-gesture-handler';
+import { ScrollViewContainer } from 'react-native-reorderable-list';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
+import CategoryItemList from '../../components/CategoryItemList';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -54,99 +48,6 @@ import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
-
-// Drag wrapper — must be a real component because useReorderableDrag is a hook.
-// Renders children as a render prop, passing drag() so AnimatedItemCard can
-// attach it to its own inner touchable (avoiding nested-touchable conflicts).
-interface DraggableItemRowProps {
-  isListLocked: boolean;
-  children: (drag: (() => void) | undefined) => React.ReactNode;
-}
-const DraggableItemRow: React.FC<DraggableItemRowProps> = ({ isListLocked, children }) => {
-  const drag = useReorderableDrag();
-  return <>{children(!isListLocked ? drag : undefined)}</>;
-};
-
-interface CategoryItemListProps {
-  catItems: Item[];
-  predictedPrices: Record<string, number>;
-  smartSuggestions: Map<string, { bestStore: string; bestPrice: number; savings: number }>;
-  storeName?: string;
-  isListLocked: boolean;
-  onReorder: (items: Item[]) => void;
-  onToggleItem: (id: string) => void;
-  onItemTap: (item: Item, focusField?: 'name' | 'price' | 'measurement') => void;
-  onIncrement: (id: string) => void;
-  onDecrement: (id: string) => void;
-  styles: any;
-}
-
-const CategoryItemList = memo(({
-  catItems,
-  predictedPrices,
-  smartSuggestions,
-  storeName,
-  isListLocked,
-  onReorder,
-  onToggleItem,
-  onItemTap,
-  onIncrement,
-  onDecrement,
-  styles,
-}: CategoryItemListProps) => {
-  const panGesture = useMemo(() => Gesture.Pan().activateAfterLongPress(250), []);
-  return (
-    <NestedReorderableList
-      panGesture={panGesture}
-      data={catItems}
-      keyExtractor={(item: Item) => item.id}
-      onReorder={({ from, to }: ReorderableListReorderEvent) => onReorder(reorderItems(catItems, from, to))}
-      renderItem={({ item, index }: { item: Item; index: number }) => {
-        const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
-        const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
-        const suggestion = item.name ? smartSuggestions.get(item.name.toLowerCase()) : undefined;
-        const showSuggestion = !!suggestion && !item.checked && storeName !== suggestion.bestStore;
-        return (
-          <DraggableItemRow isListLocked={isListLocked}>
-            {(drag) => (
-              <AnimatedItemCard
-                key={item.id}
-                index={index}
-                item={item}
-                itemPrice={itemPrice}
-                isPredicted={isPredicted}
-                showSuggestion={showSuggestion}
-                suggestion={suggestion}
-                isListLocked={isListLocked}
-                onDrag={drag}
-                onToggleItem={() => !isListLocked && onToggleItem(item.id)}
-                onItemTap={(focusField) => onItemTap(item, focusField)}
-                onIncrement={onIncrement}
-                onDecrement={onDecrement}
-                itemRowStyle={styles.itemRow}
-                itemRowCheckedStyle={styles.itemRowChecked}
-                checkboxStyle={styles.checkbox}
-                checkboxDisabledStyle={styles.checkboxDisabled}
-                checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                itemContentTouchableStyle={styles.itemContentTouchable}
-                itemContentColumnStyle={styles.itemContentColumn}
-                itemContentRowStyle={styles.itemContentRow}
-                itemNameTextStyle={styles.itemNameText}
-                itemNameCheckedStyle={styles.itemNameChecked}
-                itemPriceTextStyle={styles.itemPriceText}
-                itemPricePredictedStyle={styles.itemPricePredicted}
-                itemPriceCheckedStyle={styles.itemPriceChecked}
-                suggestionRowStyle={styles.suggestionRow}
-                suggestionTextStyle={styles.suggestionText}
-              />
-            )}
-          </DraggableItemRow>
-        );
-      }}
-    />
-  );
-});
 
 /**
  * ListDetailScreen
@@ -1145,10 +1046,10 @@ const ListDetailScreen = () => {
               editable={!isListLocked}
             />
             <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked}>
-              <Text style={styles.titleSaveButtonText}>✔️</Text>
+              <Icon name="checkmark" size={20} color={theme.accent.green} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName}>
-              <Text style={styles.titleCancelButtonText}>✖️</Text>
+              <Icon name="close" size={20} color={theme.accent.red} />
             </TouchableOpacity>
           </>
         ) : (
@@ -1165,7 +1066,7 @@ const ListDetailScreen = () => {
             )}
             {!isListLocked && !isLayoutDirty && (
               <TouchableOpacity onPress={handleEditListName}>
-                <Text style={styles.editIcon}>✏️</Text>
+                <Icon name="pencil" size={20} color={theme.text.secondary} />
               </TouchableOpacity>
             )}
           </>
@@ -1184,7 +1085,7 @@ const ListDetailScreen = () => {
           {isShoppingMode && !isShoppingHeaderExpanded && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Text style={styles.statusIcon}>🛒</Text>
+                <Icon name="cart" size={16} color={theme.text.primary} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   £{runningTotal.toFixed(2)} • {checkedCount}/{checkedCount + uncheckedCount}
                 </Text>
@@ -1199,11 +1100,11 @@ const ListDetailScreen = () => {
                     </Text>
                   </View>
                 )}
-                {!isOnline && <Text style={styles.statusIcon}>📡</Text>}
+                {!isOnline && <Icon name="cloud-offline-outline" size={16} color={theme.text.primary} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton}>
-                  <Text style={styles.expandIcon}>▼</Text>
+                  <Icon name="chevron-down" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
                   <Text style={styles.doneButtonText}>Done</Text>
@@ -1218,7 +1119,7 @@ const ListDetailScreen = () => {
               <View style={styles.expandedHeader}>
                 <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton}>
-                  <Text style={styles.expandIcon}>▲</Text>
+                  <Icon name="chevron-up" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
               </View>
               <View style={styles.expandedStats}>
@@ -1272,7 +1173,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && isListLocked && list && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Text style={styles.statusIcon}>🔒</Text>
+                <Icon name="lock-closed" size={16} color={theme.text.primary} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now
                 </Text>
@@ -1284,7 +1185,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && !isListLocked && isListCompleted && !canAddItems && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Text style={styles.statusIcon}>✅</Text>
+                <Icon name="checkmark-circle" size={16} color={theme.accent.green} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   Completed - Only shopper can add items
                 </Text>
@@ -1335,7 +1236,7 @@ const ListDetailScreen = () => {
           onPress={() => setFrequentItemsVisible(true)}
           disabled={!canAddItems}
         >
-          <Text style={styles.frequentItemsIcon}>🕐</Text>
+          <Icon name="time-outline" size={20} color={theme.text.secondary} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
@@ -1395,7 +1296,6 @@ const ListDetailScreen = () => {
                       onItemTap={handleItemTap}
                       onIncrement={handleIncrement}
                       onDecrement={handleDecrement}
-                      styles={styles}
                     />
                   </View>
                 );
@@ -1425,7 +1325,6 @@ const ListDetailScreen = () => {
                       onItemTap={handleItemTap}
                       onIncrement={handleIncrement}
                       onDecrement={handleDecrement}
-                      styles={styles}
                     />
                   </View>
                 );
@@ -1435,7 +1334,7 @@ const ListDetailScreen = () => {
             {Object.keys(checkedGrouped).length > 0 && (
               <View>
                 <View style={styles.categoryHeader}>
-                  <Text style={styles.categoryIcon}>✅</Text>
+                  <Icon name="checkmark-circle" size={16} color={theme.accent.green} style={styles.categoryIcon} />
                   <Text style={styles.categoryName}>Completed</Text>
                 </View>
                 {CategoryService.getCategories().map(cat => {
@@ -1458,22 +1357,6 @@ const ListDetailScreen = () => {
                         onItemTap={(focusField) => handleItemTap(item, focusField)}
                         onIncrement={handleIncrement}
                         onDecrement={handleDecrement}
-                        itemRowStyle={styles.itemRow}
-                        itemRowCheckedStyle={styles.itemRowChecked}
-                        checkboxStyle={styles.checkbox}
-                        checkboxDisabledStyle={styles.checkboxDisabled}
-                        checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                        checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                        itemContentTouchableStyle={styles.itemContentTouchable}
-                        itemContentColumnStyle={styles.itemContentColumn}
-                        itemContentRowStyle={styles.itemContentRow}
-                        itemNameTextStyle={styles.itemNameText}
-                        itemNameCheckedStyle={styles.itemNameChecked}
-                        itemPriceTextStyle={styles.itemPriceText}
-                        itemPricePredictedStyle={styles.itemPricePredicted}
-                        itemPriceCheckedStyle={styles.itemPriceChecked}
-                        suggestionRowStyle={styles.suggestionRow}
-                        suggestionTextStyle={styles.suggestionText}
                       />
                     );
                   });
@@ -1501,22 +1384,6 @@ const ListDetailScreen = () => {
                           onItemTap={(focusField) => handleItemTap(item, focusField)}
                           onIncrement={handleIncrement}
                           onDecrement={handleDecrement}
-                          itemRowStyle={styles.itemRow}
-                          itemRowCheckedStyle={styles.itemRowChecked}
-                          checkboxStyle={styles.checkbox}
-                          checkboxDisabledStyle={styles.checkboxDisabled}
-                          checkboxTextDisabledStyle={styles.checkboxTextDisabled}
-                          checkboxTextCheckedStyle={styles.checkboxTextChecked}
-                          itemContentTouchableStyle={styles.itemContentTouchable}
-                          itemContentColumnStyle={styles.itemContentColumn}
-                          itemContentRowStyle={styles.itemContentRow}
-                          itemNameTextStyle={styles.itemNameText}
-                          itemNameCheckedStyle={styles.itemNameChecked}
-                          itemPriceTextStyle={styles.itemPriceText}
-                          itemPricePredictedStyle={styles.itemPricePredicted}
-                          itemPriceCheckedStyle={styles.itemPriceChecked}
-                          suggestionRowStyle={styles.suggestionRow}
-                          suggestionTextStyle={styles.suggestionText}
                         />
                       );
                     });
@@ -1535,7 +1402,7 @@ const ListDetailScreen = () => {
                 style={styles.viewReceiptButton}
                 onPress={() => navigation.navigate('ReceiptView', { listId })}
               >
-                <Text style={styles.viewReceiptIcon}>📄</Text>
+                <Icon name="document-text-outline" size={20} color={theme.text.primary} style={styles.viewReceiptIcon} />
                 <Text style={styles.viewReceiptText}>View Receipt</Text>
               </TouchableOpacity>
             )}
@@ -1545,7 +1412,7 @@ const ListDetailScreen = () => {
               onPress={handleTakeReceiptPhoto}
               disabled={isListLocked}
             >
-              <Text style={styles.attachPhotoIcon}>📷</Text>
+              <Icon name="camera-outline" size={20} color={theme.text.primary} style={styles.attachPhotoIcon} />
               <Text style={styles.attachPhotoText}>Attach Receipt Photo</Text>
             </TouchableOpacity>
           </View>

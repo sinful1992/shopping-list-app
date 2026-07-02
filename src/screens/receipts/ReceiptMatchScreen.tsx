@@ -20,7 +20,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
-import { SPACING, TYPOGRAPHY, RADIUS } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY, RADIUS, NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ShoppingListManager from '../../services/ShoppingListManager';
@@ -692,6 +692,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     letterSpacing: 0.5,
   },
   priceText: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: theme.accent.green,

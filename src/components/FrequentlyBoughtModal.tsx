@@ -16,6 +16,7 @@ import AuthenticationModule from '../services/AuthenticationModule';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface FrequentlyBoughtModalProps {
   visible: boolean;
@@ -100,7 +101,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
           <View style={styles.header}>
             <Text style={styles.title}>Frequently Bought Items</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Icon name="close" size={24} color={theme.text.tertiary} />
             </TouchableOpacity>
           </View>
 
@@ -111,7 +112,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
             </View>
           ) : frequentItems.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyIcon}>📊</Text>
+              <Icon name="stats-chart-outline" size={56} color={theme.text.tertiary} style={styles.emptyIcon} />
               <Text style={styles.emptyText}>No frequent items yet</Text>
               <Text style={styles.emptySubtext}>
                 Complete more shopping trips to see your frequently bought items

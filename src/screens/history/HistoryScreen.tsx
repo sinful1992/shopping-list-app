@@ -23,6 +23,8 @@ import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import SortDropdown, { SortOption } from '../../components/SortDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 /**
  * HistoryScreen
@@ -427,7 +429,7 @@ const HistoryScreen = () => {
             style={styles.filterIconButton}
             onPress={() => setFilterModalVisible(true)}
           >
-            <Text style={styles.filterIconText}>⚙️ Filter</Text>
+            <Text style={styles.filterIconText}><Icon name="options-outline" size={14} color={theme.text.primary} /> Filter</Text>
           </TouchableOpacity>
           <SortDropdown
             currentSort={currentSort}
@@ -664,6 +666,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
   },
   listTotal: {
+    ...NUMERIC,
     fontSize: 15,
     color: theme.accent.green,
     fontWeight: '700',

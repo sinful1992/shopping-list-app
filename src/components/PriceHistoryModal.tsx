@@ -16,6 +16,7 @@ import AuthenticationModule from '../services/AuthenticationModule';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -106,7 +107,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Price History</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Icon name="close" size={22} color={theme.text.primary} />
             </TouchableOpacity>
           </View>
 

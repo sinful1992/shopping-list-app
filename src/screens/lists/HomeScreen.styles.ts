@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS, SPACING } from '../../styles/theme';
+import { Theme, RADIUS, SPACING, SHADOWS } from '../../styles/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -16,8 +16,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     position: 'relative',
   },
   completedCard: {
-    backgroundColor: 'rgba(48, 209, 88, 0.1)',
-    borderColor: 'rgba(48, 209, 88, 0.3)',
+    backgroundColor: theme.accent.greenSubtle,
+    borderColor: theme.accent.greenDim,
   },
   syncIndicator: {
     position: 'absolute',
@@ -86,7 +86,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   shoppingBadge: {
     fontSize: 12,
     color: theme.accent.orange,
-    backgroundColor: 'rgba(255, 179, 64, 0.2)',
+    backgroundColor: theme.accent.orangeDim,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -113,50 +113,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     color: theme.text.secondary,
   },
-  scanButton: {
-    position: 'absolute',
-    right: 20,
-    bottom: 100,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 25,
-    backgroundColor: 'rgba(52, 199, 89, 0.8)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(52, 199, 89, 0.4)',
-    shadowColor: theme.accent.green,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  scanButtonDisabled: {
-    backgroundColor: 'rgba(142, 142, 147, 0.5)',
-    borderColor: 'rgba(142, 142, 147, 0.3)',
-    shadowColor: '#8E8E93',
-  },
-  scanButtonIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  scanButtonText: {
-    color: theme.text.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   fabContainer: {
     position: 'absolute',
     right: 20,
     bottom: 20,
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
   },
-  fabHint: {
-    fontSize: 11,
-    color: theme.text.tertiary,
-    letterSpacing: 0.2,
+  scanFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.background.secondary,
+    borderWidth: 1,
+    borderColor: theme.border.strong,
+    ...SHADOWS.small,
   },
   fab: {
     width: 64,
@@ -177,11 +150,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  fabText: {
-    fontSize: 36,
-    color: theme.text.primary,
-    fontWeight: '300',
   },
   modalOverlay: {
     flex: 1,

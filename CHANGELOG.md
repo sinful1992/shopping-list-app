@@ -4,6 +4,85 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.6] - 2026-07-02
+
+### Changed
+- Extracted `CategoryItemList` + `DraggableItemRow` from `ListDetailScreen` into `src/components/CategoryItemList.tsx` (screen now 1,494 lines, from 1,627 at the start of this pass). Deeper decomposition (sync/observer hooks) deliberately deferred: the drag-reorder and sync paths are the app's twice-broken, device-validated hot spots and shouldn't be restructured without an AVD pass.
+
+## [1.29.5] - 2026-07-02
+
+### Changed
+- `HomeScreen` renders lists with `FlatList` (virtualized) instead of `ScrollView` + `.map()`.
+
+## [1.29.4] - 2026-07-02
+
+### Changed
+- `HomeScreen` no longer writes to Firebase RTDB directly — the "family group deleted" cleanup moved into `AuthenticationModule.clearFamilyGroupReference()`. It was the only place a screen bypassed the service layer.
+
+## [1.29.3] - 2026-07-02
+
+### Changed
+- **`AnimatedItemCard` owns its styles.** The card took 16 style props from `ListDetailScreen` despite already having a theme hook; the styles moved inside (net −90 lines) and the checkbox ✓ became a themed Ionicons checkmark. `CategoryItemList` lost its now-unused `styles: any` prop.
+
+## [1.29.2] - 2026-07-02
+
+### Added
+- **Receipt data now renders as a thermal receipt** — new `ReceiptCard` component with SVG serrated top/bottom edges, dashed rules (`ReceiptRule`), and monospaced "print" (`RECEIPT_FONT`: Menlo/monospace) for merchant, items and prices. The TOTAL moved below the item list behind a dashed rule, the way a till prints it. This is the app's signature visual — reserved for receipt/cost breakdowns.
+
+## [1.29.1] - 2026-07-02
+
+### Changed
+- **UI control emoji replaced with Ionicons across 15 files** — close (✕), save/cancel (✔️/✖️), edit (✏️), delete (🗑), checkmarks, status-bar icons (🛒/🔒/✅/📡), expand chevrons (▼/▲), calendar (📅), camera (📷), receipt (📄), store (🏪), history/stats (📊), time (🕐), warning (⚠️ in ErrorBoundary), and the suggestion bulb (💡). Emoji render differently per Android vendor and can't take theme colors. **Deliberately kept as emoji (content, not controls):** category icons (🥬🥛…), role avatars, the urgent screen's 🔥 identity, notification message text, and inline-sentence emphasis (e.g. "⚠️ Low confidence…").
+
+## [1.29.0] - 2026-07-02
+
+### Added
+- **Receipt scanning gets its own visible button** — a small camera FAB above the main one. Scanning was only reachable via an undiscoverable long-press with a permanent "Hold to scan receipt" hint caption; the hint is gone, the long-press still works, and the main FAB's `+` is now a real icon (optically centered) instead of a text glyph.
+
+## [1.28.5] - 2026-07-02
+
+### Changed
+- **Dates unified to en-GB via a shared `src/utils/date.ts`** (`formatDateLong` "Tue, 1 Jul 2026", `formatDateShort` "01/07/2026", `formatDateTime`). Replaces en-US strings in HomeScreen list names/date button ("Jul 1" → "1 Jul"), the hand-rolled DD/MM/YYYY in HomeScreen, the device-locale-dependent dates in BudgetScreen/ReceiptViewScreen, and the analytics month labels.
+
+## [1.28.4] - 2026-07-02
+
+### Changed
+- **List sync status is now a cloud icon instead of a bare colored dot** (`cloud-done` / `cloud-upload-outline` / `cloud-offline-outline`, themed via `theme.sync`). The dot communicated by color alone — colorblind-hostile and unexplained. `AnimatedListCard` takes `syncStatus` instead of a raw `syncColor`.
+
+## [1.28.3] - 2026-07-02
+
+### Changed
+- **All money text now uses tabular (fixed-width) numerals** via a shared `NUMERIC` style token (`fontVariant: ['tabular-nums']`): item prices and totals in list/history/receipt/budget/analytics/subscription screens. Digit columns align vertically and totals no longer shift width as values change.
+
+## [1.28.2] - 2026-07-02
+
+### Changed
+- **Raised secondary/tertiary text contrast.** Dark theme: secondary 45%→65% white, tertiary 30%→45%, dim 20%→25%; light theme: secondary 55%→70%, tertiary 40%→50%, dim 25%→30%. The old tertiary/dim values failed WCAG small-text contrast on the app backgrounds (e.g. the 11px FAB hint was near-invisible in bright light). `dim` is now documented as disabled/placeholder-only.
+
+## [1.28.1] - 2026-07-02
+
+### Fixed
+- **Light theme showed dark-theme colors in several places.** Sync-status dot colors were hardcoded dark-theme hexes in `HomeScreen`; the completed-list card tint, shopping badge background, and `AnimatedItemCard` measurement colors were hardcoded rgba/hex too. Added semantic theme tokens (`theme.sync.synced/pending/failed`, `accent.greenSubtle`, `accent.orangeDim`) with proper light-theme values and switched all four call sites over. Removed dead `scanButton*` styles from `HomeScreen.styles`.
+
+## [1.28.0] - 2026-07-02
+
+### Added
+- **Store detection now covers the full retailer set the OCR server recognises** (17 chains: Asda, Aldi, Morrisons, Waitrose, Costco, Iceland, Spar, Nisa, Booths, Budgens, Londis, One Stop, M&S added to the existing Tesco/Lidl/Sainsbury's/Co-op). Previously anything outside the original four collapsed to `'other'`. `ReceiptData['store']` widened to the new `ReceiptStoreSlug` union; the mapping mirrors `_KNOWN_RETAILERS` in the receipt-ocr repo.
+
+## [1.27.3] - 2026-07-02
+
+### Fixed
+- **OCR server health check could hang forever.** RN's `fetch` has no default timeout, so a dead/unreachable OCR server left the settings-screen health probe spinning indefinitely. Now aborts after 10s.
+
+### Changed
+- OCR requests send an `X-OCR-Key` header. The server (receipt-ocr repo) enforces it only when its `OCR_SHARED_SECRET` env var is set to the matching value — set `OCR_SHARED_SECRET=fsl-ocr-7f3d9a2e8b514c06` as a secret on the HF Space to close the public `/ocr` endpoint to drive-by use. Until then the header is ignored and nothing changes.
+- `currency` default extracted to a named `DEFAULT_CURRENCY` constant.
+
+## [1.27.2] - 2026-07-02
+
+### Fixed
+- **"Try again" (retry OCR) failed for any receipt already uploaded to Cloud Storage.** `ImageStorageManager.uploadReceipt` overwrites the list's `receiptUrl` with the Storage path (`receipts/{group}/{list}/…jpg`), and `ReceiptOCRService.retryOCR` fed that path straight into the OCR upload as if it were a local file — the form part had nothing to read, so the request always failed. Retry now detects a Storage path and downloads the image back to the local cache (`storage writeToFile` → `CACHES_DIRECTORY/ocr-retry-{listId}.jpg`) before re-running OCR. Not reproducible on the AVD (free tier has no Storage bucket — receipt uploads are device-only), which is why it survived emulator validation.
+
 ## [1.27.1] - 2026-07-01
 
 ### Fixed

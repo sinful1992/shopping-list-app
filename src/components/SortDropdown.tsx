@@ -10,6 +10,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 export type SortField = 'date' | 'amount' | 'store' | 'name';
 export type SortOrder = 'asc' | 'desc';
@@ -102,7 +103,7 @@ const SortDropdown: React.FC<SortDropdownProps> = ({
                     {option.label}
                   </Text>
                   {isSelected && (
-                    <Text style={styles.checkmark}>✓</Text>
+                    <Icon name="checkmark" size={16} color={theme.accent.blue} />
                   )}
                 </TouchableOpacity>
               );

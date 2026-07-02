@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, withSequence, withTiming, useAnimatedStyle } from 'react-native-reanimated';
-import { RADIUS } from '../styles/theme';
+import { RADIUS, NUMERIC } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import CategoryService from '../services/CategoryService';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const VOLUME_UNITS = ['ml', 'L'];
 
@@ -34,22 +35,6 @@ interface AnimatedItemCardProps {
   onItemTap: (focusField?: 'name' | 'price' | 'measurement') => void;
   onIncrement: (itemId: string) => void;
   onDecrement: (itemId: string) => void;
-  itemRowStyle: StyleProp<ViewStyle>;
-  itemRowCheckedStyle?: StyleProp<ViewStyle>;
-  checkboxStyle: StyleProp<ViewStyle>;
-  checkboxDisabledStyle?: StyleProp<ViewStyle>;
-  checkboxTextDisabledStyle?: StyleProp<TextStyle>;
-  checkboxTextCheckedStyle?: StyleProp<TextStyle>;
-  itemContentTouchableStyle: StyleProp<ViewStyle>;
-  itemContentColumnStyle: StyleProp<ViewStyle>;
-  itemContentRowStyle: StyleProp<ViewStyle>;
-  itemNameTextStyle: StyleProp<TextStyle>;
-  itemNameCheckedStyle?: StyleProp<TextStyle>;
-  itemPriceTextStyle: StyleProp<TextStyle>;
-  itemPricePredictedStyle?: StyleProp<TextStyle>;
-  itemPriceCheckedStyle?: StyleProp<TextStyle>;
-  suggestionRowStyle?: StyleProp<ViewStyle>;
-  suggestionTextStyle?: StyleProp<TextStyle>;
 }
 
 const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
@@ -65,25 +50,82 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   onItemTap,
   onIncrement,
   onDecrement,
-  itemRowStyle,
-  itemRowCheckedStyle,
-  checkboxStyle,
-  checkboxDisabledStyle,
-  checkboxTextDisabledStyle,
-  checkboxTextCheckedStyle,
-  itemContentTouchableStyle,
-  itemContentColumnStyle,
-  itemContentRowStyle,
-  itemNameTextStyle,
-  itemNameCheckedStyle,
-  itemPriceTextStyle,
-  itemPricePredictedStyle,
-  itemPriceCheckedStyle,
-  suggestionRowStyle,
-  suggestionTextStyle,
 }) => {
   const { theme } = useTheme();
   const cardStyles = useMemo(() => StyleSheet.create({
+    itemRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.background.secondary,
+      padding: 15,
+      marginHorizontal: 10,
+      marginBottom: 8,
+      borderRadius: RADIUS.xlarge,
+      borderWidth: 1,
+      borderColor: theme.border.strong,
+    },
+    itemRowChecked: {
+      backgroundColor: theme.glass.subtle,
+    },
+    checkbox: {
+      width: 24,
+      height: 24,
+      borderWidth: 2,
+      borderColor: theme.accent.blue,
+      borderRadius: 4,
+      marginRight: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.accent.blueSubtle,
+    },
+    checkboxDisabled: {
+      borderColor: theme.text.tertiary,
+      backgroundColor: theme.glass.subtle,
+      opacity: 0.5,
+    },
+    itemContentTouchable: {
+      flex: 1,
+    },
+    itemContentColumn: {
+      flex: 1,
+    },
+    itemContentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    itemNameText: {
+      flex: 1,
+      fontSize: 16,
+      color: theme.text.primary,
+      fontWeight: '600',
+    },
+    itemNameChecked: {
+      textDecorationLine: 'line-through',
+      color: theme.text.tertiary,
+    },
+    itemPriceText: {
+      ...NUMERIC,
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.text.secondary,
+      minWidth: 60,
+      textAlign: 'right',
+    },
+    itemPricePredicted: {
+      color: theme.text.secondary,
+      fontWeight: '400',
+    },
+    itemPriceChecked: {
+      color: theme.text.tertiary,
+    },
+    suggestionRow: {
+      marginTop: 4,
+    },
+    suggestionText: {
+      fontSize: 12,
+      color: theme.accent.green,
+      fontStyle: 'italic',
+    },
     qtyPrefix: {
       fontSize: 13,
       fontWeight: '600',
@@ -147,7 +189,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const totalPrice = itemPrice * qty;
   const categoryInfo = item.category ? CategoryService.getCategory(item.category as any) : null;
   const categoryColorStyle = categoryInfo ? { color: categoryInfo.color } : null;
-  const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? '#6EA8FE' : '#A78BFA' };
+  const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? theme.accent.blue : theme.accent.purple };
 
   const checkScale = useSharedValue(isChecked ? 1 : 0);
   const cardScale = useSharedValue(1);
@@ -181,46 +223,47 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   return (
     <Animated.View
       style={[
-        itemRowStyle,
-        isChecked && itemRowCheckedStyle,
+        cardStyles.itemRow,
+        isChecked && cardStyles.itemRowChecked,
         isChecked && cardStyles.checkedOpacity,
         cardAnimatedStyle,
       ]}
     >
       {/* Checkbox */}
       <TouchableOpacity
-        style={[checkboxStyle, isListLocked && checkboxDisabledStyle]}
+        style={[cardStyles.checkbox, isListLocked && cardStyles.checkboxDisabled]}
         onPress={onToggleItem}
         disabled={isListLocked}
       >
         <Animated.View style={checkAnimatedStyle}>
-          <Text style={[
-            isListLocked && checkboxTextDisabledStyle,
-            isChecked && !isListLocked && checkboxTextCheckedStyle
-          ]}>
-            {isChecked ? '✓' : ' '}
-          </Text>
+          {isChecked && (
+            <Icon
+              name="checkmark"
+              size={16}
+              color={isListLocked ? theme.text.tertiary : theme.accent.green}
+            />
+          )}
         </Animated.View>
       </TouchableOpacity>
 
       {/* Item content */}
       <TouchableOpacity
-        style={itemContentTouchableStyle}
+        style={cardStyles.itemContentTouchable}
         onPress={() => onItemTap('name')}
         onLongPress={onDrag}
         delayLongPress={250}
         disabled={isListLocked}
         activeOpacity={0.7}
       >
-        <View style={itemContentColumnStyle}>
-          <View style={itemContentRowStyle}>
+        <View style={cardStyles.itemContentColumn}>
+          <View style={cardStyles.itemContentRow}>
             {qty > 1 && (
               <Text style={cardStyles.qtyPrefix}>{qty}x</Text>
             )}
             <Text
               style={[
-                itemNameTextStyle,
-                isChecked && itemNameCheckedStyle
+                cardStyles.itemNameText,
+                isChecked && cardStyles.itemNameChecked
               ]}
               numberOfLines={1}
             >
@@ -246,9 +289,9 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             )}
           </View>
           {showSuggestion && suggestion && (
-            <View style={suggestionRowStyle}>
-              <Text style={suggestionTextStyle}>
-                💡 £{(suggestion.bestPrice * qty).toFixed(2)} at {suggestion.bestStore} (save £{(suggestion.savings * qty).toFixed(2)})
+            <View style={cardStyles.suggestionRow}>
+              <Text style={cardStyles.suggestionText}>
+                <Icon name="bulb-outline" size={12} color={theme.accent.yellow} /> £{(suggestion.bestPrice * qty).toFixed(2)} at {suggestion.bestStore} (save £{(suggestion.savings * qty).toFixed(2)})
               </Text>
             </View>
           )}
@@ -259,9 +302,9 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       <TouchableOpacity onPress={() => onItemTap('price')} disabled={isListLocked} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Text
           style={[
-            itemPriceTextStyle,
-            isPredicted && itemPricePredictedStyle,
-            isChecked && itemPriceCheckedStyle
+            cardStyles.itemPriceText,
+            isPredicted && cardStyles.itemPricePredicted,
+            isChecked && cardStyles.itemPriceChecked
           ]}
         >
           {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}

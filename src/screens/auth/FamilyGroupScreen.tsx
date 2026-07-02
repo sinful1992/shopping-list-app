@@ -16,6 +16,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 type JoinState = 'idle' | 'pending' | 'approved' | 'rejected';
 
@@ -156,7 +157,7 @@ const FamilyGroupScreen = () => {
             {/* Rejected */}
             {joinState === 'rejected' && (
               <View style={styles.waitingCard}>
-                <Text style={styles.rejectedIcon}>✗</Text>
+                <Icon name="close-circle" size={52} color={theme.accent.red} style={styles.rejectedIcon} />
                 <Text style={styles.rejectedTitle}>Request Declined</Text>
                 <Text style={styles.waitingSubtitle}>
                   Your request to join{'\n'}
@@ -174,7 +175,7 @@ const FamilyGroupScreen = () => {
             {/* Approved — brief flash before auth state navigates away */}
             {joinState === 'approved' && (
               <View style={styles.waitingCard}>
-                <Text style={styles.approvedIcon}>✓</Text>
+                <Icon name="checkmark-circle" size={52} color={theme.accent.green} style={styles.approvedIcon} />
                 <Text style={styles.approvedTitle}>Welcome to the family!</Text>
                 <ActivityIndicator color={theme.accent.green} style={styles.activityTop} />
               </View>

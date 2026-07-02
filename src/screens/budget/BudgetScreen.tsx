@@ -12,10 +12,11 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import BudgetAlertService, { AlertLevel } from '../../services/BudgetAlertService';
 import { ExpenditureBreakdownItem } from '../../models/types';
-import { RADIUS, SPACING, TYPOGRAPHY, SHADOWS } from '../../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, SHADOWS, NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useBudgetData } from '../../hooks';
+import { formatDateShort } from '../../utils/date';
 
 /**
  * BudgetScreen
@@ -73,7 +74,7 @@ const BudgetScreen = () => {
       <View style={styles.breakdownLeft}>
         <Text style={styles.listName}>{item.listName}</Text>
         <Text style={styles.listDate}>
-          {new Date(item.completedAt).toLocaleDateString()}
+          {formatDateShort(new Date(item.completedAt))}
         </Text>
         {item.merchantName && (
           <Text style={styles.merchantName}>{item.merchantName}</Text>
@@ -392,6 +393,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 10,
   },
   totalAmount: {
+    ...NUMERIC,
     fontSize: 42,
     fontWeight: '700',
     color: theme.text.primary,
@@ -594,6 +596,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   amount: {
+    ...NUMERIC,
     fontSize: 18,
     fontWeight: '700',
     color: theme.text.secondary,

@@ -3,18 +3,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   RefreshControl,
   Modal,
   Platform,
 } from 'react-native';
+import type { ShoppingList } from '../../models/types';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
-import { getDatabase, ref, update } from '@react-native-firebase/database';
 import AnimatedListCard from '../../components/AnimatedListCard';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import DatabaseMigration from '../../services/DatabaseMigration';
 import { useAuth, useShoppingLists } from '../../hooks';
+import { formatDateLong, formatDateShort } from '../../utils/date';
 
 /**
  * HomeScreen
@@ -64,9 +66,7 @@ const HomeScreen = () => {
           { icon: 'warning' }
         );
 
-        await update(ref(getDatabase(), `/users/${user.uid}`), {
-          familyGroupId: null,
-        });
+        await AuthenticationModule.clearFamilyGroupReference(user.uid);
 
         return;
       }
@@ -106,9 +106,7 @@ const HomeScreen = () => {
       return;
     }
     try {
-      const listName = new Date().toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-      });
+      const listName = formatDateLong(new Date());
       const list = await createList(listName);
       if (!list) return;
       navigation.navigate('ReceiptCamera', { listId: list.id, autoAddAll: true });
@@ -157,12 +155,7 @@ const HomeScreen = () => {
       return;
     }
 
-    const listName = selectedDate.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const listName = formatDateLong(selectedDate);
 
     setShowCreateModal(false);
 
@@ -195,62 +188,67 @@ const HomeScreen = () => {
     );
   };
 
+  const renderListCard = ({ item: list, index }: { item: ShoppingList; index: number }) => {
+    const isCompleted = list.status === 'completed';
+    const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
+
+    const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
+    const formattedDate = formatDateShort(date);
+
+    const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
+      ? list.syncStatus
+      : 'failed';
+
+    return (
+      <AnimatedListCard
+        index={index}
+        listId={list.id}
+        listName={list.name}
+        isCompleted={isCompleted}
+        isLocked={list.isLocked}
+        lockedByRole={list.lockedByRole}
+        lockedByName={list.lockedByName}
+        storeName={list.storeName}
+        formattedDate={formattedDate}
+        syncStatus={syncStatus}
+        onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
+        onDelete={() => handleDeleteList(list.id, list.name)}
+        listCardStyle={styles.listCard}
+        completedCardStyle={styles.completedCard}
+        theme={theme}
+      />
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <ScrollView
+      <FlatList
+        data={lists}
+        keyExtractor={(list) => list.id}
+        renderItem={renderListCard}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      >
-        {lists.length === 0 ? (
+        ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No shopping lists yet</Text>
             <Text style={styles.emptySubtext}>Tap + to create your first list</Text>
           </View>
-        ) : (
-          lists.map((list, index) => {
-              const isCompleted = list.status === 'completed';
-              const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
-
-              const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
-              const day = String(date.getDate()).padStart(2, '0');
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const year = date.getFullYear();
-              const formattedDate = `${day}/${month}/${year}`;
-
-              const syncColor = list.syncStatus === 'synced' ? '#30D158' :
-                               list.syncStatus === 'pending' ? '#FFD60A' :
-                               '#FF453A'; // failed
-
-              return (
-                <AnimatedListCard
-                  key={list.id}
-                  index={index}
-                  listId={list.id}
-                  listName={list.name}
-                  isCompleted={isCompleted}
-                  isLocked={list.isLocked}
-                  lockedByRole={list.lockedByRole}
-                  lockedByName={list.lockedByName}
-                  storeName={list.storeName}
-                  formattedDate={formattedDate}
-                  syncColor={syncColor}
-                  onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
-                  onDelete={() => handleDeleteList(list.id, list.name)}
-                  listCardStyle={styles.listCard}
-                  completedCardStyle={styles.completedCard}
-                  theme={theme}
-                />
-              );
-            })
-        )}
-      </ScrollView>
+        }
+      />
 
       <View style={styles.fabContainer}>
-        <Text style={styles.fabHint}>Hold to scan receipt</Text>
+        <TouchableOpacity
+          style={styles.scanFab}
+          onPress={handleQuickScan}
+          accessibilityLabel="Scan receipt into a new list"
+        >
+          <Icon name="camera-outline" size={22} color={theme.text.primary} />
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.fab}
           onPress={handleCreateList}
           onLongPress={handleQuickScan}
           delayLongPress={500}
+          accessibilityLabel="Create shopping list"
         >
           <LinearGradient
             colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
@@ -258,7 +256,7 @@ const HomeScreen = () => {
             end={{ x: 1, y: 1 }}
             style={styles.fabGradient}
           >
-            <Text style={styles.fabText}>+</Text>
+            <Icon name="add" size={32} color="#FFFFFF" />
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -282,14 +280,9 @@ const HomeScreen = () => {
               onPress={handleOpenDatePicker}
             >
               <Text style={styles.dateButtonText}>
-                {selectedDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {formatDateLong(selectedDate)}
               </Text>
-              <Text style={styles.calendarIcon}>📅</Text>
+              <Icon name="calendar-outline" size={22} color={theme.text.secondary} />
             </TouchableOpacity>
 
             <Text style={styles.datePreview}>

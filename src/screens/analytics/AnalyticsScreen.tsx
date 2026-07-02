@@ -15,7 +15,7 @@ import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import PriceHistoryService from '../../services/PriceHistoryService';
-import { RADIUS } from '../../styles/theme';
+import { RADIUS, NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -152,7 +152,7 @@ const AnalyticsScreen = () => {
     if (Array.isArray(analytics.monthlyTrend)) {
       monthlyChartData = analytics.monthlyTrend.map(trend => ({
         value: trend.amount,
-        label: new Date(trend.date).toLocaleDateString('en-US', { month: 'short' }),
+        label: new Date(trend.date).toLocaleDateString('en-GB', { month: 'short' }),
         labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
       }));
     }
@@ -520,7 +520,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 14,
   },
   statIcon:  { fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  statValue: { fontSize: 22, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
+  statValue: { ...NUMERIC, fontSize: 22, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
   statLabel: { fontSize: 12, color: theme.text.secondary },
 
   // ── Tab bar ───────────────────────────────────────────────────────────────
@@ -598,7 +598,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   storeName:  { fontSize: 15, fontWeight: '600', color: theme.text.primary },
-  storeTotal: { fontSize: 16, fontWeight: '700', color: theme.text.primary },
+  storeTotal: { ...NUMERIC, fontSize: 16, fontWeight: '700', color: theme.text.primary },
   storeMeta:  { fontSize: 11, color: theme.text.secondary, marginTop: 2 },
   pill: {
     backgroundColor: theme.glass.elevated,
@@ -630,13 +630,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // ── Overview – pie section ────────────────────────────────────────────────
   pieWrapper: { marginTop: 16, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 20 },
   pieCenterContainer: { alignItems: 'center' as const },
-  pieCenterTotal: { fontSize: 14, color: theme.text.primary, fontWeight: '700' as const },
+  pieCenterTotal: { ...NUMERIC, fontSize: 14, color: theme.text.primary, fontWeight: '700' as const },
   pieCenterLabel: { fontSize: 10, color: theme.text.secondary },
   legendContainer: { flex: 1, gap: 8 },
   legendItem: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { flex: 1, fontSize: 12, color: theme.text.secondary },
-  legendValue: { fontSize: 12, color: theme.text.primary, fontWeight: '600' as const },
+  legendValue: { ...NUMERIC, fontSize: 12, color: theme.text.primary, fontWeight: '600' as const },
 
   // ── Items tab ─────────────────────────────────────────────────────────────
   itemsContainer: { marginTop: 12, gap: 2 },

@@ -124,13 +124,19 @@ export interface VATBreakdownItem {
   vatAmount: number;
 }
 
+/** Canonical slugs for the retailers the OCR server can identify. */
+export type ReceiptStoreSlug =
+  | 'tesco' | 'asda' | 'aldi' | 'sainsburys' | 'morrisons' | 'waitrose'
+  | 'costco' | 'iceland' | 'spar' | 'nisa' | 'booths' | 'lidl' | 'coop'
+  | 'mands' | 'budgens' | 'londis' | 'onestop' | 'other';
+
 export interface ReceiptData {
   subtotal: number | null;
   lineItems: ReceiptLineItem[];
   discounts: ReceiptDiscount[];
   totalDiscount: number | null;
   vatBreakdown: VATBreakdownItem[];
-  store: 'lidl' | 'tesco' | 'sainsburys' | 'coop' | 'other' | null;
+  store: ReceiptStoreSlug | null;
   extractedAt: number;
   confidence: number;
 }

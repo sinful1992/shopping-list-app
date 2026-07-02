@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS } from '../../styles/theme';
+import { Theme, RADIUS, NUMERIC } from '../../styles/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -103,89 +103,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   frequentItemsIcon: {
     fontSize: 20,
   },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.background.secondary,
-    padding: 15,
-    marginHorizontal: 10,
-    marginBottom: 8,
-    borderRadius: RADIUS.xlarge,
-    borderWidth: 1,
-    borderColor: theme.border.strong,
-  },
-  itemRowChecked: {
-    backgroundColor: theme.glass.subtle,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: theme.accent.blue,
-    borderRadius: 4,
-    marginRight: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.accent.blueSubtle,
-  },
-  checkboxDisabled: {
-    borderColor: theme.text.tertiary,
-    backgroundColor: theme.glass.subtle,
-    opacity: 0.5,
-  },
-  checkboxTextDisabled: {
-    color: theme.text.tertiary,
-  },
-  checkboxTextChecked: {
-    color: theme.accent.green,
-    fontWeight: 'bold',
-  },
   itemContent: {
     flex: 1,
   },
-  itemContentTouchable: {
-    flex: 1,
-  },
-  itemContentColumn: {
-    flex: 1,
-  },
-  itemContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  suggestionRow: {
-    marginTop: 4,
-  },
-  suggestionText: {
-    fontSize: 12,
-    color: theme.accent.green,
-    fontStyle: 'italic',
-  },
-  itemNameText: {
-    flex: 1,
-    fontSize: 16,
-    color: theme.text.primary,
-    fontWeight: '600',
-  },
-  itemNameChecked: {
-    textDecorationLine: 'line-through',
-    color: theme.text.tertiary,
-  },
-  itemPriceText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.text.secondary,
-    minWidth: 60,
-    textAlign: 'right',
-  },
-  itemPricePredicted: {
-    color: theme.text.secondary,
-    fontWeight: '400',
-  },
-  itemPriceChecked: {
-    color: theme.text.tertiary,
-  },
   itemPriceCompact: {
+    ...NUMERIC,
     fontSize: 14,
     fontWeight: '600',
     color: theme.accent.green,
@@ -202,6 +124,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
   },
   itemPrice: {
+    ...NUMERIC,
     fontSize: 16,
     fontWeight: '600',
     color: theme.accent.green,
@@ -212,6 +135,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.tertiary,
   },
   priceText: {
+    ...NUMERIC,
     fontSize: 14,
     color: theme.accent.green,
     marginTop: 4,
@@ -438,6 +362,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.9)',
   },
   budgetBadgeText: {
+    ...NUMERIC,
     color: theme.text.primary,
     fontSize: 11,
     fontWeight: 'bold',

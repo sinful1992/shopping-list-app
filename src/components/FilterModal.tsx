@@ -14,6 +14,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatDateShort } from '../utils/date';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 export interface FilterOptions {
   startDate: Date | null;
@@ -146,7 +148,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             )}
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Icon name="close" size={24} color={theme.text.tertiary} />
             </TouchableOpacity>
           </View>
 
@@ -160,7 +162,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
               >
                 <Text style={styles.dateLabel}>Start Date</Text>
                 <Text style={styles.dateValue}>
-                  {startDate ? startDate.toLocaleDateString('en-GB') : 'Select date'}
+                  {startDate ? formatDateShort(startDate) : 'Select date'}
                 </Text>
               </TouchableOpacity>
 
@@ -170,7 +172,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
               >
                 <Text style={styles.dateLabel}>End Date</Text>
                 <Text style={styles.dateValue}>
-                  {endDate ? endDate.toLocaleDateString('en-GB') : 'Select date'}
+                  {endDate ? formatDateShort(endDate) : 'Select date'}
                 </Text>
               </TouchableOpacity>
 

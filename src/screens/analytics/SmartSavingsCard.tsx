@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import { NUMERIC } from '../../styles/theme';
 
 interface Props {
   familyGroupId: string;
@@ -118,6 +119,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 13,
   },
   totalValue: {
+    ...NUMERIC,
     color: theme.accent.green,
     fontSize: 22,
     fontWeight: '700',
@@ -148,6 +150,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'flex-end',
   },
   itemPrice: {
+    ...NUMERIC,
     color: theme.text.primary,
     fontSize: 14,
     fontWeight: '600',

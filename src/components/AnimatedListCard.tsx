@@ -1,8 +1,19 @@
 import React from 'react';
 import { Animated, TouchableOpacity, View, Text, StyleProp, ViewStyle } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import type { Theme } from '../styles/theme';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+export type SyncStatus = 'synced' | 'pending' | 'failed';
+
+// Icon + color per status: shape carries the meaning (colour-blind safe),
+// colour reinforces it.
+const SYNC_ICONS: Record<SyncStatus, string> = {
+  synced: 'cloud-done',
+  pending: 'cloud-upload-outline',
+  failed: 'cloud-offline-outline',
+};
 
 interface AnimatedListCardProps {
   index: number;
@@ -14,7 +25,7 @@ interface AnimatedListCardProps {
   lockedByName?: string | null;
   storeName?: string | null;
   formattedDate: string;
-  syncColor: string;
+  syncStatus: SyncStatus;
   onPress: () => void;
   onDelete: () => void;
   completedCardStyle?: StyleProp<ViewStyle>;
@@ -31,7 +42,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   lockedByName,
   storeName,
   formattedDate,
-  syncColor,
+  syncStatus,
   onPress,
   onDelete,
   completedCardStyle,
@@ -44,7 +55,12 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
       style={[listCardStyle, isCompleted && completedCardStyle]}
       onPress={onPress}
     >
-      <View style={[staticStyles.syncIndicator, { backgroundColor: syncColor }]} />
+      <Icon
+        name={SYNC_ICONS[syncStatus]}
+        size={13}
+        color={theme.sync[syncStatus]}
+        style={staticStyles.syncIndicator}
+      />
 
       <View style={staticStyles.listHeader}>
         <View style={staticStyles.listTitleRow}>
@@ -55,12 +71,12 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
         <View style={staticStyles.listBadges}>
           {isLocked && (
             <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange }]}>
-              🛒 {lockedByRole || lockedByName || 'Shopping'}
+              <Icon name="cart" size={11} color={theme.accent.orange} /> {lockedByRole || lockedByName || 'Shopping'}
             </Text>
           )}
           {isCompleted && (
             <Text style={[staticStyles.completedBadge, { color: theme.accent.green }]}>
-              ✓ Completed
+              <Icon name="checkmark" size={11} color={theme.accent.green} /> Completed
             </Text>
           )}
           <TouchableOpacity
@@ -70,7 +86,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
             }}
             style={staticStyles.deleteIconButton}
           >
-            <Text style={staticStyles.deleteIcon}>🗑</Text>
+            <Icon name="trash-outline" size={18} color={theme.text.secondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -97,9 +113,6 @@ const staticStyles = {
     position: 'absolute' as const,
     top: 8,
     right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   listHeader: {
     flexDirection: 'row' as const,

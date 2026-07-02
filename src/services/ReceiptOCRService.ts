@@ -1,12 +1,48 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ReceiptData, ReceiptLineItem, OCRResult } from '../models/types';
+import { ReceiptData, ReceiptLineItem, ReceiptStoreSlug, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
+import ImageStorageManager from './ImageStorageManager';
 import { sanitizeText } from '../utils/sanitize';
 import { toFileUri } from '../utils/uri';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
+
+// Sent as X-OCR-Key on every OCR request. The server only enforces it when
+// its OCR_SHARED_SECRET env var is set to the same value — abuse deterrence
+// for the public Space URL, not real auth (the key ships in the app).
+const OCR_SHARED_KEY = 'fsl-ocr-7f3d9a2e8b514c06';
+
+const DEFAULT_CURRENCY = 'GBP';
+
+// Uppercase substring → canonical slug, mirroring the retailer set the OCR
+// server recognises (_KNOWN_RETAILERS in receipt-ocr/ocr/parser.py). Ordered:
+// multi-word / apostrophe variants before shorter substrings they contain.
+const MERCHANT_TO_SLUG: ReadonlyArray<[string, ReceiptStoreSlug]> = [
+  ['TESCO', 'tesco'],
+  ['ASDA', 'asda'],
+  ['ALDI', 'aldi'],
+  ['SAINSBURY', 'sainsburys'],
+  ['MORRISONS', 'morrisons'],
+  ['WAITROSE', 'waitrose'],
+  ['COSTCO', 'costco'],
+  ['ICELAND', 'iceland'],
+  ['ONE STOP', 'onestop'],
+  ['BOOTHS', 'booths'],
+  ['BUDGENS', 'budgens'],
+  ['LONDIS', 'londis'],
+  ['LIDL', 'lidl'],
+  ['CO-OP', 'coop'],
+  ['COOP', 'coop'],
+  ['M&S', 'mands'],
+  ['MARKS & SPENCER', 'mands'],
+  ['SPAR', 'spar'],
+  ['NISA', 'nisa'],
+];
+
+/** Health probes should answer fast; don't let a dead server hang the UI. */
+const HEALTH_CHECK_TIMEOUT_MS = 10_000;
 
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
@@ -100,10 +136,16 @@ class ReceiptOCRService {
       return { ok: false, modelLoaded: false };
     }
 
+    // RN's fetch never times out on its own — a dead server would hang
+    // the settings screen's health check indefinitely.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+
     try {
       const response = await fetch(`${serverUrl}/health`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -114,6 +156,8 @@ class ReceiptOCRService {
       return { ok: true, modelLoaded: data.model_loaded === true };
     } catch {
       return { ok: false, modelLoaded: false };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -145,6 +189,7 @@ class ReceiptOCRService {
         body: formData,
         headers: {
           'Accept': 'application/json',
+          'X-OCR-Key': OCR_SHARED_KEY,
         },
         signal: timeoutController.signal,
       });
@@ -248,7 +293,29 @@ class ReceiptOCRService {
       };
     }
 
-    return this.processReceipt(list.receiptUrl, listId);
+    // After upload, receiptUrl holds the Cloud Storage path
+    // ("receipts/{group}/{list}/...") instead of the local capture file —
+    // fetch it back to cache before re-running OCR.
+    let filePath = list.receiptUrl;
+    if (filePath.startsWith('receipts/')) {
+      try {
+        filePath = await ImageStorageManager.downloadReceiptToCache(filePath, listId);
+      } catch (error: any) {
+        return {
+          success: false,
+          receiptData: null,
+          confidence: 0,
+          error: error.message || 'Could not download the receipt image',
+          apiUsageCount: 0,
+          totalAmount: null,
+          merchantName: null,
+          purchaseDate: null,
+          currency: null,
+        };
+      }
+    }
+
+    return this.processReceipt(filePath, listId);
   }
 
   /**
@@ -300,7 +367,7 @@ class ReceiptOCRService {
       totalAmount,
       merchantName,
       purchaseDate: data.date,
-      currency: 'GBP',
+      currency: DEFAULT_CURRENCY,
       receiptData: {
         subtotal,
         lineItems,
@@ -317,10 +384,9 @@ class ReceiptOCRService {
   private detectStore(merchantName: string | null | undefined): ReceiptData['store'] {
     if (!merchantName) return null;
     const name = merchantName.toUpperCase();
-    if (name.includes('LIDL')) return 'lidl';
-    if (name.includes('TESCO')) return 'tesco';
-    if (name.includes('SAINSBURY')) return 'sainsburys';
-    if (name.includes('CO-OP') || name.includes('COOP')) return 'coop';
+    for (const [needle, slug] of MERCHANT_TO_SLUG) {
+      if (name.includes(needle)) return slug;
+    }
     return 'other';
   }
 }

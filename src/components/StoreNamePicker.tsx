@@ -15,6 +15,7 @@ import StoreHistoryService from '../services/StoreHistoryService';
 import { SHADOWS, RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface StoreNamePickerProps {
   visible: boolean;
@@ -118,7 +119,7 @@ const StoreNamePicker: React.FC<StoreNamePickerProps> = ({
                       style={styles.suggestionItem}
                       onPress={() => handleSelectSuggestion(item)}
                     >
-                      <Text style={styles.suggestionIcon}>🏪</Text>
+                      <Icon name="storefront-outline" size={18} color={theme.text.secondary} style={styles.suggestionIcon} />
                       <Text style={styles.suggestionText}>{item}</Text>
                     </TouchableOpacity>
                   )}
