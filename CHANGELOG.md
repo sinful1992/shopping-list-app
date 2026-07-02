@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.9] - 2026-07-03
+
+### Changed
+- **Storage split step 2/6 — lists domain extracted.** 15 methods (list CRUD, completed-list queries, receipt data, expenditure queries, `observeAllLists`/`observeList`) moved verbatim into `src/services/storage/lists.ts` (`ListsStorage`, shares the DB handle). `LocalStorageManager` delegates; public API unchanged.
+
 ## [1.29.8] - 2026-07-03
 
 ### Changed
