@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.14] - 2026-07-03
+
+### Changed
+- **Storage split complete — store-layouts extracted, LocalStorageManager is now a pure facade.** 6 store-layout methods + model mapper moved verbatim into `src/services/storage/storeLayouts.ts` (`StoreLayoutsStorage`). `LocalStorageManager` is down from 1,879 lines (pre-split) to 333: it owns the singleton DB handle, `executeTransaction`, `clearAllData`, and one-line delegations to 6 domain modules (`lists`, `items`, `syncQueue`, `urgentItems`, `history`, `storeLayouts`) sharing that handle. Zero call-site changes anywhere in the app; full suite 81/81 green. Pending AVD sync validation before merge to master.
+
 ## [1.29.13] - 2026-07-03
 
 ### Changed
