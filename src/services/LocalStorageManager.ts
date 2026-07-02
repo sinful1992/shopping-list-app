@@ -4,9 +4,6 @@ import { ShoppingList, Item, QueuedOperation, ReceiptData, UrgentItem, CategoryH
 import { safeJsonParse } from '../utils/safeJsonParse';
 import { CategoryType } from './CategoryService';
 import CrashReporting from './CrashReporting';
-import { ShoppingListModel } from '../database/models/ShoppingList';
-import { ItemModel } from '../database/models/Item';
-import { SyncQueueModel } from '../database/models/SyncQueue';
 import { UrgentItemModel } from '../database/models/UrgentItem';
 import { CategoryHistoryModel } from '../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../database/models/PriceHistory';
@@ -14,6 +11,7 @@ import StoreLayoutModel from '../database/models/StoreLayout';
 import { createDatabase } from './storage/database';
 import { ListsStorage } from './storage/lists';
 import { ItemsStorage } from './storage/items';
+import { SyncQueueStorage } from './storage/syncQueue';
 import { urgentItemModelToType } from './storage/mappers';
 
 /**
@@ -25,11 +23,13 @@ class LocalStorageManager {
   private database: Database;
   private lists: ListsStorage;
   private items: ItemsStorage;
+  private syncQueue: SyncQueueStorage;
 
   constructor() {
     this.database = createDatabase();
     this.lists = new ListsStorage(this.database);
     this.items = new ItemsStorage(this.database);
+    this.syncQueue = new SyncQueueStorage(this.database);
   }
 
   /** Expose the database instance for direct access (e.g. backfill migrations). */
@@ -145,116 +145,31 @@ class LocalStorageManager {
     return this.items.observeItemsForList(listId, callback);
   }
 
-  // ===== SYNC QUEUE METHODS =====
+  // ===== SYNC QUEUE METHODS (delegated to SyncQueueStorage) =====
 
-  /**
-   * Add operation to sync queue
-   * Implements Req 9.5
-   */
   async addToSyncQueue(operation: QueuedOperation): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      await this.database.write(async () => {
-        await syncQueueCollection.create((record) => {
-          record._raw.id = operation.id;
-          record.entityType = operation.entityType;
-          record.entityId = operation.entityId;
-          record.operation = operation.operation;
-          record.data = JSON.stringify(operation.data);
-          record.timestamp = operation.timestamp;
-          record.retryCount = operation.retryCount;
-          record.nextRetryAt = operation.nextRetryAt || null;
-        });
-      }, 'addToSyncQueue');
-    } catch (error: any) {
-      throw new Error(`Failed to add to sync queue: ${error.message}`);
-    }
+    return this.syncQueue.addToSyncQueue(operation);
   }
 
-  /**
-   * Get all operations in sync queue
-   */
   async getSyncQueue(): Promise<QueuedOperation[]> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operations = await syncQueueCollection
-        .query(Q.sortBy('timestamp', Q.asc))
-        .fetch();
-
-      const parseResults = operations.map((op) => {
-        const data = safeJsonParse<unknown>(op.data, undefined);
-        if (data === undefined) {
-          if (__DEV__) console.warn('getSyncQueue: skipping corrupt entry', op.id);
-          return null;
-        }
-        return {
-          id: op.id,
-          entityType: op.entityType as 'list' | 'item' | 'urgentItem',
-          entityId: op.entityId,
-          operation: op.operation as 'create' | 'update' | 'delete',
-          data,
-          timestamp: op.timestamp,
-          retryCount: op.retryCount,
-          nextRetryAt: op.nextRetryAt || null,
-        };
-      });
-      return parseResults.filter(op => op !== null) as QueuedOperation[];
-    } catch (error: any) {
-      throw new Error(`Failed to get sync queue: ${error.message}`);
-    }
+    return this.syncQueue.getSyncQueue();
   }
 
-  /**
-   * Remove operation from sync queue
-   */
   async removeFromSyncQueue(operationId: string): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operation = await syncQueueCollection.find(operationId);
-      await this.database.write(async () => {
-        await operation.markAsDeleted();
-      }, 'removeFromSyncQueue');
-    } catch (error: any) {
-      throw new Error(`Failed to remove from sync queue: ${error.message}`);
-    }
+    return this.syncQueue.removeFromSyncQueue(operationId);
   }
 
-  /**
-   * Update sync queue operation (for retry tracking)
-   */
   async updateSyncQueueOperation(operationId: string, updates: Partial<QueuedOperation>): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operation = await syncQueueCollection.find(operationId);
-      await this.database.write(async () => {
-        await operation.update((record) => {
-          if (updates.retryCount !== undefined) record.retryCount = updates.retryCount;
-          if (updates.nextRetryAt !== undefined) record.nextRetryAt = updates.nextRetryAt;
-        });
-      }, 'updateSyncQueueOp');
-    } catch (error: any) {
-      throw new Error(`Failed to update sync queue operation: ${error.message}`);
-    }
+    return this.syncQueue.updateSyncQueueOperation(operationId, updates);
   }
 
-  /**
-   * Clear all operations from sync queue
-   */
   async clearSyncQueue(): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operations = await syncQueueCollection.query().fetch();
-      if (operations.length === 0) return;
-      await this.database.write(async () => {
-        const ops = operations.map(op => op.prepareMarkAsDeleted());
-        await this.database.batch(ops);
-      }, 'clearSyncQueue');
-    } catch (error: any) {
-      throw new Error(`Failed to clear sync queue: ${error.message}`);
-    }
+    return this.syncQueue.clearSyncQueue();
   }
 
-
+  async markSyncedIfUnchanged(entityType: 'list' | 'item' | 'storeLayout', entityId: string, expectedUpdatedAt: number | null): Promise<void> {
+    return this.syncQueue.markSyncedIfUnchanged(entityType, entityId, expectedUpdatedAt);
+  }
 
   // ===== URGENT ITEM METHODS =====
 
@@ -1127,35 +1042,7 @@ class LocalStorageManager {
       throw new Error(`Failed to clear local data: ${error.message}`);
     }
   }
-  async markSyncedIfUnchanged(
-    entityType: 'list' | 'item' | 'storeLayout',
-    entityId: string,
-    expectedUpdatedAt: number | null
-  ): Promise<void> {
-    try {
-      await this.database.write(async () => {
-        if (entityType === 'item') {
-          const collection = this.database.get<ItemModel>('items');
-          const record = await collection.find(entityId);
-          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
-            await record.update(r => { r.syncStatus = 'synced'; });
-          }
-        } else if (entityType === 'storeLayout') {
-          const collection = this.database.get<StoreLayoutModel>('store_layouts');
-          const record = await collection.find(entityId);
-          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
-            await record.update(r => { r.syncStatus = 'synced'; });
-          }
-        } else {
-          const collection = this.database.get<ShoppingListModel>('shopping_lists');
-          const record = await collection.find(entityId);
-          await record.update(r => { r.syncStatus = 'synced'; });
-        }
-      }, 'markSyncedIfUnchanged');
-    } catch {
-      // Record may have been deleted; sync status update is no longer relevant
-    }
-  }
+
 }
 
 export default new LocalStorageManager();

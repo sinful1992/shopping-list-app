@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.11] - 2026-07-03
+
+### Changed
+- **Storage split step 4/6 — sync-queue domain extracted.** `addToSyncQueue`/`getSyncQueue`/`removeFromSyncQueue`/`updateSyncQueueOperation`/`clearSyncQueue` + `markSyncedIfUnchanged` moved verbatim into `src/services/storage/syncQueue.ts` (`SyncQueueStorage`). Facade API unchanged; queue behavior pinned by the 1.29.7 characterization tests.
+
 ## [1.29.10] - 2026-07-03
 
 ### Changed
