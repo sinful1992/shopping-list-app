@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.7] - 2026-07-03
+
+### Added
+- Characterization tests for `LocalStorageManager`'s sync-critical paths (20 tests, in-memory LokiJS): `saveItemsBatchUpsert` last-write-wins guard (strictly-newer local record wins; equal timestamps apply the incoming write), tombstone resurrection after `deleteItem`/`deleteItemsBatch`, sync-queue FIFO ordering + corrupt-entry skipping + retry-field updates, and `markSyncedIfUnchanged` conditional marking. Written ahead of the storage-domain split so behavior is pinned before any code moves. Also pins a pre-existing quirk: `getItem` (`collection.find`) still serves a cached soft-deleted record while query-based reads exclude it.
+
 ## [1.29.6] - 2026-07-02
 
 ### Changed
