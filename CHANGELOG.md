@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.10] - 2026-07-03
+
+### Changed
+- **Storage split step 3/6 — items domain extracted.** 11 methods (item CRUD, `saveItemsBatch`/`saveItemsBatchUpsert`/`deleteItemsBatch`, `observeItemsForList`) moved verbatim into `src/services/storage/items.ts` (`ItemsStorage`). The upsert LWW guard + tombstone resurrection stay pinned by the 1.29.7 characterization tests, which run against the facade unchanged.
+
 ## [1.29.9] - 2026-07-03
 
 ### Changed
