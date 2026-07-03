@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.29.14] - 2026-07-03
+
+### Changed
+- **Storage split complete — store-layouts extracted, LocalStorageManager is now a pure facade.** 6 store-layout methods + model mapper moved verbatim into `src/services/storage/storeLayouts.ts` (`StoreLayoutsStorage`). `LocalStorageManager` is down from 1,879 lines (pre-split) to 333: it owns the singleton DB handle, `executeTransaction`, `clearAllData`, and one-line delegations to 6 domain modules (`lists`, `items`, `syncQueue`, `urgentItems`, `history`, `storeLayouts`) sharing that handle. Zero call-site changes anywhere in the app; full suite 81/81 green. Pending AVD sync validation before merge to master.
+
+## [1.29.13] - 2026-07-03
+
+### Changed
+- **Storage split step 6/6 (domains) — history extracted.** Category-history (5 methods + model mapper) and price-history (5 methods) moved verbatim into `src/services/storage/history.ts` (`HistoryStorage`). Existing `saveCategoryHistoryBatch` regression tests stay green against the unchanged facade API.
+
+## [1.29.12] - 2026-07-03
+
+### Changed
+- **Storage split step 5/6 — urgent-items domain extracted.** 10 methods (urgent-item CRUD, batch upsert with `hasUrgentItemChanged` no-op guard, active/resolved observers) moved verbatim into `src/services/storage/urgentItems.ts` (`UrgentItemsStorage`). Facade API unchanged.
+
+## [1.29.11] - 2026-07-03
+
+### Changed
+- **Storage split step 4/6 — sync-queue domain extracted.** `addToSyncQueue`/`getSyncQueue`/`removeFromSyncQueue`/`updateSyncQueueOperation`/`clearSyncQueue` + `markSyncedIfUnchanged` moved verbatim into `src/services/storage/syncQueue.ts` (`SyncQueueStorage`). Facade API unchanged; queue behavior pinned by the 1.29.7 characterization tests.
+
+## [1.29.10] - 2026-07-03
+
+### Changed
+- **Storage split step 3/6 — items domain extracted.** 11 methods (item CRUD, `saveItemsBatch`/`saveItemsBatchUpsert`/`deleteItemsBatch`, `observeItemsForList`) moved verbatim into `src/services/storage/items.ts` (`ItemsStorage`). The upsert LWW guard + tombstone resurrection stay pinned by the 1.29.7 characterization tests, which run against the facade unchanged.
+
+## [1.29.9] - 2026-07-03
+
+### Changed
+- **Storage split step 2/6 — lists domain extracted.** 15 methods (list CRUD, completed-list queries, receipt data, expenditure queries, `observeAllLists`/`observeList`) moved verbatim into `src/services/storage/lists.ts` (`ListsStorage`, shares the DB handle). `LocalStorageManager` delegates; public API unchanged.
+
+## [1.29.8] - 2026-07-03
+
+### Changed
+- **Storage split step 1/6 — core extracted.** `src/services/storage/database.ts` now owns WatermelonDB construction (`createDatabase()`), and `src/services/storage/mappers.ts` owns the pure model↔type mappers (`applyListCreate/FullUpdate`, `applyItemCreate/FullUpdate`, `listModelToType`, `itemModelToType`, `urgentItemModelToType`, `hasListChanged`). `LocalStorageManager` API unchanged (−167 lines); behavior pinned by the 1.29.7 characterization tests.
+
+## [1.29.7] - 2026-07-03
+
+### Added
+- Characterization tests for `LocalStorageManager`'s sync-critical paths (20 tests, in-memory LokiJS): `saveItemsBatchUpsert` last-write-wins guard (strictly-newer local record wins; equal timestamps apply the incoming write), tombstone resurrection after `deleteItem`/`deleteItemsBatch`, sync-queue FIFO ordering + corrupt-entry skipping + retry-field updates, and `markSyncedIfUnchanged` conditional marking. Written ahead of the storage-domain split so behavior is pinned before any code moves. Also pins a pre-existing quirk: `getItem` (`collection.find`) still serves a cached soft-deleted record while query-based reads exclude it.
+
 ## [1.29.6] - 2026-07-02
 
 ### Changed

@@ -1,98 +1,12 @@
-import { Database, Q } from '@nozbe/watermelondb';
-import { v4 as uuidv4 } from 'uuid';
-import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
+import { Database } from '@nozbe/watermelondb';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
-import { safeJsonParse } from '../utils/safeJsonParse';
-import { CategoryType } from './CategoryService';
-import CrashReporting from './CrashReporting';
-import { schema } from '../database/schema';
-import migrations from '../database/migrations';
-import { ShoppingListModel } from '../database/models/ShoppingList';
-import { ItemModel } from '../database/models/Item';
-import { SyncQueueModel } from '../database/models/SyncQueue';
-import { UrgentItemModel } from '../database/models/UrgentItem';
-import { CategoryHistoryModel } from '../database/models/CategoryHistory';
-import { PriceHistoryModel } from '../database/models/PriceHistory';
-import StoreLayoutModel from '../database/models/StoreLayout';
-import { ItemPreferenceModel } from '../database/models/ItemPreference';
-
-function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
-  record._raw.id = list.id;
-  record.name = list.name;
-  record.familyGroupId = list.familyGroupId;
-  record.createdBy = list.createdBy;
-  record.status = list.status;
-  record.completedAt = list.completedAt;
-  record.completedBy = list.completedBy;
-  record.receiptUrl = list.receiptUrl;
-  record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-  record.syncStatus = list.syncStatus || 'pending';
-  record.isLocked = list.isLocked;
-  record.lockedBy = list.lockedBy;
-  record.lockedByName = list.lockedByName;
-  record.lockedByRole = list.lockedByRole;
-  record.lockedAt = list.lockedAt;
-  record.budget = list.budget;
-  record.storeName = list.storeName || null;
-  record.archived = list.archived || null;
-  record.layoutApplied = list.layoutApplied ?? null;
-  record.totalAmount = list.totalAmount ?? null;
-  record.merchantName = list.merchantName ?? null;
-  record.purchaseDate = list.purchaseDate ?? null;
-  record.currency = list.currency ?? null;
-}
-
-function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
-  record.name = list.name;
-  record.status = list.status;
-  record.completedAt = list.completedAt;
-  record.completedBy = list.completedBy;
-  record.receiptUrl = list.receiptUrl;
-  record.receiptData = list.receiptData ? JSON.stringify(list.receiptData) : null;
-  record.syncStatus = list.syncStatus || 'pending';
-  record.isLocked = list.isLocked;
-  record.lockedBy = list.lockedBy;
-  record.lockedByName = list.lockedByName;
-  record.lockedByRole = list.lockedByRole;
-  record.lockedAt = list.lockedAt;
-  record.budget = list.budget;
-  record.storeName = list.storeName || null;
-  record.archived = list.archived || null;
-  record.layoutApplied = list.layoutApplied ?? null;
-  record.totalAmount = list.totalAmount ?? null;
-  record.merchantName = list.merchantName ?? null;
-  record.purchaseDate = list.purchaseDate ?? null;
-  record.currency = list.currency ?? null;
-}
-
-function applyItemCreate(record: ItemModel, item: Item): void {
-  record._raw.id = item.id;
-  record.listId = item.listId;
-  record.name = item.name;
-  record.quantity = item.quantity;
-  record.price = item.price;
-  record.checked = item.checked;
-  record.createdBy = item.createdBy;
-  record.updatedAt = item.updatedAt;
-  record.category = item.category || null;
-  record.sortOrder = item.sortOrder ?? null;
-  record.unitQty = item.unitQty ?? null;
-  record.measurementUnit = item.measurementUnit ?? null;
-  record.measurementValue = item.measurementValue ?? null;
-}
-
-function applyItemFullUpdate(record: ItemModel, item: Item): void {
-  record.name = item.name;
-  record.quantity = item.quantity;
-  record.price = item.price;
-  record.checked = item.checked;
-  record.updatedAt = item.updatedAt;
-  record.category = item.category || null;
-  record.sortOrder = item.sortOrder ?? null;
-  record.unitQty = item.unitQty ?? null;
-  record.measurementUnit = item.measurementUnit ?? null;
-  record.measurementValue = item.measurementValue ?? null;
-}
+import { createDatabase } from './storage/database';
+import { ListsStorage } from './storage/lists';
+import { ItemsStorage } from './storage/items';
+import { SyncQueueStorage } from './storage/syncQueue';
+import { UrgentItemsStorage } from './storage/urgentItems';
+import { HistoryStorage } from './storage/history';
+import { StoreLayoutsStorage } from './storage/storeLayouts';
 
 /**
  * LocalStorageManager
@@ -101,22 +15,21 @@ function applyItemFullUpdate(record: ItemModel, item: Item): void {
  */
 class LocalStorageManager {
   private database: Database;
+  private lists: ListsStorage;
+  private items: ItemsStorage;
+  private syncQueue: SyncQueueStorage;
+  private urgentItems: UrgentItemsStorage;
+  private history: HistoryStorage;
+  private storeLayouts: StoreLayoutsStorage;
 
   constructor() {
-    const adapter = new SQLiteAdapter({
-      schema,
-      migrations, // Enable schema migrations
-      jsi: true, // Use JSI for better performance
-      onSetUpError: (error) => {
-        // Crashlytics native SDK is active by default — no JS init required
-        CrashReporting.recordError(error, 'WatermelonDB onSetUpError');
-      },
-    });
-
-    this.database = new Database({
-      adapter,
-      modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel],
-    });
+    this.database = createDatabase();
+    this.lists = new ListsStorage(this.database);
+    this.items = new ItemsStorage(this.database);
+    this.syncQueue = new SyncQueueStorage(this.database);
+    this.urgentItems = new UrgentItemsStorage(this.database);
+    this.history = new HistoryStorage(this.database);
+    this.storeLayouts = new StoreLayoutsStorage(this.database);
   }
 
   /** Expose the database instance for direct access (e.g. backfill migrations). */
@@ -124,949 +37,180 @@ class LocalStorageManager {
     return this.database;
   }
 
-  // ===== SHOPPING LIST METHODS =====
+  // ===== SHOPPING LIST METHODS (delegated to ListsStorage) =====
 
-  /**
-   * Save shopping list (create or update)
-   */
   async saveList(list: ShoppingList): Promise<ShoppingList> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-
-      let listRecord: ShoppingListModel | undefined;
-
-      await this.database.write(async () => {
-        const existing = await listsCollection.query(Q.where('id', list.id)).fetch();
-        if (existing.length > 0) {
-          listRecord = existing[0];
-          await listRecord.update((record) => { applyListFullUpdate(record, list); });
-        } else {
-          listRecord = await listsCollection.create((record) => { applyListCreate(record, list); });
-        }
-      }, 'saveList');
-
-      return this.listModelToType(listRecord!);
-    } catch (error: any) {
-      throw new Error(`Failed to save list: ${error.message}`);
-    }
+    return this.lists.saveList(list);
   }
 
-  /**
-   * Batch upsert lists in a single database.write() transaction.
-   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
-   */
   async saveListsBatch(lists: ShoppingList[]): Promise<void> {
-    if (lists.length === 0) return;
-
-    const collection = this.database.get<ShoppingListModel>('shopping_lists');
-
-    const existingRecords = await collection
-      .query(Q.where('id', Q.oneOf(lists.map(l => l.id))))
-      .fetch();
-
-    const existingMap = new Map(existingRecords.map(r => [r.id, r]));
-
-    await this.database.write(async () => {
-      const ops: any[] = [];
-      for (const list of lists) {
-        const existing = existingMap.get(list.id);
-        if (existing) {
-          const local = this.listModelToType(existing);
-          if (!this.hasListChanged(local, list)) continue;
-          ops.push(existing.prepareUpdate(r => applyListFullUpdate(r, list)));
-        } else {
-          ops.push(collection.prepareCreate(r => applyListCreate(r, list)));
-        }
-      }
-      if (ops.length === 0) return;
-
-      try {
-        await this.database.batch(ops);
-      } catch (error) {
-        CrashReporting.recordError(error as Error, 'saveListsBatch batch failed, falling back to individual writes');
-        for (const list of lists) {
-          try {
-            const records = await collection.query(Q.where('id', list.id)).fetch();
-            const rec = records[0];
-            if (rec) {
-              const local = this.listModelToType(rec);
-              if (!this.hasListChanged(local, list)) continue;
-              await rec.update(r => applyListFullUpdate(r, list));
-            } else {
-              await collection.create(r => applyListCreate(r, list));
-            }
-          } catch (e) {
-            CrashReporting.recordError(e as Error, `saveListsBatch individual write failed for ${list.id}`);
-          }
-        }
-      }
-    }, 'saveListsBatch');
+    return this.lists.saveListsBatch(lists);
   }
 
-  /**
-   * Get shopping list by ID
-   */
   async getList(listId: string): Promise<ShoppingList | null> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const listRecord = await listsCollection.find(listId);
-      return this.listModelToType(listRecord);
-    } catch {
-      return null;
-    }
+    return this.lists.getList(listId);
   }
 
-  /**
-   * Get all lists for family group
-   */
   async getAllLists(familyGroupId: string): Promise<ShoppingList[]> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const lists = await listsCollection
-        .query(
-          Q.where('family_group_id', familyGroupId)
-        )
-        .fetch();
-
-      return lists.map((list) => this.listModelToType(list));
-    } catch (error: any) {
-      throw new Error(`Failed to get lists: ${error.message}`);
-    }
+    return this.lists.getAllLists(familyGroupId);
   }
 
-  /**
-   * Get active lists
-   * Implements Req 2.3
-   */
   async getActiveLists(familyGroupId: string): Promise<ShoppingList[]> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const lists = await listsCollection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('status', 'active'),
-          Q.sortBy('created_at', Q.desc)
-        )
-        .fetch();
-
-      return lists.map((list) => this.listModelToType(list));
-    } catch (error: any) {
-      throw new Error(`Failed to get active lists: ${error.message}`);
-    }
+    return this.lists.getActiveLists(familyGroupId);
   }
 
-  /**
-   * Get completed lists with optional date range
-   * Implements Req 8.1
-   */
-  async getCompletedLists(
-    familyGroupId: string,
-    startDate?: number,
-    endDate?: number,
-    limit?: number,
-    offset?: number
-  ): Promise<ShoppingList[]> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const conditions: any[] = [
-        Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'completed'),
-      ];
-
-      if (startDate) {
-        conditions.push(Q.where('completed_at', Q.gte(startDate)));
-      }
-      if (endDate) {
-        conditions.push(Q.where('completed_at', Q.lte(endDate)));
-      }
-
-      conditions.push(Q.sortBy('completed_at', Q.desc));
-
-      if (limit !== undefined) {
-        conditions.push(Q.skip(offset ?? 0));
-        conditions.push(Q.take(limit));
-      }
-
-      const lists = await listsCollection.query(...conditions).fetch();
-      return lists.map((list) => this.listModelToType(list));
-    } catch (error: any) {
-      throw new Error(`Failed to get completed lists: ${error.message}`);
-    }
+  async getCompletedLists(familyGroupId: string, startDate?: number, endDate?: number, limit?: number, offset?: number): Promise<ShoppingList[]> {
+    return this.lists.getCompletedLists(familyGroupId, startDate, endDate, limit, offset);
   }
 
-  async countCompletedLists(
-    familyGroupId: string,
-    startDate?: number,
-    endDate?: number
-  ): Promise<number> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const conditions: any[] = [
-        Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'completed'),
-      ];
-      if (startDate) conditions.push(Q.where('completed_at', Q.gte(startDate)));
-      if (endDate) conditions.push(Q.where('completed_at', Q.lte(endDate)));
-      return await listsCollection.query(...conditions).fetchCount();
-    } catch (error: any) {
-      throw new Error(`Failed to count completed lists: ${error.message}`);
-    }
+  async countCompletedLists(familyGroupId: string, startDate?: number, endDate?: number): Promise<number> {
+    return this.lists.countCompletedLists(familyGroupId, startDate, endDate);
   }
 
-  /**
-   * Update shopping list
-   */
   async updateList(listId: string, updates: Partial<ShoppingList>): Promise<ShoppingList> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const listRecord = await listsCollection.find(listId);
-
-      await this.database.write(async () => {
-        await listRecord.update((record) => {
-          if (updates.name !== undefined) record.name = updates.name;
-          if (updates.status !== undefined) record.status = updates.status;
-          if (updates.completedAt !== undefined) record.completedAt = updates.completedAt;
-          if (updates.completedBy !== undefined) record.completedBy = updates.completedBy;
-          if (updates.receiptUrl !== undefined) record.receiptUrl = updates.receiptUrl;
-          if (updates.receiptData !== undefined) {
-            record.receiptData = updates.receiptData ? JSON.stringify(updates.receiptData) : null;
-          }
-          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
-          if (updates.isLocked !== undefined) record.isLocked = updates.isLocked;
-          if (updates.lockedBy !== undefined) record.lockedBy = updates.lockedBy;
-          if (updates.lockedByName !== undefined) record.lockedByName = updates.lockedByName;
-          if (updates.lockedByRole !== undefined) record.lockedByRole = updates.lockedByRole;
-          if (updates.lockedAt !== undefined) record.lockedAt = updates.lockedAt;
-          if (updates.budget !== undefined) record.budget = updates.budget;
-          if (updates.storeName !== undefined) record.storeName = updates.storeName;
-          if (updates.archived !== undefined) record.archived = updates.archived;
-          if (updates.layoutApplied !== undefined) record.layoutApplied = updates.layoutApplied;
-          if (updates.uncheckedItemsCount !== undefined) record.uncheckedItemsCount = updates.uncheckedItemsCount;
-          if (updates.totalAmount !== undefined) record.totalAmount = updates.totalAmount;
-          if (updates.merchantName !== undefined) record.merchantName = updates.merchantName;
-          if (updates.purchaseDate !== undefined) record.purchaseDate = updates.purchaseDate;
-          if (updates.currency !== undefined) record.currency = updates.currency;
-        });
-      }, 'updateList');
-
-      return this.listModelToType(listRecord);
-    } catch (error: any) {
-      throw new Error(`Failed to update list: ${error.message}`);
-    }
+    return this.lists.updateList(listId, updates);
   }
 
-  /**
-   * Delete shopping list
-   */
   async deleteList(listId: string): Promise<void> {
-    try {
-      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-      const listRecord = await listsCollection.find(listId);
-      await this.database.write(async () => {
-        await listRecord.markAsDeleted();
-      }, 'deleteList');
-    } catch (error: any) {
-      throw new Error(`Failed to delete list: ${error.message}`);
-    }
+    return this.lists.deleteList(listId);
   }
 
-  // ===== ITEM METHODS =====
+  async saveReceiptData(listId: string, receiptData: ReceiptData): Promise<void> {
+    return this.lists.saveReceiptData(listId, receiptData);
+  }
 
-  /**
-   * Save item (create or update)
-   * Implements Req 9.2, 9.3
-   */
+  async getReceiptData(listId: string): Promise<ReceiptData | null> {
+    return this.lists.getReceiptData(listId);
+  }
+
+  async getTotalExpenditureForDateRange(familyGroupId: string, startDate: number, endDate: number): Promise<number> {
+    return this.lists.getTotalExpenditureForDateRange(familyGroupId, startDate, endDate);
+  }
+
+  async getListsWithReceiptsInDateRange(familyGroupId: string, startDate: number, endDate: number): Promise<ShoppingList[]> {
+    return this.lists.getListsWithReceiptsInDateRange(familyGroupId, startDate, endDate);
+  }
+
+  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+    return this.lists.observeAllLists(familyGroupId, callback);
+  }
+
+  observeList(listId: string, callback: (list: ShoppingList | null) => void): () => void {
+    return this.lists.observeList(listId, callback);
+  }
+
+  // ===== ITEM METHODS (delegated to ItemsStorage) =====
+
   async saveItem(item: Item): Promise<Item> {
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-
-      let itemRecord: ItemModel | undefined;
-
-      await this.database.write(async () => {
-        const existing = await itemsCollection.query(Q.where('id', item.id)).fetch();
-        if (existing.length > 0) {
-          itemRecord = existing[0];
-          await itemRecord.update((record) => { applyItemFullUpdate(record, item); });
-        } else {
-          itemRecord = await itemsCollection.create((record) => { applyItemCreate(record, item); });
-        }
-      }, 'saveItem');
-
-      if (!itemRecord) {
-        throw new Error('Failed to create or update item record');
-      }
-
-      return this.itemModelToType(itemRecord);
-    } catch (error: any) {
-      throw new Error(`Failed to save item: ${error.message}`);
-    }
+    return this.items.saveItem(item);
   }
 
-  /**
-   * Get item by ID
-   */
   async getItem(itemId: string): Promise<Item | null> {
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-      const itemRecord = await itemsCollection.find(itemId);
-      return this.itemModelToType(itemRecord);
-    } catch {
-      return null;
-    }
+    return this.items.getItem(itemId);
   }
 
-  /**
-   * Get all items for a list
-   */
   async getItemsForList(listId: string): Promise<Item[]> {
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-      const items = await itemsCollection
-        .query(
-          Q.where('list_id', listId),
-          Q.sortBy('created_at', Q.asc)
-        )
-        .fetch();
-
-      return items.map((item) => this.itemModelToType(item));
-    } catch (error: any) {
-      throw new Error(`Failed to get items: ${error.message}`);
-    }
+    return this.items.getItemsForList(listId);
   }
 
-  /**
-   * Get items for multiple lists in a single query
-   */
   async getItemsForLists(listIds: string[]): Promise<Item[]> {
-    if (listIds.length === 0) return [];
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-      const items = await itemsCollection
-        .query(Q.where('list_id', Q.oneOf(listIds)))
-        .fetch();
-      return items.map(item => this.itemModelToType(item));
-    } catch (error: any) {
-      throw new Error(`Failed to get items for lists: ${error.message}`);
-    }
+    return this.items.getItemsForLists(listIds);
   }
 
-  /**
-   * Update item
-   */
   async updateItem(itemId: string, updates: Partial<Item>): Promise<Item> {
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-      const itemRecord = await itemsCollection.find(itemId);
-
-      await this.database.write(async () => {
-        await itemRecord.update((record) => {
-          if (updates.name !== undefined) record.name = updates.name;
-          if (updates.quantity !== undefined) record.quantity = updates.quantity;
-          if (updates.price !== undefined) record.price = updates.price;
-          if (updates.checked !== undefined) record.checked = updates.checked;
-          if (updates.updatedAt !== undefined) record.updatedAt = updates.updatedAt;
-          if (updates.syncStatus !== undefined) record.syncStatus = updates.syncStatus;
-          if (updates.category !== undefined) record.category = updates.category;
-          if (updates.sortOrder !== undefined) record.sortOrder = updates.sortOrder;
-          if (updates.unitQty !== undefined) record.unitQty = updates.unitQty;
-          if (updates.measurementUnit !== undefined) record.measurementUnit = updates.measurementUnit;
-          if (updates.measurementValue !== undefined) record.measurementValue = updates.measurementValue;
-        });
-      }, 'updateItem');
-
-      return this.itemModelToType(itemRecord);
-    } catch (error: any) {
-      throw new Error(`Failed to update item: ${error.message}`);
-    }
+    return this.items.updateItem(itemId, updates);
   }
 
-  /**
-   * Batch update multiple items in a single DB transaction
-   */
   async updateItemsBatch(updates: Array<{ id: string; updates: Partial<Item> }>): Promise<Item[]> {
-    if (updates.length === 0) return [];
-    const itemsCollection = this.database.get<ItemModel>('items');
-    const ids = updates.map(u => u.id);
-    const updatedItems: Item[] = [];
-
-    await this.database.write(async () => {
-      const records = await itemsCollection
-        .query(Q.where('id', Q.oneOf(ids)))
-        .fetch();
-      const recordMap = new Map(records.map(r => [r.id, r]));
-
-      const ops: any[] = [];
-      const processedRecords: ItemModel[] = [];
-      for (const { id, updates: itemUpdates } of updates) {
-        const record = recordMap.get(id);
-        if (!record) continue;
-        ops.push(record.prepareUpdate((r: ItemModel) => {
-          if (itemUpdates.name !== undefined) r.name = itemUpdates.name;
-          if (itemUpdates.quantity !== undefined) r.quantity = itemUpdates.quantity;
-          if (itemUpdates.price !== undefined) r.price = itemUpdates.price;
-          if (itemUpdates.checked !== undefined) r.checked = itemUpdates.checked;
-          if (itemUpdates.updatedAt !== undefined) r.updatedAt = itemUpdates.updatedAt;
-          if (itemUpdates.syncStatus !== undefined) r.syncStatus = itemUpdates.syncStatus;
-          if (itemUpdates.category !== undefined) r.category = itemUpdates.category;
-          if (itemUpdates.sortOrder !== undefined) r.sortOrder = itemUpdates.sortOrder;
-          if (itemUpdates.unitQty !== undefined) r.unitQty = itemUpdates.unitQty;
-          if (itemUpdates.measurementUnit !== undefined) r.measurementUnit = itemUpdates.measurementUnit;
-          if (itemUpdates.measurementValue !== undefined) r.measurementValue = itemUpdates.measurementValue;
-        }));
-        processedRecords.push(record);
-      }
-      if (ops.length > 0) {
-        await this.database.batch(ops);
-      }
-      for (const record of processedRecords) {
-        updatedItems.push(this.itemModelToType(record));
-      }
-    }, 'updateItemsBatch');
-
-    return updatedItems;
+    return this.items.updateItemsBatch(updates);
   }
 
-  /**
-   * Delete item
-   */
   async deleteItem(itemId: string): Promise<void> {
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-      const itemRecord = await itemsCollection.find(itemId);
-      await this.database.write(async () => {
-        await itemRecord.markAsDeleted();
-      }, 'deleteItem');
-    } catch (error: any) {
-      throw new Error(`Failed to delete item: ${error.message}`);
-    }
+    return this.items.deleteItem(itemId);
   }
 
-  /**
-   * Batch save multiple items (more efficient than individual saves)
-   */
   async saveItemsBatch(items: Item[]): Promise<void> {
-    if (items.length === 0) return;
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-
-      await this.database.write(async () => {
-        const ops: any[] = items.map(item =>
-          itemsCollection.prepareCreate(r => applyItemCreate(r, item))
-        );
-        try {
-          await this.database.batch(ops);
-        } catch (error) {
-          CrashReporting.recordError(error as Error, 'saveItemsBatch batch failed, falling back to individual writes');
-          for (const item of items) {
-            try {
-              await itemsCollection.create(r => applyItemCreate(r, item));
-            } catch (e) {
-              CrashReporting.recordError(e as Error, `saveItemsBatch individual create failed for ${item.id}`);
-            }
-          }
-        }
-      }, 'saveItemsBatch');
-    } catch (error: any) {
-      throw new Error(`Failed to batch save items: ${error.message}`);
-    }
+    return this.items.saveItemsBatch(items);
   }
 
   async saveItemsBatchUpsert(items: Item[]): Promise<void> {
-    if (items.length === 0) return;
-    const itemsCollection = this.database.get<ItemModel>('items');
-    try {
-      const ids = items.map(i => i.id);
-
-      await this.database.write(async () => {
-        // Destroy tombstones inside the transaction to prevent a race where a concurrent
-        // markAsDeleted() could soft-delete a record between the fetch and the upsert.
-        const deletedIds = await this.database.adapter.getDeletedRecords('items');
-        const staleIds = ids.filter(id => deletedIds.includes(id));
-        if (staleIds.length > 0) {
-          await this.database.adapter.destroyDeletedRecords('items', staleIds);
-        }
-
-        const existingRecords = await itemsCollection
-          .query(Q.where('id', Q.oneOf(ids)))
-          .fetch();
-        const existingMap = new Map(existingRecords.map(r => [r.id, r]));
-
-        const ops: any[] = [];
-        for (const item of items) {
-          const existing = existingMap.get(item.id);
-          if (existing) {
-            if (existing.updatedAt > (item.updatedAt ?? 0)) continue;
-            ops.push(existing.prepareUpdate(r => applyItemFullUpdate(r as ItemModel, item)));
-          } else {
-            ops.push(itemsCollection.prepareCreate(r => applyItemCreate(r, item)));
-          }
-        }
-        if (ops.length === 0) return;
-
-        try {
-          await this.database.batch(ops);
-        } catch (error) {
-          CrashReporting.recordError(error as Error, 'saveItemsBatchUpsert batch failed, falling back to individual writes');
-          for (const item of items) {
-            try {
-              const records = await itemsCollection.query(Q.where('id', item.id)).fetch();
-              const rec = records[0];
-              if (rec) {
-                if (rec.updatedAt > (item.updatedAt ?? 0)) continue;
-                await rec.update(r => applyItemFullUpdate(r, item));
-              } else {
-                await itemsCollection.create(r => applyItemCreate(r, item));
-              }
-            } catch (e) {
-              CrashReporting.recordError(e as Error, `saveItemsBatchUpsert individual write failed for ${item.id}`);
-            }
-          }
-        }
-      }, 'saveItemsBatchUpsert');
-    } catch (error: any) {
-      throw new Error(`Failed to batch upsert items: ${error.message}`);
-    }
+    return this.items.saveItemsBatchUpsert(items);
   }
 
-  /**
-   * Batch delete multiple items (more efficient than individual deletes)
-   * Uses Q.oneOf to fetch all items in one query instead of N+1 queries
-   */
   async deleteItemsBatch(itemIds: string[]): Promise<void> {
-    if (itemIds.length === 0) return;
-
-    try {
-      const itemsCollection = this.database.get<ItemModel>('items');
-
-      await this.database.write(async () => {
-        const itemRecords = await itemsCollection
-          .query(Q.where('id', Q.oneOf(itemIds)))
-          .fetch();
-        if (itemRecords.length === 0) return;
-        const ops: any[] = itemRecords.map(item => item.prepareMarkAsDeleted());
-        await this.database.batch(ops);
-      }, 'deleteItemsBatch');
-    } catch (error: any) {
-      throw new Error(`Failed to batch delete items: ${error.message}`);
-    }
+    return this.items.deleteItemsBatch(itemIds);
   }
 
-  // ===== SYNC QUEUE METHODS =====
+  observeItemsForList(listId: string, callback: (items: Item[]) => void): () => void {
+    return this.items.observeItemsForList(listId, callback);
+  }
 
-  /**
-   * Add operation to sync queue
-   * Implements Req 9.5
-   */
+  // ===== SYNC QUEUE METHODS (delegated to SyncQueueStorage) =====
+
   async addToSyncQueue(operation: QueuedOperation): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      await this.database.write(async () => {
-        await syncQueueCollection.create((record) => {
-          record._raw.id = operation.id;
-          record.entityType = operation.entityType;
-          record.entityId = operation.entityId;
-          record.operation = operation.operation;
-          record.data = JSON.stringify(operation.data);
-          record.timestamp = operation.timestamp;
-          record.retryCount = operation.retryCount;
-          record.nextRetryAt = operation.nextRetryAt || null;
-        });
-      }, 'addToSyncQueue');
-    } catch (error: any) {
-      throw new Error(`Failed to add to sync queue: ${error.message}`);
-    }
+    return this.syncQueue.addToSyncQueue(operation);
   }
 
-  /**
-   * Get all operations in sync queue
-   */
   async getSyncQueue(): Promise<QueuedOperation[]> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operations = await syncQueueCollection
-        .query(Q.sortBy('timestamp', Q.asc))
-        .fetch();
-
-      const parseResults = operations.map((op) => {
-        const data = safeJsonParse<unknown>(op.data, undefined);
-        if (data === undefined) {
-          if (__DEV__) console.warn('getSyncQueue: skipping corrupt entry', op.id);
-          return null;
-        }
-        return {
-          id: op.id,
-          entityType: op.entityType as 'list' | 'item' | 'urgentItem',
-          entityId: op.entityId,
-          operation: op.operation as 'create' | 'update' | 'delete',
-          data,
-          timestamp: op.timestamp,
-          retryCount: op.retryCount,
-          nextRetryAt: op.nextRetryAt || null,
-        };
-      });
-      return parseResults.filter(op => op !== null) as QueuedOperation[];
-    } catch (error: any) {
-      throw new Error(`Failed to get sync queue: ${error.message}`);
-    }
+    return this.syncQueue.getSyncQueue();
   }
 
-  /**
-   * Remove operation from sync queue
-   */
   async removeFromSyncQueue(operationId: string): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operation = await syncQueueCollection.find(operationId);
-      await this.database.write(async () => {
-        await operation.markAsDeleted();
-      }, 'removeFromSyncQueue');
-    } catch (error: any) {
-      throw new Error(`Failed to remove from sync queue: ${error.message}`);
-    }
+    return this.syncQueue.removeFromSyncQueue(operationId);
   }
 
-  /**
-   * Update sync queue operation (for retry tracking)
-   */
   async updateSyncQueueOperation(operationId: string, updates: Partial<QueuedOperation>): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operation = await syncQueueCollection.find(operationId);
-      await this.database.write(async () => {
-        await operation.update((record) => {
-          if (updates.retryCount !== undefined) record.retryCount = updates.retryCount;
-          if (updates.nextRetryAt !== undefined) record.nextRetryAt = updates.nextRetryAt;
-        });
-      }, 'updateSyncQueueOp');
-    } catch (error: any) {
-      throw new Error(`Failed to update sync queue operation: ${error.message}`);
-    }
+    return this.syncQueue.updateSyncQueueOperation(operationId, updates);
   }
 
-  /**
-   * Clear all operations from sync queue
-   */
   async clearSyncQueue(): Promise<void> {
-    try {
-      const syncQueueCollection = this.database.get<SyncQueueModel>('sync_queue');
-      const operations = await syncQueueCollection.query().fetch();
-      if (operations.length === 0) return;
-      await this.database.write(async () => {
-        const ops = operations.map(op => op.prepareMarkAsDeleted());
-        await this.database.batch(ops);
-      }, 'clearSyncQueue');
-    } catch (error: any) {
-      throw new Error(`Failed to clear sync queue: ${error.message}`);
-    }
+    return this.syncQueue.clearSyncQueue();
   }
 
-  // ===== RECEIPT DATA METHODS =====
-
-  /**
-   * Save receipt data to a list
-   * Implements Req 6.4
-   */
-  async saveReceiptData(listId: string, receiptData: ReceiptData): Promise<void> {
-    await this.updateList(listId, { receiptData });
+  async markSyncedIfUnchanged(entityType: 'list' | 'item' | 'storeLayout', entityId: string, expectedUpdatedAt: number | null): Promise<void> {
+    return this.syncQueue.markSyncedIfUnchanged(entityType, entityId, expectedUpdatedAt);
   }
 
-  /**
-   * Get receipt data for a list
-   */
-  async getReceiptData(listId: string): Promise<ReceiptData | null> {
-    const list = await this.getList(listId);
-    return list?.receiptData || null;
-  }
+  // ===== URGENT ITEM METHODS (delegated to UrgentItemsStorage) =====
 
-  // ===== EXPENDITURE QUERIES =====
-
-  /**
-   * Get total expenditure for date range
-   * Implements Req 7.2
-   */
-  async getTotalExpenditureForDateRange(
-    familyGroupId: string,
-    startDate: number,
-    endDate: number
-  ): Promise<number> {
-    const lists = await this.getCompletedLists(familyGroupId, startDate, endDate);
-    let total = 0;
-
-    for (const list of lists) {
-      if (list.totalAmount) {
-        total += list.totalAmount;
-      }
-    }
-
-    return total;
-  }
-
-  /**
-   * Get lists with receipts in date range
-   */
-  async getListsWithReceiptsInDateRange(
-    familyGroupId: string,
-    startDate: number,
-    endDate: number
-  ): Promise<ShoppingList[]> {
-    const lists = await this.getCompletedLists(familyGroupId, startDate, endDate);
-    return lists.filter((list) => list.receiptUrl !== null);
-  }
-
-  // ===== URGENT ITEM METHODS =====
-
-  /**
-   * Save urgent item (create or update)
-   */
   async saveUrgentItem(urgentItem: UrgentItem): Promise<UrgentItem> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-
-      let itemRecord: UrgentItemModel | undefined;
-
-      await this.database.write(async () => {
-        try {
-          itemRecord = await urgentItemsCollection.find(urgentItem.id);
-          await itemRecord.update((record) => {
-            record.name = urgentItem.name;
-            record.resolvedBy = urgentItem.resolvedBy;
-            record.resolvedByName = urgentItem.resolvedByName;
-            record.resolvedAt = urgentItem.resolvedAt;
-            record.price = urgentItem.price;
-            record.status = urgentItem.status;
-          });
-        } catch {
-          itemRecord = await urgentItemsCollection.create((record) => {
-            record._raw.id = urgentItem.id;
-            record.name = urgentItem.name;
-            record.familyGroupId = urgentItem.familyGroupId;
-            record.createdBy = urgentItem.createdBy;
-            record.createdByName = urgentItem.createdByName;
-            record.resolvedBy = urgentItem.resolvedBy;
-            record.resolvedByName = urgentItem.resolvedByName;
-            record.resolvedAt = urgentItem.resolvedAt;
-            record.price = urgentItem.price;
-            record.status = urgentItem.status;
-          });
-        }
-      }, 'saveUrgentItem');
-
-      if (!itemRecord) {
-        throw new Error('Failed to create or update urgent item record');
-      }
-
-      return this.urgentItemModelToType(itemRecord);
-    } catch (error: any) {
-      throw new Error(`Failed to save urgent item: ${error.message}`);
-    }
+    return this.urgentItems.saveUrgentItem(urgentItem);
   }
 
-  /**
-   * Batch upsert urgent items in a single database.write() transaction.
-   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
-   */
   async saveUrgentItemsBatch(urgentItems: UrgentItem[]): Promise<void> {
-    if (urgentItems.length === 0) return;
-
-    const collection = this.database.get<UrgentItemModel>('urgent_items');
-
-    const existingRecords = await collection
-      .query(Q.where('id', Q.oneOf(urgentItems.map(i => i.id))))
-      .fetch();
-
-    const existingMap = new Map(existingRecords.map(r => [r.id, r]));
-
-    const applyUpdate = (record: UrgentItemModel, item: UrgentItem) => {
-      record.name = item.name;
-      record.resolvedBy = item.resolvedBy;
-      record.resolvedByName = item.resolvedByName;
-      record.resolvedAt = item.resolvedAt;
-      record.price = item.price;
-      record.status = item.status;
-    };
-
-    const applyCreate = (record: UrgentItemModel, item: UrgentItem) => {
-      record._raw.id = item.id;
-      record.name = item.name;
-      record.familyGroupId = item.familyGroupId;
-      record.createdBy = item.createdBy;
-      record.createdByName = item.createdByName;
-      record.resolvedBy = item.resolvedBy;
-      record.resolvedByName = item.resolvedByName;
-      record.resolvedAt = item.resolvedAt;
-      record.price = item.price;
-      record.status = item.status;
-    };
-
-    await this.database.write(async () => {
-      const ops: any[] = [];
-      for (const item of urgentItems) {
-        const existing = existingMap.get(item.id);
-        if (existing) {
-          const local = this.urgentItemModelToType(existing);
-          if (!this.hasUrgentItemChanged(local, item)) continue;
-          ops.push(existing.prepareUpdate(r => applyUpdate(r as UrgentItemModel, item)));
-        } else {
-          ops.push(collection.prepareCreate(r => applyCreate(r, item)));
-        }
-      }
-      if (ops.length === 0) return;
-
-      try {
-        await this.database.batch(ops);
-      } catch (error) {
-        CrashReporting.recordError(error as Error, 'saveUrgentItemsBatch batch failed, falling back to individual writes');
-        for (const item of urgentItems) {
-          try {
-            const records = await collection.query(Q.where('id', item.id)).fetch();
-            const rec = records[0];
-            if (rec) {
-              const local = this.urgentItemModelToType(rec);
-              if (!this.hasUrgentItemChanged(local, item)) continue;
-              await rec.update(r => applyUpdate(r, item));
-            } else {
-              await collection.create(r => applyCreate(r, item));
-            }
-          } catch (e) {
-            CrashReporting.recordError(e as Error, `saveUrgentItemsBatch individual write failed for ${item.id}`);
-          }
-        }
-      }
-    }, 'saveUrgentItemsBatch');
+    return this.urgentItems.saveUrgentItemsBatch(urgentItems);
   }
 
-  private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.resolvedBy !== incoming.resolvedBy ||
-      local.resolvedByName !== incoming.resolvedByName ||
-      local.resolvedAt !== incoming.resolvedAt ||
-      local.price !== incoming.price
-    );
-  }
-
-  /**
-   * Get urgent item by ID
-   */
   async getUrgentItem(itemId: string): Promise<UrgentItem | null> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const itemRecord = await urgentItemsCollection.find(itemId);
-      return this.urgentItemModelToType(itemRecord);
-    } catch {
-      return null;
-    }
+    return this.urgentItems.getUrgentItem(itemId);
   }
 
-  /**
-   * Get active urgent items for family group
-   */
   async getActiveUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const items = await urgentItemsCollection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('status', 'active'),
-          Q.sortBy('created_at', Q.desc)
-        )
-        .fetch();
-
-      return items.map((item) => this.urgentItemModelToType(item));
-    } catch (error: any) {
-      throw new Error(`Failed to get active urgent items: ${error.message}`);
-    }
+    return this.urgentItems.getActiveUrgentItems(familyGroupId);
   }
 
-  /**
-   * Get resolved urgent items for family group
-   */
-  async getResolvedUrgentItems(
-    familyGroupId: string,
-    startDate?: number,
-    endDate?: number
-  ): Promise<UrgentItem[]> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const conditions: any[] = [
-        Q.where('family_group_id', familyGroupId),
-        Q.where('status', 'resolved')
-      ];
-
-      if (startDate) {
-        conditions.push(Q.where('resolved_at', Q.gte(startDate)));
-      }
-      if (endDate) {
-        conditions.push(Q.where('resolved_at', Q.lte(endDate)));
-      }
-
-      conditions.push(Q.sortBy('resolved_at', Q.desc));
-
-      const items = await urgentItemsCollection.query(...conditions).fetch();
-      return items.map((item) => this.urgentItemModelToType(item));
-    } catch (error: any) {
-      throw new Error(`Failed to get resolved urgent items: ${error.message}`);
-    }
+  async getResolvedUrgentItems(familyGroupId: string, startDate?: number, endDate?: number): Promise<UrgentItem[]> {
+    return this.urgentItems.getResolvedUrgentItems(familyGroupId, startDate, endDate);
   }
 
-  /**
-   * Get all urgent items for family group (active and resolved)
-   */
   async getAllUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const items = await urgentItemsCollection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.sortBy('created_at', Q.desc)
-        )
-        .fetch();
-
-      return items.map((item) => this.urgentItemModelToType(item));
-    } catch (error: any) {
-      throw new Error(`Failed to get all urgent items: ${error.message}`);
-    }
+    return this.urgentItems.getAllUrgentItems(familyGroupId);
   }
 
-  /**
-   * Update urgent item
-   */
   async updateUrgentItem(itemId: string, updates: Partial<UrgentItem>): Promise<UrgentItem> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const itemRecord = await urgentItemsCollection.find(itemId);
-
-      await this.database.write(async () => {
-        await itemRecord.update((record) => {
-          if (updates.name !== undefined) record.name = updates.name;
-          if (updates.resolvedBy !== undefined) record.resolvedBy = updates.resolvedBy;
-          if (updates.resolvedByName !== undefined) record.resolvedByName = updates.resolvedByName;
-          if (updates.resolvedAt !== undefined) record.resolvedAt = updates.resolvedAt;
-          if (updates.price !== undefined) record.price = updates.price;
-          if (updates.status !== undefined) record.status = updates.status;
-        });
-      }, 'updateUrgentItem');
-
-      return this.urgentItemModelToType(itemRecord);
-    } catch (error: any) {
-      throw new Error(`Failed to update urgent item: ${error.message}`);
-    }
+    return this.urgentItems.updateUrgentItem(itemId, updates);
   }
 
-  /**
-   * Delete urgent item
-   */
   async deleteUrgentItem(itemId: string): Promise<void> {
-    try {
-      const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-      const itemRecord = await urgentItemsCollection.find(itemId);
-      await this.database.write(async () => {
-        await itemRecord.markAsDeleted();
-      }, 'deleteUrgentItem');
-    } catch (error: any) {
-      throw new Error(`Failed to delete urgent item: ${error.message}`);
-    }
+    return this.urgentItems.deleteUrgentItem(itemId);
+  }
+
+  observeActiveUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
+    return this.urgentItems.observeActiveUrgentItems(familyGroupId, callback);
+  }
+
+  observeResolvedUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
+    return this.urgentItems.observeResolvedUrgentItems(familyGroupId, callback);
   }
 
   // ===== TRANSACTION SUPPORT =====
@@ -1081,734 +225,72 @@ class LocalStorageManager {
     }, 'executeTransaction');
   }
 
-  // ===== REAL-TIME OBSERVERS =====
+  // ===== CATEGORY + PRICE HISTORY METHODS (delegated to HistoryStorage) =====
 
-  /**
-   * Observe all lists for a family group (returns WatermelonDB observable)
-   * Use this instead of polling for real-time updates
-   */
-  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
-    const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-    const query = listsCollection.query(
-      Q.where('family_group_id', familyGroupId),
-      Q.where('status', Q.notEq('deleted')),
-    );
-
-    // Observe key fields so status/sync changes update the UI without a manual refresh.
-    const subscription = query.observeWithColumns([
-      'name',
-      'status',
-      'completed_at',
-      'sync_status',
-      'is_locked',
-      'locked_by_name',
-      'locked_by_role',
-      'store_name',
-    ]).subscribe((listModels) => {
-      const lists = listModels.map((model) => this.listModelToType(model));
-      callback(lists);
-    });
-
-    return () => subscription.unsubscribe();
-  }
-
-  /**
-   * Observe a single list by ID (returns WatermelonDB observable)
-   */
-  observeList(listId: string, callback: (list: ShoppingList | null) => void): () => void {
-    const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
-
-    const subscription = listsCollection.findAndObserve(listId).subscribe({
-      next: (model) => {
-        callback(this.listModelToType(model));
-      },
-      error: () => {
-        callback(null);
-      },
-    });
-
-    return () => subscription.unsubscribe();
-  }
-
-  /**
-   * Observe items for a specific list (returns WatermelonDB observable)
-   */
-  observeItemsForList(listId: string, callback: (items: Item[]) => void): () => void {
-    const itemsCollection = this.database.get<ItemModel>('items');
-
-    // Query without sorting to ensure observer fires on all changes
-    // Sorting is done in JavaScript below for better observer reactivity
-    const query = itemsCollection.query(
-      Q.where('list_id', listId)
-    );
-
-    // Use observeWithColumns to trigger on field changes (category, checked, etc.)
-    // Without this, observer only fires on record add/delete, not field updates
-    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value']).subscribe((itemModels) => {
-      // Convert to Item types
-      let items = itemModels.map((model) => this.itemModelToType(model));
-
-      // Sort by sortOrder when available, falling back to createdAt
-      items = items.sort((a, b) => {
-        const orderA = a.sortOrder ?? a.createdAt ?? 0;
-        const orderB = b.sortOrder ?? b.createdAt ?? 0;
-        return orderA - orderB;
-      });
-
-      callback(items);
-    });
-
-    return () => subscription.unsubscribe();
-  }
-
-  /**
-   * Observe active urgent items for family group
-   */
-  observeActiveUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
-    const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-    const query = urgentItemsCollection.query(
-      Q.where('family_group_id', familyGroupId)
-    );
-
-    const subscription = query.observeWithColumns(['status']).subscribe((itemModels) => {
-      const items = itemModels
-        .filter((model) => model.status === 'active')
-        .map((model) => this.urgentItemModelToType(model))
-        .sort((a, b) => b.createdAt - a.createdAt);
-      callback(items);
-    });
-
-    return () => subscription.unsubscribe();
-  }
-
-  /**
-   * Observe resolved urgent items for a family group
-   * Returns unsubscribe function
-   */
-  observeResolvedUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
-    const urgentItemsCollection = this.database.get<UrgentItemModel>('urgent_items');
-    const query = urgentItemsCollection.query(
-      Q.where('family_group_id', familyGroupId)
-    );
-
-    const subscription = query.observeWithColumns(['status']).subscribe((itemModels) => {
-      const items = itemModels
-        .filter((model) => model.status === 'resolved')
-        .map((model) => this.urgentItemModelToType(model))
-        .sort((a, b) => (b.resolvedAt ?? 0) - (a.resolvedAt ?? 0));
-      callback(items);
-    });
-
-    return () => subscription.unsubscribe();
-  }
-
-  // ===== HELPER METHODS =====
-
-
-  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.isLocked !== incoming.isLocked ||
-      local.lockedBy !== incoming.lockedBy ||
-      local.completedAt !== incoming.completedAt ||
-      local.completedBy !== incoming.completedBy ||
-      local.budget !== incoming.budget ||
-      local.storeName !== incoming.storeName ||
-      local.archived !== incoming.archived ||
-      local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
-    );
-  }
-
-  private listModelToType(model: ShoppingListModel): ShoppingList {
-    return {
-      id: model.id,
-      name: model.name,
-      familyGroupId: model.familyGroupId,
-      createdBy: model.createdBy,
-      createdAt: Number(model.createdAt),
-      status: model.status as 'active' | 'completed' | 'deleted',
-      completedAt: model.completedAt,
-      completedBy: model.completedBy,
-      receiptUrl: model.receiptUrl,
-      receiptData: safeJsonParse<ReceiptData | null>(model.receiptData, null),
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-      isLocked: model.isLocked,
-      lockedBy: model.lockedBy,
-      lockedByName: model.lockedByName,
-      lockedByRole: model.lockedByRole as 'Dad' | 'Mom' | 'Son' | 'Daughter' | 'Older Son' | 'Older Daughter' | 'Younger Son' | 'Younger Daughter' | null,
-      lockedAt: model.lockedAt,
-      budget: model.budget,
-      storeName: model.storeName,
-      archived: model.archived,
-      layoutApplied: model.layoutApplied,
-      uncheckedItemsCount: model.uncheckedItemsCount,
-      totalAmount: model.totalAmount,
-      merchantName: model.merchantName,
-      purchaseDate: model.purchaseDate,
-      currency: model.currency,
-    };
-  }
-
-  private itemModelToType(model: ItemModel): Item {
-    return {
-      id: model.id,
-      listId: model.listId,
-      name: model.name,
-      quantity: model.quantity,
-      price: model.price,
-      checked: model.checked,
-      createdBy: model.createdBy,
-      createdAt: Number(model.createdAt),
-      updatedAt: model.updatedAt,
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-      category: model.category,
-      sortOrder: model.sortOrder,
-      unitQty: model.unitQty,
-      measurementUnit: model.measurementUnit,
-      measurementValue: model.measurementValue,
-    };
-  }
-
-  private urgentItemModelToType(model: UrgentItemModel): UrgentItem {
-    return {
-      id: model.id,
-      name: model.name,
-      familyGroupId: model.familyGroupId,
-      createdBy: model.createdBy,
-      createdByName: model.createdByName,
-      createdAt: Number(model.createdAt),
-      resolvedBy: model.resolvedBy,
-      resolvedByName: model.resolvedByName,
-      resolvedAt: model.resolvedAt,
-      price: model.price,
-      status: model.status as 'active' | 'resolved',
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-    };
-  }
-
-  // ===== CATEGORY HISTORY METHODS =====
-
-  /**
-   * Save category history (create or update)
-   */
   async saveCategoryHistory(categoryHistory: CategoryHistory): Promise<CategoryHistory> {
-    try {
-      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
-
-      let historyRecord: CategoryHistoryModel | undefined;
-
-      await this.database.write(async () => {
-        try {
-          historyRecord = await categoryHistoryCollection.find(categoryHistory.id);
-          await historyRecord.update((record) => {
-            record.usageCount = categoryHistory.usageCount;
-            record.lastUsedAt = categoryHistory.lastUsedAt;
-          });
-        } catch {
-          historyRecord = await categoryHistoryCollection.create((record) => {
-            record._raw.id = categoryHistory.id;
-            record.familyGroupId = categoryHistory.familyGroupId;
-            record.itemNameNormalized = categoryHistory.itemNameNormalized;
-            record.category = categoryHistory.category;
-            record.usageCount = categoryHistory.usageCount;
-            record.lastUsedAt = categoryHistory.lastUsedAt;
-          });
-        }
-      }, 'saveCategoryHistory');
-
-      if (!historyRecord) {
-        throw new Error('Failed to create or update category history record');
-      }
-
-      return this.categoryHistoryModelToType(historyRecord);
-    } catch (error: any) {
-      throw new Error(`Failed to save category history: ${error.message}`);
-    }
+    return this.history.saveCategoryHistory(categoryHistory);
   }
 
-  /**
-   * Get category history for an item name
-   */
-  async getCategoryHistoryForItem(
-    familyGroupId: string,
-    itemNameNormalized: string
-  ): Promise<CategoryHistory[]> {
-    try {
-      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
-      const records = await categoryHistoryCollection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('item_name_normalized', itemNameNormalized)
-        )
-        .fetch();
-
-      return records.map((record) => this.categoryHistoryModelToType(record));
-    } catch (error: any) {
-      throw new Error(`Failed to get category history: ${error.message}`);
-    }
+  async getCategoryHistoryForItem(familyGroupId: string, itemNameNormalized: string): Promise<CategoryHistory[]> {
+    return this.history.getCategoryHistoryForItem(familyGroupId, itemNameNormalized);
   }
 
-  /**
-   * Update category history
-   */
-  async updateCategoryHistory(
-    id: string,
-    updates: Partial<Pick<CategoryHistory, 'usageCount' | 'lastUsedAt'>>
-  ): Promise<void> {
-    try {
-      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
-      const record = await categoryHistoryCollection.find(id);
-      await this.database.write(async () => {
-        await record.update((r) => {
-          if (updates.usageCount !== undefined) r.usageCount = updates.usageCount;
-          if (updates.lastUsedAt !== undefined) r.lastUsedAt = updates.lastUsedAt;
-        });
-      }, 'updateCategoryHistory');
-    } catch (error: any) {
-      throw new Error(`Failed to update category history: ${error.message}`);
-    }
+  async updateCategoryHistory(id: string, updates: Partial<Pick<CategoryHistory, 'usageCount' | 'lastUsedAt'>>): Promise<void> {
+    return this.history.updateCategoryHistory(id, updates);
   }
 
-  /**
-   * Delete category history record
-   */
   async deleteCategoryHistory(id: string): Promise<void> {
-    try {
-      const categoryHistoryCollection = this.database.get<CategoryHistoryModel>('category_history');
-      const record = await categoryHistoryCollection.find(id);
-      await this.database.write(async () => {
-        await record.markAsDeleted();
-      }, 'deleteCategoryHistory');
-    } catch (error: any) {
-      throw new Error(`Failed to delete category history: ${error.message}`);
-    }
+    return this.history.deleteCategoryHistory(id);
   }
 
-  /**
-   * Batch upsert category history records in a single database.write() transaction.
-   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
-   */
-  async saveCategoryHistoryBatch(
-    familyGroupId: string,
-    entries: Array<{ itemHash: string; category: string; data: any }>
-  ): Promise<void> {
-    if (entries.length === 0) return;
-
-    const collection = this.database.get<CategoryHistoryModel>('category_history');
-
-    const existingRecords = await collection
-      .query(Q.where('family_group_id', familyGroupId))
-      .fetch();
-
-    const existingMap = new Map<string, CategoryHistoryModel>();
-    for (const record of existingRecords) {
-      existingMap.set(`${record.itemNameNormalized}|${record.category}`, record);
-    }
-
-    const applyUpdate = (r: CategoryHistoryModel, data: any) => {
-      r.usageCount = data.usageCount || 1;
-      r.lastUsedAt = data.lastUsedAt ?? Date.now();
-    };
-
-    const applyCreate = (r: CategoryHistoryModel, itemNameNormalized: string, category: string, data: any) => {
-      r._raw.id = uuidv4();
-      r.familyGroupId = familyGroupId;
-      r.itemNameNormalized = itemNameNormalized;
-      r.category = category;
-      r.usageCount = data.usageCount || 1;
-      r.lastUsedAt = data.lastUsedAt ?? Date.now();
-    };
-
-    await this.database.write(async () => {
-      const ops: any[] = [];
-      for (const { itemHash, category, data } of entries) {
-        const itemNameNormalized = itemHash.replace(/_/g, '.');
-        const key = `${itemNameNormalized}|${category}`;
-        const existing = existingMap.get(key);
-
-        if (existing) {
-          ops.push(existing.prepareUpdate(r => applyUpdate(r as CategoryHistoryModel, data)));
-        } else {
-          ops.push(collection.prepareCreate(r => applyCreate(r, itemNameNormalized, category, data)));
-        }
-      }
-      if (ops.length === 0) return;
-
-      try {
-        await this.database.batch(ops);
-      } catch (error) {
-        CrashReporting.recordError(error as Error, 'saveCategoryHistoryBatch batch failed, falling back to individual writes');
-        for (const { itemHash, category, data } of entries) {
-          try {
-            const itemNameNormalized = itemHash.replace(/_/g, '.');
-            const freshRecords = await collection
-              .query(
-                Q.where('family_group_id', familyGroupId),
-                Q.where('item_name_normalized', itemNameNormalized),
-                Q.where('category', category)
-              )
-              .fetch();
-            const rec = freshRecords[0];
-            if (rec) {
-              await rec.update(r => applyUpdate(r, data));
-            } else {
-              await collection.create(r => applyCreate(r, itemNameNormalized, category, data));
-            }
-          } catch (e) {
-            CrashReporting.recordError(e as Error, `saveCategoryHistoryBatch individual write failed for ${itemHash}`);
-          }
-        }
-      }
-    }, 'saveCategoryHistoryBatch');
+  async saveCategoryHistoryBatch(familyGroupId: string, entries: Array<{ itemHash: string; category: string; data: any }>): Promise<void> {
+    return this.history.saveCategoryHistoryBatch(familyGroupId, entries);
   }
 
-  private categoryHistoryModelToType(model: CategoryHistoryModel): CategoryHistory {
-    return {
-      id: model.id,
-      familyGroupId: model.familyGroupId,
-      itemNameNormalized: model.itemNameNormalized,
-      category: model.category,
-      usageCount: model.usageCount,
-      lastUsedAt: model.lastUsedAt,
-      createdAt: Number(model.createdAt),
-    };
-  }
-
-  // ===== PRICE HISTORY METHODS =====
-
-  /**
-   * Save a single price history record (create only — ID-based upsert).
-   * The find() inside the write() transaction prevents TOCTOU races between
-   * concurrent batch loads (once('value')) and ongoing child_added events.
-   */
   async savePriceHistoryRecord(record: PriceHistoryRecord): Promise<void> {
-    const collection = this.database.get<PriceHistoryModel>('price_history');
-    await this.database.write(async () => {
-      try {
-        await collection.find(record.id);
-        return;
-      } catch {
-        await collection.create(r => {
-          r._raw.id = record.id;
-          r.itemName = record.itemName;
-          r.itemNameNormalized = record.itemNameNormalized;
-          r.price = record.price;
-          r.storeName = record.storeName;
-          r.listId = record.listId;
-          r.recordedAt = record.recordedAt;
-          r.familyGroupId = record.familyGroupId;
-        });
-      }
-    }, 'savePriceHistoryRecord');
+    return this.history.savePriceHistoryRecord(record);
   }
 
-  /**
-   * Batch save price history records, skipping any that already exist.
-   * Chunks ID lookups to stay under SQLite's SQLITE_MAX_VARIABLE_NUMBER (999).
-   */
   async savePriceHistoryBatch(records: PriceHistoryRecord[]): Promise<void> {
-    if (records.length === 0) return;
-
-    const collection = this.database.get<PriceHistoryModel>('price_history');
-    const CHUNK = 500;
-
-    const existingIds = new Set<string>();
-    for (let i = 0; i < records.length; i += CHUNK) {
-      const chunk = records.slice(i, i + CHUNK);
-      const found = await collection.query(Q.where('id', Q.oneOf(chunk.map(r => r.id)))).fetch();
-      found.forEach(m => existingIds.add(m.id));
-    }
-
-    const toCreate = records.filter(r => !existingIds.has(r.id));
-    if (toCreate.length === 0) return;
-
-    const applyCreate = (r: PriceHistoryModel, record: PriceHistoryRecord) => {
-      r._raw.id = record.id;
-      r.itemName = record.itemName;
-      r.itemNameNormalized = record.itemNameNormalized;
-      r.price = record.price;
-      r.storeName = record.storeName;
-      r.listId = record.listId;
-      r.recordedAt = record.recordedAt;
-      r.familyGroupId = record.familyGroupId;
-    };
-
-    await this.database.write(async () => {
-      const ops: any[] = toCreate.map(record =>
-        collection.prepareCreate(r => applyCreate(r, record))
-      );
-
-      try {
-        await this.database.batch(ops);
-      } catch (error) {
-        CrashReporting.recordError(error as Error, 'savePriceHistoryBatch batch failed, falling back');
-        for (const record of toCreate) {
-          try {
-            const exists = await collection.query(Q.where('id', record.id)).fetch();
-            if (exists.length > 0) continue;
-            await collection.create(r => applyCreate(r, record));
-          } catch (e) {
-            CrashReporting.recordError(e as Error, `savePriceHistoryBatch individual create failed for ${record.id}`);
-          }
-        }
-      }
-    }, 'savePriceHistoryBatch');
+    return this.history.savePriceHistoryBatch(records);
   }
 
-  /**
-   * Get all price history records for a specific item (normalized name).
-   * Returns records ordered oldest-first for trend analysis.
-   */
-  async getPriceHistoryForItem(
-    familyGroupId: string,
-    itemNameNormalized: string
-  ): Promise<PriceHistoryRecord[]> {
-    try {
-      const collection = this.database.get<PriceHistoryModel>('price_history');
-      const records = await collection
-        .query(
-          Q.where('family_group_id', familyGroupId),
-          Q.where('item_name_normalized', itemNameNormalized),
-          Q.sortBy('recorded_at', Q.asc)
-        )
-        .fetch();
-
-      return records.map(r => ({
-        id: r.id,
-        itemName: r.itemName,
-        itemNameNormalized: r.itemNameNormalized,
-        price: r.price,
-        storeName: r.storeName,
-        listId: r.listId,
-        recordedAt: r.recordedAt,
-        familyGroupId: r.familyGroupId,
-      }));
-    } catch (error: any) {
-      throw new Error(`Failed to get price history: ${error.message}`);
-    }
+  async getPriceHistoryForItem(familyGroupId: string, itemNameNormalized: string): Promise<PriceHistoryRecord[]> {
+    return this.history.getPriceHistoryForItem(familyGroupId, itemNameNormalized);
   }
 
   async getLatestPriceHistoryTimestamp(familyGroupId: string): Promise<number | null> {
-    try {
-      const collection = this.database.get<PriceHistoryModel>('price_history');
-      const records = await collection
-        .query(Q.where('family_group_id', familyGroupId), Q.sortBy('recorded_at', Q.desc), Q.take(1))
-        .fetch();
-      return records[0]?.recordedAt ?? null;
-    } catch {
-      return null;
-    }
+    return this.history.getLatestPriceHistoryTimestamp(familyGroupId);
   }
 
-  async getDistinctTrackedItems(
-    familyGroupId: string
-  ): Promise<Array<{ itemName: string; itemNameNormalized: string }>> {
-    try {
-      const collection = this.database.get<PriceHistoryModel>('price_history');
-      const records = await collection
-        .query(Q.where('family_group_id', familyGroupId))
-        .fetch();
-
-      const itemMap = new Map<string, string>();
-      for (const r of records) {
-        if (!itemMap.has(r.itemNameNormalized)) {
-          itemMap.set(r.itemNameNormalized, r.itemName);
-        }
-      }
-
-      return Array.from(itemMap.entries())
-        .map(([normalized, name]) => ({ itemName: name, itemNameNormalized: normalized }))
-        .sort((a, b) => a.itemName.localeCompare(b.itemName));
-    } catch (error: any) {
-      throw new Error(`Failed to get distinct tracked items: ${error.message}`);
-    }
+  async getDistinctTrackedItems(familyGroupId: string): Promise<Array<{ itemName: string; itemNameNormalized: string }>> {
+    return this.history.getDistinctTrackedItems(familyGroupId);
   }
 
-  // ===== STORE LAYOUT METHODS =====
+  // ===== STORE LAYOUT METHODS (delegated to StoreLayoutsStorage) =====
 
   async saveStoreLayout(layout: StoreLayout): Promise<StoreLayout> {
-    try {
-      const collection = this.database.get<StoreLayoutModel>('store_layouts');
-      let record: StoreLayoutModel | undefined;
-
-      await this.database.write(async () => {
-        let existing: StoreLayoutModel | null = null;
-        try {
-          existing = await collection.find(layout.id);
-        } catch {
-          // Record does not exist yet
-        }
-
-        if (existing) {
-          record = await existing.update((r) => {
-            r.familyGroupId = layout.familyGroupId;
-            r.storeName = layout.storeName;
-            r.categoryOrder = JSON.stringify(layout.categoryOrder);
-            r.createdBy = layout.createdBy;
-            r.updatedAt = layout.updatedAt;
-            r.syncStatus = layout.syncStatus;
-          });
-        } else {
-          record = await collection.create((r) => {
-            r._raw.id = layout.id;
-            r.familyGroupId = layout.familyGroupId;
-            r.storeName = layout.storeName;
-            r.categoryOrder = JSON.stringify(layout.categoryOrder);
-            r.createdBy = layout.createdBy;
-            r.updatedAt = layout.updatedAt;
-            r.syncStatus = layout.syncStatus;
-          });
-        }
-      }, 'saveStoreLayout');
-
-      if (!record) throw new Error('Failed to save store layout record');
-      return this.storeLayoutModelToType(record);
-    } catch (error: any) {
-      throw new Error(`Failed to save store layout: ${error.message}`);
-    }
+    return this.storeLayouts.saveStoreLayout(layout);
   }
 
   async getStoreLayoutByStore(storeName: string, familyGroupId: string): Promise<StoreLayout | null> {
-    try {
-      const collection = this.database.get<StoreLayoutModel>('store_layouts');
-      const records = await collection
-        .query(
-          Q.where('store_name', storeName),
-          Q.where('family_group_id', familyGroupId)
-        )
-        .fetch();
-
-      if (records.length === 0) return null;
-      return this.storeLayoutModelToType(records[0]);
-    } catch {
-      return null;
-    }
+    return this.storeLayouts.getStoreLayoutByStore(storeName, familyGroupId);
   }
 
   async getStoreLayoutById(id: string): Promise<StoreLayout | null> {
-    try {
-      const collection = this.database.get<StoreLayoutModel>('store_layouts');
-      const record = await collection.find(id);
-      return this.storeLayoutModelToType(record);
-    } catch {
-      return null;
-    }
+    return this.storeLayouts.getStoreLayoutById(id);
   }
 
   async updateStoreLayout(id: string, updates: Partial<StoreLayout>): Promise<StoreLayout> {
-    try {
-      const collection = this.database.get<StoreLayoutModel>('store_layouts');
-      const record = await collection.find(id);
-
-      await this.database.write(async () => {
-        await record.update((r) => {
-          if (updates.categoryOrder !== undefined) r.categoryOrder = JSON.stringify(updates.categoryOrder);
-          if (updates.updatedAt !== undefined) r.updatedAt = updates.updatedAt;
-          if (updates.syncStatus !== undefined) r.syncStatus = updates.syncStatus;
-        });
-      }, 'updateStoreLayout');
-
-      return this.storeLayoutModelToType(record);
-    } catch (error: any) {
-      throw new Error(`Failed to update store layout: ${error.message}`);
-    }
+    return this.storeLayouts.updateStoreLayout(id, updates);
   }
 
-  /**
-   * Batch upsert store layouts in a single database.write() transaction.
-   * Used by FirebaseSyncListener to avoid N individual writes on initial load.
-   */
-  async saveStoreLayoutsBatch(
-    familyGroupId: string,
-    entries: Array<{ layoutId: string; data: any }>
-  ): Promise<void> {
-    if (entries.length === 0) return;
-
-    const collection = this.database.get<StoreLayoutModel>('store_layouts');
-
-    const existingRecords = await collection
-      .query(Q.where('family_group_id', familyGroupId))
-      .fetch();
-
-    const existingMap = new Map<string, StoreLayoutModel>();
-    for (const record of existingRecords) {
-      existingMap.set(record.id, record);
-    }
-
-    const applyUpdate = (r: StoreLayoutModel, data: any) => {
-      if (data.categoryOrder !== undefined) r.categoryOrder = JSON.stringify(data.categoryOrder);
-      if (data.updatedAt !== undefined) r.updatedAt = data.updatedAt;
-      r.syncStatus = 'synced';
-    };
-
-    const applyCreate = (r: StoreLayoutModel, layoutId: string, data: any) => {
-      r._raw.id = layoutId;
-      r.familyGroupId = data.familyGroupId || familyGroupId;
-      r.storeName = data.storeName || '';
-      r.categoryOrder = JSON.stringify(data.categoryOrder);
-      r.createdBy = data.createdBy || '';
-      r.updatedAt = data.updatedAt ?? Date.now();
-      r.syncStatus = 'synced';
-    };
-
-    await this.database.write(async () => {
-      const ops: any[] = [];
-      for (const { layoutId, data } of entries) {
-        const existing = existingMap.get(layoutId);
-        if (existing) {
-          ops.push(existing.prepareUpdate(r => applyUpdate(r as StoreLayoutModel, data)));
-        } else {
-          ops.push(collection.prepareCreate(r => applyCreate(r, layoutId, data)));
-        }
-      }
-      if (ops.length === 0) return;
-
-      try {
-        await this.database.batch(ops);
-      } catch (error) {
-        CrashReporting.recordError(error as Error, 'saveStoreLayoutsBatch batch failed, falling back to individual writes');
-        for (const { layoutId, data } of entries) {
-          try {
-            const records = await collection.query(Q.where('id', layoutId)).fetch();
-            const rec = records[0];
-            if (rec) {
-              await rec.update(r => applyUpdate(r, data));
-            } else {
-              await collection.create(r => applyCreate(r, layoutId, data));
-            }
-          } catch (e) {
-            CrashReporting.recordError(e as Error, `saveStoreLayoutsBatch individual write failed for ${layoutId}`);
-          }
-        }
-      }
-    }, 'saveStoreLayoutsBatch');
+  async saveStoreLayoutsBatch(familyGroupId: string, entries: Array<{ layoutId: string; data: any }>): Promise<void> {
+    return this.storeLayouts.saveStoreLayoutsBatch(familyGroupId, entries);
   }
 
   async deleteStoreLayout(id: string): Promise<void> {
-    try {
-      const collection = this.database.get<StoreLayoutModel>('store_layouts');
-      const record = await collection.find(id);
-      await this.database.write(async () => {
-        await record.destroyPermanently();
-      }, 'deleteStoreLayout');
-    } catch (error: any) {
-      throw new Error(`Failed to delete store layout: ${error.message}`);
-    }
-  }
-
-  private storeLayoutModelToType(model: StoreLayoutModel): StoreLayout {
-    return {
-      id: model.id,
-      familyGroupId: model.familyGroupId,
-      storeName: model.storeName,
-      categoryOrder: safeJsonParse<CategoryType[]>(model.categoryOrder, []),
-      createdBy: model.createdBy,
-      createdAt: Number(model.createdAt), // @date decorator returns Date object; must convert
-      updatedAt: model.updatedAt,
-      syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
-    };
+    return this.storeLayouts.deleteStoreLayout(id);
   }
 
   /**
@@ -1845,35 +327,7 @@ class LocalStorageManager {
       throw new Error(`Failed to clear local data: ${error.message}`);
     }
   }
-  async markSyncedIfUnchanged(
-    entityType: 'list' | 'item' | 'storeLayout',
-    entityId: string,
-    expectedUpdatedAt: number | null
-  ): Promise<void> {
-    try {
-      await this.database.write(async () => {
-        if (entityType === 'item') {
-          const collection = this.database.get<ItemModel>('items');
-          const record = await collection.find(entityId);
-          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
-            await record.update(r => { r.syncStatus = 'synced'; });
-          }
-        } else if (entityType === 'storeLayout') {
-          const collection = this.database.get<StoreLayoutModel>('store_layouts');
-          const record = await collection.find(entityId);
-          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
-            await record.update(r => { r.syncStatus = 'synced'; });
-          }
-        } else {
-          const collection = this.database.get<ShoppingListModel>('shopping_lists');
-          const record = await collection.find(entityId);
-          await record.update(r => { r.syncStatus = 'synced'; });
-        }
-      }, 'markSyncedIfUnchanged');
-    } catch {
-      // Record may have been deleted; sync status update is no longer relevant
-    }
-  }
+
 }
 
 export default new LocalStorageManager();
