@@ -191,7 +191,11 @@ const ListDetailScreen = () => {
 
       const checked = validItems.filter(item => item.checked).length;
       const unchecked = validItems.filter(item => !item.checked).length;
+      // Running total = what's in the trolley: checked items only. Unchecked
+      // items must not count, or a leftover unbought item with a predicted
+      // price inflates the total past the real receipt.
       const total = validItems.reduce((sum, item) => {
+        if (!item.checked) return sum;
         const itemNameLower = item.name?.toLowerCase();
         const predictedPrice = itemNameLower && predictedPrices ? predictedPrices[itemNameLower] : 0;
         const price = item.price ?? predictedPrice ?? 0;

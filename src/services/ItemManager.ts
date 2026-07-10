@@ -186,12 +186,13 @@ class ItemManager {
     // Save all items in a single batch transaction
     await LocalStorageManager.saveItemsBatch(items);
 
-    // Trigger sync for each item in parallel
-    await Promise.all(items.map(item =>
+    // Trigger sync in background (fire-and-forget for instant local updates);
+    // pushChange queues the operation itself if the network write fails
+    items.forEach(item => {
       SyncEngine.pushChange('item', item.id, 'create', item).catch(error => {
         CrashReporting.recordError(error as Error, 'ItemManager.addItemsBatch sync');
-      })
-    ));
+      });
+    });
 
     return items;
   }
@@ -224,12 +225,13 @@ class ItemManager {
 
     const updatedItems = await LocalStorageManager.updateItemsBatch(timestampedUpdates);
 
-    // Fire sync pushes in parallel
-    await Promise.all(updatedItems.map(item =>
+    // Trigger sync in background (fire-and-forget for instant local updates);
+    // pushChange queues the operation itself if the network write fails
+    updatedItems.forEach(item => {
       SyncEngine.pushChange('item', item.id, 'update', item).catch(error => {
         CrashReporting.recordError(error as Error, 'ItemManager.updateItemsBatch sync');
-      })
-    ));
+      });
+    });
 
     return updatedItems;
   }

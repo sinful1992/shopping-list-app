@@ -168,6 +168,38 @@ const ReceiptMatchScreen = () => {
     });
   };
 
+  const allUnmatchedSelected =
+    visibleUnmatchedReceipt.length > 0 && visibleUnmatchedReceipt.every(e => toAdd.has(e.index));
+
+  const toggleSelectAll = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    if (allUnmatchedSelected) {
+      setToAdd(prev => {
+        const next = new Set(prev);
+        visibleUnmatchedReceipt.forEach(e => next.delete(e.index));
+        return next;
+      });
+      setEditingNames(prev => {
+        const next = { ...prev };
+        visibleUnmatchedReceipt.forEach(e => { delete next[e.index]; });
+        return next;
+      });
+    } else {
+      setToAdd(prev => {
+        const next = new Set(prev);
+        visibleUnmatchedReceipt.forEach(e => next.add(e.index));
+        return next;
+      });
+      setEditingNames(prev => {
+        const next = { ...prev };
+        visibleUnmatchedReceipt.forEach(e => {
+          if (next[e.index] === undefined) next[e.index] = e.item.description;
+        });
+        return next;
+      });
+    }
+  };
+
   const toggleToAdd = (index: number, defaultName: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setToAdd(prev => {
@@ -188,7 +220,16 @@ const ReceiptMatchScreen = () => {
 
     const updates = acceptedMatches
       .map(m => {
-        const price = sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice);
+        const line = m.receiptItem;
+        const unitQty = m.listItem.unitQty ?? 1;
+        // Item.price is per-unit app-wide (totals multiply by unitQty), but a
+        // receipt line's price is the line total — derive per-unit when qty > 1
+        let raw = line.price ?? line.unitPrice;
+        if (unitQty > 1) {
+          const lineQty = line.quantity != null && line.quantity > 0 ? line.quantity : unitQty;
+          raw = line.unitPrice ?? (line.price != null ? line.price / lineQty : null);
+        }
+        const price = sanitizePrice(raw);
         if (price == null) return null;
         const patch: Partial<Item> = { price };
         if (!m.listItem.checked) patch.checked = true;
@@ -317,6 +358,16 @@ const ReceiptMatchScreen = () => {
               setUnmatchedReceiptOpen(v => !v);
             }}
           >
+            <TouchableOpacity style={styles.selectAllRow} onPress={toggleSelectAll} activeOpacity={0.7}>
+              <Text style={styles.selectAllText}>
+                {allUnmatchedSelected ? 'Deselect all' : 'Select all'}
+              </Text>
+              <Icon
+                name={allUnmatchedSelected ? 'checkmark-circle' : 'add-circle-outline'}
+                size={22}
+                color={allUnmatchedSelected ? theme.accent.green : theme.text.tertiary}
+              />
+            </TouchableOpacity>
             {visibleUnmatchedReceipt.map(({ item, index }) => (
               <UnmatchedReceiptRow
                 key={index}
@@ -700,6 +751,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   rejectButton: {
     padding: SPACING.xs,
+  },
+  selectAllRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  selectAllText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: theme.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   infoRow: {
     flexDirection: 'row',
