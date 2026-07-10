@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.30.2] - 2026-07-10
+
+### Fixed
+- **Running total counted items you never bought.** The shopping-mode total summed *all* items, substituting a predicted price (from price history) for anything unpriced — so an unchecked leftover item (e.g. the original of a receipt line you added as a new item because matching failed) silently inflated the total past the printed receipt. The total now counts checked items only; predicted prices still fill in for checked items without a real price. This also fixes the stored trip total on "Done shopping", which previously baked in predicted prices of unbought items.
+
 ## [1.30.1] - 2026-07-10
 
 ### Changed
