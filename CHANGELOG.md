@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.30.4] - 2026-07-10
+
+### Fixed
+- **Settings screen bottom content hidden behind Android navigation buttons.** With edge-to-edge rendering (targetSdk 36) the app draws under the transparent system nav bar, but the settings ScrollView had no bottom safe-area inset — the Delete Account button and footer sat permanently behind the nav buttons. The scroll content now pads by the bottom inset. The Edit Name and OCR Server URL modals also gained `KeyboardAvoidingView`, so their input and Save/Cancel buttons stay visible while typing.
+
 ## [1.30.3] - 2026-07-10
 
 ### Fixed

@@ -8,7 +8,10 @@ import {
   TextInput,
   Modal,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { createStyles } from './SettingsScreen.styles';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -33,6 +36,7 @@ const SettingsScreen = () => {
   const { showAlert } = useAlert();
   const { theme, themeMode, setThemeMode } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
 
   // Use custom hook for settings management
   const {
@@ -244,7 +248,10 @@ const SettingsScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: insets.bottom }}
+    >
       {/* User Info Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -554,7 +561,10 @@ const SettingsScreen = () => {
         animationType="fade"
         onRequestClose={() => setShowEditNameModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Edit Name</Text>
             <TextInput
@@ -581,7 +591,7 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* OCR Server URL Modal */}
@@ -591,7 +601,10 @@ const SettingsScreen = () => {
         animationType="fade"
         onRequestClose={() => setShowOcrUrlModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>OCR Server URL</Text>
             <Text style={[styles.settingDescription, styles.settingDescriptionSpaced]}>
@@ -623,7 +636,7 @@ const SettingsScreen = () => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Select Role Modal */}
