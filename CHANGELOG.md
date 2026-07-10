@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.30.3] - 2026-07-10
+
+### Fixed
+- **Receipt match double-counted multi-quantity items.** Applying a receipt match wrote the receipt line **total** into `Item.price`, but `Item.price` is per-unit everywhere else (item cards, running total, and history all multiply by `unitQty`) — so an item with quantity 2 showed double its real cost. The match screen now derives a per-unit price when the list item's quantity is above 1: it prefers the receipt's unit price, falling back to dividing the line total by the receipt quantity (or the list quantity if the receipt has none). Single-quantity items are unchanged.
+
 ## [1.30.2] - 2026-07-10
 
 ### Fixed

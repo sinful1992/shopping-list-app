@@ -220,7 +220,16 @@ const ReceiptMatchScreen = () => {
 
     const updates = acceptedMatches
       .map(m => {
-        const price = sanitizePrice(m.receiptItem.price ?? m.receiptItem.unitPrice);
+        const line = m.receiptItem;
+        const unitQty = m.listItem.unitQty ?? 1;
+        // Item.price is per-unit app-wide (totals multiply by unitQty), but a
+        // receipt line's price is the line total — derive per-unit when qty > 1
+        let raw = line.price ?? line.unitPrice;
+        if (unitQty > 1) {
+          const lineQty = line.quantity != null && line.quantity > 0 ? line.quantity : unitQty;
+          raw = line.unitPrice ?? (line.price != null ? line.price / lineQty : null);
+        }
+        const price = sanitizePrice(raw);
         if (price == null) return null;
         const patch: Partial<Item> = { price };
         if (!m.listItem.checked) patch.checked = true;
