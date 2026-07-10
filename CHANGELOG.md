@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.30.1] - 2026-07-10
+
+### Changed
+- **Batch item add/update no longer blocks on network sync.** `ItemManager.addItemsBatch`/`updateItemsBatch` now fire their per-item Firebase pushes in the background (same fire-and-forget pattern `updateItem` already used) instead of awaiting one round trip per item. Applying a long receipt (20+ items) previously held the "Apply/Done" spinner for the duration of ~30 sequentialish network writes; the screen now closes as soon as the local batch transaction lands. Failed pushes still land in the sync queue for retry, unchanged.
+
 ## [1.30.0] - 2026-07-10
 
 ### Added
