@@ -15,6 +15,7 @@ import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import PriceHistoryService from '../../services/PriceHistoryService';
+import CrashReporting from '../../services/CrashReporting';
 import { RADIUS, NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -86,7 +87,9 @@ const AnalyticsScreen = () => {
         setFamilyGroupId(user.familyGroupId);
         const items = await PriceHistoryService.getAllTrackedItems(user.familyGroupId);
         setTrackedItems(items);
-      } catch {}
+      } catch (e) {
+        CrashReporting.recordError(e as Error, 'AnalyticsScreen load tracked items');
+      }
     })();
   }, []);
 
@@ -172,7 +175,9 @@ const AnalyticsScreen = () => {
         color: PIE_COLORS[i] || '#6E6E73',
       }));
     }
-  } catch {}
+  } catch (e) {
+    CrashReporting.recordError(e as Error, 'AnalyticsScreen chart data mapping');
+  }
 
   const CHART_W = screenWidth - 62;
 

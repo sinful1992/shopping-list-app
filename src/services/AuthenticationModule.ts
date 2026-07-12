@@ -12,6 +12,7 @@ import {
 } from '@react-native-google-signin/google-signin';
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import { User, UserCredential, FamilyGroup, JoinRequest, JoinRequestStatus, Unsubscribe } from '../models/types';
+import { safeJsonParse } from '../utils/safeJsonParse';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
 import CrashReporting from './CrashReporting';
@@ -320,28 +321,38 @@ class AuthenticationModule {
   /**
    * Get current authenticated user
    * Implements Req 1.2
-   * Always fetches fresh data from database to ensure familyGroupId is up-to-date
+   * Fetches fresh data from database to ensure familyGroupId is up-to-date;
+   * falls back to the last-known cached user when the network read fails so
+   * an offline app doesn't behave as if the user were logged out.
    */
   async getCurrentUser(): Promise<User | null> {
-    try {
-      const currentUser = auth().currentUser;
-      if (!currentUser) {
-        return null;
-      }
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      return null;
+    }
 
-      // Always fetch fresh data from database to ensure familyGroupId is current
+    try {
       const userSnapshot = await get(ref(getDatabase(), `/users/${currentUser.uid}`));
       const userData = userSnapshot.val();
 
       if (userData) {
         // Update cache with fresh data
         await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+        return userData;
       }
+    } catch (error) {
+      CrashReporting.recordError(error as Error, 'AuthenticationModule getCurrentUser network read');
+    }
 
-      return userData;
-    } catch {
+    // Offline / read failed → serve last-known user instead of "logged out".
+    // Sign-out removes USER_KEY, so this cannot resurrect a signed-out user;
+    // guard against a stale cache from a different account on the same device.
+    const cached = await EncryptedStorage.getItem(this.USER_KEY).catch(() => null);
+    const cachedUser = safeJsonParse<User | null>(cached, null);
+    if (cachedUser && cachedUser.uid !== currentUser.uid) {
       return null;
     }
+    return cachedUser;
   }
 
   /**
