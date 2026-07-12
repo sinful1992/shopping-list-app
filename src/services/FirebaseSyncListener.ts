@@ -1,6 +1,15 @@
 import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, child } from '@react-native-firebase/database';
-import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout, Unsubscribe } from '../models/types';
-import { CategoryType } from './CategoryService';
+import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
+import {
+  mapFirebaseList,
+  mapFirebaseItem,
+  mapFirebaseUrgentItem,
+  mapFirebaseStoreLayout,
+  FirebaseListPayload,
+  FirebaseItemPayload,
+  FirebaseUrgentItemPayload,
+  FirebaseStoreLayoutPayload,
+} from './storage/firebaseMappers';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { v4 as uuidv4 } from 'uuid';
@@ -44,33 +53,8 @@ class FirebaseSyncListener {
       snapshot.forEach(snap => {
         if (snap.key && snap.val()) {
           initialIds.add(snap.key);
-          const data = snap.val();
-          lists.push({
-            id: snap.key,
-            name: data.name || '',
-            familyGroupId: data.familyGroupId || familyGroupId,
-            createdBy: data.createdBy || '',
-            createdAt: data.createdAt ?? Date.now(),
-            status: data.status || 'active',
-            completedAt: data.completedAt || null,
-            completedBy: data.completedBy || null,
-            receiptUrl: data.receiptUrl || null,
-            receiptData: data.receiptData || null,
-            syncStatus: 'synced' as const,
-            isLocked: data.isLocked || false,
-            lockedBy: data.lockedBy || null,
-            lockedByName: data.lockedByName || null,
-            lockedByRole: data.lockedByRole || null,
-            lockedAt: data.lockedAt || null,
-            budget: data.budget ?? null,
-            storeName: data.storeName || null,
-            archived: data.archived || false,
-            layoutApplied: data.layoutApplied ?? false,
-            totalAmount: data.totalAmount ?? null,
-            merchantName: data.merchantName || null,
-            purchaseDate: data.purchaseDate || null,
-            currency: data.currency || null,
-          });
+          const data: FirebaseListPayload = snap.val();
+          lists.push(mapFirebaseList(snap.key, data, familyGroupId));
         }
       });
       initialLoadDone = true;
@@ -159,7 +143,7 @@ class FirebaseSyncListener {
       const localMap = new Map(localItems.map(i => [i.id, i]));
       const toSync: Item[] = [];
       for (const { id, data } of entries) {
-        const item = this.buildItemFromFirebase(id, listId, data);
+        const item = mapFirebaseItem(id, listId, data);
         const existing = localMap.get(id);
         if (existing && !this.hasItemChanged(existing, item)) continue;
         if (existing && existing.updatedAt > (data.updatedAt || 0)) continue;
@@ -212,7 +196,7 @@ class FirebaseSyncListener {
    */
   private async syncListToLocal(
     listId: string,
-    firebaseData: any,
+    firebaseData: FirebaseListPayload,
     familyGroupId: string
   ): Promise<void> {
     try {
@@ -221,32 +205,7 @@ class FirebaseSyncListener {
         || existingList?.familyGroupId
         || familyGroupId;
 
-      const incomingList: ShoppingList = {
-        id: listId,
-        name: firebaseData.name || '',
-        familyGroupId: resolvedFamilyGroupId,
-        createdBy: firebaseData.createdBy || '',
-        createdAt: firebaseData.createdAt ?? Date.now(),
-        status: firebaseData.status || 'active',
-        completedAt: firebaseData.completedAt || null,
-        completedBy: firebaseData.completedBy || null,
-        receiptUrl: firebaseData.receiptUrl || null,
-        receiptData: firebaseData.receiptData || null,
-        syncStatus: 'synced',
-        isLocked: firebaseData.isLocked || false,
-        lockedBy: firebaseData.lockedBy || null,
-        lockedByName: firebaseData.lockedByName || null,
-        lockedByRole: firebaseData.lockedByRole || null,
-        lockedAt: firebaseData.lockedAt || null,
-        budget: firebaseData.budget ?? null,
-        storeName: firebaseData.storeName || null,
-        archived: firebaseData.archived || false,
-        layoutApplied: firebaseData.layoutApplied ?? false,
-        totalAmount: firebaseData.totalAmount ?? null,
-        merchantName: firebaseData.merchantName || null,
-        purchaseDate: firebaseData.purchaseDate || null,
-        currency: firebaseData.currency || null,
-      };
+      const incomingList = mapFirebaseList(listId, firebaseData, resolvedFamilyGroupId);
 
       if (existingList && !this.hasListChanged(existingList, incomingList)) {
         return;
@@ -299,30 +258,10 @@ class FirebaseSyncListener {
    * Skips the write if the item already exists locally with identical data,
    * preventing observer flicker from echo-back writes.
    */
-  private buildItemFromFirebase(itemId: string, listId: string, data: any): Item {
-    return {
-      id: itemId,
-      listId,
-      name: data.name || '',
-      quantity: data.quantity ?? null,
-      price: data.price ?? null,
-      checked: data.checked || false,
-      createdBy: data.createdBy || '',
-      createdAt: data.createdAt ?? Date.now(),
-      updatedAt: data.updatedAt ?? Date.now(),
-      syncStatus: 'synced',
-      category: data.category || null,
-      sortOrder: data.sortOrder ?? null,
-      unitQty: data.unitQty ?? null,
-      measurementUnit: data.measurementUnit ?? null,
-      measurementValue: data.measurementValue ?? null,
-    };
-  }
-
-  private async syncItemToLocal(listId: string, itemId: string, firebaseData: any): Promise<void> {
+  private async syncItemToLocal(listId: string, itemId: string, firebaseData: FirebaseItemPayload): Promise<void> {
     try {
       const existingItem = await LocalStorageManager.getItem(itemId);
-      const item = this.buildItemFromFirebase(itemId, listId, firebaseData);
+      const item = mapFirebaseItem(itemId, listId, firebaseData);
 
       if (existingItem && !this.hasItemChanged(existingItem, item)) {
         return;
@@ -370,7 +309,7 @@ class FirebaseSyncListener {
     const items: Item[] = [];
     snapshot.forEach(snap => {
       if (snap.key) {
-        items.push(this.buildItemFromFirebase(snap.key, listId, snap.val()));
+        items.push(mapFirebaseItem(snap.key, listId, snap.val()));
       }
     });
     if (items.length > 0) {
@@ -429,20 +368,9 @@ class FirebaseSyncListener {
       if (initialLoadDone) return;
       initialLoadDone = true;
       if (initialBuffer.length === 0) return;
-      const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) => ({
-        id: itemId,
-        name: data.name || '',
-        familyGroupId: data.familyGroupId || familyGroupId,
-        createdBy: data.createdBy || '',
-        createdByName: data.createdByName || '',
-        createdAt: data.createdAt ?? Date.now(),
-        resolvedBy: data.resolvedBy || null,
-        resolvedByName: data.resolvedByName || null,
-        resolvedAt: data.resolvedAt || null,
-        price: data.price ?? null,
-        status: data.status || 'active',
-        syncStatus: 'synced' as const,
-      }));
+      const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) =>
+        mapFirebaseUrgentItem(itemId, data, familyGroupId)
+      );
       await LocalStorageManager.saveUrgentItemsBatch(urgentItems);
     };
 
@@ -504,24 +432,11 @@ class FirebaseSyncListener {
    * Skips the write if the item already exists locally with identical data,
    * preventing observer flicker from echo-back writes.
    */
-  private async syncUrgentItemToLocal(familyGroupId: string, itemId: string, firebaseData: any): Promise<void> {
+  private async syncUrgentItemToLocal(familyGroupId: string, itemId: string, firebaseData: FirebaseUrgentItemPayload): Promise<void> {
     try {
       const existingItem = await LocalStorageManager.getUrgentItem(itemId);
 
-      const urgentItem: UrgentItem = {
-        id: itemId,
-        name: firebaseData.name || '',
-        familyGroupId: firebaseData.familyGroupId || familyGroupId,
-        createdBy: firebaseData.createdBy || '',
-        createdByName: firebaseData.createdByName || '',
-        createdAt: firebaseData.createdAt ?? Date.now(),
-        resolvedBy: firebaseData.resolvedBy || null,
-        resolvedByName: firebaseData.resolvedByName || null,
-        resolvedAt: firebaseData.resolvedAt || null,
-        price: firebaseData.price ?? null,
-        status: firebaseData.status || 'active',
-        syncStatus: 'synced',
-      };
+      const urgentItem = mapFirebaseUrgentItem(itemId, firebaseData, familyGroupId);
 
       if (existingItem && !this.hasUrgentItemChanged(existingItem, urgentItem)) {
         return;
@@ -831,22 +746,12 @@ class FirebaseSyncListener {
   private async syncStoreLayoutToLocal(
     familyGroupId: string,
     layoutId: string,
-    firebaseData: any
+    firebaseData: FirebaseStoreLayoutPayload
   ): Promise<void> {
     try {
       const existing = await LocalStorageManager.getStoreLayoutById(layoutId);
 
-      // categoryOrder from Firebase arrives as a native JS array (RTDB reconstructs it)
-      const incomingLayout: StoreLayout = {
-        id: layoutId,
-        familyGroupId: firebaseData.familyGroupId || familyGroupId,
-        storeName: firebaseData.storeName || '',
-        categoryOrder: firebaseData.categoryOrder as CategoryType[],
-        createdBy: firebaseData.createdBy || '',
-        createdAt: firebaseData.createdAt ?? Date.now(),
-        updatedAt: firebaseData.updatedAt ?? Date.now(),
-        syncStatus: 'synced',
-      };
+      const incomingLayout = mapFirebaseStoreLayout(layoutId, firebaseData, familyGroupId);
 
       if (existing) {
         await LocalStorageManager.updateStoreLayout(layoutId, {
