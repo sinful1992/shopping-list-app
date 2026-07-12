@@ -262,6 +262,8 @@ const SettingsScreen = () => {
             <TouchableOpacity
               style={styles.editButton}
               onPress={handleEditName}
+              accessibilityRole="button"
+              accessibilityLabel="Edit name"
             >
               <Icon name="pencil-outline" size={18} color={theme.accent.blue} />
             </TouchableOpacity>
@@ -277,6 +279,8 @@ const SettingsScreen = () => {
             <TouchableOpacity
               style={styles.editButton}
               onPress={handleEditRole}
+              accessibilityRole="button"
+              accessibilityLabel="Edit family role"
             >
               <Icon name="pencil-outline" size={18} color={theme.accent.blue} />
             </TouchableOpacity>

@@ -513,11 +513,11 @@ const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({
         {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
       </Text>
       {onAssign && !inToAdd && (
-        <TouchableOpacity onPress={onAssign} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={onAssign} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Assign to a list item">
           <Icon name="link-outline" size={20} color={theme.accent.blue} style={styles.assignIcon} />
         </TouchableOpacity>
       )}
-      <TouchableOpacity onPress={onToggleAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <TouchableOpacity onPress={onToggleAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={inToAdd ? 'Remove from items to add' : 'Add to list'}>
         <Icon
           name={inToAdd ? 'checkmark-circle' : 'add-circle-outline'}
           size={22}

@@ -106,7 +106,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
           </View>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Price History</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close price history">
               <Icon name="close" size={22} color={theme.text.primary} />
             </TouchableOpacity>
           </View>
