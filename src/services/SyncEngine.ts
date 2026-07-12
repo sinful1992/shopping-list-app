@@ -52,8 +52,9 @@ class SyncEngine {
         this.notifyStatus();
       }
     });
-
-    this.startPeriodicRetry();
+    // Periodic retry starts lazily in setFamilyGroupId — starting it here
+    // made the interval tick pre-login and leak into every test that
+    // transitively imported this singleton (jest "worker failed to exit").
   }
 
   /**
@@ -127,10 +128,11 @@ class SyncEngine {
   }
 
   /**
-   * Set family group ID for syncing
+   * Set family group ID for syncing (first real use — starts periodic retry)
    */
   setFamilyGroupId(groupId: string) {
     this.familyGroupId = groupId;
+    this.startPeriodicRetry();
   }
 
   /**
