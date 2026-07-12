@@ -34,12 +34,14 @@ const makeItem = (overrides: Partial<Item> = {}): Item => ({
   ...overrides,
 });
 
-const makeOp = (overrides: Partial<QueuedOperation> = {}): QueuedOperation => ({
+type ItemQueuedOperation = Extract<QueuedOperation, { entityType: 'item' }>;
+
+const makeOp = (overrides: Partial<ItemQueuedOperation> = {}): ItemQueuedOperation => ({
   id: nextId('op'),
   entityType: 'item',
   entityId: 'entity-1',
   operation: 'update',
-  data: { name: 'Milk', checked: true },
+  data: makeItem({ name: 'Milk', checked: true }),
   timestamp: 1000,
   retryCount: 0,
   nextRetryAt: null,
@@ -164,7 +166,7 @@ describe('sync queue', () => {
   });
 
   it('roundtrips an operation through add + get, parsing the JSON payload', async () => {
-    const op = makeOp({ data: { name: 'Cheese', quantity: '2' } });
+    const op = makeOp({ data: makeItem({ name: 'Cheese', quantity: '2' }) });
     await LocalStorageManager.addToSyncQueue(op);
 
     const queue = await LocalStorageManager.getSyncQueue();
@@ -227,7 +229,7 @@ describe('sync queue', () => {
   });
 
   it('updates only retryCount and nextRetryAt, leaving the payload intact', async () => {
-    const op = makeOp({ data: { name: 'Yogurt' }, retryCount: 0, nextRetryAt: null });
+    const op = makeOp({ data: makeItem({ name: 'Yogurt' }), retryCount: 0, nextRetryAt: null });
     await LocalStorageManager.addToSyncQueue(op);
 
     await LocalStorageManager.updateSyncQueueOperation(op.id, { retryCount: 3, nextRetryAt: 9999 });
@@ -235,7 +237,7 @@ describe('sync queue', () => {
     const [updated] = await LocalStorageManager.getSyncQueue();
     expect(updated.retryCount).toBe(3);
     expect(updated.nextRetryAt).toBe(9999);
-    expect(updated.data).toEqual({ name: 'Yogurt' });
+    expect(updated.data).toMatchObject({ name: 'Yogurt' });
     expect(updated.operation).toBe(op.operation);
   });
 

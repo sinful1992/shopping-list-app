@@ -177,16 +177,24 @@ export interface OCRResult {
 export type EntityType = 'list' | 'item' | 'urgentItem' | 'storeLayout';
 export type Operation = 'create' | 'update' | 'delete';
 
-export interface QueuedOperation {
+interface QueuedOperationBase<E extends EntityType, D> {
   id: string;
-  entityType: EntityType;
+  entityType: E;
   entityId: string;
   operation: Operation;
-  data: any;
+  data: D | null;
   timestamp: number;
   retryCount: number;
   nextRetryAt?: number | null;
 }
+
+// Discriminated on entityType so operation.data narrows without casts.
+// The queue is stored as JSON in WatermelonDB — compile-time only, no migration.
+export type QueuedOperation =
+  | QueuedOperationBase<'list', ShoppingList>
+  | QueuedOperationBase<'item', Item>
+  | QueuedOperationBase<'urgentItem', UrgentItem>
+  | QueuedOperationBase<'storeLayout', StoreLayout>;
 
 export interface SyncResult {
   success: boolean;

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase, ref, get, update } from '@react-native-firebase/database';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
+import { useUser } from '../contexts/UserContext';
 import AuthenticationModule from '../services/AuthenticationModule';
 import NotificationManager from '../services/NotificationManager';
 import ReceiptOCRService from '../services/ReceiptOCRService';
@@ -41,8 +42,9 @@ const AVAILABLE_ROLES: FamilyRole[] = [
  *   const { user, familyGroup, familyMembers, loading, updateName, updateRole, ... } = useSettings();
  */
 export function useSettings() {
+  // Live user from App's auth listener — no re-fetch needed
+  const user = useUser();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [familyGroup, setFamilyGroup] = useState<FamilyGroup | null>(null);
   const [familyMembers, setFamilyMembers] = useState<User[]>([]);
   const [invitationCode, setInvitationCode] = useState<string | null>(null);
@@ -59,7 +61,7 @@ export function useSettings() {
       joinRequestsUnsubscribeRef.current?.();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.uid, user?.familyGroupId]);
 
   const loadHapticFeedbackSetting = async () => {
     try {
@@ -101,9 +103,8 @@ export function useSettings() {
     try {
       setLoading(true);
 
-      const currentUser = await AuthenticationModule.getCurrentUser();
+      const currentUser = user;
       if (!currentUser) return;
-      setUser(currentUser);
 
       if (currentUser.familyGroupId) {
         const group = await AuthenticationModule.getUserFamilyGroup(currentUser.uid);
@@ -164,9 +165,8 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
       await firebaseUser.updateProfile({ displayName: newName.trim() });
     }
 
+    // Context user refreshes via the live /users/<uid> listener in App
     await update(ref(getDatabase(), `/users/${user.uid}`), { displayName: newName.trim() });
-
-    setUser({ ...user, displayName: newName.trim() });
   }, [user]);
 
   const updateRole = useCallback(async (role: FamilyRole): Promise<void> => {
@@ -174,12 +174,11 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
 
     const avatar = getRoleAvatar(role);
 
+    // Context user refreshes via the live /users/<uid> listener in App
     await update(ref(getDatabase(), `/users/${user.uid}`), {
       role: role,
       avatar: avatar,
     });
-
-    setUser({ ...user, role, avatar });
   }, [user]);
 
   const logout = useCallback(async (): Promise<void> => {

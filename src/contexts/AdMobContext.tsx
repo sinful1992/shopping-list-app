@@ -18,6 +18,8 @@ interface AdMobContextType {
   consentObtained: boolean;
   retryConsent: () => Promise<void>;
   showInterstitial: () => boolean;
+  /** Show now, or retry once after a delay (cold start: ad not loaded yet). */
+  showInterstitialWithRetry: (delayMs?: number) => void;
   setPendingInterstitial: () => void;
   showRewarded: (onRewarded: () => void, onDismissed?: () => void) => boolean;
 }
@@ -273,6 +275,30 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     }
   }, [shouldShowAds]);
 
+  // One-shot retry for the cold-start case where the interstitial hasn't
+  // loaded yet when a screen wants to show it (previously duplicated in
+  // ListDetailScreen). A new call supersedes any pending retry.
+  const interstitialRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showInterstitialWithRetry = useCallback((delayMs: number = 3000): void => {
+    if (showInterstitial()) return;
+    if (interstitialRetryRef.current) {
+      clearTimeout(interstitialRetryRef.current);
+    }
+    interstitialRetryRef.current = setTimeout(() => {
+      interstitialRetryRef.current = null;
+      showInterstitial();
+    }, delayMs);
+  }, [showInterstitial]);
+
+  // Clear any pending interstitial retry on unmount
+  useEffect(() => {
+    return () => {
+      if (interstitialRetryRef.current) {
+        clearTimeout(interstitialRetryRef.current);
+      }
+    };
+  }, []);
+
   const setPendingInterstitial = useCallback(() => {
     pendingInterstitialRef.current = {
       pending: true,
@@ -323,6 +349,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     consentObtained,
     retryConsent,
     showInterstitial,
+    showInterstitialWithRetry,
     setPendingInterstitial,
     showRewarded,
   };

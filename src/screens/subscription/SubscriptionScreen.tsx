@@ -11,10 +11,10 @@ import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
-import { SubscriptionTier, User } from '../../models/types';
+import { SubscriptionTier } from '../../models/types';
 import { TIER_FEATURES } from '../../models/SubscriptionConfig';
 import { UsageIndicator } from '../../components/UsageIndicator';
-import AuthenticationModule from '../../services/AuthenticationModule';
+import { useUser } from '../../contexts/UserContext';
 import UsageTracker from '../../services/UsageTracker';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC } from '../../styles/theme';
@@ -34,7 +34,7 @@ export const SubscriptionScreen: React.FC = () => {
     restorePurchases,
   } = useRevenueCat();
 
-  const [user, setUser] = useState<User | null>(null);
+  const user = useUser();
   const [loading, setLoading] = useState(true);
   const [usageSummary, setUsageSummary] = useState<{
     lists: { used: number; limit: number | null };
@@ -42,31 +42,18 @@ export const SubscriptionScreen: React.FC = () => {
     urgentItems: { used: number; limit: number | null };
   } | null>(null);
 
+  // Load usage on mount, and reload when the tier changes (after purchase) or
+  // the live context user updates (usageCounters are kept fresh by App's listener)
   useEffect(() => {
-    loadUserAndUsage();
-  }, []);
-
-  // Reload usage when tier changes (e.g., after purchase)
-  useEffect(() => {
-    if (user) {
-      UsageTracker.getUsageSummary(user).then(setUsageSummary).catch(() => {});
-    }
-  }, [tier, user]);
-
-  const loadUserAndUsage = async () => {
-    try {
-      const currentUser = await AuthenticationModule.getCurrentUser();
-      if (currentUser) {
-        setUser(currentUser);
-        const summary = await UsageTracker.getUsageSummary(currentUser);
-        setUsageSummary(summary);
-      }
-    } catch {
-      // Failed to load user/usage
-    } finally {
+    if (!user) {
       setLoading(false);
+      return;
     }
-  };
+    UsageTracker.getUsageSummary(user)
+      .then(setUsageSummary)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [tier, user]);
 
   const monthlyPrice = (() => {
     if (!offerings) return null;

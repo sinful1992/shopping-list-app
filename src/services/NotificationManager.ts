@@ -1,6 +1,6 @@
 import messaging from '@react-native-firebase/messaging';
 import auth from '@react-native-firebase/auth';
-import { PermissionsAndroid, Platform, Alert } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import supabase from './SupabaseClient';
@@ -124,40 +124,19 @@ class NotificationManager {
   }
 
   /**
-   * Initialize notification listeners
+   * Initialize notification listeners.
+   * Foreground messages go to the callback (themed in-app alert).
+   * Background/quit-state notification taps are handled by the deep-linking
+   * config in App.tsx, not here.
    */
-  initializeListeners(onNotificationReceived?: (notification: any) => void): void {
+  initializeListeners(onNotificationReceived: (notification: any) => void): () => void {
     // Handle foreground notifications
-    messaging().onMessage(async (remoteMessage) => {
-      if (onNotificationReceived) {
-        onNotificationReceived(remoteMessage);
-      }
-
-      // Show local notification or in-app alert
-      if (remoteMessage.notification) {
-        Alert.alert(
-          remoteMessage.notification.title || 'Notification',
-          remoteMessage.notification.body || ''
-        );
-      }
+    const unsubMessage = messaging().onMessage(async (remoteMessage) => {
+      onNotificationReceived(remoteMessage);
     });
-
-    // Handle background/quit state notification tap
-    messaging().onNotificationOpenedApp((_remoteMessage) => {
-      // TODO: Navigate to UrgentItemsScreen based on _remoteMessage.data
-    });
-
-    // Check if app was opened from a notification (quit state)
-    messaging()
-      .getInitialNotification()
-      .then((remoteMessage) => {
-        if (remoteMessage) {
-          // TODO: Navigate to UrgentItemsScreen based on remoteMessage.data
-        }
-      });
 
     // Handle token refresh
-    messaging().onTokenRefresh(async (token) => {
+    const unsubTokenRefresh = messaging().onTokenRefresh(async (token) => {
       this.fcmToken = token;
       await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
 
@@ -168,6 +147,11 @@ class NotificationManager {
         await this.registerToken(parsed.userId, parsed.familyGroupId).catch(err => CrashReporting.recordError(err as Error, 'NotificationManager registerToken on refresh'));
       }
     });
+
+    return () => {
+      unsubMessage();
+      unsubTokenRefresh();
+    };
   }
 
   /**

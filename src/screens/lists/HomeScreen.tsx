@@ -17,6 +17,7 @@ import createStyles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import AnimatedListCard from '../../components/AnimatedListCard';
+import SyncStatusBanner from '../../components/SyncStatusBanner';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -222,6 +223,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
+      <SyncStatusBanner />
       <FlatList
         data={lists}
         keyExtractor={(list) => list.id}
@@ -239,6 +241,7 @@ const HomeScreen = () => {
         <TouchableOpacity
           style={styles.scanFab}
           onPress={handleQuickScan}
+          accessibilityRole="button"
           accessibilityLabel="Scan receipt into a new list"
         >
           <Icon name="camera-outline" size={22} color={theme.text.primary} />
@@ -248,6 +251,7 @@ const HomeScreen = () => {
           onPress={handleCreateList}
           onLongPress={handleQuickScan}
           delayLongPress={500}
+          accessibilityRole="button"
           accessibilityLabel="Create shopping list"
         >
           <LinearGradient

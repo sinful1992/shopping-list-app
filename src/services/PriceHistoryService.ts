@@ -188,8 +188,11 @@ class PriceHistoryService {
       return [];
     }
 
-    // TODO: remove getFromCompletedListsLegacy() once priceHistoryBackfillDone_v1 has
-    // been set across all active devices (tracked as a follow-up cleanup task).
+    // TODO: remove getFromCompletedListsLegacy() once priceHistoryBackfillDone_v1
+    // has been set across all active devices. The breadcrumb below makes usage
+    // visible in Crashlytics — delete the legacy branch once it reads zero
+    // over a full release cycle.
+    CrashReporting.log('PriceHistoryService legacy path hit: getFromCompletedListsLegacy');
     return this.getFromCompletedListsLegacy(familyGroupId, itemName);
   }
 

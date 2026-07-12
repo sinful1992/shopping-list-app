@@ -5,6 +5,7 @@ import ShoppingListManager from '../services/ShoppingListManager';
 import FirebaseSyncListener from '../services/FirebaseSyncListener';
 import PriceHistoryService from '../services/PriceHistoryService';
 import CrashReporting from '../services/CrashReporting';
+import { mergeWithPendingLists as mergePendingPure, PendingListEntry } from '../utils/pendingListsMerge';
 
 /**
  * useShoppingLists Hook
@@ -20,39 +21,18 @@ import CrashReporting from '../services/CrashReporting';
  * Usage:
  *   const { lists, loading, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
  */
-const MIN_PENDING_AGE_MS = 2000;
-
 export function useShoppingLists(familyGroupId: string | null, user: User | null) {
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const pendingListsRef = useRef<Map<string, { list: ShoppingList; addedAt: number }>>(new Map());
+  const pendingListsRef = useRef<Map<string, PendingListEntry>>(new Map());
   const lastFamilyGroupIdRef = useRef<string | null>(null);
 
-  const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) => {
-    const pendingEntries = Array.from(pendingListsRef.current.values());
-    const updatedMap = new Map(updatedLists.map(l => [l.id, l]));
-
-    const mergedLists = [...updatedLists];
-
-    for (const entry of pendingEntries) {
-      if (!updatedMap.has(entry.list.id)) {
-        mergedLists.push(entry.list);
-      }
-    }
-
-    const now = Date.now();
-    for (const [listId, entry] of pendingListsRef.current.entries()) {
-      const foundList = updatedMap.get(listId);
-      if (foundList && foundList.syncStatus === 'synced' && now - entry.addedAt >= MIN_PENDING_AGE_MS) {
-        pendingListsRef.current.delete(listId);
-      }
-    }
-
-    return mergedLists.sort((a, b) => b.createdAt - a.createdAt);
-  }, []);
+  // Pure merge lives in utils/pendingListsMerge (now injected there for tests)
+  const mergeWithPendingLists = useCallback((updatedLists: ShoppingList[]) =>
+    mergePendingPure(updatedLists, pendingListsRef.current, Date.now()), []);
 
   // Subscribe to real-time list changes
   useEffect(() => {

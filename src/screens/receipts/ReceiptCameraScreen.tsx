@@ -15,7 +15,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import AuthenticationModule from '../../services/AuthenticationModule';
+import { useUser } from '../../contexts/UserContext';
 import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
 import { OCRResult } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
@@ -29,6 +29,7 @@ const ReceiptCameraScreen = () => {
 
   const { shouldShowAds, showRewarded } = useAdMob();
   const { tier } = useRevenueCat();
+  const user = useUser();
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [ocrState, setOcrState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -152,7 +153,6 @@ const ReceiptCameraScreen = () => {
 
     setConfirming(true);
     try {
-      const user = await AuthenticationModule.getCurrentUser();
       if (!user || !user.familyGroupId) {
         throw new Error('User not authenticated');
       }

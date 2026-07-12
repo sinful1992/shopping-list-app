@@ -85,6 +85,8 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
               onDelete();
             }}
             style={staticStyles.deleteIconButton}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete list ${listName}`}
           >
             <Icon name="trash-outline" size={18} color={theme.text.secondary} />
           </TouchableOpacity>

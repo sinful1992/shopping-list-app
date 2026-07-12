@@ -15,10 +15,10 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { HistoryStackParamList } from '../../types/navigation';
 import HistoryTracker from '../../services/HistoryTracker';
-import AuthenticationModule from '../../services/AuthenticationModule';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import { ShoppingList, User } from '../../models/types';
+import { ShoppingList } from '../../models/types';
+import { useUser } from '../../contexts/UserContext';
 import FilterModal, { FilterOptions } from '../../components/FilterModal';
 import SortDropdown, { SortOption } from '../../components/SortDropdown';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -36,10 +36,10 @@ const HistoryScreen = () => {
   const { showAlert } = useAlert();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const user = useUser();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lists, setLists] = useState<ShoppingList[]>([]);
-  const [user, setUser] = useState<User | null>(null);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -75,11 +75,6 @@ const HistoryScreen = () => {
   // Incremented by useFocusEffect to trigger a reload when the screen regains focus
   const [focusRefreshKey, setFocusRefreshKey] = useState(0);
   const initialLoadDone = useRef(false);
-
-  useEffect(() => {
-    loadUser();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Reload when screen regains focus so totals written in HistoryDetail are immediately visible
   useFocusEffect(useCallback(() => {
@@ -140,15 +135,6 @@ const HistoryScreen = () => {
       await HistoryTracker.autoArchiveOldLists(user.familyGroupId);
     } catch {
       // Auto-archive failed - not critical
-    }
-  };
-
-  const loadUser = async () => {
-    try {
-      const currentUser = await AuthenticationModule.getCurrentUser();
-      setUser(currentUser);
-    } catch (error: any) {
-      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 

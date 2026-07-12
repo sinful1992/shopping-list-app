@@ -12,7 +12,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
-import AuthenticationModule from '../services/AuthenticationModule';
+import { useUser } from '../contexts/UserContext';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -33,6 +33,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const user = useUser();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<PriceStats | null>(null);
   const [priceByStore, setPriceByStore] = useState<{ [store: string]: any }>({});
@@ -48,7 +49,6 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     setLoading(true);
 
     try {
-      const user = await AuthenticationModule.getCurrentUser();
       if (!user?.familyGroupId) return;
 
       const [priceStats, storeComparison] = await Promise.all([
@@ -106,7 +106,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
           </View>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Price History</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel="Close price history">
               <Icon name="close" size={22} color={theme.text.primary} />
             </TouchableOpacity>
           </View>

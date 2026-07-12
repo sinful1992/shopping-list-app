@@ -25,7 +25,7 @@ import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
-import AuthenticationModule from '../../services/AuthenticationModule';
+import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
 import { Item, ReceiptData, ReceiptLineItem } from '../../models/types';
 
@@ -53,17 +53,17 @@ const ReceiptMatchScreen = () => {
   const [unmatchedListOpen, setUnmatchedListOpen] = useState(false);
   const [toAdd, setToAdd] = useState<Set<number>>(new Set());
   const [editingNames, setEditingNames] = useState<Record<number, string>>({});
-  const [userId, setUserId] = useState<string | null>(null);
+  const user = useUser();
+  const userId = user?.uid ?? null;
   const applyingRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        const [list, items, user] = await Promise.all([
+        const [list, items] = await Promise.all([
           ShoppingListManager.getListById(listId),
           ItemManager.getItemsForList(listId),
-          AuthenticationModule.getCurrentUser(),
         ]);
         if (!mounted) return;
         if (!list) {
@@ -72,7 +72,6 @@ const ReceiptMatchScreen = () => {
         }
         setReceiptData(list.receiptData);
         setCurrency(list.currency || '£');
-        setUserId(user?.uid ?? null);
 
         if (list.receiptData?.lineItems?.length) {
           const eligible = items.filter(i => i.price == null);
@@ -514,11 +513,11 @@ const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({
         {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
       </Text>
       {onAssign && !inToAdd && (
-        <TouchableOpacity onPress={onAssign} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={onAssign} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Assign to a list item">
           <Icon name="link-outline" size={20} color={theme.accent.blue} style={styles.assignIcon} />
         </TouchableOpacity>
       )}
-      <TouchableOpacity onPress={onToggleAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <TouchableOpacity onPress={onToggleAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={inToAdd ? 'Remove from items to add' : 'Add to list'}>
         <Icon
           name={inToAdd ? 'checkmark-circle' : 'add-circle-outline'}
           size={22}

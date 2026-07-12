@@ -13,6 +13,13 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|uuid)/)',
   ],
+  // Ratchet, don't aspire: set to the actual number when introduced
+  // (lines 33.48% on 2026-07-12) — raise as coverage grows, never lower.
+  coverageThreshold: {
+    global: {
+      lines: 33,
+    },
+  },
   testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/__mocks__/', '/__tests__/setup\\.js'],
   modulePathIgnorePatterns: ['/.claude/'],
   watchPathIgnorePatterns: ['/.claude/'],

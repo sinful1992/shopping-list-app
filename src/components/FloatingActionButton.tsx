@@ -18,6 +18,7 @@ interface FloatingActionButtonProps {
   size?: number;
   disabled?: boolean;
   style?: ViewStyle;
+  accessibilityLabel?: string;
 }
 
 /**
@@ -32,6 +33,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   size = 60,
   disabled = false,
   style,
+  accessibilityLabel,
 }) => {
   const [pressed, setPressed] = useState(false);
   const { theme } = useTheme();
@@ -63,6 +65,9 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
         onPressOut={() => setPressed(false)}
         disabled={disabled}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? label ?? 'Primary action'}
+        accessibilityState={{ disabled }}
       >
         {disabled ? (
           <LinearGradient

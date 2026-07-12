@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Vibration,
-  InteractionManager,
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -18,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
 import CategoryItemList from '../../components/CategoryItemList';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -26,7 +24,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import { Item, ShoppingList, StoreLayout, User } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import AuthenticationModule from '../../services/AuthenticationModule';
+import { useUser } from '../../contexts/UserContext';
 import SyncEngine from '../../services/SyncEngine';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
@@ -43,11 +41,19 @@ import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
+import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
+import { useQuantityEditor } from './hooks/useQuantityEditor';
+import { useListSubscriptions } from './hooks/useListSubscriptions';
+import { useShoppingMode } from './hooks/useShoppingMode';
+import { useListModals } from './hooks/useListModals';
+import { calculateShoppingStats } from '../../utils/shoppingStats';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * ListDetailScreen
@@ -58,11 +64,11 @@ const ListDetailScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ListDetail'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { showInterstitial } = useAdMob();
+  const { showInterstitial, showInterstitialWithRetry } = useAdMob();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const showInterstitialRef = useRef(showInterstitial);
-  showInterstitialRef.current = showInterstitial;
+  const showInterstitialWithRetryRef = useRef(showInterstitialWithRetry);
+  showInterstitialWithRetryRef.current = showInterstitialWithRetry;
   const insets = useSafeAreaInsets();
   const { listId } = route.params;
   const [items, setItems] = useState<Item[]>([]);
@@ -82,22 +88,10 @@ const ListDetailScreen = () => {
   const [listName, setListName] = useState('');
   const [editedListName, setEditedListName] = useState('');
   const [isEditingListName, setIsEditingListName] = useState(false);
-  const [isShoppingMode, setIsShoppingMode] = useState(false);
-  const [isListLocked, setIsListLocked] = useState(false);
-  const [isListCompleted, setIsListCompleted] = useState(false);
-  const [canAddItems, setCanAddItems] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Live user from App's auth listener (UserContext)
+  const currentUser: User | null = useUser();
+  const currentUserId = currentUser?.uid ?? null;
   const [refreshing, setRefreshing] = useState(false);
-
-  // Active modal state — discriminated union; null means all modals closed
-  const [activeModal, setActiveModal] = useState<
-    | { type: 'price'; item: Item; recentPrices: number[] }
-    | { type: 'size'; item: Item }
-    | { type: 'details'; item: Item }
-    | { type: 'priceHistory'; itemName: string }
-    | null
-  >(null);
 
   // Store picker modal state: null=closed, 'banner'=store warning, 'shopping'=start shopping
   const [storePickerMode, setStorePickerMode] = useState<null | 'banner' | 'shopping'>(null);
@@ -117,12 +111,22 @@ const ListDetailScreen = () => {
   const [isCreatingPartialList, setIsCreatingPartialList] = useState(false);
   const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
-  const [isOnline, setIsOnline] = useState(true);
   const [isShoppingHeaderExpanded, setIsShoppingHeaderExpanded] = useState(false);
 
   // Store layout state
   // undefined = not yet fetched; null = fetched, no layout found; StoreLayout = fetched and found
   const [storeLayout, setStoreLayout] = useState<StoreLayout | null | undefined>(undefined);
+
+  // Lock / shopping-mode / permission state derived from list + user
+  const {
+    isListLocked,
+    setIsListLocked,
+    isListLockedRef,
+    isShoppingMode,
+    setIsShoppingMode,
+    isListCompleted,
+    canAddItems,
+  } = useShoppingMode(list, currentUserId);
 
   // Suppresses observer re-renders during an active drag reorder to avoid intermediate state flicker
   const isReorderingRef = useRef(false);
@@ -133,17 +137,12 @@ const ListDetailScreen = () => {
   // Ref for optimistic quantity updates (always has latest state for rapid taps)
   const itemsRef = useRef<Item[]>([]);
 
-  // Ref to avoid isListLocked closure in useCallback handlers
-  const isListLockedRef = useRef(false);
-
-  // Ref to avoid currentUserId closure in main useEffect
+  // Refs to avoid currentUserId/currentUser closures in main useEffect and async loaders
   const currentUserIdRef = useRef<string | null>(null);
+  const currentUserRef = useRef<User | null>(null);
 
-  // Optimistic quantity tracking — prevents observer from overwriting rapid tap values
-  const optimisticQtyRef = useRef<Map<string, number | null>>(new Map());
-
-  // Per-item debounce timers for quantity writes
-  const qtyDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Optimistic quantity map + debounced writes + unmount flush
+  const { mergeOptimisticQty, setQuantity, flush: flushQtyWrites } = useQuantityEditor();
 
   // Cache haptic setting to avoid AsyncStorage read on every toggle
   const hapticEnabledRef = useRef(false);
@@ -158,6 +157,14 @@ const ListDetailScreen = () => {
   listFamilyGroupIdRef.current = list?.familyGroupId;
   listStoreNameRef.current = list?.storeName ?? undefined;
   currentUserIdRef.current = currentUserId;
+  currentUserRef.current = currentUser;
+
+  // Item-editing modals (price/size/details/priceHistory) + tap dispatcher
+  const { activeModal, closeModal, openPriceHistory, handleItemTap } = useListModals({
+    isListLockedRef,
+    listFamilyGroupIdRef,
+    listStoreNameRef,
+  });
 
   // Load haptic setting on focus so the ref stays fresh if user changes it in Settings
   useFocusEffect(useCallback(() => {
@@ -166,212 +173,82 @@ const ListDetailScreen = () => {
     });
   }, []));
 
-  // Trigger sync when coming back online
-  useEffect(() => {
-    if (!isOnline) return;
-    SyncEngine.syncPendingChanges().then(result => {
-      if (result.failedCount !== null && result.failedCount > 0) {
-        // TODO: show sync failure banner — separate task (sync failure recovery UI)
-      }
-    });
-  }, [isOnline]);
-
-  // Define calculateShoppingStats before useEffect
-  const calculateShoppingStats = useCallback((itemsList: Item[]) => {
-    try {
-      if (!itemsList || itemsList.length === 0) {
-        setCheckedCount(0);
-        setUncheckedCount(0);
-        setRunningTotal(0);
-        return;
-      }
-
-      // Filter out invalid items
-      const validItems = itemsList.filter(item => item && item.id);
-
-      const checked = validItems.filter(item => item.checked).length;
-      const unchecked = validItems.filter(item => !item.checked).length;
-      // Running total = what's in the trolley: checked items only. Unchecked
-      // items must not count, or a leftover unbought item with a predicted
-      // price inflates the total past the real receipt.
-      const total = validItems.reduce((sum, item) => {
-        if (!item.checked) return sum;
-        const itemNameLower = item.name?.toLowerCase();
-        const predictedPrice = itemNameLower && predictedPrices ? predictedPrices[itemNameLower] : 0;
-        const price = item.price ?? predictedPrice ?? 0;
-        const qty = item.unitQty ?? 1;
-        return sum + (price * qty);
-      }, 0);
-
-      setCheckedCount(checked);
-      setUncheckedCount(unchecked);
-      setRunningTotal(total);
-    } catch {
-      // Set safe defaults on error
-      setCheckedCount(0);
-      setUncheckedCount(0);
-      setRunningTotal(0);
-    }
+  // Compute + apply shopping stats (pure math lives in utils/shoppingStats).
+  // `predictions` override lets callers use freshly-loaded prices before the
+  // predictedPrices state update has landed.
+  const applyShoppingStats = useCallback((itemsList: Item[], predictions?: { [key: string]: number }) => {
+    const stats = calculateShoppingStats(itemsList, predictions ?? predictedPrices);
+    setCheckedCount(stats.checked);
+    setUncheckedCount(stats.unchecked);
+    setRunningTotal(stats.total);
   }, [predictedPrices]);
 
+  const isValidListId = !!listId && UUID_REGEX.test(listId);
+
   useEffect(() => {
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!listId || !UUID_REGEX.test(listId)) {
+    if (!isValidListId) {
       showAlert('Error', 'Invalid list link.', [{ text: 'OK', onPress: () => navigation.goBack() }], { icon: 'error' });
-      return;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isValidListId]);
 
-    // Reset mounted flag
-    isMountedRef.current = true;
-
-    // Eager: fast local DB reads needed immediately
-    loadListMetadata();
-
-    // Deferred: expensive predictions after navigation animation completes
-    const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      if (isMountedRef.current) {
-        loadPredictions();
-      }
-    });
-
-    // Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
-    const unsubscribeList = ShoppingListManager.subscribeToSingleList(
-      listId,
-      async (updatedList) => {
-        if (!isMountedRef.current) return;
-        const userId = currentUserIdRef.current;
-
-        if (updatedList && userId) {
-          setList(updatedList);
-          setListName(updatedList.name);
-          setIsListCompleted(updatedList.status === 'completed');
-
-          const locked = await ShoppingListManager.isListLockedForUser(listId, userId);
-          isListLockedRef.current = locked;
-          setIsListLocked(locked);
-
-          if (updatedList.isLocked && updatedList.lockedBy === userId) {
-            setIsShoppingMode(true);
-          } else {
-            setIsShoppingMode(false);
-          }
-
-          if (updatedList.status === 'completed') {
-            setCanAddItems(updatedList.completedBy === userId);
-          } else {
-            setCanAddItems(!locked);
-          }
-        }
-      }
-    );
-
-    // Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
-    const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
-      if (!isMountedRef.current) return;
-      if (!updatedItems) return;
-
+  // WatermelonDB list/item observers + NetInfo + InteractionManager deferral
+  const { isOnline } = useListSubscriptions(listId, isValidListId, {
+    onMount: () => {
+      isMountedRef.current = true;
+      // Eager: fast local DB reads needed immediately
+      loadListMetadata();
+    },
+    onAfterInteractions: () => {
+      // Deferred: expensive predictions after navigation animation completes
+      loadPredictions();
+    },
+    onList: (updatedList) => {
+      if (!currentUserIdRef.current) return;
+      // Lock/shopping-mode/permission state recomputes in useShoppingMode
+      // whenever the list object changes.
+      setList(updatedList);
+      setListName(updatedList.name);
+    },
+    onItems: (updatedItems) => {
       // Merge optimistic quantity values — prevents observer from overwriting rapid taps
-      let mergedItems = updatedItems;
-      if (optimisticQtyRef.current.size > 0) {
-        mergedItems = updatedItems.map(item => {
-          const optimistic = optimisticQtyRef.current.get(item.id);
-          if (optimistic !== undefined) {
-            if (item.unitQty === optimistic) {
-              optimisticQtyRef.current.delete(item.id);
-              return item;
-            }
-            return { ...item, unitQty: optimistic };
-          }
-          return item;
-        });
-      }
+      const mergedItems = mergeOptimisticQty(updatedItems);
 
       itemsRef.current = mergedItems;
       if (!isReorderingRef.current) {
         setItems(mergedItems);
       }
 
-      try {
-        calculateShoppingStats(mergedItems);
-      } catch {
-        // Silently handle error
-      }
+      applyShoppingStats(mergedItems);
 
       if (!predictionsLoadedRef.current && mergedItems.length > 0 && listFamilyGroupIdRef.current) {
         predictionsLoadedRef.current = true;
         predictPricesFromHistory(mergedItems, listFamilyGroupIdRef.current);
       }
-    });
-
-    // Subscribe to network status changes
-    const unsubscribeNetInfo = NetInfo.addEventListener(state => {
-      if (isMountedRef.current) {
-        setIsOnline(state.isConnected ?? false);
-      }
-    });
-
-    const qtyDebounce = qtyDebounceRef.current;
-    const optimisticQty = optimisticQtyRef.current;
-
-    return () => {
+    },
+    onCleanup: () => {
       isMountedRef.current = false;
       predictionsLoadedRef.current = false;
-      interactionHandle.cancel();
-      unsubscribeList();
-      unsubscribeItems();
-      unsubscribeNetInfo();
       setPredictedPrices({});
       setSmartSuggestions(new Map());
 
       // Flush pending qty writes on unmount — don't lose data
-      for (const [itemId, timer] of qtyDebounce.entries()) {
-        clearTimeout(timer);
-        const targetQty = optimisticQty.get(itemId);
-        if (targetQty !== undefined) {
-          ItemManager.updateItem(itemId, { unitQty: targetQty });
-        }
-      }
-      qtyDebounce.clear();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+      flushQtyWrites();
+    },
+  });
 
-  // One-shot: load current user (separate from main effect to avoid double observer setup)
-  useEffect(() => { loadCurrentUser(); }, []);
-
-  // Compute lock/mode state once userId becomes available
+  // Trigger sync when coming back online. Failures stay visible via
+  // SyncStatusBanner, which subscribes to SyncEngine status changes.
   useEffect(() => {
-    if (!currentUserId || !list) return;
-    ShoppingListManager.isListLockedForUser(listId, currentUserId).then(locked => {
-      if (!isMountedRef.current) return;
-      isListLockedRef.current = locked;
-      setIsListLocked(locked);
-      if (list.isLocked && list.lockedBy === currentUserId) {
-        setIsShoppingMode(true);
-      } else {
-        setIsShoppingMode(false);
-      }
-      if (list.status === 'completed') {
-        setCanAddItems(list.completedBy === currentUserId);
-      } else {
-        setCanAddItems(!locked);
-      }
+    if (!isOnline) return;
+    SyncEngine.syncPendingChanges().catch(error => {
+      CrashReporting.recordError(error as Error, 'ListDetailScreen reconnect sync');
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserId, list?.id]);
+  }, [isOnline]);
 
-  // Show interstitial ad on list open (with retry for cold starts)
+  // Show interstitial ad on list open (retry for cold starts lives in AdMobContext)
   useEffect(() => {
-    const shown = showInterstitialRef.current();
-    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-    if (!shown) {
-      retryTimeout = setTimeout(() => {
-        showInterstitialRef.current();
-      }, 3000);
-    }
-    return () => {
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
+    showInterstitialWithRetryRef.current();
   }, []);
 
   // Start Firebase items listener once we have the list's familyGroupId
@@ -388,20 +265,12 @@ const ListDetailScreen = () => {
     };
   }, [list?.familyGroupId, listId]);
 
-  const loadCurrentUser = async () => {
-    const user = await AuthenticationModule.getCurrentUser();
-    if (user) {
-      setCurrentUserId(user.uid);
-      setCurrentUser(user);
-    }
-  };
-
   const loadListMetadata = async (): Promise<ShoppingList | null> => {
     try {
       const fetchedList = await ShoppingListManager.getListById(listId);
       if (fetchedList) {
         // Security: verify ownership — needed because listId can come from a deep link
-        const user = await AuthenticationModule.getCurrentUser();
+        const user = currentUserRef.current;
         if (user?.familyGroupId && fetchedList.familyGroupId !== user.familyGroupId) {
           showAlert(
             'Access Denied',
@@ -411,30 +280,9 @@ const ListDetailScreen = () => {
           );
           return null;
         }
+        // Lock/shopping-mode/permission state recomputes in useShoppingMode
         setList(fetchedList);
         setListName(fetchedList.name);
-        setIsListCompleted(fetchedList.status === 'completed');
-
-        // Check if list is locked
-        if (currentUserId) {
-          const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
-          isListLockedRef.current = locked;
-          setIsListLocked(locked);
-
-          // If locked by current user, enable shopping mode
-          if (fetchedList.isLocked && fetchedList.lockedBy === currentUserId) {
-            setIsShoppingMode(true);
-          } else {
-            setIsShoppingMode(false);
-          }
-
-          // If list is completed, only the person who completed it can add items
-          if (fetchedList.status === 'completed') {
-            setCanAddItems(fetchedList.completedBy === currentUserId);
-          } else {
-            setCanAddItems(!locked);
-          }
-        }
         return fetchedList;
       }
       return null;
@@ -468,13 +316,14 @@ const ListDetailScreen = () => {
         setSmartSuggestions(suggestions);
       }
 
-      // Recalculate stats after predictions are loaded
-      calculateShoppingStats(itemsList);
+      // Recalculate stats with the freshly loaded predictions (passing them
+      // explicitly — the predictedPrices state update hasn't landed yet)
+      applyShoppingStats(itemsList, predictions);
     } catch {
       setPredictedPrices({});
       setSmartSuggestions(new Map());
     }
-  }, [calculateShoppingStats]);
+  }, [applyShoppingStats]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -590,14 +439,8 @@ const ListDetailScreen = () => {
     itemsRef.current = updatedItems;
     setItems(updatedItems);
 
-    optimisticQtyRef.current.set(itemId, targetQty);
-    const existingTimer = qtyDebounceRef.current.get(itemId);
-    if (existingTimer) clearTimeout(existingTimer);
-    qtyDebounceRef.current.set(itemId, setTimeout(() => {
-      qtyDebounceRef.current.delete(itemId);
-      ItemManager.updateItem(itemId, { unitQty: targetQty });
-    }, 300));
-  }, []);
+    setQuantity(itemId, targetQty);
+  }, [setQuantity]);
 
   const handleDecrement = useCallback((itemId: string) => {
     const currentItem = itemsRef.current.find(i => i.id === itemId);
@@ -613,14 +456,8 @@ const ListDetailScreen = () => {
     itemsRef.current = updatedItems;
     setItems(updatedItems);
 
-    optimisticQtyRef.current.set(itemId, targetQty);
-    const existingTimer = qtyDebounceRef.current.get(itemId);
-    if (existingTimer) clearTimeout(existingTimer);
-    qtyDebounceRef.current.set(itemId, setTimeout(() => {
-      qtyDebounceRef.current.delete(itemId);
-      ItemManager.updateItem(itemId, { unitQty: targetQty });
-    }, 300));
-  }, []);
+    setQuantity(itemId, targetQty);
+  }, [setQuantity]);
 
   const handlePriceSave = async (itemId: string, updates: { price?: number | null }) => {
     try {
@@ -654,35 +491,6 @@ const ListDetailScreen = () => {
       throw error;
     }
   };
-
-  const handleItemTap = useCallback((item: Item, focusField: 'name' | 'price' | 'measurement' = 'name') => {
-    if (isListLockedRef.current) return;
-    if (focusField === 'price') {
-      // Fetch recent prices for quick-fill chips — use refs to avoid stale closures
-      const familyGroupId = listFamilyGroupIdRef.current;
-      const storeName = listStoreNameRef.current;
-      if (familyGroupId) {
-        PriceHistoryService.getPriceHistory(familyGroupId, item.name)
-          .then(history => {
-            const filtered = storeName
-              ? history.filter(p => p.storeName === storeName)
-              : [];
-            const unique = [...new Set(filtered.map(p => p.price))].slice(-4).reverse();
-            setActiveModal({ type: 'price', item, recentPrices: unique });
-          })
-          .catch(() => {
-            setActiveModal({ type: 'price', item, recentPrices: [] });
-          });
-      } else {
-        setActiveModal({ type: 'price', item, recentPrices: [] });
-      }
-    } else if (focusField === 'measurement') {
-      setActiveModal({ type: 'size', item });
-    } else {
-      setActiveModal({ type: 'details', item });
-    }
-  }, []);
-
 
   const handleEditListName = () => {
     setEditedListName(listName);
@@ -1049,10 +857,10 @@ const ListDetailScreen = () => {
               placeholderTextColor="#6E6E73"
               editable={!isListLocked}
             />
-            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked}>
+            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked} accessibilityRole="button" accessibilityLabel="Save list name">
               <Icon name="checkmark" size={20} color={theme.accent.green} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName}>
+            <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName} accessibilityRole="button" accessibilityLabel="Cancel editing list name">
               <Icon name="close" size={20} color={theme.accent.red} />
             </TouchableOpacity>
           </>
@@ -1064,18 +872,22 @@ const ListDetailScreen = () => {
                 style={[styles.saveLayoutButton, isSavingLayout && styles.saveLayoutButtonDisabled]}
                 onPress={handleSaveLayout}
                 disabled={isSavingLayout}
+                accessibilityRole="button"
+                accessibilityLabel="Save store layout"
               >
                 <Text style={styles.saveLayoutText}>{isSavingLayout ? 'Saving…' : 'Save'}</Text>
               </TouchableOpacity>
             )}
             {!isListLocked && !isLayoutDirty && (
-              <TouchableOpacity onPress={handleEditListName}>
+              <TouchableOpacity onPress={handleEditListName} accessibilityRole="button" accessibilityLabel="Edit list name">
                 <Icon name="pencil" size={20} color={theme.text.secondary} />
               </TouchableOpacity>
             )}
           </>
         )}
       </View>
+
+      <SyncStatusBanner />
 
       {/* Smart Status Bar - Consolidated single banner with priority system */}
       {(isShoppingMode || isListLocked || (isListCompleted && !canAddItems)) && (
@@ -1107,7 +919,7 @@ const ListDetailScreen = () => {
                 {!isOnline && <Icon name="cloud-offline-outline" size={16} color={theme.text.primary} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton}>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
                   <Icon name="chevron-down" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
@@ -1122,7 +934,7 @@ const ListDetailScreen = () => {
             <View style={styles.statusContentExpanded}>
               <View style={styles.expandedHeader}>
                 <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton}>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
                   <Icon name="chevron-up" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
               </View>
@@ -1204,7 +1016,7 @@ const ListDetailScreen = () => {
           <Text style={styles.storeWarningText}>
             No store selected — prices won't be saved to history
           </Text>
-          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')} accessibilityRole="button">
             <Text style={styles.storeWarningLink}>Select Store</Text>
           </TouchableOpacity>
         </View>
@@ -1213,7 +1025,7 @@ const ListDetailScreen = () => {
       {list?.storeName && !isListLocked && !isListCompleted && (
         <View style={styles.changeStoreRow}>
           <Text style={styles.changeStoreLabel}>{list.storeName}</Text>
-          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')} accessibilityRole="button" accessibilityLabel="Change store">
             <Text style={styles.changeStoreLink}>Change</Text>
           </TouchableOpacity>
         </View>
@@ -1239,6 +1051,8 @@ const ListDetailScreen = () => {
           style={styles.frequentItemsButton}
           onPress={() => setFrequentItemsVisible(true)}
           disabled={!canAddItems}
+          accessibilityRole="button"
+          accessibilityLabel="Show frequently bought items"
         >
           <Icon name="time-outline" size={20} color={theme.text.secondary} />
         </TouchableOpacity>
@@ -1275,6 +1089,8 @@ const ListDetailScreen = () => {
                             onPress={() => handleMoveCategory(cat, 'up')}
                             disabled={idx === 0}
                             style={styles.arrowButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Move ${category?.name || cat} up`}
                           >
                             <Icon name="chevron-up" size={18} color={idx === 0 ? '#3A3A3C' : '#6E6E73'} />
                           </TouchableOpacity>
@@ -1282,6 +1098,8 @@ const ListDetailScreen = () => {
                             onPress={() => handleMoveCategory(cat, 'down')}
                             disabled={idx === visibleCategories.length - 1}
                             style={styles.arrowButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Move ${category?.name || cat} down`}
                           >
                             <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? '#3A3A3C' : '#6E6E73'} />
                           </TouchableOpacity>
@@ -1429,6 +1247,7 @@ const ListDetailScreen = () => {
           icon="cart"
           onPress={handleStartShopping}
           size={64}
+          accessibilityLabel="Start shopping"
         />
       )}
 
@@ -1436,22 +1255,22 @@ const ListDetailScreen = () => {
         visible={activeModal?.type === 'price'}
         item={activeModal?.type === 'price' ? activeModal.item : null}
         recentPrices={activeModal?.type === 'price' ? activeModal.recentPrices : []}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
         onSave={handlePriceSave}
-        onViewPriceHistory={(itemName) => setActiveModal({ type: 'priceHistory', itemName })}
+        onViewPriceHistory={openPriceHistory}
       />
 
       <SizeEditModal
         visible={activeModal?.type === 'size'}
         item={activeModal?.type === 'size' ? activeModal.item : null}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
         onSave={handleSizeSave}
       />
 
       <DetailsEditModal
         visible={activeModal?.type === 'details'}
         item={activeModal?.type === 'details' ? activeModal.item : null}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
         onSave={handleDetailsSave}
         onDelete={handleDeleteItem}
       />
@@ -1459,7 +1278,7 @@ const ListDetailScreen = () => {
       <PriceHistoryModal
         visible={activeModal?.type === 'priceHistory'}
         itemName={activeModal?.type === 'priceHistory' ? activeModal.itemName : ''}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
       />
 
       <StoreNamePicker

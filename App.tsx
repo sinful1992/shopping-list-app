@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LogBox, StatusBar, TouchableOpacity } from 'react-native';
+import { Linking, LogBox, StatusBar, StyleSheet, TouchableOpacity } from 'react-native';
 
 LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
 
@@ -17,6 +17,7 @@ import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
+import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
@@ -27,6 +28,7 @@ import CrashReporting from './src/services/CrashReporting';
 import AppCheckService from './src/services/AppCheckService';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
+import { UserContext } from './src/contexts/UserContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { DARK_THEME, LIGHT_THEME } from './src/styles/theme';
 import { useInAppUpdate } from './src/hooks';
@@ -37,9 +39,42 @@ import AdConsentGate from './src/components/AdConsentGate';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { User } from './src/models/types';
 
-// Deep linking configuration
+// Map an FCM message to a deep-link path, or null if it shouldn't navigate.
+function notificationToDeepLink(message: FirebaseMessagingTypes.RemoteMessage | null): string | null {
+  if (message?.data?.type === 'urgent_item') {
+    return 'familyshoppinglist://urgent';
+  }
+  return null;
+}
+
+// Deep linking configuration. Notification taps are fed through the linking
+// layer (React Navigation's documented push-notification pattern) so cold-start
+// navigation waits for the container to be ready — no navigation-ref race.
 const linking = {
   prefixes: ['familyshoppinglist://', 'https://familyshoppinglist.app'],
+  // Quit state: app opened from a notification
+  async getInitialURL(): Promise<string | null> {
+    const message = await messaging().getInitialNotification();
+    const deepLink = notificationToDeepLink(message);
+    if (deepLink) {
+      return deepLink;
+    }
+    return Linking.getInitialURL();
+  },
+  // Background state: notification tapped while the app is alive
+  subscribe(listener: (url: string) => void) {
+    const unsubNotification = messaging().onNotificationOpenedApp((message) => {
+      const deepLink = notificationToDeepLink(message);
+      if (deepLink) {
+        listener(deepLink);
+      }
+    });
+    const linkingSub = Linking.addEventListener('url', ({ url }) => listener(url));
+    return () => {
+      unsubNotification();
+      linkingSub.remove();
+    };
+  },
   config: {
     screens: {
       MainTabs: {
@@ -115,6 +150,11 @@ import { CURRENT_TERMS_VERSION } from './src/legal';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+const appStyles = StyleSheet.create({
+  root: { flex: 1 },
+  headerRightButton: { marginRight: 15 },
+});
 
 // Lists Stack Navigator
 function ListsStack() {
@@ -201,7 +241,9 @@ function MainTabNavigator() {
         headerRight: () => (
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}
-            style={{ marginRight: 15 }}
+            style={appStyles.headerRightButton}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
           >
             <Icon name="settings-outline" size={24} color={isDark ? '#6EA8FE' : '#2563EB'} />
           </TouchableOpacity>
@@ -302,13 +344,19 @@ function App(): JSX.Element {
     }
   }, [user?.familyGroupId]);
 
+  // Effects below key on these identity fields, not the whole user object —
+  // the live user updates on every counter tick and re-running them would
+  // re-register tokens/listeners needlessly.
+  const userUid = user?.uid;
+  const userFamilyGroupId = user?.familyGroupId;
+
   // Backfill orphan receiptData rows that were written before the sync fix
   useEffect(() => {
-    if (user) {
+    if (userUid) {
       runReceiptSyncBackfill().catch(e => console.warn('Receipt sync backfill failed:', e));
       runHoistedFieldsBackfill().catch(e => console.warn('Hoisted fields backfill failed:', e));
     }
-  }, [user?.uid]);
+  }, [userUid]);
 
   // Get showAlert from context
   const { showAlert } = useAlert();
@@ -385,17 +433,25 @@ function App(): JSX.Element {
 
   // Initialize FCM notifications when user logs in
   useEffect(() => {
-    if (user && user.familyGroupId) {
+    if (userUid && userFamilyGroupId) {
       // Register FCM token
-      NotificationManager.registerToken(user.uid, user.familyGroupId);
+      NotificationManager.registerToken(userUid, userFamilyGroupId);
 
-      // Initialize notification listeners
-      NotificationManager.initializeListeners();
+      // Initialize notification listeners — foreground messages surface as the
+      // themed in-app alert instead of the raw system Alert
+      const unsubscribeListeners = NotificationManager.initializeListeners((message) => {
+        showAlert(
+          message.notification?.title ?? 'Notification',
+          message.notification?.body ?? ''
+        );
+      });
 
       // Create notification channel (Android)
       NotificationManager.createNotificationChannel();
+
+      return unsubscribeListeners;
     }
-  }, [user?.uid, user?.familyGroupId]);
+  }, [userUid, userFamilyGroupId, showAlert]);
 
   // Hide splash screen when app is ready
   useEffect(() => {
@@ -409,13 +465,14 @@ function App(): JSX.Element {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={appStyles.root}>
     <SafeAreaProvider>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor="transparent"
         translucent={true}
       />
+      <UserContext.Provider value={user}>
       <RevenueCatProvider user={user}>
       <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme} linking={linking}>
         {!user ? (
@@ -477,6 +534,7 @@ function App(): JSX.Element {
         )}
       </NavigationContainer>
       </RevenueCatProvider>
+      </UserContext.Provider>
     </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -13,10 +13,18 @@ module.exports = [
     rules: {
       'prettier/prettier': 'off',
       'react/no-unstable-nested-components': ['warn', { allowAsProps: true }],
-      // Pre-existing intentional partial-dep effects (App.tsx) trip this; auto-
-      // "fixing" the dep arrays would change effect timing/behavior. Keep it
+      // Intentional partial-dep effects (marked with disable comments) exist;
+      // auto-"fixing" dep arrays would change effect timing/behavior. Keep it
       // visible as a warning rather than gating CI on a risky refactor.
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    // Deno edge functions: URL-path regex literals like /\/=?.../ trip
+    // no-div-regex — a stylistic rule that misfires on this code.
+    files: ['supabase/functions/**'],
+    rules: {
+      'no-div-regex': 'off',
     },
   },
   {

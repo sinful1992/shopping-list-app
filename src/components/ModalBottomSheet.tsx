@@ -37,10 +37,13 @@ const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, c
           style={styles.backdrop}
           activeOpacity={1}
           onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
         />
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
           style={styles.modal}
+          accessibilityViewIsModal
         >
           <View style={styles.modalHandleContainer}>
             <View style={styles.modalHandle} />

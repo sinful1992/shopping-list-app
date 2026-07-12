@@ -142,6 +142,8 @@ const UrgentItemsScreen = () => {
                   key={item.id}
                   style={styles.activeItemCard}
                   onPress={() => handleResolveItem(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Mark ${item.name} as done`}
                 >
                   <View style={styles.itemHeader}>
                     <Text style={styles.fireEmoji}>🔥</Text>
@@ -193,6 +195,8 @@ const UrgentItemsScreen = () => {
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setShowCreateModal(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Create urgent item"
       >
         <Text style={styles.fabText}>🔥</Text>
       </TouchableOpacity>
