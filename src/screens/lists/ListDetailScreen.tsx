@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   Vibration,
-  InteractionManager,
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -18,7 +17,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedItemCard from '../../components/AnimatedItemCard';
 import CategoryItemList from '../../components/CategoryItemList';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NetInfo from '@react-native-community/netinfo';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -46,10 +44,13 @@ import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
 import { useQuantityEditor } from './hooks/useQuantityEditor';
+import { useListSubscriptions } from './hooks/useListSubscriptions';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * ListDetailScreen
@@ -120,7 +121,6 @@ const ListDetailScreen = () => {
   const [isCreatingPartialList, setIsCreatingPartialList] = useState(false);
   const [predictedPrices, setPredictedPrices] = useState<{ [key: string]: number }>({});
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
-  const [isOnline, setIsOnline] = useState(true);
   const [isShoppingHeaderExpanded, setIsShoppingHeaderExpanded] = useState(false);
 
   // Store layout state
@@ -168,15 +168,6 @@ const ListDetailScreen = () => {
     });
   }, []));
 
-  // Trigger sync when coming back online. Failures stay visible via
-  // SyncStatusBanner, which subscribes to SyncEngine status changes.
-  useEffect(() => {
-    if (!isOnline) return;
-    SyncEngine.syncPendingChanges().catch(error => {
-      CrashReporting.recordError(error as Error, 'ListDetailScreen reconnect sync');
-    });
-  }, [isOnline]);
-
   // Define calculateShoppingStats before useEffect
   const calculateShoppingStats = useCallback((itemsList: Item[]) => {
     try {
@@ -215,62 +206,51 @@ const ListDetailScreen = () => {
     }
   }, [predictedPrices]);
 
+  const isValidListId = !!listId && UUID_REGEX.test(listId);
+
   useEffect(() => {
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!listId || !UUID_REGEX.test(listId)) {
+    if (!isValidListId) {
       showAlert('Error', 'Invalid list link.', [{ text: 'OK', onPress: () => navigation.goBack() }], { icon: 'error' });
-      return;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isValidListId]);
 
-    // Reset mounted flag
-    isMountedRef.current = true;
+  // WatermelonDB list/item observers + NetInfo + InteractionManager deferral
+  const { isOnline } = useListSubscriptions(listId, isValidListId, {
+    onMount: () => {
+      isMountedRef.current = true;
+      // Eager: fast local DB reads needed immediately
+      loadListMetadata();
+    },
+    onAfterInteractions: () => {
+      // Deferred: expensive predictions after navigation animation completes
+      loadPredictions();
+    },
+    onList: async (updatedList) => {
+      const userId = currentUserIdRef.current;
+      if (!userId) return;
 
-    // Eager: fast local DB reads needed immediately
-    loadListMetadata();
+      setList(updatedList);
+      setListName(updatedList.name);
+      setIsListCompleted(updatedList.status === 'completed');
 
-    // Deferred: expensive predictions after navigation animation completes
-    const interactionHandle = InteractionManager.runAfterInteractions(() => {
-      if (isMountedRef.current) {
-        loadPredictions();
+      const locked = await ShoppingListManager.isListLockedForUser(listId, userId);
+      isListLockedRef.current = locked;
+      setIsListLocked(locked);
+
+      if (updatedList.isLocked && updatedList.lockedBy === userId) {
+        setIsShoppingMode(true);
+      } else {
+        setIsShoppingMode(false);
       }
-    });
 
-    // Subscribe to local WatermelonDB changes for the list (triggered by Firebase or local edits)
-    const unsubscribeList = ShoppingListManager.subscribeToSingleList(
-      listId,
-      async (updatedList) => {
-        if (!isMountedRef.current) return;
-        const userId = currentUserIdRef.current;
-
-        if (updatedList && userId) {
-          setList(updatedList);
-          setListName(updatedList.name);
-          setIsListCompleted(updatedList.status === 'completed');
-
-          const locked = await ShoppingListManager.isListLockedForUser(listId, userId);
-          isListLockedRef.current = locked;
-          setIsListLocked(locked);
-
-          if (updatedList.isLocked && updatedList.lockedBy === userId) {
-            setIsShoppingMode(true);
-          } else {
-            setIsShoppingMode(false);
-          }
-
-          if (updatedList.status === 'completed') {
-            setCanAddItems(updatedList.completedBy === userId);
-          } else {
-            setCanAddItems(!locked);
-          }
-        }
+      if (updatedList.status === 'completed') {
+        setCanAddItems(updatedList.completedBy === userId);
+      } else {
+        setCanAddItems(!locked);
       }
-    );
-
-    // Subscribe to local WatermelonDB changes for items (triggered by Firebase or local edits)
-    const unsubscribeItems = ItemManager.subscribeToItemChanges(listId, (updatedItems) => {
-      if (!isMountedRef.current) return;
-      if (!updatedItems) return;
-
+    },
+    onItems: (updatedItems) => {
       // Merge optimistic quantity values — prevents observer from overwriting rapid taps
       const mergedItems = mergeOptimisticQty(updatedItems);
 
@@ -279,40 +259,32 @@ const ListDetailScreen = () => {
         setItems(mergedItems);
       }
 
-      try {
-        calculateShoppingStats(mergedItems);
-      } catch {
-        // Silently handle error
-      }
+      calculateShoppingStats(mergedItems);
 
       if (!predictionsLoadedRef.current && mergedItems.length > 0 && listFamilyGroupIdRef.current) {
         predictionsLoadedRef.current = true;
         predictPricesFromHistory(mergedItems, listFamilyGroupIdRef.current);
       }
-    });
-
-    // Subscribe to network status changes
-    const unsubscribeNetInfo = NetInfo.addEventListener(state => {
-      if (isMountedRef.current) {
-        setIsOnline(state.isConnected ?? false);
-      }
-    });
-
-    return () => {
+    },
+    onCleanup: () => {
       isMountedRef.current = false;
       predictionsLoadedRef.current = false;
-      interactionHandle.cancel();
-      unsubscribeList();
-      unsubscribeItems();
-      unsubscribeNetInfo();
       setPredictedPrices({});
       setSmartSuggestions(new Map());
 
       // Flush pending qty writes on unmount — don't lose data
       flushQtyWrites();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+    },
+  });
+
+  // Trigger sync when coming back online. Failures stay visible via
+  // SyncStatusBanner, which subscribes to SyncEngine status changes.
+  useEffect(() => {
+    if (!isOnline) return;
+    SyncEngine.syncPendingChanges().catch(error => {
+      CrashReporting.recordError(error as Error, 'ListDetailScreen reconnect sync');
+    });
+  }, [isOnline]);
 
   // Compute lock/mode state once userId becomes available
   useEffect(() => {
