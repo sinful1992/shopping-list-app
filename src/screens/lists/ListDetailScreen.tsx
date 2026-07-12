@@ -45,6 +45,8 @@ import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
 import { useQuantityEditor } from './hooks/useQuantityEditor';
 import { useListSubscriptions } from './hooks/useListSubscriptions';
+import { useShoppingMode } from './hooks/useShoppingMode';
+import { calculateShoppingStats } from '../../utils/shoppingStats';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import NotificationManager from '../../services/NotificationManager';
@@ -85,10 +87,6 @@ const ListDetailScreen = () => {
   const [listName, setListName] = useState('');
   const [editedListName, setEditedListName] = useState('');
   const [isEditingListName, setIsEditingListName] = useState(false);
-  const [isShoppingMode, setIsShoppingMode] = useState(false);
-  const [isListLocked, setIsListLocked] = useState(false);
-  const [isListCompleted, setIsListCompleted] = useState(false);
-  const [canAddItems, setCanAddItems] = useState(true);
   // Live user from App's auth listener (UserContext)
   const currentUser: User | null = useUser();
   const currentUserId = currentUser?.uid ?? null;
@@ -127,6 +125,17 @@ const ListDetailScreen = () => {
   // undefined = not yet fetched; null = fetched, no layout found; StoreLayout = fetched and found
   const [storeLayout, setStoreLayout] = useState<StoreLayout | null | undefined>(undefined);
 
+  // Lock / shopping-mode / permission state derived from list + user
+  const {
+    isListLocked,
+    setIsListLocked,
+    isListLockedRef,
+    isShoppingMode,
+    setIsShoppingMode,
+    isListCompleted,
+    canAddItems,
+  } = useShoppingMode(list, currentUserId);
+
   // Suppresses observer re-renders during an active drag reorder to avoid intermediate state flicker
   const isReorderingRef = useRef(false);
 
@@ -135,9 +144,6 @@ const ListDetailScreen = () => {
 
   // Ref for optimistic quantity updates (always has latest state for rapid taps)
   const itemsRef = useRef<Item[]>([]);
-
-  // Ref to avoid isListLocked closure in useCallback handlers
-  const isListLockedRef = useRef(false);
 
   // Refs to avoid currentUserId/currentUser closures in main useEffect and async loaders
   const currentUserIdRef = useRef<string | null>(null);
@@ -168,42 +174,14 @@ const ListDetailScreen = () => {
     });
   }, []));
 
-  // Define calculateShoppingStats before useEffect
-  const calculateShoppingStats = useCallback((itemsList: Item[]) => {
-    try {
-      if (!itemsList || itemsList.length === 0) {
-        setCheckedCount(0);
-        setUncheckedCount(0);
-        setRunningTotal(0);
-        return;
-      }
-
-      // Filter out invalid items
-      const validItems = itemsList.filter(item => item && item.id);
-
-      const checked = validItems.filter(item => item.checked).length;
-      const unchecked = validItems.filter(item => !item.checked).length;
-      // Running total = what's in the trolley: checked items only. Unchecked
-      // items must not count, or a leftover unbought item with a predicted
-      // price inflates the total past the real receipt.
-      const total = validItems.reduce((sum, item) => {
-        if (!item.checked) return sum;
-        const itemNameLower = item.name?.toLowerCase();
-        const predictedPrice = itemNameLower && predictedPrices ? predictedPrices[itemNameLower] : 0;
-        const price = item.price ?? predictedPrice ?? 0;
-        const qty = item.unitQty ?? 1;
-        return sum + (price * qty);
-      }, 0);
-
-      setCheckedCount(checked);
-      setUncheckedCount(unchecked);
-      setRunningTotal(total);
-    } catch {
-      // Set safe defaults on error
-      setCheckedCount(0);
-      setUncheckedCount(0);
-      setRunningTotal(0);
-    }
+  // Compute + apply shopping stats (pure math lives in utils/shoppingStats).
+  // `predictions` override lets callers use freshly-loaded prices before the
+  // predictedPrices state update has landed.
+  const applyShoppingStats = useCallback((itemsList: Item[], predictions?: { [key: string]: number }) => {
+    const stats = calculateShoppingStats(itemsList, predictions ?? predictedPrices);
+    setCheckedCount(stats.checked);
+    setUncheckedCount(stats.unchecked);
+    setRunningTotal(stats.total);
   }, [predictedPrices]);
 
   const isValidListId = !!listId && UUID_REGEX.test(listId);
@@ -226,29 +204,12 @@ const ListDetailScreen = () => {
       // Deferred: expensive predictions after navigation animation completes
       loadPredictions();
     },
-    onList: async (updatedList) => {
-      const userId = currentUserIdRef.current;
-      if (!userId) return;
-
+    onList: (updatedList) => {
+      if (!currentUserIdRef.current) return;
+      // Lock/shopping-mode/permission state recomputes in useShoppingMode
+      // whenever the list object changes.
       setList(updatedList);
       setListName(updatedList.name);
-      setIsListCompleted(updatedList.status === 'completed');
-
-      const locked = await ShoppingListManager.isListLockedForUser(listId, userId);
-      isListLockedRef.current = locked;
-      setIsListLocked(locked);
-
-      if (updatedList.isLocked && updatedList.lockedBy === userId) {
-        setIsShoppingMode(true);
-      } else {
-        setIsShoppingMode(false);
-      }
-
-      if (updatedList.status === 'completed') {
-        setCanAddItems(updatedList.completedBy === userId);
-      } else {
-        setCanAddItems(!locked);
-      }
     },
     onItems: (updatedItems) => {
       // Merge optimistic quantity values — prevents observer from overwriting rapid taps
@@ -259,7 +220,7 @@ const ListDetailScreen = () => {
         setItems(mergedItems);
       }
 
-      calculateShoppingStats(mergedItems);
+      applyShoppingStats(mergedItems);
 
       if (!predictionsLoadedRef.current && mergedItems.length > 0 && listFamilyGroupIdRef.current) {
         predictionsLoadedRef.current = true;
@@ -285,27 +246,6 @@ const ListDetailScreen = () => {
       CrashReporting.recordError(error as Error, 'ListDetailScreen reconnect sync');
     });
   }, [isOnline]);
-
-  // Compute lock/mode state once userId becomes available
-  useEffect(() => {
-    if (!currentUserId || !list) return;
-    ShoppingListManager.isListLockedForUser(listId, currentUserId).then(locked => {
-      if (!isMountedRef.current) return;
-      isListLockedRef.current = locked;
-      setIsListLocked(locked);
-      if (list.isLocked && list.lockedBy === currentUserId) {
-        setIsShoppingMode(true);
-      } else {
-        setIsShoppingMode(false);
-      }
-      if (list.status === 'completed') {
-        setCanAddItems(list.completedBy === currentUserId);
-      } else {
-        setCanAddItems(!locked);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserId, list?.id]);
 
   // Show interstitial ad on list open (with retry for cold starts)
   useEffect(() => {
@@ -350,30 +290,9 @@ const ListDetailScreen = () => {
           );
           return null;
         }
+        // Lock/shopping-mode/permission state recomputes in useShoppingMode
         setList(fetchedList);
         setListName(fetchedList.name);
-        setIsListCompleted(fetchedList.status === 'completed');
-
-        // Check if list is locked
-        if (currentUserId) {
-          const locked = await ShoppingListManager.isListLockedForUser(listId, currentUserId);
-          isListLockedRef.current = locked;
-          setIsListLocked(locked);
-
-          // If locked by current user, enable shopping mode
-          if (fetchedList.isLocked && fetchedList.lockedBy === currentUserId) {
-            setIsShoppingMode(true);
-          } else {
-            setIsShoppingMode(false);
-          }
-
-          // If list is completed, only the person who completed it can add items
-          if (fetchedList.status === 'completed') {
-            setCanAddItems(fetchedList.completedBy === currentUserId);
-          } else {
-            setCanAddItems(!locked);
-          }
-        }
         return fetchedList;
       }
       return null;
@@ -407,13 +326,14 @@ const ListDetailScreen = () => {
         setSmartSuggestions(suggestions);
       }
 
-      // Recalculate stats after predictions are loaded
-      calculateShoppingStats(itemsList);
+      // Recalculate stats with the freshly loaded predictions (passing them
+      // explicitly — the predictedPrices state update hasn't landed yet)
+      applyShoppingStats(itemsList, predictions);
     } catch {
       setPredictedPrices({});
       setSmartSuggestions(new Map());
     }
-  }, [calculateShoppingStats]);
+  }, [applyShoppingStats]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -608,7 +528,7 @@ const ListDetailScreen = () => {
     } else {
       setActiveModal({ type: 'details', item });
     }
-  }, []);
+  }, [isListLockedRef]);
 
 
   const handleEditListName = () => {
