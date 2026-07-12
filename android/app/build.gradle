@@ -70,6 +70,10 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
+            // Strips unused res/ entries (requires minifyEnabled). Fonts under
+            // assets/ (vector-icons) are not affected; smoke-test the release
+            // APK on device — add keep rules if splash/icon resources vanish.
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }

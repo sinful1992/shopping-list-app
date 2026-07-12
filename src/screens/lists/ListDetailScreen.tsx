@@ -64,11 +64,11 @@ const ListDetailScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ListDetail'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { showInterstitial } = useAdMob();
+  const { showInterstitial, showInterstitialWithRetry } = useAdMob();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const showInterstitialRef = useRef(showInterstitial);
-  showInterstitialRef.current = showInterstitial;
+  const showInterstitialWithRetryRef = useRef(showInterstitialWithRetry);
+  showInterstitialWithRetryRef.current = showInterstitialWithRetry;
   const insets = useSafeAreaInsets();
   const { listId } = route.params;
   const [items, setItems] = useState<Item[]>([]);
@@ -246,18 +246,9 @@ const ListDetailScreen = () => {
     });
   }, [isOnline]);
 
-  // Show interstitial ad on list open (with retry for cold starts)
+  // Show interstitial ad on list open (retry for cold starts lives in AdMobContext)
   useEffect(() => {
-    const shown = showInterstitialRef.current();
-    let retryTimeout: ReturnType<typeof setTimeout> | null = null;
-    if (!shown) {
-      retryTimeout = setTimeout(() => {
-        showInterstitialRef.current();
-      }, 3000);
-    }
-    return () => {
-      if (retryTimeout) clearTimeout(retryTimeout);
-    };
+    showInterstitialWithRetryRef.current();
   }, []);
 
   // Start Firebase items listener once we have the list's familyGroupId

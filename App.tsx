@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Linking, LogBox, StatusBar, TouchableOpacity } from 'react-native';
+import { Linking, LogBox, StatusBar, StyleSheet, TouchableOpacity } from 'react-native';
 
 LogBox.ignoreLogs(['VirtualizedLists should never be nested inside plain ScrollViews']);
 
@@ -151,6 +151,11 @@ import { CURRENT_TERMS_VERSION } from './src/legal';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
+const appStyles = StyleSheet.create({
+  root: { flex: 1 },
+  headerRightButton: { marginRight: 15 },
+});
+
 // Lists Stack Navigator
 function ListsStack() {
   return (
@@ -236,7 +241,7 @@ function MainTabNavigator() {
         headerRight: () => (
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}
-            style={{ marginRight: 15 }}
+            style={appStyles.headerRightButton}
             accessibilityRole="button"
             accessibilityLabel="Open settings"
           >
@@ -339,13 +344,19 @@ function App(): JSX.Element {
     }
   }, [user?.familyGroupId]);
 
+  // Effects below key on these identity fields, not the whole user object —
+  // the live user updates on every counter tick and re-running them would
+  // re-register tokens/listeners needlessly.
+  const userUid = user?.uid;
+  const userFamilyGroupId = user?.familyGroupId;
+
   // Backfill orphan receiptData rows that were written before the sync fix
   useEffect(() => {
-    if (user) {
+    if (userUid) {
       runReceiptSyncBackfill().catch(e => console.warn('Receipt sync backfill failed:', e));
       runHoistedFieldsBackfill().catch(e => console.warn('Hoisted fields backfill failed:', e));
     }
-  }, [user?.uid]);
+  }, [userUid]);
 
   // Get showAlert from context
   const { showAlert } = useAlert();
@@ -422,9 +433,9 @@ function App(): JSX.Element {
 
   // Initialize FCM notifications when user logs in
   useEffect(() => {
-    if (user && user.familyGroupId) {
+    if (userUid && userFamilyGroupId) {
       // Register FCM token
-      NotificationManager.registerToken(user.uid, user.familyGroupId);
+      NotificationManager.registerToken(userUid, userFamilyGroupId);
 
       // Initialize notification listeners — foreground messages surface as the
       // themed in-app alert instead of the raw system Alert
@@ -440,7 +451,7 @@ function App(): JSX.Element {
 
       return unsubscribeListeners;
     }
-  }, [user?.uid, user?.familyGroupId, showAlert]);
+  }, [userUid, userFamilyGroupId, showAlert]);
 
   // Hide splash screen when app is ready
   useEffect(() => {
@@ -454,7 +465,7 @@ function App(): JSX.Element {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={appStyles.root}>
     <SafeAreaProvider>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
