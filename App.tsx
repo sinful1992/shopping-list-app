@@ -28,6 +28,7 @@ import CrashReporting from './src/services/CrashReporting';
 import AppCheckService from './src/services/AppCheckService';
 import FirebaseAnalytics from './src/services/FirebaseAnalytics';
 import { AlertProvider, useAlert } from './src/contexts/AlertContext';
+import { UserContext } from './src/contexts/UserContext';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { DARK_THEME, LIGHT_THEME } from './src/styles/theme';
 import { useInAppUpdate } from './src/hooks';
@@ -458,6 +459,7 @@ function App(): JSX.Element {
         backgroundColor="transparent"
         translucent={true}
       />
+      <UserContext.Provider value={user}>
       <RevenueCatProvider user={user}>
       <NavigationContainer theme={isDark ? DarkNavigationTheme : LightNavigationTheme} linking={linking}>
         {!user ? (
@@ -519,6 +521,7 @@ function App(): JSX.Element {
         )}
       </NavigationContainer>
       </RevenueCatProvider>
+      </UserContext.Provider>
     </SafeAreaProvider>
     </GestureHandlerRootView>
   );
