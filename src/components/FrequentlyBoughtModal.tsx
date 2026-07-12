@@ -12,7 +12,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
-import AuthenticationModule from '../services/AuthenticationModule';
+import { useUser } from '../contexts/UserContext';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -31,6 +31,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const user = useUser();
   const [loading, setLoading] = useState(true);
   const [frequentItems, setFrequentItems] = useState<TopItem[]>([]);
   const [addingItemName, setAddingItemName] = useState<string | null>(null);
@@ -39,12 +40,12 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
     if (visible) {
       loadFrequentItems();
     }
-  }, [visible]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, user?.familyGroupId]);
 
   const loadFrequentItems = async () => {
     try {
       setLoading(true);
-      const user = await AuthenticationModule.getCurrentUser();
       if (!user?.familyGroupId) {
         setFrequentItems([]);
         return;

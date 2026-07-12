@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ExpenditureSummary, ExpenditureBreakdownItem, User } from '../models/types';
+import { ExpenditureSummary, ExpenditureBreakdownItem } from '../models/types';
 import BudgetTracker from '../services/BudgetTracker';
 import BudgetAlertService, { BudgetAlert, BudgetSettings } from '../services/BudgetAlertService';
-import AuthenticationModule from '../services/AuthenticationModule';
+import { useUser } from '../contexts/UserContext';
 
 type DateRange = 'week' | 'month' | 'quarter' | 'year';
 
@@ -15,8 +15,9 @@ type DateRange = 'week' | 'month' | 'quarter' | 'year';
  *   const { summary, breakdown, alerts, loading, dateRange, setDateRange, ... } = useBudgetData();
  */
 export function useBudgetData() {
+  // Live user from App's auth listener — no re-fetch needed
+  const user = useUser();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
   const [summary, setSummary] = useState<ExpenditureSummary | null>(null);
   const [breakdown, setBreakdown] = useState<ExpenditureBreakdownItem[]>([]);
   const [dateRange, setDateRange] = useState<DateRange>('month');
@@ -29,11 +30,12 @@ export function useBudgetData() {
   const [monthlyAlert, setMonthlyAlert] = useState<BudgetAlert | null>(null);
   const [weeklyAlert, setWeeklyAlert] = useState<BudgetAlert | null>(null);
 
-  // Load user on mount
+  // Load budget settings when the family group becomes available
   useEffect(() => {
-    loadUser();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (user?.familyGroupId) {
+      loadBudgetSettings(user.familyGroupId);
+    }
+  }, [user?.familyGroupId]);
 
   // Reload data when user, dateRange, or filter changes
   useEffect(() => {
@@ -42,18 +44,6 @@ export function useBudgetData() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, dateRange, filterUserId]);
-
-  const loadUser = async () => {
-    try {
-      const currentUser = await AuthenticationModule.getCurrentUser();
-      setUser(currentUser);
-      if (currentUser?.familyGroupId) {
-        await loadBudgetSettings(currentUser.familyGroupId);
-      }
-    } catch {
-      // Failed to load user
-    }
-  };
 
   const loadBudgetSettings = async (familyGroupId: string) => {
     try {
