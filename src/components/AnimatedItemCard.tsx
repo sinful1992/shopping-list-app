@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, withSequence, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { RADIUS, NUMERIC } from '../styles/theme';
@@ -193,8 +193,16 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
 
   const checkScale = useSharedValue(isChecked ? 1 : 0);
   const cardScale = useSharedValue(1);
+  // Shared values above already match the mounted state; animating on mount
+  // would replay the pop for every already-checked card whenever the list
+  // section remounts (screen re-enter, section rebuild).
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     if (isChecked) {
       checkScale.value = withSequence(
         withTiming(1.0, { duration: 50 }),
@@ -209,8 +217,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       checkScale.value = 0;
       cardScale.value = 1;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isChecked]);
+  }, [isChecked, checkScale, cardScale]);
 
   const checkAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],

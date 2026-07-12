@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.31.1] - 2026-07-13
+
+### Fixed
+- **Checked items no longer replay the checkmark pop on remount.** The check animation ran in the card's mount effect, so every already-checked card re-popped whenever the Completed section rebuilt (re-entering the screen, sync updates). The animation now only plays on an actual check-state change.
+
 ## [1.31.0] - 2026-07-12
 
 ### Added
