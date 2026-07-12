@@ -101,7 +101,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
 
   if (!item) return null;
 
-  const category = item.category ? CategoryService.getCategory(item.category as any) : null;
+  const category = item.category ? CategoryService.getCategory(item.category) : null;
   const hasExistingMeasurement = originalUnitRef.current !== null;
 
   const saveLabel = (measurementUnit && measurementValueText.trim())

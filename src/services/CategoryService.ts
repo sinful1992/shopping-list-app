@@ -61,9 +61,11 @@ class CategoryService {
   }
 
   /**
-   * Get a category by ID
+   * Get a category by ID.
+   * Accepts any string — item.category comes from Firebase and can hold
+   * unknown/legacy values; those return null (call sites already handle it).
    */
-  getCategory(id: CategoryType | null | undefined): Category | null {
+  getCategory(id: string | null | undefined): Category | null {
     if (!id) return null;
     return this.categories.find(cat => cat.id === id) || null;
   }
@@ -71,7 +73,7 @@ class CategoryService {
   /**
    * Get category color
    */
-  getCategoryColor(id: CategoryType | null | undefined): string {
+  getCategoryColor(id: string | null | undefined): string {
     const category = this.getCategory(id);
     return category?.color || this.categories.find(c => c.id === 'Other')!.color;
   }
@@ -79,7 +81,7 @@ class CategoryService {
   /**
    * Get category icon
    */
-  getCategoryIcon(id: CategoryType | null | undefined): string {
+  getCategoryIcon(id: string | null | undefined): string {
     const category = this.getCategory(id);
     return category?.icon || this.categories.find(c => c.id === 'Other')!.icon;
   }
@@ -87,7 +89,7 @@ class CategoryService {
   /**
    * Get category name
    */
-  getCategoryName(id: CategoryType | null | undefined): string {
+  getCategoryName(id: string | null | undefined): string {
     const category = this.getCategory(id);
     return category?.name || 'Other';
   }
@@ -102,7 +104,7 @@ class CategoryService {
   /**
    * Get sort order for category (for grouping/sorting)
    */
-  getCategorySortOrder(id: CategoryType | null | undefined): number {
+  getCategorySortOrder(id: string | null | undefined): number {
     const category = this.getCategory(id);
     return category?.sortOrder || 999; // Uncategorized items go last
   }

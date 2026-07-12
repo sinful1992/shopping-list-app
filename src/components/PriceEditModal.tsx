@@ -69,7 +69,7 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
 
   if (!item) return null;
 
-  const category = item.category ? CategoryService.getCategory(item.category as any) : null;
+  const category = item.category ? CategoryService.getCategory(item.category) : null;
   const hasMeasurement = item.measurementUnit != null;
   const priceValue = price.trim() ? parseFloat(price) : null;
   const hasValidPrice = priceValue !== null && !isNaN(priceValue);

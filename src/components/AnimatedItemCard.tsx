@@ -187,7 +187,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const isChecked = item.checked === true;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
-  const categoryInfo = item.category ? CategoryService.getCategory(item.category as any) : null;
+  const categoryInfo = item.category ? CategoryService.getCategory(item.category) : null;
   const categoryColorStyle = categoryInfo ? { color: categoryInfo.color } : null;
   const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? theme.accent.blue : theme.accent.purple };
 

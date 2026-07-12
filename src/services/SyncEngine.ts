@@ -9,6 +9,7 @@ import {
   SyncEngineStatus,
   ShoppingList,
   Item,
+  UrgentItem,
   StoreLayout,
   Unsubscribe,
 } from '../models/types';
@@ -148,7 +149,7 @@ class SyncEngine {
 
     // Delete doesn't need data — syncToFirebase calls .remove()
     // For create/update: use provided data, fall back to DB read only if not provided
-    let syncData: any = data ?? null;
+    let syncData: ShoppingList | Item | StoreLayout | null = data ?? null;
     if (operation !== 'delete' && syncData == null) {
       if (entityType === 'list') syncData = await LocalStorageManager.getList(entityId);
       else if (entityType === 'item') syncData = await LocalStorageManager.getItem(entityId);
@@ -158,7 +159,7 @@ class SyncEngine {
     if (this.isOnline) {
       try {
         await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, syncData));
-        const updatedAt = (syncData as any)?.updatedAt ?? null;
+        const updatedAt = syncData && 'updatedAt' in syncData ? syncData.updatedAt : null;
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
@@ -279,7 +280,7 @@ class SyncEngine {
 
           await LocalStorageManager.removeFromSyncQueue(operation.id);
 
-          const queuedUpdatedAt = (operation.data as any)?.updatedAt ?? null;
+          const queuedUpdatedAt = operation.data && 'updatedAt' in operation.data ? operation.data.updatedAt : null;
           await LocalStorageManager.markSyncedIfUnchanged(operation.entityType as 'list' | 'item' | 'storeLayout', operation.entityId, queuedUpdatedAt);
           processed++;
         } catch (error) {
@@ -374,7 +375,7 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: any
+    data: ShoppingList | Item | UrgentItem | StoreLayout | null
   ): Promise<void> {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
@@ -403,9 +404,11 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: any
+    data: ShoppingList | Item | UrgentItem | StoreLayout | null
   ): Promise<void> {
-    const queuedOp: QueuedOperation = {
+    // Single localized assertion: TS can't prove entityType/data pair up,
+    // but callers always pass matching pairs.
+    const queuedOp = {
       id: uuidv4(),
       entityType,
       entityId,
@@ -413,7 +416,7 @@ class SyncEngine {
       data,
       timestamp: Date.now(),
       retryCount: 0,
-    };
+    } as QueuedOperation;
 
     await LocalStorageManager.addToSyncQueue(queuedOp);
     this.notifyStatus();
