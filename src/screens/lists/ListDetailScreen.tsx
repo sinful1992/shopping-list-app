@@ -43,6 +43,7 @@ import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
+import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
@@ -166,13 +167,12 @@ const ListDetailScreen = () => {
     });
   }, []));
 
-  // Trigger sync when coming back online
+  // Trigger sync when coming back online. Failures stay visible via
+  // SyncStatusBanner, which subscribes to SyncEngine status changes.
   useEffect(() => {
     if (!isOnline) return;
-    SyncEngine.syncPendingChanges().then(result => {
-      if (result.failedCount !== null && result.failedCount > 0) {
-        // TODO: show sync failure banner — separate task (sync failure recovery UI)
-      }
+    SyncEngine.syncPendingChanges().catch(error => {
+      CrashReporting.recordError(error as Error, 'ListDetailScreen reconnect sync');
     });
   }, [isOnline]);
 
@@ -1076,6 +1076,8 @@ const ListDetailScreen = () => {
           </>
         )}
       </View>
+
+      <SyncStatusBanner />
 
       {/* Smart Status Bar - Consolidated single banner with priority system */}
       {(isShoppingMode || isListLocked || (isListCompleted && !canAddItems)) && (

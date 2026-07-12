@@ -10,6 +10,7 @@ import {
   ShoppingList,
   Item,
   StoreLayout,
+  Unsubscribe,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
@@ -30,22 +31,50 @@ class SyncEngine {
   private familyGroupId: string | null = null;
   private syncInProgress: boolean = false;
   private retryIntervalId: ReturnType<typeof setInterval> | null = null;
+  private statusListeners = new Set<(status: SyncEngineStatus) => void>();
   private readonly SYNC_TIMEOUT_MS = 30000; // 30 second timeout for sync operations
   private readonly RETRY_INTERVAL_MS = 60000; // Retry pending operations every 60 seconds
 
   constructor() {
     NetInfo.addEventListener((state) => {
-      const wasOffline = !this.isOnline;
+      const wasOnline = this.isOnline;
       this.isOnline = state.isConnected ?? false;
 
-      if (wasOffline && this.isOnline) {
+      if (!wasOnline && this.isOnline) {
         this.processOperationQueue().catch(error => {
           CrashReporting.recordError(error as Error, 'SyncEngine auto-sync');
         });
       }
+      if (wasOnline !== this.isOnline) {
+        // Connectivity flipped — let subscribers re-render even though the
+        // queue itself hasn't changed yet
+        this.notifyStatus();
+      }
     });
 
     this.startPeriodicRetry();
+  }
+
+  /**
+   * Subscribe to sync status changes (queue size / connectivity).
+   * Fired after queue mutations and connectivity flips.
+   */
+  onStatusChange(callback: (status: SyncEngineStatus) => void): Unsubscribe {
+    this.statusListeners.add(callback);
+    return () => this.statusListeners.delete(callback);
+  }
+
+  private notifyStatus(): void {
+    if (this.statusListeners.size === 0) {
+      return;
+    }
+    this.getSyncStatus()
+      .then((status) => {
+        this.statusListeners.forEach((callback) => callback(status));
+      })
+      .catch((error) => {
+        CrashReporting.recordError(error as Error, 'SyncEngine notifyStatus');
+      });
   }
 
   /**
@@ -288,6 +317,7 @@ class SyncEngine {
       this.syncInProgress = false;
     }
 
+    this.notifyStatus();
     return { processed, deferred, skipReason: null };
   }
 
@@ -386,6 +416,7 @@ class SyncEngine {
     };
 
     await LocalStorageManager.addToSyncQueue(queuedOp);
+    this.notifyStatus();
   }
 }
 

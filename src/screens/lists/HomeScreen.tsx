@@ -17,6 +17,7 @@ import createStyles from './HomeScreen.styles';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import AnimatedListCard from '../../components/AnimatedListCard';
+import SyncStatusBanner from '../../components/SyncStatusBanner';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -222,6 +223,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
+      <SyncStatusBanner />
       <FlatList
         data={lists}
         keyExtractor={(list) => list.id}
