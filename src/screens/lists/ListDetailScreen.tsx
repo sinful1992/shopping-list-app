@@ -55,6 +55,10 @@ import CrashReporting from '../../services/CrashReporting';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Delay between tapping a checkbox and the item moving to the Completed
+// section — covers AnimatedItemCard's 300ms in-place check pop plus a beat.
+const CHECK_MOVE_DELAY_MS = 400;
+
 /**
  * ListDetailScreen
  * Displays and manages items in a shopping list
@@ -407,7 +411,7 @@ const ListDetailScreen = () => {
       try { Vibration.vibrate(50); } catch {}
     }
     const targetChecked = !(itemsRef.current.find(i => i.id === itemId)?.checked === true);
-    startTransition(async () => {
+    const commit = () => startTransition(async () => {
       applyOptimisticToggle({ id: itemId, checked: targetChecked });
       try {
         await ItemManager.toggleItemChecked(itemId);
@@ -415,6 +419,15 @@ const ListDetailScreen = () => {
         showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
       }
     });
+    if (targetChecked) {
+      // Let AnimatedItemCard play its in-place check pop (300ms sequence on
+      // pendingCheck) before the regroup moves the card to Completed.
+      // TODO: soften the remaining section move with LinearTransition on
+      // siblings — needs AVD validation inside NestedReorderableList first.
+      setTimeout(commit, CHECK_MOVE_DELAY_MS);
+    } else {
+      commit();
+    }
   }, [applyOptimisticToggle, showAlert]);
 
   const handleDeleteItem = async (itemId: string) => {
