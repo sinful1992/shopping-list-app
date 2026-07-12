@@ -234,6 +234,9 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         style={[cardStyles.checkbox, isListLocked && cardStyles.checkboxDisabled]}
         onPress={onToggleItem}
         disabled={isListLocked}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: isChecked, disabled: isListLocked }}
+        accessibilityLabel={item.name}
       >
         <Animated.View style={checkAnimatedStyle}>
           {isChecked && (
@@ -254,6 +257,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         delayLongPress={250}
         disabled={isListLocked}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${item.name}`}
       >
         <View style={cardStyles.itemContentColumn}>
           <View style={cardStyles.itemContentRow}>
@@ -277,13 +282,25 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
               </Text>
             )}
             {item.measurementUnit ? (
-              <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <TouchableOpacity
+                onPress={() => onItemTap('measurement')}
+                disabled={isListLocked}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit size of ${item.name}`}
+              >
                 <Text style={[cardStyles.measurementText, measurementColorStyle]}>
                   {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
                 </Text>
               </TouchableOpacity>
             ) : !isChecked && (
-              <TouchableOpacity onPress={() => onItemTap('measurement')} disabled={isListLocked} hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}>
+              <TouchableOpacity
+                onPress={() => onItemTap('measurement')}
+                disabled={isListLocked}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel={`Add size for ${item.name}`}
+              >
                 <Text style={cardStyles.addSizeText}>+ size</Text>
               </TouchableOpacity>
             )}
@@ -299,7 +316,13 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       </TouchableOpacity>
 
       {/* Price — tappable to open price field */}
-      <TouchableOpacity onPress={() => onItemTap('price')} disabled={isListLocked} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+      <TouchableOpacity
+        onPress={() => onItemTap('price')}
+        disabled={isListLocked}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit price of ${item.name}, currently ${isPredicted ? 'estimated ' : ''}£${totalPrice.toFixed(2)}`}
+      >
         <Text
           style={[
             cardStyles.itemPriceText,
@@ -320,6 +343,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
               onPress={() => onDecrement(item.id)}
               disabled={isListLocked}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Decrease quantity of ${item.name}`}
             >
               <Text style={cardStyles.qtyBtnTextDecrement}>-</Text>
             </TouchableOpacity>
@@ -329,6 +354,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             onPress={() => onIncrement(item.id)}
             disabled={isListLocked}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            accessibilityRole="button"
+            accessibilityLabel={`Increase quantity of ${item.name}`}
           >
             <Text style={cardStyles.qtyBtnTextIncrement}>+</Text>
           </TouchableOpacity>

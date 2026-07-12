@@ -866,10 +866,10 @@ const ListDetailScreen = () => {
               placeholderTextColor="#6E6E73"
               editable={!isListLocked}
             />
-            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked}>
+            <TouchableOpacity style={styles.titleSaveButton} onPress={handleSaveListName} disabled={isListLocked} accessibilityRole="button" accessibilityLabel="Save list name">
               <Icon name="checkmark" size={20} color={theme.accent.green} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName}>
+            <TouchableOpacity style={styles.titleCancelButton} onPress={handleCancelEditListName} accessibilityRole="button" accessibilityLabel="Cancel editing list name">
               <Icon name="close" size={20} color={theme.accent.red} />
             </TouchableOpacity>
           </>
@@ -881,12 +881,14 @@ const ListDetailScreen = () => {
                 style={[styles.saveLayoutButton, isSavingLayout && styles.saveLayoutButtonDisabled]}
                 onPress={handleSaveLayout}
                 disabled={isSavingLayout}
+                accessibilityRole="button"
+                accessibilityLabel="Save store layout"
               >
                 <Text style={styles.saveLayoutText}>{isSavingLayout ? 'Saving…' : 'Save'}</Text>
               </TouchableOpacity>
             )}
             {!isListLocked && !isLayoutDirty && (
-              <TouchableOpacity onPress={handleEditListName}>
+              <TouchableOpacity onPress={handleEditListName} accessibilityRole="button" accessibilityLabel="Edit list name">
                 <Icon name="pencil" size={20} color={theme.text.secondary} />
               </TouchableOpacity>
             )}
@@ -926,7 +928,7 @@ const ListDetailScreen = () => {
                 {!isOnline && <Icon name="cloud-offline-outline" size={16} color={theme.text.primary} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton}>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
                   <Icon name="chevron-down" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
@@ -941,7 +943,7 @@ const ListDetailScreen = () => {
             <View style={styles.statusContentExpanded}>
               <View style={styles.expandedHeader}>
                 <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton}>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
                   <Icon name="chevron-up" size={14} color={theme.text.primary} />
                 </TouchableOpacity>
               </View>
@@ -1023,7 +1025,7 @@ const ListDetailScreen = () => {
           <Text style={styles.storeWarningText}>
             No store selected — prices won't be saved to history
           </Text>
-          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')} accessibilityRole="button">
             <Text style={styles.storeWarningLink}>Select Store</Text>
           </TouchableOpacity>
         </View>
@@ -1032,7 +1034,7 @@ const ListDetailScreen = () => {
       {list?.storeName && !isListLocked && !isListCompleted && (
         <View style={styles.changeStoreRow}>
           <Text style={styles.changeStoreLabel}>{list.storeName}</Text>
-          <TouchableOpacity onPress={() => setStorePickerMode('banner')}>
+          <TouchableOpacity onPress={() => setStorePickerMode('banner')} accessibilityRole="button" accessibilityLabel="Change store">
             <Text style={styles.changeStoreLink}>Change</Text>
           </TouchableOpacity>
         </View>
@@ -1058,6 +1060,8 @@ const ListDetailScreen = () => {
           style={styles.frequentItemsButton}
           onPress={() => setFrequentItemsVisible(true)}
           disabled={!canAddItems}
+          accessibilityRole="button"
+          accessibilityLabel="Show frequently bought items"
         >
           <Icon name="time-outline" size={20} color={theme.text.secondary} />
         </TouchableOpacity>
@@ -1094,6 +1098,8 @@ const ListDetailScreen = () => {
                             onPress={() => handleMoveCategory(cat, 'up')}
                             disabled={idx === 0}
                             style={styles.arrowButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Move ${category?.name || cat} up`}
                           >
                             <Icon name="chevron-up" size={18} color={idx === 0 ? '#3A3A3C' : '#6E6E73'} />
                           </TouchableOpacity>
@@ -1101,6 +1107,8 @@ const ListDetailScreen = () => {
                             onPress={() => handleMoveCategory(cat, 'down')}
                             disabled={idx === visibleCategories.length - 1}
                             style={styles.arrowButton}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Move ${category?.name || cat} down`}
                           >
                             <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? '#3A3A3C' : '#6E6E73'} />
                           </TouchableOpacity>
@@ -1248,6 +1256,7 @@ const ListDetailScreen = () => {
           icon="cart"
           onPress={handleStartShopping}
           size={64}
+          accessibilityLabel="Start shopping"
         />
       )}
 

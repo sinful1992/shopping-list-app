@@ -241,6 +241,7 @@ const HomeScreen = () => {
         <TouchableOpacity
           style={styles.scanFab}
           onPress={handleQuickScan}
+          accessibilityRole="button"
           accessibilityLabel="Scan receipt into a new list"
         >
           <Icon name="camera-outline" size={22} color={theme.text.primary} />
@@ -250,6 +251,7 @@ const HomeScreen = () => {
           onPress={handleCreateList}
           onLongPress={handleQuickScan}
           delayLongPress={500}
+          accessibilityRole="button"
           accessibilityLabel="Create shopping list"
         >
           <LinearGradient

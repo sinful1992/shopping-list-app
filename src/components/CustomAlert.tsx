@@ -80,7 +80,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <View style={styles.modal} accessibilityViewIsModal accessibilityRole="alert">
           {iconConfig && (
             <View style={styles.iconContainer}>
               <Icon
@@ -107,6 +107,8 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
                 ]}
                 onPress={() => handleButtonPress(button)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={button.text}
               >
                 <Text style={[styles.buttonText, getButtonTextStyle(button.style)]}>
                   {button.text}

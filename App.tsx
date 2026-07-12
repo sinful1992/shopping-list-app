@@ -237,6 +237,8 @@ function MainTabNavigator() {
           <TouchableOpacity
             onPress={() => navigation.navigate('Settings')}
             style={{ marginRight: 15 }}
+            accessibilityRole="button"
+            accessibilityLabel="Open settings"
           >
             <Icon name="settings-outline" size={24} color={isDark ? '#6EA8FE' : '#2563EB'} />
           </TouchableOpacity>
