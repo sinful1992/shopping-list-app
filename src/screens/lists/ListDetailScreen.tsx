@@ -46,6 +46,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { useQuantityEditor } from './hooks/useQuantityEditor';
 import { useListSubscriptions } from './hooks/useListSubscriptions';
 import { useShoppingMode } from './hooks/useShoppingMode';
+import { useListModals } from './hooks/useListModals';
 import { calculateShoppingStats } from '../../utils/shoppingStats';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
@@ -91,15 +92,6 @@ const ListDetailScreen = () => {
   const currentUser: User | null = useUser();
   const currentUserId = currentUser?.uid ?? null;
   const [refreshing, setRefreshing] = useState(false);
-
-  // Active modal state — discriminated union; null means all modals closed
-  const [activeModal, setActiveModal] = useState<
-    | { type: 'price'; item: Item; recentPrices: number[] }
-    | { type: 'size'; item: Item }
-    | { type: 'details'; item: Item }
-    | { type: 'priceHistory'; itemName: string }
-    | null
-  >(null);
 
   // Store picker modal state: null=closed, 'banner'=store warning, 'shopping'=start shopping
   const [storePickerMode, setStorePickerMode] = useState<null | 'banner' | 'shopping'>(null);
@@ -166,6 +158,13 @@ const ListDetailScreen = () => {
   listStoreNameRef.current = list?.storeName ?? undefined;
   currentUserIdRef.current = currentUserId;
   currentUserRef.current = currentUser;
+
+  // Item-editing modals (price/size/details/priceHistory) + tap dispatcher
+  const { activeModal, closeModal, openPriceHistory, handleItemTap } = useListModals({
+    isListLockedRef,
+    listFamilyGroupIdRef,
+    listStoreNameRef,
+  });
 
   // Load haptic setting on focus so the ref stays fresh if user changes it in Settings
   useFocusEffect(useCallback(() => {
@@ -501,35 +500,6 @@ const ListDetailScreen = () => {
       throw error;
     }
   };
-
-  const handleItemTap = useCallback((item: Item, focusField: 'name' | 'price' | 'measurement' = 'name') => {
-    if (isListLockedRef.current) return;
-    if (focusField === 'price') {
-      // Fetch recent prices for quick-fill chips — use refs to avoid stale closures
-      const familyGroupId = listFamilyGroupIdRef.current;
-      const storeName = listStoreNameRef.current;
-      if (familyGroupId) {
-        PriceHistoryService.getPriceHistory(familyGroupId, item.name)
-          .then(history => {
-            const filtered = storeName
-              ? history.filter(p => p.storeName === storeName)
-              : [];
-            const unique = [...new Set(filtered.map(p => p.price))].slice(-4).reverse();
-            setActiveModal({ type: 'price', item, recentPrices: unique });
-          })
-          .catch(() => {
-            setActiveModal({ type: 'price', item, recentPrices: [] });
-          });
-      } else {
-        setActiveModal({ type: 'price', item, recentPrices: [] });
-      }
-    } else if (focusField === 'measurement') {
-      setActiveModal({ type: 'size', item });
-    } else {
-      setActiveModal({ type: 'details', item });
-    }
-  }, [isListLockedRef]);
-
 
   const handleEditListName = () => {
     setEditedListName(listName);
@@ -1285,22 +1255,22 @@ const ListDetailScreen = () => {
         visible={activeModal?.type === 'price'}
         item={activeModal?.type === 'price' ? activeModal.item : null}
         recentPrices={activeModal?.type === 'price' ? activeModal.recentPrices : []}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
         onSave={handlePriceSave}
-        onViewPriceHistory={(itemName) => setActiveModal({ type: 'priceHistory', itemName })}
+        onViewPriceHistory={openPriceHistory}
       />
 
       <SizeEditModal
         visible={activeModal?.type === 'size'}
         item={activeModal?.type === 'size' ? activeModal.item : null}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
         onSave={handleSizeSave}
       />
 
       <DetailsEditModal
         visible={activeModal?.type === 'details'}
         item={activeModal?.type === 'details' ? activeModal.item : null}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
         onSave={handleDetailsSave}
         onDelete={handleDeleteItem}
       />
@@ -1308,7 +1278,7 @@ const ListDetailScreen = () => {
       <PriceHistoryModal
         visible={activeModal?.type === 'priceHistory'}
         itemName={activeModal?.type === 'priceHistory' ? activeModal.itemName : ''}
-        onClose={() => setActiveModal(null)}
+        onClose={closeModal}
       />
 
       <StoreNamePicker
