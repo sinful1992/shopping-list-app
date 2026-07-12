@@ -45,6 +45,7 @@ import CategoryConflictModal from '../../components/CategoryConflictModal';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
+import { useQuantityEditor } from './hooks/useQuantityEditor';
 import { sanitizeError } from '../../utils/sanitize';
 import { useAdMob } from '../../contexts/AdMobContext';
 import NotificationManager from '../../services/NotificationManager';
@@ -142,11 +143,8 @@ const ListDetailScreen = () => {
   const currentUserIdRef = useRef<string | null>(null);
   const currentUserRef = useRef<User | null>(null);
 
-  // Optimistic quantity tracking — prevents observer from overwriting rapid tap values
-  const optimisticQtyRef = useRef<Map<string, number | null>>(new Map());
-
-  // Per-item debounce timers for quantity writes
-  const qtyDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Optimistic quantity map + debounced writes + unmount flush
+  const { mergeOptimisticQty, setQuantity, flush: flushQtyWrites } = useQuantityEditor();
 
   // Cache haptic setting to avoid AsyncStorage read on every toggle
   const hapticEnabledRef = useRef(false);
@@ -274,20 +272,7 @@ const ListDetailScreen = () => {
       if (!updatedItems) return;
 
       // Merge optimistic quantity values — prevents observer from overwriting rapid taps
-      let mergedItems = updatedItems;
-      if (optimisticQtyRef.current.size > 0) {
-        mergedItems = updatedItems.map(item => {
-          const optimistic = optimisticQtyRef.current.get(item.id);
-          if (optimistic !== undefined) {
-            if (item.unitQty === optimistic) {
-              optimisticQtyRef.current.delete(item.id);
-              return item;
-            }
-            return { ...item, unitQty: optimistic };
-          }
-          return item;
-        });
-      }
+      const mergedItems = mergeOptimisticQty(updatedItems);
 
       itemsRef.current = mergedItems;
       if (!isReorderingRef.current) {
@@ -313,9 +298,6 @@ const ListDetailScreen = () => {
       }
     });
 
-    const qtyDebounce = qtyDebounceRef.current;
-    const optimisticQty = optimisticQtyRef.current;
-
     return () => {
       isMountedRef.current = false;
       predictionsLoadedRef.current = false;
@@ -327,14 +309,7 @@ const ListDetailScreen = () => {
       setSmartSuggestions(new Map());
 
       // Flush pending qty writes on unmount — don't lose data
-      for (const [itemId, timer] of qtyDebounce.entries()) {
-        clearTimeout(timer);
-        const targetQty = optimisticQty.get(itemId);
-        if (targetQty !== undefined) {
-          ItemManager.updateItem(itemId, { unitQty: targetQty });
-        }
-      }
-      qtyDebounce.clear();
+      flushQtyWrites();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
@@ -582,14 +557,8 @@ const ListDetailScreen = () => {
     itemsRef.current = updatedItems;
     setItems(updatedItems);
 
-    optimisticQtyRef.current.set(itemId, targetQty);
-    const existingTimer = qtyDebounceRef.current.get(itemId);
-    if (existingTimer) clearTimeout(existingTimer);
-    qtyDebounceRef.current.set(itemId, setTimeout(() => {
-      qtyDebounceRef.current.delete(itemId);
-      ItemManager.updateItem(itemId, { unitQty: targetQty });
-    }, 300));
-  }, []);
+    setQuantity(itemId, targetQty);
+  }, [setQuantity]);
 
   const handleDecrement = useCallback((itemId: string) => {
     const currentItem = itemsRef.current.find(i => i.id === itemId);
@@ -605,14 +574,8 @@ const ListDetailScreen = () => {
     itemsRef.current = updatedItems;
     setItems(updatedItems);
 
-    optimisticQtyRef.current.set(itemId, targetQty);
-    const existingTimer = qtyDebounceRef.current.get(itemId);
-    if (existingTimer) clearTimeout(existingTimer);
-    qtyDebounceRef.current.set(itemId, setTimeout(() => {
-      qtyDebounceRef.current.delete(itemId);
-      ItemManager.updateItem(itemId, { unitQty: targetQty });
-    }, 300));
-  }, []);
+    setQuantity(itemId, targetQty);
+  }, [setQuantity]);
 
   const handlePriceSave = async (itemId: string, updates: { price?: number | null }) => {
     try {
