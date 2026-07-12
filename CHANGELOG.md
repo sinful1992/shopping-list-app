@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.31.0] - 2026-07-12
+
+### Added
+- **Notification taps now navigate to the Urgent tab.** Urgent-item pushes are routed through React Navigation's deep-linking config (`familyshoppinglist://urgent`), covering both quit-state and background taps. Foreground notifications show the themed in-app alert instead of the raw system alert.
+- **Sync status banner on Home and List screens.** Unsynced offline edits are no longer invisible: the banner shows "N changes waiting to sync" while offline and "N changes not synced · Retry" once back online.
+- **Accessibility pass.** Icon-only buttons across all screens gained labels, checkboxes announce their checked state, and modals are announced as modal to screen readers.
+
+### Fixed
+- **Offline no longer looks logged-out.** `getCurrentUser` falls back to the cached user when the network read fails (guarding against a stale cache from a different uid) and reports errors to Crashlytics instead of swallowing them.
+- **Duplicate FCM listeners.** `initializeListeners` never unsubscribed, so effect re-runs stacked `onMessage` handlers; it now returns a cleanup.
+- **Stale running total.** The shopping-mode total was computed against the previous price predictions; predictions are now passed explicitly.
+
+### Changed
+- **UserContext distributes the app's live user state** — screens read the user from context instead of issuing per-mount network reads (14 of 16 call sites migrated).
+- **ListDetailScreen restructured** via four extracted hooks (`useShoppingMode`, `useListSubscriptions`, `useQuantityEditor`, `useListModals`); Firebase payload defaulting single-sourced in typed mappers; `getCategory` widened to `string` and `QueuedOperation` made a discriminated union.
+- **Release builds strip unused resources** (`shrinkResources`).
+- **CI workflow** runs typecheck, lint, and tests with a coverage gate on every push/PR.
+
 ## [1.30.4] - 2026-07-10
 
 ### Fixed
