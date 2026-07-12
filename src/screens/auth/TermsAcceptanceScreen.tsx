@@ -10,6 +10,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getDatabase, ref, update } from '@react-native-firebase/database';
+import { useUser } from '../../contexts/UserContext';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -25,12 +26,12 @@ const TermsAcceptanceScreen = () => {
   const { showAlert } = useAlert();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const user = useUser();
   const [loading, setLoading] = useState(false);
 
   const handleAccept = async () => {
     setLoading(true);
     try {
-      const user = await AuthenticationModule.getCurrentUser();
       if (!user) {
         throw new Error('No authenticated user found');
       }

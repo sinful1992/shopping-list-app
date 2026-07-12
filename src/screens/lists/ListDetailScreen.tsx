@@ -26,7 +26,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import { Item, ShoppingList, StoreLayout, User } from '../../models/types';
 import ItemManager from '../../services/ItemManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
-import AuthenticationModule from '../../services/AuthenticationModule';
+import { useUser } from '../../contexts/UserContext';
 import SyncEngine from '../../services/SyncEngine';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import PricePredictionService from '../../services/PricePredictionService';
@@ -87,8 +87,9 @@ const ListDetailScreen = () => {
   const [isListLocked, setIsListLocked] = useState(false);
   const [isListCompleted, setIsListCompleted] = useState(false);
   const [canAddItems, setCanAddItems] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  // Live user from App's auth listener (UserContext)
+  const currentUser: User | null = useUser();
+  const currentUserId = currentUser?.uid ?? null;
   const [refreshing, setRefreshing] = useState(false);
 
   // Active modal state — discriminated union; null means all modals closed
@@ -137,8 +138,9 @@ const ListDetailScreen = () => {
   // Ref to avoid isListLocked closure in useCallback handlers
   const isListLockedRef = useRef(false);
 
-  // Ref to avoid currentUserId closure in main useEffect
+  // Refs to avoid currentUserId/currentUser closures in main useEffect and async loaders
   const currentUserIdRef = useRef<string | null>(null);
+  const currentUserRef = useRef<User | null>(null);
 
   // Optimistic quantity tracking — prevents observer from overwriting rapid tap values
   const optimisticQtyRef = useRef<Map<string, number | null>>(new Map());
@@ -159,6 +161,7 @@ const ListDetailScreen = () => {
   listFamilyGroupIdRef.current = list?.familyGroupId;
   listStoreNameRef.current = list?.storeName ?? undefined;
   currentUserIdRef.current = currentUserId;
+  currentUserRef.current = currentUser;
 
   // Load haptic setting on focus so the ref stays fresh if user changes it in Settings
   useFocusEffect(useCallback(() => {
@@ -336,9 +339,6 @@ const ListDetailScreen = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
 
-  // One-shot: load current user (separate from main effect to avoid double observer setup)
-  useEffect(() => { loadCurrentUser(); }, []);
-
   // Compute lock/mode state once userId becomes available
   useEffect(() => {
     if (!currentUserId || !list) return;
@@ -388,20 +388,12 @@ const ListDetailScreen = () => {
     };
   }, [list?.familyGroupId, listId]);
 
-  const loadCurrentUser = async () => {
-    const user = await AuthenticationModule.getCurrentUser();
-    if (user) {
-      setCurrentUserId(user.uid);
-      setCurrentUser(user);
-    }
-  };
-
   const loadListMetadata = async (): Promise<ShoppingList | null> => {
     try {
       const fetchedList = await ShoppingListManager.getListById(listId);
       if (fetchedList) {
         // Security: verify ownership — needed because listId can come from a deep link
-        const user = await AuthenticationModule.getCurrentUser();
+        const user = currentUserRef.current;
         if (user?.familyGroupId && fetchedList.familyGroupId !== user.familyGroupId) {
           showAlert(
             'Access Denied',

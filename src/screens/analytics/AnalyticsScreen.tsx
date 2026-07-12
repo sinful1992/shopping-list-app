@@ -13,7 +13,7 @@ import {
 import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
-import AuthenticationModule from '../../services/AuthenticationModule';
+import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import CrashReporting from '../../services/CrashReporting';
 import { RADIUS, NUMERIC } from '../../styles/theme';
@@ -61,6 +61,7 @@ const STAT_CONFIG = [
 
 const AnalyticsScreen = () => {
   const { showAlert } = useAlert();
+  const user = useUser();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [loading, setLoading]         = useState(true);
@@ -77,12 +78,11 @@ const AnalyticsScreen = () => {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timePeriod]);
+  }, [timePeriod, user?.familyGroupId]);
 
   useEffect(() => {
     (async () => {
       try {
-        const user = await AuthenticationModule.getCurrentUser();
         if (!user?.familyGroupId) return;
         setFamilyGroupId(user.familyGroupId);
         const items = await PriceHistoryService.getAllTrackedItems(user.familyGroupId);
@@ -91,13 +91,12 @@ const AnalyticsScreen = () => {
         CrashReporting.recordError(e as Error, 'AnalyticsScreen load tracked items');
       }
     })();
-  }, []);
+  }, [user?.familyGroupId]);
 
   const loadAnalytics = async () => {
     setLoading(true);
     setError(null);
     try {
-      const user = await AuthenticationModule.getCurrentUser();
       if (!user?.familyGroupId) { setError('No family group found'); setLoading(false); return; }
       const data = await AnalyticsService.getAnalyticsSummary(user.familyGroupId, timePeriod);
       setAnalytics(data);
