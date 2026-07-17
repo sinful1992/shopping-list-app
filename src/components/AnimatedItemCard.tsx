@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, withSequence, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 import { RADIUS, NUMERIC } from '../styles/theme';
@@ -185,17 +185,31 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
     checkedOpacity: { opacity: 0.5 },
   }), [theme]);
   const isChecked = item.checked === true;
+  // Checking an item plays the animation in place before the parent moves the
+  // card to the Completed section: visuals flip on this local state at tap
+  // time, while the parent delays the actual state change (and this card's
+  // unmount) until the pop has played.
+  const [pendingCheck, setPendingCheck] = useState(false);
+  const displayChecked = isChecked || pendingCheck;
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
   const categoryInfo = item.category ? CategoryService.getCategory(item.category) : null;
   const categoryColorStyle = categoryInfo ? { color: categoryInfo.color } : null;
   const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? theme.accent.blue : theme.accent.purple };
 
-  const checkScale = useSharedValue(isChecked ? 1 : 0);
+  const checkScale = useSharedValue(displayChecked ? 1 : 0);
   const cardScale = useSharedValue(1);
+  // Shared values above already match the mounted state; animating on mount
+  // would replay the pop for every already-checked card whenever the list
+  // section remounts (screen re-enter, section rebuild).
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    if (isChecked) {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (displayChecked) {
       checkScale.value = withSequence(
         withTiming(1.0, { duration: 50 }),
         withTiming(1.2, { duration: 150 }),
@@ -209,8 +223,21 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       checkScale.value = 0;
       cardScale.value = 1;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isChecked]);
+  }, [displayChecked, checkScale, cardScale]);
+
+  // If the parent never commits the check (toggle failed and the optimistic
+  // state reverted), this card stays mounted unchecked — revert the visuals.
+  useEffect(() => {
+    if (!pendingCheck || isChecked) return;
+    const timer = setTimeout(() => setPendingCheck(false), 1500);
+    return () => clearTimeout(timer);
+  }, [pendingCheck, isChecked]);
+
+  const handleCheckboxPress = useCallback(() => {
+    if (pendingCheck) return; // check already in flight — toggle is idempotent
+    if (!isChecked) setPendingCheck(true);
+    onToggleItem();
+  }, [pendingCheck, isChecked, onToggleItem]);
 
   const checkAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: checkScale.value }],
@@ -224,22 +251,22 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
     <Animated.View
       style={[
         cardStyles.itemRow,
-        isChecked && cardStyles.itemRowChecked,
-        isChecked && cardStyles.checkedOpacity,
+        displayChecked && cardStyles.itemRowChecked,
+        displayChecked && cardStyles.checkedOpacity,
         cardAnimatedStyle,
       ]}
     >
       {/* Checkbox */}
       <TouchableOpacity
         style={[cardStyles.checkbox, isListLocked && cardStyles.checkboxDisabled]}
-        onPress={onToggleItem}
+        onPress={handleCheckboxPress}
         disabled={isListLocked}
         accessibilityRole="checkbox"
-        accessibilityState={{ checked: isChecked, disabled: isListLocked }}
+        accessibilityState={{ checked: displayChecked, disabled: isListLocked }}
         accessibilityLabel={item.name}
       >
         <Animated.View style={checkAnimatedStyle}>
-          {isChecked && (
+          {displayChecked && (
             <Icon
               name="checkmark"
               size={16}
@@ -268,7 +295,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
             <Text
               style={[
                 cardStyles.itemNameText,
-                isChecked && cardStyles.itemNameChecked
+                displayChecked && cardStyles.itemNameChecked
               ]}
               numberOfLines={1}
             >
@@ -293,7 +320,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
                   {item.measurementValue != null ? `${item.measurementValue}${item.measurementUnit}` : item.measurementUnit}
                 </Text>
               </TouchableOpacity>
-            ) : !isChecked && (
+            ) : !displayChecked && (
               <TouchableOpacity
                 onPress={() => onItemTap('measurement')}
                 disabled={isListLocked}
@@ -305,7 +332,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
               </TouchableOpacity>
             )}
           </View>
-          {showSuggestion && suggestion && (
+          {showSuggestion && suggestion && !displayChecked && (
             <View style={cardStyles.suggestionRow}>
               <Text style={cardStyles.suggestionText}>
                 <Icon name="bulb-outline" size={12} color={theme.accent.yellow} /> £{(suggestion.bestPrice * qty).toFixed(2)} at {suggestion.bestStore} (save £{(suggestion.savings * qty).toFixed(2)})
@@ -327,7 +354,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           style={[
             cardStyles.itemPriceText,
             isPredicted && cardStyles.itemPricePredicted,
-            isChecked && cardStyles.itemPriceChecked
+            displayChecked && cardStyles.itemPriceChecked
           ]}
         >
           {isPredicted ? '~' : ''}£{totalPrice.toFixed(2)}
@@ -335,7 +362,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       </TouchableOpacity>
 
       {/* Quantity buttons — hidden when checked */}
-      {!isChecked && (
+      {!displayChecked && (
         <>
           {qty > 1 && (
             <TouchableOpacity

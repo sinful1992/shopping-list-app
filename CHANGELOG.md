@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.32.0] - 2026-07-13
+
+### Added
+- **Check-off now animates in place.** Previously the checkmark pop played only after the card had already teleported to the Completed section (usually off-screen), so tapping a checkbox looked like the row just vanished. The card now flips to its checked look (checkmark pop, strikethrough, dim) immediately under your finger, and moves to Completed 400ms later. Unchecking stays instant. A rapid second tap during the animation is ignored (the toggle is already in flight). Follow-up TODO: soften the remaining section move with a layout transition.
+
+## [1.31.1] - 2026-07-13
+
+### Fixed
+- **Checked items no longer replay the checkmark pop on remount.** The check animation ran in the card's mount effect, so every already-checked card re-popped whenever the Completed section rebuilt (re-entering the screen, sync updates). The animation now only plays on an actual check-state change.
+
 ## [1.31.0] - 2026-07-12
 
 ### Added
