@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.32.1] - 2026-07-17
+
+### Fixed
+- **OCR confidence no longer shows 100% on arithmetically wrong parses.** Confidence was scored purely on field presence, so a parse with the wrong total (e.g. from a skewed photo shifting the price column) could still read "Confidence 100%". The score now mirrors the OCR server's completeness gate — line items net of discounts must sum to the printed total — and is capped at 50% ("please verify" territory) when the arithmetic doesn't hold.
+
 ## [1.32.0] - 2026-07-13
 
 ### Added
