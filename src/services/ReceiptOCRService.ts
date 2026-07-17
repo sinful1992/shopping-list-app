@@ -360,6 +360,19 @@ class ReceiptOCRService {
     if (data.date) confidence += 10;
     if (subtotal !== null) confidence += 5;
 
+    // Field presence alone can score 100% on a parse whose numbers are wrong
+    // (e.g. a skewed photo shifting the price column assigns the wrong total).
+    // Mirror the server's is_complete_parse arithmetic gate: line items net of
+    // their discounts must sum to the printed total. When both sides exist and
+    // the sum doesn't verify, cap below the "please verify" threshold.
+    if (
+      totalAmount !== null &&
+      lineItems.length > 0 &&
+      !this.itemsSumMatchesTotal(data.line_items, totalAmount)
+    ) {
+      confidence = Math.min(confidence, 50);
+    }
+
     const merchantName = data.merchant_name ? sanitizeText(data.merchant_name, 100) : null;
     const store = this.detectStore(merchantName);
 
@@ -379,6 +392,25 @@ class ReceiptOCRService {
         confidence: Math.min(confidence, 100),
       },
     };
+  }
+
+  /**
+   * Same check and tolerance as is_complete_parse in receipt-ocr/ocr/parser.py:
+   * discounts ride on their item as negative values, so price + discount is the
+   * net line amount. An item with an unparseable price makes the sum
+   * unverifiable — treated as a mismatch, like the server does.
+   */
+  private itemsSumMatchesTotal(
+    items: OCRServerResponse['line_items'],
+    total: number,
+  ): boolean {
+    let sum = 0;
+    for (const item of items || []) {
+      const price = parseNumber(item.total_price);
+      if (price === null) return false;
+      sum += price + (parseNumber(item.discount) ?? 0);
+    }
+    return Math.abs(sum - total) < 0.015;
   }
 
   private detectStore(merchantName: string | null | undefined): ReceiptData['store'] {
