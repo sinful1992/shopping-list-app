@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.32.4] - 2026-07-17
+
+### Fixed
+- **Skipping a quick-scan import now discards the list.** After confirming a scan, pressing Skip on the match screen (including the no-receipt-data / no-line-items states) left an empty active list with the receipt attached. In the quick-scan flow the list exists only for that receipt, so Skip now deletes it; the regular match-from-list flow is unaffected.
+
 ## [1.32.3] - 2026-07-17
 
 ### Fixed
