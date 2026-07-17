@@ -259,9 +259,21 @@ const ReceiptMatchScreen = () => {
       if (updates.length > 0) {
         await ItemManager.updateItemsBatch(updates);
       }
+      // Quick-scan is a post-shop flow: everything applied from the receipt is
+      // already bought, so finish the trip instead of leaving an active list.
+      // The receipt total/merchant were attached to the list at confirm time.
+      if (autoAddAll) {
+        await ShoppingListManager.updateList(listId, {
+          status: 'completed',
+          completedAt: Date.now(),
+          completedBy: userId,
+          uncheckedItemsCount: 0,
+        });
+      }
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} price${updates.length === 1 ? '' : 's'}`);
       if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
+      if (autoAddAll) parts.push('Shopping completed');
       showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
       navigation.goBack();
     } catch (error: any) {

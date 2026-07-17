@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.32.3] - 2026-07-17
+
+### Fixed
+- **Quick scan now completes the shopping trip.** Applying a scanned receipt added the items (checked) but left the list active, so a fully recognised receipt never reached History. Apply in the quick-scan flow now marks the list completed (with completer and receipt total already attached at confirm time).
+
 ## [1.32.2] - 2026-07-17
 
 ### Fixed
