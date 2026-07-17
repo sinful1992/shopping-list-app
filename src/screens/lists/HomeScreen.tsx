@@ -101,19 +101,14 @@ const HomeScreen = () => {
     setShowCreateModal(true);
   };
 
-  const handleQuickScan = async () => {
+  const handleQuickScan = () => {
     if (!user || !familyGroupId) {
       showAlert('Error', 'Sign in required', undefined, { icon: 'error' });
       return;
     }
-    try {
-      const listName = formatDateLong(new Date());
-      const list = await createList(listName);
-      if (!list) return;
-      navigation.navigate('ReceiptCamera', { listId: list.id, autoAddAll: true });
-    } catch (error: any) {
-      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-    }
+    // No listId: the list is only created once a receipt scan is confirmed,
+    // so cancelling the camera leaves nothing behind.
+    navigation.navigate('ReceiptCamera', { autoAddAll: true });
   };
 
   const handleOpenDatePicker = () => {
