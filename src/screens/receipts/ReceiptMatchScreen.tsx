@@ -43,6 +43,7 @@ const ReceiptMatchScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [skipping, setSkipping] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [currency, setCurrency] = useState('£');
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
@@ -284,7 +285,23 @@ const ReceiptMatchScreen = () => {
     }
   };
 
-  const handleSkip = () => navigation.goBack();
+  const handleSkip = async () => {
+    if (applyingRef.current || skipping) return;
+    // Quick-scan created the list solely for this receipt; skipping means the
+    // user abandoned the import, so discard the list instead of leaving an
+    // empty active one on Home.
+    if (autoAddAll) {
+      setSkipping(true);
+      try {
+        await ShoppingListManager.deleteList(listId);
+      } catch (error: any) {
+        showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+        setSkipping(false);
+        return;
+      }
+    }
+    navigation.goBack();
+  };
 
   if (loading) {
     return (
@@ -420,13 +437,17 @@ const ReceiptMatchScreen = () => {
       />
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.skipButton} onPress={handleSkip} disabled={applying}>
-          <Text style={styles.skipButtonText}>Skip</Text>
+        <TouchableOpacity style={styles.skipButton} onPress={handleSkip} disabled={applying || skipping}>
+          {skipping ? (
+            <ActivityIndicator size="small" color={theme.text.primary} />
+          ) : (
+            <Text style={styles.skipButtonText}>Skip</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.applyWrap, !canApply && styles.applyDisabled]}
           onPress={handleApply}
-          disabled={!canApply || applying}
+          disabled={!canApply || applying || skipping}
           activeOpacity={0.8}
         >
           <LinearGradient
