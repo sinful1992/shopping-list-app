@@ -20,6 +20,7 @@ import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
 import { OCRResult } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
+import { formatDateLong } from '../../utils/date';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
@@ -157,7 +158,16 @@ const ReceiptCameraScreen = () => {
         throw new Error('User not authenticated');
       }
 
-      await ShoppingListManager.updateList(listId, {
+      // Quick-scan arrives without a listId; the list is only created here,
+      // once the user confirms the scan, so a cancelled scan leaves no list.
+      const targetListId = listId ?? (await ShoppingListManager.createListOptimistic(
+        formatDateLong(new Date()),
+        user.uid,
+        user.familyGroupId,
+        user,
+      )).id;
+
+      await ShoppingListManager.updateList(targetListId, {
         receiptUrl: capturedImage,
         receiptData: ocrResult.receiptData,
         totalAmount: ocrResult.totalAmount,
@@ -166,7 +176,7 @@ const ReceiptCameraScreen = () => {
         currency: ocrResult.currency,
       });
 
-      navigation.replace('ReceiptMatch', { listId, autoAddAll });
+      navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
