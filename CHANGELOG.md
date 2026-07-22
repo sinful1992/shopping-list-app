@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.1] - 2026-07-22
+
+### Added
+- **Family members now get a push when a quick-scan purchase completes.** Applying a scanned receipt (camera-button flow) notifies the rest of the family group — "🧾 {name} just bought N items" with store and total — fire-and-forget, so a failed send never blocks the apply. Tapping the notification deep-links to the completed list in History (`familyshoppinglist://history/{listId}`) from both quit and background state; foreground messages keep showing the themed in-app alert. The notification-to-deep-link mapping moved to `src/utils/notificationDeepLink.ts` with unit tests, and payload list ids are validated as UUIDs before navigation.
+
 ## [1.33.0] - 2026-07-22
 
 ### Added

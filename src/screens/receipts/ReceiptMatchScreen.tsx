@@ -25,9 +25,11 @@ import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
+import NotificationManager from '../../services/NotificationManager';
+import CrashReporting from '../../services/CrashReporting';
 import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
-import { Item, ReceiptData, ReceiptLineItem } from '../../models/types';
+import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -45,6 +47,7 @@ const ReceiptMatchScreen = () => {
   const [applying, setApplying] = useState(false);
   const [skipping, setSkipping] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
   const [currency, setCurrency] = useState('£');
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [manualMatches, setManualMatches] = useState<MatchCandidate[]>([]);
@@ -72,6 +75,7 @@ const ReceiptMatchScreen = () => {
           return;
         }
         setReceiptData(list.receiptData);
+        setShoppingList(list);
         setCurrency(list.currency || '£');
 
         if (list.receiptData?.lineItems?.length) {
@@ -270,6 +274,21 @@ const ReceiptMatchScreen = () => {
           completedBy: userId,
           uncheckedItemsCount: 0,
         });
+        // Tell the family what was just bought (fire-and-forget); the
+        // notification tap deep-links to this now-completed list in History.
+        if (shoppingList?.familyGroupId && userId) {
+          NotificationManager.notifyReceiptScanned({
+            familyGroupId: shoppingList.familyGroupId,
+            userId,
+            userName: user?.displayName || user?.email || 'A family member',
+            listId,
+            storeName: shoppingList.merchantName,
+            listName: shoppingList.name,
+            itemCount: updates.length + newItems.length,
+            totalAmount: shoppingList.totalAmount,
+            currency: shoppingList.currency,
+          }).catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen notifyReceiptScanned'));
+        }
       }
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} price${updates.length === 1 ? '' : 's'}`);
