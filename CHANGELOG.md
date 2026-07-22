@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.0] - 2026-07-22
+
+### Added
+- **Server: `notify-receipt-scanned` edge function.** Sends a push notification to the rest of the family group when a member applies a quick-scanned receipt — "🧾 {name} just bought N items" with the store and total in the body, and the completed list's id in the data payload for deep-linking. Same hardening as `notify-shopping-started`: Firebase ID-token verification, caller-must-be-shopper check, group-membership check, per-user rate limit, stale-token cleanup. Auto-deployed via the existing edge-functions workflow.
+
 ## [1.32.4] - 2026-07-17
 
 ### Fixed
