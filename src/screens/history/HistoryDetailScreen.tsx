@@ -50,10 +50,15 @@ const HistoryDetailScreen = () => {
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const priceStatsLoadedRef = useRef(false);
 
+  // Reload when listId changes, not just on mount: a deep link (e.g. a
+  // receipt-scanned notification) can retarget this already-mounted screen at a
+  // different list, and React Navigation reuses the instance rather than
+  // remounting. Reset the price-stats guard so the new list recomputes its stats.
   useEffect(() => {
+    priceStatsLoadedRef.current = false;
     loadListDetails();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [listId]);
 
   // Load price stats once after items first arrive
   useEffect(() => {

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.2] - 2026-07-23
+
+### Fixed
+- **A second receipt-scanned notification now opens the right list.** History detail loaded its list only once on mount, but React Navigation reuses the already-open screen when a new deep link retargets it, so tapping a second notification while an earlier list was open stayed stuck on the first list. It now reloads whenever the target list changes. Found during on-device (AVD) validation of the 1.33.x quick-scan notification.
+
 ## [1.33.1] - 2026-07-22
 
 ### Added
