@@ -17,7 +17,7 @@ import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
-import messaging, { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import messaging from '@react-native-firebase/messaging';
 import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
@@ -38,14 +38,7 @@ import AdBanner from './src/components/AdBanner';
 import AdConsentGate from './src/components/AdConsentGate';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { User } from './src/models/types';
-
-// Map an FCM message to a deep-link path, or null if it shouldn't navigate.
-function notificationToDeepLink(message: FirebaseMessagingTypes.RemoteMessage | null): string | null {
-  if (message?.data?.type === 'urgent_item') {
-    return 'familyshoppinglist://urgent';
-  }
-  return null;
-}
+import { notificationToDeepLink } from './src/utils/notificationDeepLink';
 
 // Deep linking configuration. Notification taps are fed through the linking
 // layer (React Navigation's documented push-notification pattern) so cold-start
@@ -86,7 +79,12 @@ const linking = {
             },
           },
           Urgent: 'urgent',
-          History: 'history',
+          History: {
+            screens: {
+              HistoryHome: 'history',
+              HistoryDetail: 'history/:listId',
+            },
+          },
           Analytics: 'analytics',
           Budget: 'budget',
         },

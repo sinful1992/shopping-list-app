@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.2] - 2026-07-23
+
+### Fixed
+- **A second receipt-scanned notification now opens the right list.** History detail loaded its list only once on mount, but React Navigation reuses the already-open screen when a new deep link retargets it, so tapping a second notification while an earlier list was open stayed stuck on the first list. It now reloads whenever the target list changes. Found during on-device (AVD) validation of the 1.33.x quick-scan notification.
+
+## [1.33.1] - 2026-07-22
+
+### Added
+- **Family members now get a push when a quick-scan purchase completes.** Applying a scanned receipt (camera-button flow) notifies the rest of the family group — "🧾 {name} just bought N items" with store and total — fire-and-forget, so a failed send never blocks the apply. Tapping the notification deep-links to the completed list in History (`familyshoppinglist://history/{listId}`) from both quit and background state; foreground messages keep showing the themed in-app alert. The notification-to-deep-link mapping moved to `src/utils/notificationDeepLink.ts` with unit tests, and payload list ids are validated as UUIDs before navigation.
+
+## [1.33.0] - 2026-07-22
+
+### Added
+- **Server: `notify-receipt-scanned` edge function.** Sends a push notification to the rest of the family group when a member applies a quick-scanned receipt — "🧾 {name} just bought N items" with the store and total in the body, and the completed list's id in the data payload for deep-linking. Same hardening as `notify-shopping-started`: Firebase ID-token verification, caller-must-be-shopper check, group-membership check, per-user rate limit, stale-token cleanup. Auto-deployed via the existing edge-functions workflow.
+
 ## [1.32.4] - 2026-07-17
 
 ### Fixed

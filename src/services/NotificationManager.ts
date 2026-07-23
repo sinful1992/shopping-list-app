@@ -191,6 +191,42 @@ class NotificationManager {
   }
 
   /**
+   * Notify family members that a user applied a scanned receipt (bought items)
+   * Fire-and-forget — errors are silently caught
+   */
+  async notifyReceiptScanned(params: {
+    familyGroupId: string;
+    userId: string;
+    userName: string;
+    listId: string;
+    storeName?: string | null;
+    listName?: string | null;
+    itemCount?: number;
+    totalAmount?: number | null;
+    currency?: string | null;
+  }): Promise<void> {
+    try {
+      const idToken = await auth().currentUser?.getIdToken();
+      await supabase.functions.invoke('notify-receipt-scanned', {
+        body: {
+          idToken,
+          family_group_id: params.familyGroupId,
+          user_id: params.userId,
+          user_name: params.userName,
+          list_id: params.listId,
+          store_name: params.storeName ?? undefined,
+          list_name: params.listName ?? undefined,
+          item_count: params.itemCount,
+          total_amount: params.totalAmount ?? undefined,
+          currency: params.currency ?? undefined,
+        },
+      });
+    } catch (error) {
+      CrashReporting.recordError(error as Error, 'NotificationManager notifyReceiptScanned');
+    }
+  }
+
+  /**
    * Clear FCM token (on logout)
    */
   async clearToken(): Promise<void> {
