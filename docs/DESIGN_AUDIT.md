@@ -2,6 +2,12 @@
 
 *Audit date: 2026-07-24 · v1.33.3 · branch `dev` · scope: visual design, not code structure*
 
+> **Status: all six phases implemented on `dev` (v1.33.4 – v1.35.0), not yet
+> validated on device in either theme.** See `DESIGN_AUDIT_IMPLEMENTED.md` for
+> what shipped, where the audit turned out to be wrong, and what is left.
+> Contrast figures are now regression-tested in
+> `src/styles/__tests__/contrast.test.ts`.
+
 This is a **design** audit, companion to `IMPROVEMENT_PLAN.md` (which covers structure,
 types, and tests). It looks only at what the user sees: colour, contrast, hierarchy,
 touch targets, iconography, and copy.
