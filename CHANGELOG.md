@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.3] - 2026-07-25
+
+### Fixed
+- **Alert buttons are readable.** Every default and destructive button in the app's alert dialog drew its label with the surface ink while sitting on a filled accent — white on the dark theme's light blue measured 2.4:1. They now use the on-accent ink, measuring ~7:1. This affects every alert in the app, so it was the widest-reaching instance of the problem fixed in 1.35.2.
+
 ## [1.35.2] - 2026-07-25
 
 ### Fixed
