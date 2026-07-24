@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDateShort } from '../utils/date';
@@ -520,6 +520,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingTop: 20,
   },
   input: {
+    ...NUMERIC,
     backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
     borderColor: theme.border.medium,

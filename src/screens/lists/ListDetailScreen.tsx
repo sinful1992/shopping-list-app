@@ -11,7 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './ListDetailScreen.styles';
-import { STATUS_BAR } from '../../styles/theme';
+import { STATUS_BAR, HIT_SLOP } from '../../styles/theme';
 import { ScrollViewContainer } from 'react-native-reorderable-list';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -856,10 +856,11 @@ const ListDetailScreen = () => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          hitSlop={HIT_SLOP}
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
-          <Icon name="chevron-back" size={24} color="#007AFF" />
+          <Icon name="chevron-back" size={24} color={theme.accent.blue} />
         </TouchableOpacity>
         {isEditingListName ? (
           <>
@@ -933,7 +934,7 @@ const ListDetailScreen = () => {
                 {!isOnline && <Icon name="cloud-offline-outline" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
                   <Icon name="chevron-down" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
@@ -948,7 +949,7 @@ const ListDetailScreen = () => {
             <View style={styles.statusContentExpanded}>
               <View style={styles.expandedHeader}>
                 <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
                   <Icon name="chevron-up" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
               </View>
@@ -1103,19 +1104,21 @@ const ListDetailScreen = () => {
                             onPress={() => handleMoveCategory(cat, 'up')}
                             disabled={idx === 0}
                             style={styles.arrowButton}
+                            hitSlop={HIT_SLOP}
                             accessibilityRole="button"
                             accessibilityLabel={`Move ${category?.name || cat} up`}
                           >
-                            <Icon name="chevron-up" size={18} color={idx === 0 ? '#3A3A3C' : '#6E6E73'} />
+                            <Icon name="chevron-up" size={18} color={idx === 0 ? theme.text.dim : theme.text.secondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleMoveCategory(cat, 'down')}
                             disabled={idx === visibleCategories.length - 1}
                             style={styles.arrowButton}
+                            hitSlop={HIT_SLOP}
                             accessibilityRole="button"
                             accessibilityLabel={`Move ${category?.name || cat} down`}
                           >
-                            <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? '#3A3A3C' : '#6E6E73'} />
+                            <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? theme.text.dim : theme.text.secondary} />
                           </TouchableOpacity>
                         </View>
                       )}

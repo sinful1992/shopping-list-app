@@ -10,7 +10,7 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ReceiptData } from '../models/types';
-import { SPACING, RADIUS, TYPOGRAPHY, ANIMATION } from '../styles/theme';
+import { SPACING, RADIUS, TYPOGRAPHY, ANIMATION, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -266,6 +266,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
   },
   fieldValue: {
+    ...NUMERIC,
     color: '#fff',
     fontSize: TYPOGRAPHY.fontSize.md,
     maxWidth: '55%',

@@ -214,6 +214,11 @@ export const STATUS_BAR = {
   inkOver: '#6B1616',
 } as const;
 
+// Extends an icon button's touch target without changing its layout. Icon-only
+// controls in this app sit at 26-32dp of padded box; Android's minimum is 48dp
+// and Apple's is 44pt, and 8dp on each side closes that gap.
+export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
+
 // Animation durations (milliseconds)
 export const ANIMATION = {
   fast: 200,

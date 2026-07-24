@@ -13,7 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import { useUser } from '../contexts/UserContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -387,11 +387,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   statValue: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: theme.text.primary,
   },
   statValueLarge: {
+    ...NUMERIC,
     fontSize: 28,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: theme.text.primary,
@@ -503,6 +505,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 2,
   },
   historyPrice: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: theme.accent.green,

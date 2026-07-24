@@ -16,6 +16,7 @@ import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
 import { useUrgentItems } from '../../hooks';
+import { NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -377,6 +378,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 8,
   },
   resolvedMeta: {
+    ...NUMERIC,
     fontSize: 13,
     color: theme.accent.green,
     fontWeight: '600',

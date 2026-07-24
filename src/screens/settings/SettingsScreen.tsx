@@ -20,6 +20,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HIT_SLOP } from '../../styles/theme';
 import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
@@ -268,6 +269,7 @@ const SettingsScreen = () => {
             <Text style={styles.value}>{user?.displayName || 'Not set'}</Text>
             <TouchableOpacity
               style={styles.editButton}
+              hitSlop={HIT_SLOP}
               onPress={handleEditName}
               accessibilityRole="button"
               accessibilityLabel="Edit name"
@@ -285,6 +287,7 @@ const SettingsScreen = () => {
             </View>
             <TouchableOpacity
               style={styles.editButton}
+              hitSlop={HIT_SLOP}
               onPress={handleEditRole}
               accessibilityRole="button"
               accessibilityLabel="Edit family role"
@@ -372,6 +375,7 @@ const SettingsScreen = () => {
                 )}
                 <TouchableOpacity
                   style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
+                  hitSlop={HIT_SLOP}
                   onPress={() => {
                     if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
                       // Retry loading

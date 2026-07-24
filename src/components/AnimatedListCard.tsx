@@ -1,6 +1,7 @@
 import React from 'react';
 import { Animated, TouchableOpacity, View, Text, StyleProp, ViewStyle } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { HIT_SLOP } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -85,6 +86,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
               onDelete();
             }}
             style={staticStyles.deleteIconButton}
+            hitSlop={HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={`Delete list ${listName}`}
           >

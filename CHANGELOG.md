@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.34.1] - 2026-07-24
+
+### Fixed
+- **Small icon buttons are easier to hit.** Back, the category reorder arrows, expand/collapse on the shopping bar, delete-list and Settings' copy/edit buttons all had touch targets around 26–32dp against Android's 48dp minimum. They now extend their tap area without moving anything on screen. The reorder arrows and delete-list were worst — one is a repeated fine-motor action, the other is destructive and was the smallest target in the app.
+- **Prices line up in the seven places they didn't.** Urgent Items, the filter, frequently-bought, price edit, price history, the receipt preview and the size editor all rendered money without fixed-width digits, so columns of prices didn't align and totals jiggled as they changed. Price history was the worst case — a whole column of them.
+- The back chevron and the category reorder arrows also used pinned iOS greys, so they didn't follow the theme.
+
 ## [1.34.0] - 2026-07-24
 
 ### Changed

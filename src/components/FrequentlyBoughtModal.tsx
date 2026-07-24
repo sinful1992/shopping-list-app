@@ -13,7 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import { useUser } from '../contexts/UserContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -276,6 +276,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   itemPrice: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: theme.accent.green,

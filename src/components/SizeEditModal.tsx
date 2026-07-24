@@ -12,7 +12,7 @@ import CategoryService from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { parseCombinedInput } from '../utils/measurement';
 import { useAlert } from '../contexts/AlertContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -237,6 +237,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   contextPrice: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.md,
     color: theme.text.secondary,
   },
