@@ -86,8 +86,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             end={{ x: 1, y: 1 }}
             style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
           >
-            <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
-            {label && <Text style={styles.fabLabel}>{label}</Text>}
+            <Icon name={icon} size={size * 0.4} color={theme.text.onAccent} />
+            {label && <Text style={[styles.fabLabel, { color: theme.text.onAccent }]}>{label}</Text>}
           </LinearGradient>
         )}
       </TouchableOpacity>

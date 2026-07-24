@@ -78,7 +78,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   addButton: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     padding: 10,
     borderRadius: RADIUS.medium,
     justifyContent: 'center',
@@ -86,7 +86,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.accent.blueDim,
   },
   addButtonText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: '600',
   },
   frequentItemsButton: {
@@ -238,7 +238,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     padding: 16,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
@@ -250,7 +250,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 20,
   },
   viewReceiptText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -277,7 +277,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   importButton: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     padding: 12,
     borderRadius: RADIUS.medium,
     alignItems: 'center',
@@ -287,7 +287,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.accent.blueDim,
   },
   importButtonText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -303,7 +303,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   completeButtonText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

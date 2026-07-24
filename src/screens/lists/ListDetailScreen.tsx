@@ -1238,7 +1238,7 @@ const ListDetailScreen = () => {
                 style={styles.viewReceiptButton}
                 onPress={() => navigation.navigate('ReceiptView', { listId })}
               >
-                <Icon name="document-text-outline" size={20} color={theme.text.primary} style={styles.viewReceiptIcon} />
+                <Icon name="document-text-outline" size={20} color={theme.text.onAccent} style={styles.viewReceiptIcon} />
                 <Text style={styles.viewReceiptText}>View Receipt</Text>
               </TouchableOpacity>
             )}

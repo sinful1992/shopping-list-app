@@ -528,7 +528,7 @@ const SettingsScreen = () => {
       {/* Logout Section */}
       <View style={styles.section}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Icon name="log-out-outline" size={24} color="#ffffff" />
+          <Icon name="log-out-outline" size={24} color={theme.accent.red} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>

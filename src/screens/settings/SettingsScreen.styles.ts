@@ -148,23 +148,20 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.accent.green,
     fontWeight: '600',
   },
+  // Quiet outline, not a filled red glow: logout is one tap to undo and was
+  // getting the same visual weight as permanent account deletion.
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 15,
-    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    backgroundColor: 'transparent',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.accent.redDim,
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 5,
+    borderColor: theme.accent.red,
   },
   logoutButtonText: {
-    color: '#ffffff',
+    color: theme.accent.red,
     fontSize: 18,
     fontWeight: '600',
     marginLeft: 10,
@@ -246,7 +243,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     marginLeft: 0,
   },
   modalButtonConfirm: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderColor: theme.accent.blueDim,
     shadowColor: theme.accent.blue,
     shadowOffset: { width: 0, height: 4 },
@@ -255,7 +252,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 5,
   },
   modalButtonText: {
-    color: '#fff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -414,7 +414,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 0,
   },
   badge: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
@@ -422,7 +422,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
@@ -483,7 +483,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   chipSelected: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderWidth: 1,
     borderColor: theme.accent.blueDim,
     borderRadius: RADIUS.large,
@@ -498,7 +498,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   chipTextSelected: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   priceRow: {
@@ -542,7 +542,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   receiptButtonActive: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderWidth: 1,
     borderColor: theme.accent.blueDim,
     borderRadius: RADIUS.large,
@@ -557,7 +557,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   receiptButtonTextActive: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   footer: {

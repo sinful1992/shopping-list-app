@@ -51,7 +51,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   completedBadge: {
     fontSize: 12,
     color: theme.accent.green,
-    backgroundColor: theme.accent.greenDim,
+    backgroundColor: theme.accent.greenSubtle,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: SPACING.sm,
@@ -86,7 +86,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   shoppingBadge: {
     fontSize: 12,
     color: theme.accent.orange,
-    backgroundColor: theme.accent.orangeDim,
+    backgroundColor: theme.accent.orangeSubtle,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,

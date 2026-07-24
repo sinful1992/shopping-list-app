@@ -648,7 +648,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   retryButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderRadius: 14,
     marginTop: 10,
     borderWidth: 1,
@@ -660,7 +660,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 5,
   },
   retryButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -713,7 +713,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.text.onAccent,
   },
 });
 

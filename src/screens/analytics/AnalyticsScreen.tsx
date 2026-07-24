@@ -489,8 +489,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   errorIcon:  { fontSize: 52, marginBottom: 12 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: theme.text.primary, marginBottom: 6, textAlign: 'center' },
   errorSub:   { fontSize: 14, color: theme.text.secondary, textAlign: 'center', marginBottom: 20 },
-  retryBtn:   { backgroundColor: theme.accent.blueLight, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  retryBtn:   { backgroundColor: theme.accent.blue, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  retryBtnText: { color: theme.text.onAccent, fontSize: 15, fontWeight: '600' },
 
   // ── Period row ────────────────────────────────────────────────────────────
   periodRow: {

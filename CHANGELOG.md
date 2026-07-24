@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.5] - 2026-07-24
+
+### Fixed
+- **Text on filled buttons is readable in both themes.** Blue-filled buttons across the app — add item, view receipt, import, save budget, filter chips, retry, modal confirm — drew light text on a light-blue fill, measuring 2.4–3.7:1. Buttons now use the solid accent with a new on-accent ink that flips with the theme (dark ink on the dark theme's light accents, white on the light theme's dark ones). Same fix for the resolve/create buttons on Urgent Items, the receipt save button, the History delete button, the floating action button, and every sign-in button — the auth screens pinned a light gradient with white text on it, so the first screen of the app measured 2.42:1.
+- **Logout no longer looks as dangerous as deleting your account.** Both were filled red with a coloured glow; logout is one tap to undo and is now a quiet outlined button, with filled red reserved for account deletion.
+- **Secondary text on cards is readable.** The tertiary text colour measured 4.38:1 on cards in dark mode and 3.30:1 everywhere in light mode, despite the token comment promising it stayed readable at small sizes. The "+ add size" prompt on item rows also used the disabled/placeholder colour despite being tappable.
+- **Status badges on list cards.** "Completed" sat as green text on a green tint on a green card — three layers, 3.67:1. Badges now use the subtle tint rather than the dim one, and the light theme's orange darkened a further step so the "Shopping" badge clears the bar too.
+
 ## [1.33.4] - 2026-07-24
 
 ### Fixed

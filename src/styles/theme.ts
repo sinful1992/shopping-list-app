@@ -35,6 +35,7 @@ const COLORS = {
     redSubtle: 'rgba(255, 59, 48, 0.15)',
     orange: '#FFB340',
     orangeDim: 'rgba(255, 179, 64, 0.2)',
+    orangeSubtle: 'rgba(255, 179, 64, 0.12)',
     purple: '#A78BFA',
   },
 
@@ -60,7 +61,7 @@ const COLORS = {
   text: {
     primary: '#ffffff',
     secondary: 'rgba(255, 255, 255, 0.65)',
-    tertiary: 'rgba(255, 255, 255, 0.45)',
+    tertiary: 'rgba(255, 255, 255, 0.55)',
     dim: 'rgba(255, 255, 255, 0.25)',
     onAccent: '#111827',
   },
@@ -253,8 +254,9 @@ export const LIGHT_THEME: Theme = {
     red: '#B91C1C',
     redDim: 'rgba(185, 28, 28, 0.15)',
     redSubtle: 'rgba(185, 28, 28, 0.12)',
-    orange: '#C2410C',
-    orangeDim: 'rgba(194, 65, 12, 0.12)',
+    orange: '#9A3412',
+    orangeDim: 'rgba(154, 52, 18, 0.12)',
+    orangeSubtle: 'rgba(154, 52, 18, 0.10)',
     purple: '#7C3AED',
   },
 
@@ -273,7 +275,7 @@ export const LIGHT_THEME: Theme = {
   text: {
     primary: '#111827',
     secondary: 'rgba(17, 24, 39, 0.70)',
-    tertiary: 'rgba(17, 24, 39, 0.50)',
+    tertiary: 'rgba(17, 24, 39, 0.62)',
     dim: 'rgba(17, 24, 39, 0.30)',
     onAccent: '#FFFFFF',
   },

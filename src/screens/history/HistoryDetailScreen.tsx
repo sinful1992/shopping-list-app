@@ -600,7 +600,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   deleteButton: {
     padding: 15,
     marginHorizontal: 10,
-    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    backgroundColor: theme.accent.red,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
@@ -612,7 +612,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 5,
   },
   deleteButtonText: {
-    color: '#fff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

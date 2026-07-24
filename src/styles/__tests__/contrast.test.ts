@@ -122,10 +122,20 @@ describe.each(THEMES)('%s theme', (_name, theme) => {
   const page = theme.background.primary;
 
   it('body text is readable on cards and on the page', () => {
-    expect(contrast(theme.text.primary, card)).toBeGreaterThanOrEqual(AA_BODY);
-    expect(contrast(theme.text.primary, page)).toBeGreaterThanOrEqual(AA_BODY);
-    expect(contrast(theme.text.secondary, card)).toBeGreaterThanOrEqual(AA_BODY);
-    expect(contrast(theme.text.secondary, page)).toBeGreaterThanOrEqual(AA_BODY);
+    for (const role of ['primary', 'secondary', 'tertiary'] as const) {
+      expect(contrast(theme.text[role], card)).toBeGreaterThanOrEqual(AA_BODY);
+      expect(contrast(theme.text[role], page)).toBeGreaterThanOrEqual(AA_BODY);
+      expect(contrast(theme.text[role], theme.background.tertiary)).toBeGreaterThanOrEqual(AA_BODY);
+    }
+  });
+
+  it('onAccent is readable on every filled accent surface', () => {
+    for (const key of ['blue', 'green', 'red', 'orange', 'purple'] as const) {
+      expect(contrast(theme.text.onAccent, theme.accent[key])).toBeGreaterThanOrEqual(AA_BODY);
+    }
+    // The gradient the FAB and the complete/done buttons use.
+    expect(contrast(theme.text.onAccent, theme.gradient.buttonStart)).toBeGreaterThanOrEqual(AA_BODY);
+    expect(contrast(theme.text.onAccent, theme.gradient.buttonEnd)).toBeGreaterThanOrEqual(AA_BODY);
   });
 
   it('accent-coloured text is readable on a card (prices, badges)', () => {
@@ -138,6 +148,22 @@ describe.each(THEMES)('%s theme', (_name, theme) => {
     for (const key of ['gold', 'silver', 'bronze'] as const) {
       expect(contrast(theme.medal[key], card)).toBeGreaterThanOrEqual(AA_BODY);
     }
+  });
+
+  it('tinted badges stay readable on their own tint', () => {
+    // Shopping badge: orange on orangeSubtle, on a list card.
+    expect(
+      contrast(theme.accent.orange, [card, theme.accent.orangeSubtle]),
+    ).toBeGreaterThanOrEqual(AA_BODY);
+    // Completed badge: green on greenSubtle, on a card that is itself
+    // greenSubtle — three green layers, which is what made this the worst case.
+    expect(
+      contrast(theme.accent.green, [card, theme.accent.greenSubtle, theme.accent.greenSubtle]),
+    ).toBeGreaterThanOrEqual(AA_BODY);
+    // Store warning banner: yellow on yellowDim, directly on the page.
+    expect(
+      contrast(theme.accent.yellow, [page, theme.accent.yellowDim]),
+    ).toBeGreaterThanOrEqual(AA_BODY);
   });
 
   it('stat-card icons clear large-text contrast on their own 12% tint', () => {

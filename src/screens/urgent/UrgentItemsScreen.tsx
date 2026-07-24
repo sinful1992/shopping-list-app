@@ -390,7 +390,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   resolveButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -472,13 +472,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   createButton: {
     flex: 1,
-    backgroundColor: '#FF6B35',
+    backgroundColor: theme.accent.orange,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   createButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },

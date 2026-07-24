@@ -181,9 +181,11 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       fontSize: 11,
       fontWeight: '700',
     },
+    // tertiary, not dim: this is a call to action ("+ add size"), and dim is
+    // the disabled/placeholder token.
     addSizeText: {
       fontSize: 11,
-      color: theme.text.dim,
+      color: theme.text.tertiary,
       fontStyle: 'italic',
     },
     checkedOpacity: { opacity: 0.5 },
