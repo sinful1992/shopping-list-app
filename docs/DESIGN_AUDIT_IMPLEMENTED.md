@@ -87,3 +87,60 @@ actually composites.
 - Not done, and not defects: converting the ~300 remaining `fontSize` literals
   to `TYPOGRAPHY` tokens, and the Analytics tab bar's four emoji (a labelled tab
   bar, so the glyph is decorative — the audit did not flag it).
+
+## The AVD pass (2026-07-25) — what it found
+
+Run on a Pixel_6 AVD in both themes. The theme was flipped through Settings'
+Light/Dark control, never `adb shell cmd uimode night`: `ThemeContext.tsx:30`
+persists a preference and only falls back to the system scheme, so once the
+in-app control has been touched the OS-level flip is silently ignored. Mixing
+the two methods yields two screenshots that differ for the wrong reason.
+
+Three defects, all of them instances of things this batch claimed to have
+fixed. They are corrected in 1.35.2 and 1.35.3.
+
+1. **The create-list modal's Create button used `text.primary`.** Measured on
+   device at 2.41:1 in light (`#111827` on `#3045D8`) and 2.54:1 in dark
+   (`#FFFFFF` on `#829EFD`) — it failed *both* ways, because `text.primary`
+   inverts per theme in the same direction as the surface. The same call-site
+   miss was on HomeScreen's FAB icon (hardcoded `#FFFFFF`, so dark-only),
+   ReceiptMatchScreen's apply label and spinner, and TermsAcceptanceScreen's
+   spinner. `text.onAccent` measures ~7:1 on the same gradients.
+
+2. **`modalButtonConfirm`'s `padding: 0` did nothing.** Yoga resolves
+   `paddingVertical` / `paddingHorizontal` ahead of the `padding` shorthand, so
+   `modalButton`'s `12` / `SPACING.xxl` survived and the confirm button was
+   padded twice. The view bounds show it exactly: outer `[552,1380][934,1568]`
+   against an inner gradient of `[618,1414][869,1534]` — a 66px and 34px shell.
+   `modalButtons` is a row with the default `alignItems: stretch`, so Cancel
+   grew to the taller sibling, which is what made it look oversized. Fixing the
+   padding also recovers the third of Create's touch target that sat outside the
+   visible button. Note the wrong fix here would be `alignItems: 'center'` on the
+   row: it hides the symptom and leaves the phantom padding.
+
+3. **`CustomAlert` drew its default and destructive labels with
+   `text.primary`** while backing them with `accent.blue` / `accent.red` fills —
+   2.42:1 measured. This is the widest-reaching instance, since it is every
+   alert in the app.
+
+### Why the contrast test did not catch any of it
+
+`contrast.test.ts` asserts **token pairs**. The tokens were correct throughout;
+what was wrong was which token each call site reached for. A passing suite here
+says the palette is sound, not that the screens are. Closing that gap means
+call-site linting, which was not built.
+
+### Method notes
+
+- `uiautomator dump` for exact view bounds. Arguing about Yoga precedence is
+  weaker evidence than measuring the box.
+- Sample real pixels and compute the ratio. At screenshot scale, 2.4:1 and
+  4.6:1 look alike, and a missing icon reads as a slightly emptier row.
+- Pixels behind an open modal are dimmed by the scrim. The shopping-mode bar
+  reads 2.19:1 through it and 8.8:1 without it.
+
+### Still outstanding
+
+ReceiptViewScreen's till-roll block, the offline notice with the network
+actually down, the 1.33.3 cold-relaunch check, and light-theme passes of
+History, Budget and Analytics.
