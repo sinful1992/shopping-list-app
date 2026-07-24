@@ -981,7 +981,7 @@ const ListDetailScreen = () => {
                 {!isOnline && (
                   <View style={styles.expandedRow}>
                     <Text style={styles.expandedLabel}>Status:</Text>
-                    <View style={styles.expandedTitleRow}>
+                    <View style={styles.expandedStatusRow}>
                       <Icon name="cloud-offline-outline" size={14} color={STATUS_BAR.inkWarning} />
                       <Text style={styles.textWarning}>Offline — changes will sync later</Text>
                     </View>

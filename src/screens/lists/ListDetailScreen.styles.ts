@@ -395,6 +395,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  // Same row, but on the right of a space-between row against a "Status:"
+  // label, so it has to give way rather than overflow on a narrow screen.
+  expandedStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
   expandedTitle: {
     color: STATUS_BAR.ink,
     fontSize: 16,
@@ -427,6 +435,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   textWarning: {
     color: STATUS_BAR.inkWarning,
+    flexShrink: 1,
   },
   textOver: {
     color: STATUS_BAR.inkOver,

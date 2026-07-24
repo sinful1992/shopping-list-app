@@ -686,7 +686,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: theme.accent.orange,
-    marginBottom: 10,
   },
   editActions: {
     flexDirection: 'row',

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.1] - 2026-07-24
+
+### Fixed
+- Uneven spacing under the receipt warning banners, and the offline notice in shopping mode overflowing its row on a narrow screen — both introduced by moving those messages from emoji to icons in 1.35.0.
+
 ## [1.35.0] - 2026-07-24
 
 ### Changed
