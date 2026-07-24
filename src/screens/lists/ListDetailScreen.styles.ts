@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS, NUMERIC } from '../../styles/theme';
+import { Theme, RADIUS, NUMERIC, STATUS_BAR } from '../../styles/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -312,16 +312,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     minHeight: 40,
   },
   statusShopping: {
-    backgroundColor: 'rgba(52, 199, 89, 0.95)',
-    borderBottomColor: 'rgba(52, 199, 89, 0.3)',
+    backgroundColor: STATUS_BAR.shopping,
+    borderBottomColor: STATUS_BAR.shoppingBorder,
   },
   statusLocked: {
-    backgroundColor: 'rgba(255, 149, 0, 0.9)',
-    borderBottomColor: 'rgba(255, 149, 0, 0.3)',
+    backgroundColor: STATUS_BAR.locked,
+    borderBottomColor: STATUS_BAR.lockedBorder,
   },
   statusCompleted: {
-    backgroundColor: 'rgba(142, 142, 147, 0.9)',
-    borderBottomColor: 'rgba(142, 142, 147, 0.3)',
+    backgroundColor: STATUS_BAR.completed,
+    borderBottomColor: STATUS_BAR.completedBorder,
   },
   statusContentCompact: {
     flexDirection: 'row',
@@ -345,7 +345,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
   },
   statusTextCompact: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -356,33 +356,28 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginLeft: 4,
   },
   budgetBadgeWarning: {
-    backgroundColor: 'rgba(255, 204, 0, 0.9)',
+    backgroundColor: STATUS_BAR.budgetWarning,
   },
   budgetBadgeOver: {
-    backgroundColor: 'rgba(255, 59, 48, 0.9)',
+    backgroundColor: STATUS_BAR.budgetOver,
   },
   budgetBadgeText: {
     ...NUMERIC,
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 11,
     fontWeight: 'bold',
   },
   expandButton: {
     padding: 4,
   },
-  expandIcon: {
-    color: theme.text.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   doneButtonCompact: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: STATUS_BAR.scrim,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 16,
   },
   doneButtonText: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -396,7 +391,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 12,
   },
   expandedTitle: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -413,46 +408,55 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   expandedLabel: {
-    color: theme.text.secondary,
+    color: STATUS_BAR.inkMuted,
     fontSize: 13,
     fontWeight: '500',
   },
   expandedValue: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 14,
     fontWeight: '600',
   },
   textOk: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
   },
   textWarning: {
-    color: theme.accent.yellow,
+    color: STATUS_BAR.inkWarning,
   },
   textOver: {
-    color: theme.accent.red,
+    color: STATUS_BAR.inkOver,
   },
   expandedButtons: {
     flexDirection: 'row',
     gap: 10,
   },
+  // Outlined, not a white scrim: white-on-white-over-green never passed in
+  // either theme, and an outline reads as the secondary action it is.
   cancelButtonExpanded: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: STATUS_BAR.ink,
     padding: 12,
     borderRadius: RADIUS.small,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: STATUS_BAR.ink,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   doneButtonExpanded: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    padding: 12,
     borderRadius: RADIUS.small,
-    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  // Sits on the blue→purple gradient, not on the status bar, so it takes the
+  // theme's on-accent ink rather than the pinned bar ink.
+  gradientDoneButtonText: {
+    color: theme.text.onAccent,
+    fontSize: 14,
+    fontWeight: '600',
   },
   storeWarningBanner: {
     flexDirection: 'row',

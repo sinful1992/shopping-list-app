@@ -125,7 +125,9 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
                 <Text style={styles.categoryEmoji}>{cat.icon}</Text>
                 <Text style={[
                   styles.categoryText,
-                  isSelected && { color: cat.color, fontWeight: TYPOGRAPHY.fontWeight.semibold },
+                  // The category hex tints the cell, but never the label — as
+                  // text on a light cell most of the palette fails contrast.
+                  isSelected && { color: theme.text.primary, fontWeight: TYPOGRAPHY.fontWeight.semibold },
                 ]} numberOfLines={1}>
                   {cat.name}
                 </Text>

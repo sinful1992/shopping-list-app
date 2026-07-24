@@ -45,13 +45,24 @@ const COLORS = {
     failed: '#FF453A',
   },
 
+  // Leaderboard ranks. The metal semantics don't map onto the accent palette,
+  // so they get their own pair of triads. Used as text on background.secondary.
+  medal: {
+    gold: '#FFD60A',
+    silver: '#C0C0C0',
+    bronze: '#CD7F32',
+  },
+
   // Text colors. secondary/tertiary must stay readable at small sizes on
   // background.primary (WCAG-ish); dim is for disabled/placeholder only.
+  // onAccent is for text sitting ON a filled accent surface — it is dark here
+  // because the dark theme's accents are light colours.
   text: {
     primary: '#ffffff',
     secondary: 'rgba(255, 255, 255, 0.65)',
     tertiary: 'rgba(255, 255, 255, 0.45)',
     dim: 'rgba(255, 255, 255, 0.25)',
+    onAccent: '#111827',
   },
 
   // Border colors
@@ -175,6 +186,28 @@ export const NUMERIC = {
   fontVariant: ['tabular-nums' as const],
 };
 
+// Shopping-mode status bar. Deliberately theme-independent: the bar is a mode
+// indicator that has to read identically in-store in either theme, and pinning
+// the surface as well as the ink is what makes its contrast provable. Every
+// surface here is a saturated light colour, so the ink is dark in both themes.
+// Worst measured pair is `ink` on `budgetOver` at 5.21:1.
+export const STATUS_BAR = {
+  shopping: '#30D158',
+  locked: '#FFB340',
+  completed: '#8E8E93',
+  shoppingBorder: 'rgba(48, 209, 88, 0.35)',
+  lockedBorder: 'rgba(255, 179, 64, 0.35)',
+  completedBorder: 'rgba(142, 142, 147, 0.35)',
+  budgetWarning: '#FFD60A',
+  budgetOver: '#FF453A',
+  // White scrims lighten the bar, so they only improve the dark ink's ratio.
+  scrim: 'rgba(255, 255, 255, 0.3)',
+  ink: '#111827',
+  inkMuted: 'rgba(17, 24, 39, 0.75)',
+  inkWarning: '#4D3300',
+  inkOver: '#6B1616',
+} as const;
+
 // Animation durations (milliseconds)
 export const ANIMATION = {
   fast: 200,
@@ -202,28 +235,39 @@ export const LIGHT_THEME: Theme = {
     strong: 'rgba(0, 0, 0, 0.12)',
   },
 
+  // Accents here are a step darker than the -600 shades they started as. The
+  // dark theme's accents are light colours on a dark ground; mirroring that in
+  // light mode needs genuinely dark ink, or accent-coloured text collapses on a
+  // white card (prices measured 3.30:1 at -600). The *Dim tints are halved to
+  // match: a darker foreground on an equally dark tint gains nothing.
   accent: {
     blue: '#2563EB',
     blueLight: 'rgba(37, 99, 235, 0.8)',
-    blueDim: 'rgba(37, 99, 235, 0.3)',
+    blueDim: 'rgba(37, 99, 235, 0.15)',
     blueSubtle: 'rgba(37, 99, 235, 0.12)',
-    green: '#16A34A',
-    greenDim: 'rgba(22, 163, 74, 0.3)',
-    greenSubtle: 'rgba(22, 163, 74, 0.08)',
-    yellow: '#CA8A04',
-    yellowDim: 'rgba(202, 138, 4, 0.3)',
-    red: '#DC2626',
-    redDim: 'rgba(220, 38, 38, 0.3)',
-    redSubtle: 'rgba(220, 38, 38, 0.12)',
-    orange: '#EA580C',
-    orangeDim: 'rgba(234, 88, 12, 0.15)',
+    green: '#166534',
+    greenDim: 'rgba(22, 101, 52, 0.15)',
+    greenSubtle: 'rgba(22, 101, 52, 0.08)',
+    yellow: '#854D0E',
+    yellowDim: 'rgba(133, 77, 14, 0.15)',
+    red: '#B91C1C',
+    redDim: 'rgba(185, 28, 28, 0.15)',
+    redSubtle: 'rgba(185, 28, 28, 0.12)',
+    orange: '#C2410C',
+    orangeDim: 'rgba(194, 65, 12, 0.12)',
     purple: '#7C3AED',
   },
 
   sync: {
-    synced: '#16A34A',
-    pending: '#CA8A04',
-    failed: '#DC2626',
+    synced: '#166534',
+    pending: '#854D0E',
+    failed: '#B91C1C',
+  },
+
+  medal: {
+    gold: '#856404',
+    silver: '#5F6368',
+    bronze: '#8B5A2B',
   },
 
   text: {
@@ -231,6 +275,7 @@ export const LIGHT_THEME: Theme = {
     secondary: 'rgba(17, 24, 39, 0.70)',
     tertiary: 'rgba(17, 24, 39, 0.50)',
     dim: 'rgba(17, 24, 39, 0.30)',
+    onAccent: '#FFFFFF',
   },
 
   border: {

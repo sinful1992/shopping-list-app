@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.4] - 2026-07-24
+
+### Fixed
+- **Shopping mode is readable in dark theme again.** The in-store status bar drew itself with hardcoded iOS system colours that never followed the theme, while its text used the theme's primary ink — so on a dark phone the bar users actually shop from measured between 1.61:1 and 3.84:1 against WCAG's 4.5:1 minimum, worst of all the 11px budget badge. The bar now pins its own surfaces *and* its ink, so it reads identically in either theme; worst pair is 5.21:1. Cancel is an outlined button rather than white-on-a-white-scrim, which failed in both themes.
+- **Category labels on item rows are readable in both themes.** The 12 category colours are a fixed Material palette that can't follow the theme, drawn as 11px text: 5 of 12 failed contrast in dark, 10 of 12 in light (Bakery at 2.16:1). Labels now use the theme's secondary text colour and show the category emoji, which carries the identity the colour was carrying. Category colours still tint cells and borders, where they're decorative. The size and details editors had the same defect and are fixed with them.
+- **Analytics stat cards and rank medals are readable in light theme.** Their colours were pinned dark-theme hexes drawn on a 12% tint of themselves — "Items Bought" measured 1.21:1 and the gold medal 1.41:1, effectively invisible. Both now come from the theme, with a medal palette per theme.
+- **Light-theme accent colours are a step darker.** They were light enough that accent-coloured text collapsed on a white card — prices, the number users open the app to read, measured 3.30:1.
+
+### Added
+- Contrast regression tests (`src/styles/__tests__/contrast.test.ts`) asserting every colour pair fixed above, since none of these are visible in a dark-only emulator pass.
+
 ## [1.33.3] - 2026-07-24
 
 ### Fixed

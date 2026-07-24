@@ -11,6 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './ListDetailScreen.styles';
+import { STATUS_BAR } from '../../styles/theme';
 import { ScrollViewContainer } from 'react-native-reorderable-list';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -914,7 +915,7 @@ const ListDetailScreen = () => {
           {isShoppingMode && !isShoppingHeaderExpanded && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Icon name="cart" size={16} color={theme.text.primary} style={styles.statusIcon} />
+                <Icon name="cart" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   £{runningTotal.toFixed(2)} • {checkedCount}/{checkedCount + uncheckedCount}
                 </Text>
@@ -929,11 +930,11 @@ const ListDetailScreen = () => {
                     </Text>
                   </View>
                 )}
-                {!isOnline && <Icon name="cloud-offline-outline" size={16} color={theme.text.primary} style={styles.statusIcon} />}
+                {!isOnline && <Icon name="cloud-offline-outline" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
-                  <Icon name="chevron-down" size={14} color={theme.text.primary} />
+                  <Icon name="chevron-down" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
                   <Text style={styles.doneButtonText}>Done</Text>
@@ -948,7 +949,7 @@ const ListDetailScreen = () => {
               <View style={styles.expandedHeader}>
                 <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
-                  <Icon name="chevron-up" size={14} color={theme.text.primary} />
+                  <Icon name="chevron-up" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
               </View>
               <View style={styles.expandedStats}>
@@ -991,7 +992,7 @@ const ListDetailScreen = () => {
                     end={{ x: 1, y: 1 }}
                     style={styles.gradientDoneButton}
                   >
-                    <Text style={styles.doneButtonText}>Done Shopping</Text>
+                    <Text style={styles.gradientDoneButtonText}>Done Shopping</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1002,7 +1003,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && isListLocked && list && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Icon name="lock-closed" size={16} color={theme.text.primary} style={styles.statusIcon} />
+                <Icon name="lock-closed" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now
                 </Text>
@@ -1014,7 +1015,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && !isListLocked && isListCompleted && !canAddItems && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Icon name="checkmark-circle" size={16} color={theme.accent.green} style={styles.statusIcon} />
+                <Icon name="checkmark-circle" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   Completed - Only shopper can add items
                 </Text>

@@ -50,11 +50,14 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 // ─── Stat card config ─────────────────────────────────────────────────────────
 
-const STAT_CONFIG = [
-  { key: 'totalSpent',      label: 'Total Spent',    icon: '£',  color: '#6EA8FE', bg: 'rgba(110,168,254,0.12)' },
-  { key: 'totalTrips',      label: 'Shopping Trips', icon: '🛍', color: '#30D158', bg: 'rgba(48,209,88,0.12)'   },
-  { key: 'averagePerTrip',  label: 'Avg per Trip',   icon: '~',  color: '#A78BFA', bg: 'rgba(167,139,250,0.12)' },
-  { key: 'itemsPurchased',  label: 'Items Bought',   icon: '#',  color: '#FFD60A', bg: 'rgba(255,214,10,0.12)'  },
+// Colours resolve from the theme rather than being pinned here: as foreground
+// on a 12% tint of themselves, the old dark-theme hexes measured 1.21–2.20:1
+// in light mode.
+const STAT_KEYS = [
+  { key: 'totalSpent',      label: 'Total Spent',    icon: '£',  accent: 'blue'   },
+  { key: 'totalTrips',      label: 'Shopping Trips', icon: '🛍', accent: 'green'  },
+  { key: 'averagePerTrip',  label: 'Avg per Trip',   icon: '~',  accent: 'purple' },
+  { key: 'itemsPurchased',  label: 'Items Bought',   icon: '#',  accent: 'yellow' },
 ] as const;
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -64,6 +67,14 @@ const AnalyticsScreen = () => {
   const user = useUser();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const statConfig = useMemo(
+    () => STAT_KEYS.map(s => ({ ...s, color: theme.accent[s.accent], bg: theme.accent[s.accent] + '1F' })),
+    [theme],
+  );
+  const rankColors = useMemo(
+    () => [theme.medal.gold, theme.medal.silver, theme.medal.bronze],
+    [theme],
+  );
   const [loading, setLoading]         = useState(true);
   const [analytics, setAnalytics]     = useState<AnalyticsSummary | null>(null);
   const [timePeriod, setTimePeriod]   = useState<30 | 90 | 365>(30);
@@ -277,8 +288,7 @@ const AnalyticsScreen = () => {
       <Text style={styles.cardSub}>Your top items by frequency</Text>
       <View style={styles.itemsContainer}>
         {analytics.topItems.slice(0, 8).map((item, index) => {
-          const RANK_COLORS = ['#FFD60A', '#C0C0C0', '#CD7F32'];
-          const rankColor = RANK_COLORS[index] ?? theme.text.secondary;
+          const rankColor = rankColors[index] ?? theme.text.secondary;
           const rankBorderStyle = { borderColor: rankColor + '60' };
           const rankColorStyle = { color: rankColor };
           return (
@@ -410,7 +420,7 @@ const AnalyticsScreen = () => {
 
       {/* ── 2×2 Stat grid ────────────────────────────────────────────────── */}
       <View style={styles.statGrid}>
-        {STAT_CONFIG.map(cfg => {
+        {statConfig.map(cfg => {
           const raw  = analytics[cfg.key as keyof AnalyticsSummary] as number;
           const value = cfg.key === 'totalSpent' || cfg.key === 'averagePerTrip'
             ? fmt(raw)
@@ -523,7 +533,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
   },
-  statIcon:  { fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  // 20/700 clears the WCAG large-text threshold (14pt bold), which is what the
+  // accent-on-its-own-tint pattern needs to hold in both themes.
+  statIcon:  { fontSize: 20, fontWeight: '700', marginBottom: 6 },
   statValue: { ...NUMERIC, fontSize: 22, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
   statLabel: { fontSize: 12, color: theme.text.secondary },
 

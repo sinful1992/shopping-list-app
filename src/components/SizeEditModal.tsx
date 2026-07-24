@@ -16,9 +16,11 @@ import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 
-const UNIT_GROUPS: Array<{ label: string; units: string[]; color: string }> = [
-  { label: 'Volume', units: ['ml', 'L'], color: '#6EA8FE' },
-  { label: 'Weight', units: ['g', 'kg'], color: '#A78BFA' },
+// Accent is a token name, not a hex: these render as text, and a pinned
+// dark-theme hex is unreadable on a light card.
+const UNIT_GROUPS: Array<{ label: string; units: string[]; accent: 'blue' | 'purple' }> = [
+  { label: 'Volume', units: ['ml', 'L'], accent: 'blue' },
+  { label: 'Weight', units: ['g', 'kg'], accent: 'purple' },
 ];
 
 interface SizeEditModalProps {
@@ -145,16 +147,18 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
         </View>
 
         <View style={styles.pillGroups}>
-          {UNIT_GROUPS.map(group => (
+          {UNIT_GROUPS.map(group => {
+            const groupColor = theme.accent[group.accent];
+            return (
             <View key={group.label} style={styles.pillGroup}>
-              <Text style={[styles.pillGroupLabel, { color: group.color }]}>{group.label}</Text>
+              <Text style={[styles.pillGroupLabel, { color: groupColor }]}>{group.label}</Text>
               <View style={styles.pillRow}>
                 {group.units.map(unit => (
                   <TouchableOpacity
                     key={unit}
                     style={[
                       styles.pill,
-                      measurementUnit === unit && { borderColor: group.color, backgroundColor: `${group.color}20` },
+                      measurementUnit === unit && { borderColor: groupColor, backgroundColor: `${groupColor}20` },
                     ]}
                     onPress={() => {
                       const newUnit = measurementUnit === unit ? null : unit;
@@ -175,7 +179,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
                   >
                     <Text style={[
                       styles.pillText,
-                      measurementUnit === unit && { color: group.color, fontWeight: TYPOGRAPHY.fontWeight.semibold },
+                      measurementUnit === unit && { color: groupColor, fontWeight: TYPOGRAPHY.fontWeight.semibold },
                     ]}>
                       {unit}
                     </Text>
@@ -183,7 +187,8 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
                 ))}
               </View>
             </View>
-          ))}
+            );
+          })}
         </View>
       </View>
 
