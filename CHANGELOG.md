@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.34.2] - 2026-07-24
+
+### Fixed
+- **Cancel and Done line up again in the expanded shopping panel.** Making Cancel an outlined button in 1.33.4 changed its box by the width of its border, which left the Done button's gradient sitting short inside a taller row.
+- **Long category names no longer crowd the item row.** Adding the category emoji in 1.33.4 widened a row that also carries the size and the add-size prompt; the label now truncates instead of pushing them off a narrow screen.
+
 ## [1.34.1] - 2026-07-24
 
 ### Fixed

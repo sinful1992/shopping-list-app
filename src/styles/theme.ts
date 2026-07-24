@@ -196,7 +196,9 @@ export const NUMERIC = {
 // indicator that has to read identically in-store in either theme, and pinning
 // the surface as well as the ink is what makes its contrast provable. Every
 // surface here is a saturated light colour, so the ink is dark in both themes.
-// Worst measured pair is `ink` on `budgetOver` at 5.21:1.
+// Worst measured pair is `ink` on `budgetOver` at 5.21:1. These deliberately do
+// not track accent.* — budgetOver stayed at iOS systemRed after the dark accent
+// red was lightened, because here the ink is dark and the surface must not be.
 export const STATUS_BAR = {
   shopping: '#30D158',
   locked: '#FFB340',

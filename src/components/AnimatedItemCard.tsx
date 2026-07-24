@@ -176,6 +176,10 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       fontSize: 11,
       fontWeight: '600',
       color: theme.text.secondary,
+      // The glyph is a real width addition to a row that also carries the
+      // measurement and the add-size prompt; shrink and truncate rather than
+      // pushing them off a narrow screen.
+      flexShrink: 1,
     },
     measurementText: {
       fontSize: 11,
@@ -309,7 +313,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           </View>
           <View style={cardStyles.subRow}>
             {categoryInfo && (
-              <Text style={cardStyles.categoryLabel}>
+              <Text style={cardStyles.categoryLabel} numberOfLines={1}>
                 {categoryInfo.icon} {categoryInfo.name}
               </Text>
             )}
