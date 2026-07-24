@@ -11,6 +11,7 @@ device in either theme.**
 | 1.34.1 | `6dcb93e` | 4 — hit slops, tabular numerals |
 | 1.34.2 | `8385875` | layout side-effects of phase 1, found on review |
 | 1.35.0 | `d39d739` | 5 + 6 — type scale, radius token, iconography, empty-state copy |
+| 1.35.1 | `d564b04` | spacing/overflow side-effects of the icon swaps |
 
 ## Where the audit was wrong
 
@@ -72,9 +73,17 @@ actually composites.
   condition: every single-theme defect in Priority 1 shipped precisely because
   AVD validation had been dark-only. No master merge before it.
 - Worth a specific look, as the places where box model changed rather than
-  colour: shopping-mode expanded panel (Cancel/Done row), item rows with a long
-  category name next to a size, and every screen touched by the type-scale
-  collapse.
+  colour: shopping-mode expanded panel (Cancel/Done row, and the offline notice
+  on a narrow screen), item rows with a long category name next to a size, and
+  every screen touched by the type-scale collapse.
+- `ReceiptViewScreen`'s till-roll block moved down a step with the rest (mono
+  values 15→14, line items 13→12). The internal relationships are preserved, but
+  the field label and its mono value are now the same size where the value used
+  to be one larger. This is the one place the audit called the app's genuine
+  point of view, so look at it deliberately rather than in passing.
+- All 23 Ionicons names used across the batch were checked against the installed
+  glyphmap. A wrong name renders as nothing — no type error, no test failure, no
+  warning — so re-check if any are changed.
 - Not done, and not defects: converting the ~300 remaining `fontSize` literals
   to `TYPOGRAPHY` tokens, and the Analytics tab bar's four emoji (a labelled tab
   bar, so the glyph is decorative — the audit did not flag it).
