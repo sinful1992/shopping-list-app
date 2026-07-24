@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.33.3] - 2026-07-24
+
+### Fixed
+- **First tap on the app no longer crashes after it sat unused in the background.** When Android killed the process to reclaim memory, the next launch restored the activity from saved state — and react-native-screens deliberately refuses to restore its screen fragments (`IllegalStateException: Screen fragments should never be restored`), crashing that first launch; the second tap worked because the crash wiped the saved state. `MainActivity.onCreate` now passes `null` to `super.onCreate` (the documented react-native-screens fix) so React Native rebuilds the UI from scratch instead. Diagnosed from the on-device DropBox crash record.
+
 ## [1.33.2] - 2026-07-23
 
 ### Fixed

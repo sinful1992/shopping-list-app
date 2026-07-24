@@ -14,7 +14,10 @@ public class MainActivity extends ReactActivity {
   protected void onCreate(Bundle savedInstanceState) {
     EdgeToEdge.enable(this);
     SplashScreen.show(this);
-    super.onCreate(savedInstanceState);
+    // Pass null: react-native-screens fragments cannot be restored from saved
+    // state (IllegalStateException on relaunch after process death); RN rebuilds
+    // the UI from scratch instead.
+    super.onCreate(null);
   }
 
   /**
