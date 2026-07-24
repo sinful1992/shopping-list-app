@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.2] - 2026-07-25
+
+### Fixed
+- **Text on filled gradient buttons is readable again.** The create-list modal's Create button used the surface ink instead of the on-accent ink, so it failed in both themes — measured 2.4:1 in light and 2.5:1 in dark, against a 3:1 floor. The same miss was on the lists FAB, the receipt apply button and two loading spinners. All now use the token that flips with the theme, measuring ~7:1.
+- **Cancel is no longer taller than Create.** The Create button was padded twice — `padding: 0` does not override `paddingVertical`/`paddingHorizontal`, so the base style's padding survived and wrapped the gradient in an invisible shell. The row stretched Cancel to match it. Fixing the padding also removes the third of Create's touch target that sat outside the visible button.
+
 ## [1.35.1] - 2026-07-24
 
 ### Fixed

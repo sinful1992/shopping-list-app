@@ -100,7 +100,7 @@ const TermsAcceptanceScreen = () => {
             style={styles.acceptButton}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={theme.text.onAccent} />
             ) : (
               <Text style={styles.acceptButtonText}>I Accept</Text>
             )}

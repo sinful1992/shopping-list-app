@@ -255,7 +255,7 @@ const HomeScreen = () => {
             end={{ x: 1, y: 1 }}
             style={styles.fabGradient}
           >
-            <Icon name="add" size={32} color="#FFFFFF" />
+            <Icon name="add" size={32} color={theme.text.onAccent} />
           </LinearGradient>
         </TouchableOpacity>
       </View>

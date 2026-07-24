@@ -476,7 +476,7 @@ const ReceiptMatchScreen = () => {
             style={styles.applyGradient}
           >
             {applying ? (
-              <ActivityIndicator color={theme.text.primary} />
+              <ActivityIndicator color={theme.text.onAccent} />
             ) : (
               <Text style={styles.applyText}>{applyLabel}</Text>
             )}
@@ -961,7 +961,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   applyText: {
-    color: theme.text.primary,
+    // On the button gradient — see modalButtonText in HomeScreen.styles.ts.
+    color: theme.text.onAccent,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
