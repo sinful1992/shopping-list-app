@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.34.0] - 2026-07-24
+
+### Changed
+- **One palette instead of five.** The app had accumulated four greens, five oranges, three reds and two yellows — iOS system colours, stray hexes and theme tokens sitting side by side, none of them noticeable alone but collectively why the app read as assembled rather than designed. Every one of them now comes from the theme, so colour follows light/dark consistently: History's "not purchased" markers, Settings' danger zone and join-request badges, Urgent Items' cards and action button, the receipt warning banners, the size editor's unit badges.
+- **The spending pie no longer half-changes with the theme.** Three of its five colours flipped with the theme and two were pinned, so in light mode it came out three muted colours and two neon ones. All five are themed now, and ordered so red and green are never adjacent slices.
+- **Dark red got lighter, light blue and purple got darker.** Each was too close to its own background to survive being drawn on a tint of itself.
+
+### Fixed
+- **Modal drag handles are visible in light theme.** All five bottom sheets drew the grab handle as 15% white, which is invisible on a white sheet.
+
 ## [1.33.5] - 2026-07-24
 
 ### Fixed

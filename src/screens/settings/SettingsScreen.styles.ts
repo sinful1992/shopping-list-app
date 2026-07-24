@@ -352,11 +352,11 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.accent.blue,
   },
   dangerTitle: {
-    color: '#FF3B30',
+    color: theme.accent.red,
   },
   dangerWarning: {
     fontSize: 14,
-    color: '#FF6B6B',
+    color: theme.accent.red,
     marginBottom: 15,
     lineHeight: 20,
   },
@@ -368,7 +368,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: 'rgba(139, 0, 0, 0.9)',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 0, 0, 0.5)',
+    borderColor: theme.accent.redDim,
     shadowColor: '#8B0000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
@@ -383,7 +383,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
   },
   requestsBadge: {
     marginLeft: 10,
-    backgroundColor: '#FFB340',
+    backgroundColor: theme.accent.orange,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -392,7 +392,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 6,
   },
   requestsBadgeText: {
-    color: '#000',
+    color: theme.text.onAccent,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -408,10 +408,10 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   requestApproveButton: {
-    backgroundColor: 'rgba(48, 209, 88, 0.8)',
+    backgroundColor: theme.accent.green,
   },
   requestRejectButton: {
-    backgroundColor: 'rgba(255, 69, 58, 0.7)',
+    backgroundColor: theme.accent.red,
   },
   legalButton: {
     flexDirection: 'row',
@@ -432,7 +432,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
   settingDescriptionSpaced: { marginBottom: 12 },
   invitationCodeError: { color: theme.accent.red },
   copyButtonDisabled: { opacity: 0.5 },
-  joinRequestsSection: { borderColor: 'rgba(255, 179, 64, 0.3)' },
-  joinRequestsTitle: { color: '#FFB340' },
-  joinRequestsMemberIcon: { borderColor: 'rgba(255, 179, 64, 0.3)', backgroundColor: 'rgba(255, 179, 64, 0.1)' },
+  joinRequestsSection: { borderColor: theme.accent.orangeDim },
+  joinRequestsTitle: { color: theme.accent.orange },
+  joinRequestsMemberIcon: { borderColor: theme.accent.orangeDim, backgroundColor: theme.accent.orangeSubtle },
 });

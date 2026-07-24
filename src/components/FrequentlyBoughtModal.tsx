@@ -187,7 +187,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.border.strong,
   },
   header: {
     flexDirection: 'row',

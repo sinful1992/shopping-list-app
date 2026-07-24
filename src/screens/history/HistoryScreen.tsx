@@ -659,7 +659,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   itemsNotBought: {
     fontSize: 12,
-    color: '#FF9500',
+    color: theme.accent.orange,
     fontWeight: '500',
     marginTop: 4,
   },

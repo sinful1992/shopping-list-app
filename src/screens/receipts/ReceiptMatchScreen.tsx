@@ -827,7 +827,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: SPACING.md,
   },
   infoRowSelected: {
-    backgroundColor: 'rgba(48, 209, 88, 0.08)',
+    backgroundColor: theme.accent.greenSubtle,
   },
   infoText: {
     flex: 1,

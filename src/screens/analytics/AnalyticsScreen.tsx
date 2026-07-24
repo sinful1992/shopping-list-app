@@ -178,11 +178,20 @@ const AnalyticsScreen = () => {
       }));
     }
     if (Array.isArray(analytics.categoryBreakdown)) {
-      const PIE_COLORS = [theme.accent.blue, theme.accent.green, '#FFD60A', '#FF453A', theme.accent.purple];
+      // All five from the theme (two were pinned dark-theme hexes, so in light
+      // mode the pie came out three muted colours and two neon ones), ordered
+      // so red and green are never adjacent slices.
+      const PIE_COLORS = [
+        theme.accent.blue,
+        theme.accent.orange,
+        theme.accent.green,
+        theme.accent.purple,
+        theme.accent.red,
+      ];
       categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, i) => ({
         value: cat.totalSpent,
         text: cat.category,
-        color: PIE_COLORS[i] || '#6E6E73',
+        color: PIE_COLORS[i] || theme.text.tertiary,
       }));
     }
   } catch (e) {

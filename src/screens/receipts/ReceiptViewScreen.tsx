@@ -587,7 +587,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     // danger=red). A single suspect field is a minor, one-tap fix — it
     // shouldn't outrank the orange "low confidence" banner for the whole
     // receipt a tier below it.
-    backgroundColor: 'rgba(255, 214, 10, 0.1)',
+    backgroundColor: theme.accent.yellowSubtle,
     borderLeftWidth: 4, // matches BudgetScreen's alertCard left-accent pattern
     borderLeftColor: theme.accent.yellow,
     paddingLeft: 8,
@@ -667,10 +667,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   warningContainer: {
     marginTop: 20,
     padding: 15,
-    backgroundColor: 'rgba(255, 159, 10, 0.15)',
+    backgroundColor: theme.accent.orangeSubtle,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 159, 10, 0.3)',
+    borderColor: theme.accent.orangeDim,
   },
   warningText: {
     fontSize: 14,

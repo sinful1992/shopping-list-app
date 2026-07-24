@@ -150,6 +150,21 @@ describe.each(THEMES)('%s theme', (_name, theme) => {
     }
   });
 
+  it('accent text stays readable on its own Subtle tint, card or page', () => {
+    const pairs = [
+      ['blue', 'blueSubtle'],
+      ['green', 'greenSubtle'],
+      ['red', 'redSubtle'],
+      ['orange', 'orangeSubtle'],
+      ['purple', 'purpleSubtle'],
+      ['yellow', 'yellowSubtle'],
+    ] as const;
+    for (const [fg, tint] of pairs) {
+      expect(contrast(theme.accent[fg], [card, theme.accent[tint]])).toBeGreaterThanOrEqual(AA_BODY);
+      expect(contrast(theme.accent[fg], [page, theme.accent[tint]])).toBeGreaterThanOrEqual(AA_BODY);
+    }
+  });
+
   it('tinted badges stay readable on their own tint', () => {
     // Shopping badge: orange on orangeSubtle, on a list card.
     expect(

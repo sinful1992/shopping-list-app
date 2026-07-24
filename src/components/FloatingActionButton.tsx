@@ -77,7 +77,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
           >
             <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
-            {label && <Text style={styles.fabLabel}>{label}</Text>}
+            {label && <Text style={[styles.fabLabel, styles.fabLabelDisabled]}>{label}</Text>}
           </LinearGradient>
         ) : (
           <LinearGradient
@@ -116,8 +116,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fabLabel: {
+  // The disabled state keeps its own fixed dark grey gradient, so its label
+  // stays white rather than following the theme's on-accent ink.
+  fabLabelDisabled: {
     color: '#FFFFFF',
+  },
+  fabLabel: {
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,

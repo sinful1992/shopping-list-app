@@ -30,20 +30,25 @@ const COLORS = {
     greenSubtle: 'rgba(48, 209, 88, 0.1)',
     yellow: '#FFD60A',
     yellowDim: 'rgba(255, 214, 10, 0.3)',
-    red: '#FF453A',
-    redDim: 'rgba(255, 69, 58, 0.3)',
-    redSubtle: 'rgba(255, 59, 48, 0.15)',
+    yellowSubtle: 'rgba(255, 214, 10, 0.1)',
+    // Lighter than iOS systemRed: at #FF453A the red only cleared 4.81:1 on a
+    // card bare, so anything drawn on its own tint fell under the bar.
+    red: '#FF7A70',
+    redDim: 'rgba(255, 122, 112, 0.3)',
+    redSubtle: 'rgba(255, 122, 112, 0.15)',
     orange: '#FFB340',
     orangeDim: 'rgba(255, 179, 64, 0.2)',
     orangeSubtle: 'rgba(255, 179, 64, 0.12)',
     purple: '#A78BFA',
+    purpleDim: 'rgba(167, 139, 250, 0.3)',
+    purpleSubtle: 'rgba(167, 139, 250, 0.15)',
   },
 
   // Sync status indicators
   sync: {
     synced: '#30D158',
     pending: '#FFD60A',
-    failed: '#FF453A',
+    failed: '#FF7A70',
   },
 
   // Leaderboard ranks. The metal semantics don't map onto the accent palette,
@@ -242,22 +247,25 @@ export const LIGHT_THEME: Theme = {
   // white card (prices measured 3.30:1 at -600). The *Dim tints are halved to
   // match: a darker foreground on an equally dark tint gains nothing.
   accent: {
-    blue: '#2563EB',
-    blueLight: 'rgba(37, 99, 235, 0.8)',
-    blueDim: 'rgba(37, 99, 235, 0.15)',
-    blueSubtle: 'rgba(37, 99, 235, 0.12)',
+    blue: '#1D4ED8',
+    blueLight: 'rgba(29, 78, 216, 0.8)',
+    blueDim: 'rgba(29, 78, 216, 0.15)',
+    blueSubtle: 'rgba(29, 78, 216, 0.10)',
     green: '#166534',
     greenDim: 'rgba(22, 101, 52, 0.15)',
     greenSubtle: 'rgba(22, 101, 52, 0.08)',
     yellow: '#854D0E',
     yellowDim: 'rgba(133, 77, 14, 0.15)',
+    yellowSubtle: 'rgba(133, 77, 14, 0.10)',
     red: '#B91C1C',
     redDim: 'rgba(185, 28, 28, 0.15)',
     redSubtle: 'rgba(185, 28, 28, 0.12)',
     orange: '#9A3412',
     orangeDim: 'rgba(154, 52, 18, 0.12)',
     orangeSubtle: 'rgba(154, 52, 18, 0.10)',
-    purple: '#7C3AED',
+    purple: '#6D28D9',
+    purpleDim: 'rgba(109, 40, 217, 0.15)',
+    purpleSubtle: 'rgba(109, 40, 217, 0.10)',
   },
 
   sync: {
@@ -293,8 +301,8 @@ export const LIGHT_THEME: Theme = {
   },
 
   gradient: {
-    buttonStart: '#2563EB',
-    buttonEnd: '#7C3AED',
+    buttonStart: '#1D4ED8',
+    buttonEnd: '#6D28D9',
     modalStart: '#FFFFFF',
     modalEnd: '#F8F9FA',
   },

@@ -423,8 +423,8 @@ const SettingsScreen = () => {
                       disabled={approvingId === req.userId || rejectingId === req.userId}
                     >
                       {approvingId === req.userId
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Icon name="checkmark" size={18} color="#fff" />}
+                        ? <ActivityIndicator size="small" color={theme.text.onAccent} />
+                        : <Icon name="checkmark" size={18} color={theme.text.onAccent} />}
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.requestActionButton, styles.requestRejectButton]}
@@ -432,8 +432,8 @@ const SettingsScreen = () => {
                       disabled={approvingId === req.userId || rejectingId === req.userId}
                     >
                       {rejectingId === req.userId
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Icon name="close" size={18} color="#fff" />}
+                        ? <ActivityIndicator size="small" color={theme.text.onAccent} />
+                        : <Icon name="close" size={18} color={theme.text.onAccent} />}
                     </TouchableOpacity>
                   </View>
                 </View>

@@ -266,24 +266,24 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: RADIUS.medium,
   },
   unitBadgeBlue: {
-    backgroundColor: 'rgba(110,168,254,0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(110,168,254,0.3)',
+    borderColor: theme.accent.blueDim,
   },
   unitBadgePurple: {
-    backgroundColor: 'rgba(167,139,250,0.15)',
+    backgroundColor: theme.accent.purpleSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: theme.accent.purpleDim,
   },
   unitBadgeText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   unitBadgeTextBlue: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
   },
   unitBadgeTextPurple: {
-    color: '#A78BFA',
+    color: theme.accent.purple,
   },
   pillGroups: {
     flexDirection: 'row',

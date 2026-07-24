@@ -393,7 +393,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   restoreButtonText: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
     fontSize: 16,
     fontWeight: '600',
   },
