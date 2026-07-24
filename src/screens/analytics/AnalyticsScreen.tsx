@@ -16,6 +16,7 @@ import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsServ
 import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import CrashReporting from '../../services/CrashReporting';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { RADIUS, NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -54,10 +55,10 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 // on a 12% tint of themselves, the old dark-theme hexes measured 1.21–2.20:1
 // in light mode.
 const STAT_KEYS = [
-  { key: 'totalSpent',      label: 'Total Spent',    icon: '£',  accent: 'blue'   },
-  { key: 'totalTrips',      label: 'Shopping Trips', icon: '🛍', accent: 'green'  },
-  { key: 'averagePerTrip',  label: 'Avg per Trip',   icon: '~',  accent: 'purple' },
-  { key: 'itemsPurchased',  label: 'Items Bought',   icon: '#',  accent: 'yellow' },
+  { key: 'totalSpent',      label: 'Total Spent',    icon: 'wallet-outline',      accent: 'blue'   },
+  { key: 'totalTrips',      label: 'Shopping Trips', icon: 'bag-handle-outline',  accent: 'green'  },
+  { key: 'averagePerTrip',  label: 'Avg per Trip',   icon: 'analytics-outline',   accent: 'purple' },
+  { key: 'itemsPurchased',  label: 'Items Bought',   icon: 'cube-outline',        accent: 'yellow' },
 ] as const;
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -135,7 +136,7 @@ const AnalyticsScreen = () => {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorIcon}>⚠️</Text>
+        <Icon name="alert-circle-outline" size={52} color={theme.accent.red} style={styles.stateIcon} />
         <Text style={styles.errorTitle}>Error loading analytics</Text>
         <Text style={styles.errorSub}>{error}</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={loadAnalytics}>
@@ -148,9 +149,9 @@ const AnalyticsScreen = () => {
   if (!analytics || analytics.totalTrips === 0) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.noDataIcon}>📊</Text>
+        <Icon name="bar-chart-outline" size={52} color={theme.text.tertiary} style={styles.stateIcon} />
         <Text style={styles.errorTitle}>No data yet</Text>
-        <Text style={styles.errorSub}>Complete some shopping trips to see analytics</Text>
+        <Text style={styles.errorSub}>Complete a few shopping trips and your spending trends appear here</Text>
       </View>
     );
   }
@@ -435,10 +436,9 @@ const AnalyticsScreen = () => {
             ? fmt(raw)
             : String(raw);
           const statCardStyle = { backgroundColor: cfg.bg, borderColor: cfg.color + '30' };
-          const statIconColorStyle = { color: cfg.color };
           return (
             <View key={cfg.key} style={[styles.statCard, statCardStyle]}>
-              <Text style={[styles.statIcon, statIconColorStyle]}>{cfg.icon}</Text>
+              <Icon name={cfg.icon} size={20} color={cfg.color} style={styles.statIcon} />
               <Text style={styles.statValue}>{value}</Text>
               <Text style={styles.statLabel}>{cfg.label}</Text>
             </View>
@@ -494,12 +494,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.background.primary,
     paddingHorizontal: 40,
   },
-  loadingText: { marginTop: 14, fontSize: 15, color: theme.text.secondary },
-  errorIcon:  { fontSize: 52, marginBottom: 12 },
+  loadingText: { marginTop: 14, fontSize: 14, color: theme.text.secondary },
+  stateIcon:  { marginBottom: 12 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: theme.text.primary, marginBottom: 6, textAlign: 'center' },
   errorSub:   { fontSize: 14, color: theme.text.secondary, textAlign: 'center', marginBottom: 20 },
   retryBtn:   { backgroundColor: theme.accent.blue, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  retryBtnText: { color: theme.text.onAccent, fontSize: 15, fontWeight: '600' },
+  retryBtnText: { color: theme.text.onAccent, fontSize: 14, fontWeight: '600' },
 
   // ── Period row ────────────────────────────────────────────────────────────
   periodRow: {
@@ -523,7 +523,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.accent.blueSubtle,
     borderColor: theme.accent.blue,
   },
-  periodText:       { fontSize: 13, fontWeight: '600', color: theme.text.secondary },
+  periodText:       { fontSize: 12, fontWeight: '600', color: theme.text.secondary },
   periodTextActive: { color: theme.accent.blue },
 
   // ── 2×2 Stat grid ─────────────────────────────────────────────────────────
@@ -542,10 +542,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
   },
-  // 20/700 clears the WCAG large-text threshold (14pt bold), which is what the
-  // accent-on-its-own-tint pattern needs to hold in both themes.
-  statIcon:  { fontSize: 20, fontWeight: '700', marginBottom: 6 },
-  statValue: { ...NUMERIC, fontSize: 22, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
+  // A vector glyph, so the 3:1 non-text contrast minimum applies rather than
+  // 4.5:1 — which is what the accent-on-its-own-tint pattern can hold in both
+  // themes. contrast.test.ts asserts it.
+  statIcon:  { marginBottom: 6 },
+  statValue: { ...NUMERIC, fontSize: 24, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
   statLabel: { fontSize: 12, color: theme.text.secondary },
 
   // ── Tab bar ───────────────────────────────────────────────────────────────
@@ -572,7 +573,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   tabActive: {
     backgroundColor: theme.accent.blueSubtle,
   },
-  tabIcon:  { fontSize: 13 },
+  tabIcon:  { fontSize: 12 },
   tabLabel: { fontSize: 12, fontWeight: '600', color: theme.text.secondary },
   tabLabelActive: { color: theme.accent.blue },
 
@@ -593,7 +594,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: '700', color: theme.text.primary },
   cardSub:   { fontSize: 12, color: theme.text.secondary, marginTop: 2 },
-  noData:    { fontSize: 13, color: theme.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
+  noData:    { fontSize: 12, color: theme.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
 
   // ── Items tab ─────────────────────────────────────────────────────────────
   itemRow: {
@@ -614,7 +615,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   rankText:  { fontSize: 12, fontWeight: '700' },
   itemName:  { flex: 1, fontSize: 14, color: theme.text.primary, fontWeight: '500' },
-  itemCount: { fontSize: 11, color: theme.text.secondary },
+  itemCount: { fontSize: 12, color: theme.text.secondary },
   itemSpend: { fontSize: 14, fontWeight: '700', color: theme.accent.green, marginTop: 1 },
 
   // ── Stores tab ────────────────────────────────────────────────────────────
@@ -622,9 +623,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  storeName:  { fontSize: 15, fontWeight: '600', color: theme.text.primary },
+  storeName:  { fontSize: 14, fontWeight: '600', color: theme.text.primary },
   storeTotal: { ...NUMERIC, fontSize: 16, fontWeight: '700', color: theme.text.primary },
-  storeMeta:  { fontSize: 11, color: theme.text.secondary, marginTop: 2 },
+  storeMeta:  { fontSize: 12, color: theme.text.secondary, marginTop: 2 },
   pill: {
     backgroundColor: theme.glass.elevated,
     borderRadius: 6,
@@ -645,11 +646,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
 
   // ── No-data screen ────────────────────────────────────────────────────────
-  noDataIcon: { fontSize: 52, marginBottom: 12 },
 
   // ── Chart helpers ─────────────────────────────────────────────────────────
   chartWrapper: { marginTop: 12 },
-  chartTopLabel: { color: theme.text.primary, fontSize: 11, fontWeight: '600' as const },
+  chartTopLabel: { color: theme.text.primary, fontSize: 12, fontWeight: '600' as const },
   chartAxisStyle: { color: theme.text.secondary, fontSize: 10 },
 
   // ── Overview – pie section ────────────────────────────────────────────────

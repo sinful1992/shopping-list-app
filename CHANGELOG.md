@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.0] - 2026-07-24
+
+### Changed
+- **Text sizes now produce actual levels.** The app used 19 distinct font sizes against a scale defining 8, and 13/14/15/16/17 sat on adjacent rows — HomeScreen ran six sizes down a single card. Because 15-vs-14 isn't a perceptible difference, none of it read as hierarchy; it read as one flat band. Collapsed to 12 (meta) / 14 (body) / 16 (emphasis) / 20 (title) / 24 (screen title), with weight and colour carrying the rest. The item card was already doing this correctly and is unchanged. The display sizes above 24 — used for glyphs and hero numbers — are named in the scale now instead of being loose numbers.
+- **Emoji no longer carry UI meaning.** The price trend was encoded as 📈/📉/➡️ with no text alternative for a screen reader — it's an arrow icon and a signed percentage now. The urgent-item button was labelled 🔥, which didn't say what it does and rendered differently across phone makers. Analytics' error and empty icons, and its 2×2 stat grid (which mixed a currency symbol, an emoji, a tilde and a hash), are consistent vector icons. Category emoji stay — those are content.
+- **Empty screens say what to do next.** "No completed shopping trips", "No active urgent items", "No family members" and the rest were bare negations; each now states the situation and the next action.
+
 ## [1.34.2] - 2026-07-24
 
 ### Fixed

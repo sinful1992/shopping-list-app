@@ -130,7 +130,8 @@ describe.each(THEMES)('%s theme', (_name, theme) => {
   });
 
   it('onAccent is readable on every filled accent surface', () => {
-    for (const key of ['blue', 'green', 'red', 'orange', 'purple'] as const) {
+    // yellow included: the price-trend badge fills itself with it.
+    for (const key of ['blue', 'green', 'red', 'orange', 'purple', 'yellow'] as const) {
       expect(contrast(theme.text.onAccent, theme.accent[key])).toBeGreaterThanOrEqual(AA_BODY);
     }
     // The gradient the FAB and the complete/done buttons use.

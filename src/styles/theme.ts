@@ -167,6 +167,11 @@ export const SPACING = {
   xxl: 24,
 } as const;
 
+// The ramp is deliberately sparse below 24: 13-vs-14 and 16-vs-17 are not
+// perceptible differences, so intermediate steps produced one flat weight-band
+// instead of hierarchy. Levels come from weight and colour; size marks the
+// jumps. The display sizes above 24 are for glyphs and hero numerals, not body
+// copy — they existed unnamed before (28/32/36/52/64 were all in use).
 export const TYPOGRAPHY = {
   fontSize: {
     xs: 10,
@@ -176,7 +181,12 @@ export const TYPOGRAPHY = {
     xl: 18,
     xxl: 20,
     xxxl: 24,
+    display: 28,
+    displayLg: 32,
+    displayXl: 36,
     huge: 42,
+    mark: 52,
+    markLg: 64,
   },
   fontWeight: {
     regular: '400' as const,

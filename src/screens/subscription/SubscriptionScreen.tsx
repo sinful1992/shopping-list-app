@@ -301,7 +301,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   sectionTitle: {
     color: theme.text.tertiary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -413,7 +413,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   manageHintText: {
     color: theme.text.tertiary,
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'center',
   },
 });

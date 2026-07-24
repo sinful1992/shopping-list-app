@@ -723,7 +723,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
     letterSpacing: 1.2,

@@ -325,11 +325,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   pickerText: {
     color: theme.text.primary,
-    fontSize: 15,
+    fontSize: 14,
   },
   pickerPlaceholder: {
     color: theme.text.tertiary,
-    fontSize: 15,
+    fontSize: 14,
     fontStyle: 'italic',
   },
   pickerDropdown: {
@@ -450,7 +450,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 4,
   },
   stabilityLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     width: 70,
     textAlign: 'right',
@@ -460,7 +460,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   insightText: {
     color: theme.text.secondary,
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 4,
     lineHeight: 18,
   },

@@ -108,7 +108,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flex: 1,
   },
   h1: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.text.primary,
     marginTop: 16,

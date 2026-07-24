@@ -452,7 +452,7 @@ const SettingsScreen = () => {
               <Text style={styles.sectionTitle}>Family Members</Text>
             </View>
             {familyMembers.length === 0 ? (
-              <Text style={styles.emptyText}>No family members</Text>
+              <Text style={styles.emptyText}>Share your invitation code above to shop together</Text>
             ) : (
               <>
                 {familyMembers.map((member, index) => (
@@ -540,11 +540,11 @@ const SettingsScreen = () => {
       {/* Danger Zone */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Icon name="warning-outline" size={24} color="#FF3B30" />
+          <Icon name="warning-outline" size={24} color={theme.accent.red} />
           <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger Zone</Text>
         </View>
         <Text style={styles.dangerWarning}>
-          ⚠️ Permanently delete your account and all associated data. This action cannot be undone.
+          Permanently delete your account and all associated data. This action cannot be undone.
         </Text>
         <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
           <Icon name="trash-outline" size={24} color="#ffffff" />

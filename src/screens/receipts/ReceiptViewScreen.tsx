@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
@@ -352,7 +353,7 @@ const ReceiptViewScreen = () => {
                       <>
                         <View style={styles.itemDescRow}>
                           {item.needsReview && (
-                            <Text style={styles.itemReviewIcon}>⚠️</Text>
+                            <Icon name="alert-circle" size={12} color={theme.accent.orange} />
                           )}
                           <Text
                             style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
@@ -404,10 +405,13 @@ const ReceiptViewScreen = () => {
             {/* Items Needing Review */}
             {needsReviewCount > 0 && (
               <View style={styles.warningContainer}>
-                <Text style={styles.warningText}>
-                  ⚠️ Check the highlighted item{needsReviewCount > 1 ? 's' : ''} above — the
-                  scanner wasn't sure about the description or price.
-                </Text>
+                <View style={styles.warningRow}>
+                  <Icon name="alert-circle-outline" size={18} color={theme.accent.orange} />
+                  <Text style={styles.warningText}>
+                    Check the highlighted item{needsReviewCount > 1 ? 's' : ''} above — the
+                    scanner wasn't sure about the description or price.
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -420,10 +424,13 @@ const ReceiptViewScreen = () => {
             {/* Low Confidence Warning */}
             {receiptData.confidence && receiptData.confidence < 70 && (
               <View style={styles.warningContainer}>
-                <Text style={styles.warningText}>
-                  ⚠️ Low confidence OCR result. Please verify the data is
-                  correct.
-                </Text>
+                <View style={styles.warningRow}>
+                  <Icon name="alert-circle-outline" size={18} color={theme.accent.orange} />
+                  <Text style={styles.warningText}>
+                    Low confidence OCR result. Please verify the data is
+                    correct.
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={styles.retryButton}
                   onPress={handleRetryOCR}
@@ -532,7 +539,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 5,
   },
   value: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.text.primary,
     fontWeight: '600',
     fontFamily: RECEIPT_FONT,
@@ -544,7 +551,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 4,
   },
   totalLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.text.primary,
     fontFamily: RECEIPT_FONT,
@@ -599,12 +606,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  itemReviewIcon: {
-    fontSize: 12,
-  },
   itemDescription: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.primary,
     fontFamily: RECEIPT_FONT,
   },
@@ -614,7 +618,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   itemPrice: {
     ...NUMERIC,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.accent.green,
     minWidth: 60,
@@ -672,7 +676,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.accent.orangeDim,
   },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
+  },
   warningText: {
+    flex: 1,
     fontSize: 14,
     color: theme.accent.orange,
     marginBottom: 10,

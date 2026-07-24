@@ -948,7 +948,10 @@ const ListDetailScreen = () => {
           {isShoppingMode && isShoppingHeaderExpanded && (
             <View style={styles.statusContentExpanded}>
               <View style={styles.expandedHeader}>
-                <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
+                <View style={styles.expandedTitleRow}>
+                  <Icon name="cart" size={16} color={STATUS_BAR.ink} />
+                  <Text style={styles.expandedTitle}>Shopping Mode</Text>
+                </View>
                 <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
                   <Icon name="chevron-up" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
@@ -978,7 +981,10 @@ const ListDetailScreen = () => {
                 {!isOnline && (
                   <View style={styles.expandedRow}>
                     <Text style={styles.expandedLabel}>Status:</Text>
-                    <Text style={styles.textWarning}>📡 Offline - Changes will sync later</Text>
+                    <View style={styles.expandedTitleRow}>
+                      <Icon name="cloud-offline-outline" size={14} color={STATUS_BAR.inkWarning} />
+                      <Text style={styles.textWarning}>Offline — changes will sync later</Text>
+                    </View>
                   </View>
                 )}
               </View>
@@ -1085,7 +1091,7 @@ const ListDetailScreen = () => {
       >
         {Object.keys(uncheckedGrouped).length === 0 && Object.keys(checkedGrouped).length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No items yet</Text>
+            <Text style={styles.emptyText}>Add your first item above</Text>
           </View>
         ) : (
           <>

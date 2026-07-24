@@ -321,7 +321,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   settingDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     lineHeight: 18,
   },
@@ -344,7 +344,7 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.accent.blueDim,
   },
   themeButtonText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.text.secondary,
   },

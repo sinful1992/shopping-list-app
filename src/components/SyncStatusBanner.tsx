@@ -97,7 +97,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   text: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     color: theme.text.primary,
   },
@@ -106,7 +106,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: 4,
   },
   retryText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: theme.accent.blue,
   },

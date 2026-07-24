@@ -54,7 +54,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.accent.greenSubtle,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: SPACING.sm,
+    borderRadius: RADIUS.small,
     fontWeight: '600',
   },
   listDate: {
@@ -62,19 +62,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   listDateFormatted: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.text.primary,
     fontWeight: '600',
     marginTop: 4,
   },
   storeName: {
-    fontSize: 17,
+    fontSize: 16,
     color: theme.text.primary,
     fontWeight: '700',
     marginTop: 6,
   },
   listDateSecondary: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.tertiary,
     marginTop: 4,
   },
@@ -104,7 +104,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    fontSize: 22,
+    fontSize: 20,
     color: theme.text.primary,
     marginBottom: 10,
     fontWeight: '600',

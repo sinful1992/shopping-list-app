@@ -297,7 +297,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   joinHint: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.dim,
     textAlign: 'center',
     marginBottom: 20,
@@ -347,7 +347,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   cancelButtonText: {
     color: theme.text.secondary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   rejectedIcon: {

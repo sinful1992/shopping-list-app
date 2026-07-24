@@ -116,12 +116,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   totalLabel: {
     color: theme.text.secondary,
-    fontSize: 13,
+    fontSize: 12,
   },
   totalValue: {
     ...NUMERIC,
     color: theme.accent.green,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
   },
   itemRow: {

@@ -135,7 +135,7 @@ const UrgentItemsScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Active Urgent Items ({activeItems.length})</Text>
           {activeItems.length === 0 ? (
-            <Text style={styles.emptyText}>No active urgent items</Text>
+            <Text style={styles.emptyText}>Nothing urgent right now — tap + when you need something picked up</Text>
           ) : (
             <View>
               {activeItems.map((item) => (
@@ -168,7 +168,7 @@ const UrgentItemsScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Resolved ({resolvedItems.length})</Text>
           {resolvedItems.length === 0 ? (
-            <Text style={styles.emptyText}>No resolved items</Text>
+            <Text style={styles.emptyText}>Urgent items appear here once someone picks them up</Text>
           ) : (
             <View>
               {resolvedItems.map((item) => (
@@ -199,7 +199,7 @@ const UrgentItemsScreen = () => {
         accessibilityRole="button"
         accessibilityLabel="Create urgent item"
       >
-        <Text style={styles.fabText}>🔥</Text>
+        <Icon name="add" size={32} color={theme.text.onAccent} />
       </TouchableOpacity>
 
       {/* Create Modal */}
@@ -373,13 +373,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   itemMeta: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     marginBottom: 8,
   },
   resolvedMeta: {
     ...NUMERIC,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.green,
     fontWeight: '600',
   },
@@ -412,9 +412,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  fabText: {
-    fontSize: 32,
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: theme.overlay.dark,
@@ -432,7 +429,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.border.subtle,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.text.primary,
     marginBottom: 8,

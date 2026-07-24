@@ -364,7 +364,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   budgetBadgeText: {
     ...NUMERIC,
     color: STATUS_BAR.ink,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   expandButton: {
@@ -390,6 +390,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  expandedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   expandedTitle: {
     color: STATUS_BAR.ink,
     fontSize: 16,
@@ -409,7 +414,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   expandedLabel: {
     color: STATUS_BAR.inkMuted,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
   },
   expandedValue: {
@@ -474,11 +479,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   storeWarningText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.yellow,
   },
   storeWarningLink: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.blue,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -495,11 +500,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   changeStoreLabel: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
   },
   changeStoreLink: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.blue,
     fontWeight: '600',
     textDecorationLine: 'underline',

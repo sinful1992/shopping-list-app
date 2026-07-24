@@ -243,7 +243,7 @@ const HistoryDetailScreen = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Items ({checkedItems.length}/{items.length} bought)</Text>
         {items.length === 0 ? (
-          <Text style={styles.emptyText}>No items in this list</Text>
+          <Text style={styles.emptyText}>This trip was completed without any items</Text>
         ) : (
           <>
             {uncheckedItems.length > 0 && (
@@ -533,7 +533,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.tertiary,
   },
   itemQuantity: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     marginTop: 2,
   },

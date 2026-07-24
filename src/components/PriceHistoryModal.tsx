@@ -74,10 +74,13 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     });
   };
 
+  // A vector arrow rather than 📈/📉/➡️: the emoji carried the direction with
+  // no text alternative for a screen reader, and rendered differently across
+  // OEM font stacks. The signed percentage beside it now says the same thing.
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    if (trend === 'up') return '📈';
-    if (trend === 'down') return '📉';
-    return '➡️';
+    if (trend === 'up') return 'arrow-up';
+    if (trend === 'down') return 'arrow-down';
+    return 'remove';
   };
 
   const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
@@ -134,10 +137,20 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                     <Text style={styles.statValueLarge}>
                       £{stats.currentPrice?.toFixed(2) || 'N/A'}
                     </Text>
-                    <View style={[styles.trendBadge, { backgroundColor: getTrendColor(stats.trend) }]}>
-                      <Text style={styles.trendIcon}>{getTrendIcon(stats.trend)}</Text>
+                    <View
+                      style={[styles.trendBadge, { backgroundColor: getTrendColor(stats.trend) }]}
+                      accessibilityRole="text"
+                      accessibilityLabel={
+                        stats.trend === 'stable'
+                          ? 'Price stable'
+                          : `Price ${stats.trend} ${Math.abs(stats.percentageChange).toFixed(1)} percent`
+                      }
+                    >
+                      <Icon name={getTrendIcon(stats.trend)} size={14} color={theme.text.onAccent} />
                       <Text style={styles.trendText}>
-                        {stats.trend === 'stable' ? 'Stable' : `${Math.abs(stats.percentageChange).toFixed(1)}%`}
+                        {stats.trend === 'stable'
+                          ? 'Stable'
+                          : `${stats.trend === 'up' ? '+' : '−'}${Math.abs(stats.percentageChange).toFixed(1)}%`}
                       </Text>
                     </View>
                   </View>
@@ -410,13 +423,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.medium,
   },
-  trendIcon: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-  },
   trendText: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: theme.text.primary,
+    color: theme.text.onAccent,
   },
   priceGreen: {
     color: theme.accent.green,

@@ -58,7 +58,7 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
               label: capitalize(d.itemName).length > 10
                 ? capitalize(d.itemName).substring(0, 10) + '...'
                 : capitalize(d.itemName),
-              labelTextStyle: { color: labelColor, fontSize: 9 },
+              labelTextStyle: { color: labelColor, fontSize: 10 },
               frontColor: theme.accent.red,
             }))}
             width={chartWidth}
@@ -102,7 +102,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     marginBottom: 12,
   },

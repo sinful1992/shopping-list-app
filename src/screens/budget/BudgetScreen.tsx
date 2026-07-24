@@ -583,11 +583,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   listDate: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
   },
   merchantName: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.tertiary,
     marginTop: 2,
   },

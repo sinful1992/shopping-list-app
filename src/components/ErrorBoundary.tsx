@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   errorTitle:   { fontSize: 18, fontWeight: '700', color: '#ffffff', marginBottom: 6, textAlign: 'center' },
   errorSub:     { fontSize: 14, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginBottom: 20 },
   retryBtn:     { backgroundColor: 'rgba(110,168,254,0.8)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
-  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  retryBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });
 
 export default ErrorBoundary;
