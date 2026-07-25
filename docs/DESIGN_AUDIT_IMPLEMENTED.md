@@ -12,6 +12,10 @@ device in either theme.**
 | 1.34.2 | `8385875` | layout side-effects of phase 1, found on review |
 | 1.35.0 | `d39d739` | 5 + 6 — type scale, radius token, iconography, empty-state copy |
 | 1.35.1 | `d564b04` | spacing/overflow side-effects of the icon swaps |
+| 1.35.2–1.35.4 | | three defects the AVD pass found (below) |
+| 1.35.5 | | the dead transparent border, from re-reading 1.34.2 |
+| 1.36.0 | | analytics screen rebuilt as one scrolling surface |
+| 1.36.1 | | pinned chart colours, from the static sweep |
 
 ## Where the audit was wrong
 
@@ -139,8 +143,67 @@ call-site linting, which was not built.
 - Pixels behind an open modal are dimmed by the scrim. The shopping-mode bar
   reads 2.19:1 through it and 8.8:1 without it.
 
-### Still outstanding
+## Reviewing the rest of 1.34.2 (2026-07-25)
 
-ReceiptViewScreen's till-roll block, the offline notice with the network
-actually down, the 1.33.3 cold-relaunch check, and light-theme passes of
-History, Budget and Analytics.
+1.34.2 caused two of the four defects above, so the rest of it was read back.
+One more thing in it was wrong.
+
+**The transparent border on `doneButtonExpanded` was dead, and not inert.** It
+was added so Done's outer box would match Cancel's, which has a real 1px
+border — without it the gradient sat short inside a taller box. 1.35.4 then
+gave the gradient `flex: 1`, which fills whatever height the row's stretch
+hands out, and that is what actually solves the problem. The border stayed.
+Because Yoga lays children out inside the padding box, it inset the gradient
+1px on every side, and `doneButtonExpanded` sets no `backgroundColor` — so the
+green shopping panel showed through as a hairline ring and Done's gradient
+rendered 2px smaller than Cancel's outline. Removed in 1.35.5.
+
+Its other two changes hold up. `categoryLabel`'s `flexShrink: 1` plus
+`numberOfLines={1}` is the right mechanism — RN `Text` defaults to
+`flexShrink: 0`, both siblings in `subRow` keep that default so all the shrink
+lands on the label, and `itemContentColumn` is `flex: 1` so the row is
+width-constrained. Still wants a long category next to a measurement on a
+narrow screen to confirm it ellipsises rather than pushing the size off. The
+`theme.ts` change was comment-only.
+
+## The static sweep of the un-reached screens (2026-07-25)
+
+`ReceiptViewScreen`, `HistoryScreen`, `HistoryDetailScreen`, `BudgetScreen`,
+`AnalyticsScreen`, `ItemStoreComparison`, `SmartSavingsCard`,
+`VolatileItemsChart` — read for the defect classes that produced the four
+findings above, rather than device-inspected.
+
+**One real defect.** `ItemStoreComparison`'s bars were `'#30D158'` and
+`'#007AFF'` — iOS system colours, pinned. The green bar marks the *cheapest
+store*, the point of the chart, and measures **1.65:1** against the light card,
+under the 3:1 WCAG 1.4.11 asks of a graphical object. §1.5 moved light green to
+`#166534` for exactly this reason and this call site never got the token. Same
+class as the four AVD findings: the token was right, the call site reached for
+something else. Fixed with two other pinned-palette leftovers in 1.36.1.
+
+**Clean.** Every filled-accent surface across the eight files
+(`retryButton`, `saveButton`, `deleteButton`, `filterButton`, `retryBtn`)
+already draws its label with `text.onAccent` — 1.33.5 caught them all. All
+`height: '100%'` in the app resolve against definite-height parents (8/8/4/8px
+progress tracks); `PriceEditModal`'s `padding: 0` is a bare `TextInput` reset
+with no sibling padding to fight. Six icon names checked against the glyphmap.
+
+**The till-roll block reads fine statically.** The concern was that `label` and
+`value` are both 14 now where the value used to be one step larger. They still
+differ three ways — `text.secondary` vs `text.primary`, weight 400 vs 600, and
+proportional vs `RECEIPT_FONT` — which is what `theme.ts:170` says the scale is
+for ("levels come from weight and colour; size marks the jumps"). `totalLabel`
+14 against `totalValue` 20 keeps its jump. Worth eyes on the 12px mono line
+items for legibility, but there is no hierarchy defect to fix.
+
+## Still outstanding
+
+- **Device validation of the analytics rebuild (1.36.0).** Not looked at on a
+  device in either theme. It is the largest layout change since the batch began.
+- ReceiptViewScreen's till-roll block — legibility of 12px mono line items only;
+  the hierarchy question above is answered.
+- The offline notice with the network actually down.
+- A long category name beside a measurement on a narrow screen (1.34.2).
+- `ReceiptMatchScreen:693-698` still pins its badge tints as rgba literals with
+  theme-tracking foregrounds. Not measured — that screen was swept in 1.35.2 and
+  was out of scope here.
