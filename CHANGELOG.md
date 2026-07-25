@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.5] - 2026-07-25
+
+### Fixed
+- **No hairline gap around the Done button in the expanded shopping panel.** 1.34.2 gave the button a transparent border so its box would match Cancel's; 1.35.4 made the gradient `flex: 1`, which does that job properly and left the border with nothing to do. Because a border insets a child, the gradient was sitting 1px in from every edge with the green panel showing through the gap, and Done's gradient was 2px smaller than Cancel's outline.
+
 ## [1.35.4] - 2026-07-25
 
 ### Fixed

@@ -460,14 +460,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  // Transparent border matches cancelButtonExpanded's box exactly: the row
-  // stretches its children, and without it the gradient would sit short inside
-  // a taller box, leaving a gap under the Done button.
+  // No border: the gradient is this button's only child and fills it, so a
+  // border would inset the gradient by 1px and show the panel through the gap.
   doneButtonExpanded: {
     flex: 1,
     borderRadius: RADIUS.small,
-    borderWidth: 1,
-    borderColor: 'transparent',
     overflow: 'hidden',
   },
   // Sits on the blue→purple gradient, not on the status bar, so it takes the
