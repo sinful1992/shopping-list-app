@@ -196,14 +196,60 @@ for ("levels come from weight and colour; size marks the jumps"). `totalLabel`
 14 against `totalValue` 20 keeps its jump. Worth eyes on the 12px mono line
 items for legibility, but there is no hierarchy defect to fix.
 
+## The second AVD pass (2026-07-26) — validating 1.35.5–1.36.2
+
+Pixel_6 AVD, both themes, debug build over Metro. Everything claimed above was
+measured rather than eyeballed; pixels sampled from `adb exec-out screencap`
+and composited ratios computed, view boxes from `uiautomator dump`.
+
+**Confirmed fixed:**
+
+| Claim | Measured |
+|---|---|
+| Expanded panel: no ring, buttons aligned | Cancel `[42,552][561,671]`, Done `[587,552][1038,671]`; gradient's box **identical to its parent** (was inset 1px). All four inner edges sample gradient, not `#30D158` |
+| Done Shopping ink | 7.32:1 dark, 7.36:1 light |
+| Segmented control separates by surface | **6.80:1** dark, 4.42:1 light (was 1.06:1) — the container samples `#191923`, exactly the computed value |
+| Segment label | 7.35:1 dark, 6.70:1 light |
+| Analytics total / label / small print | 18.60:1 / 8.22:1 / 15.82:1 dark; 15.82:1 / 6.26:1 / 15.82:1 light |
+| Prices tab aligns with Overview | Confirmed — the three components' own margins are gone |
+| No crashes | logcat clean; only pre-existing Firebase deprecation warnings |
+
+**One new defect, and it was shipping.** Opening the store picker in light mode
+showed a pale blue-to-lavender Confirm button — the *dark* theme's gradient.
+`StoreNamePicker`, `PriceEditModal`, `SizeEditModal`, `DetailsEditModal` and
+`FilterModal` all pinned `['#6EA8FE', '#A78BFA']` **and** drew their label with
+`text.primary`. In dark mode that is white on light blue: **2.42:1**. Fixed in
+1.36.3, measured at 7.28:1 after.
+
+Why the earlier passes missed it: the sweep covered the eight *screens* the
+audit named, and these are shared *components*. And the 50% disabled opacity
+disguises it — at rest the washed-out gradient reads as a plausible disabled
+state in either theme, which is exactly what it looked like until the store
+name was filled in and the button went to full opacity.
+
+**Pre-existing, not caused by this batch** (verified by swapping the old
+`AnalyticsScreen` back in over Fast Refresh and re-shooting): the Stores bar
+chart renders `999999` as the top label of the tallest bar, with the real value
+clipped above it. It reproduces identically on the pre-rebuild code. A
+`react-native-gifted-charts` artifact — the label of a bar at full chart height
+is clipped by the plot area and a width-reservation placeholder shows through.
+
 ## Still outstanding
 
-- **Device validation of the analytics rebuild (1.36.0).** Not looked at on a
-  device in either theme. It is the largest layout change since the batch began.
+- The Stores chart's `999999` top label (above) — pre-existing, unfixed.
+- `FloatingActionButton`'s disabled state pins `['#48484A', '#3A3A3C']`, so a
+  disabled FAB is near-black in light mode. Not a contrast failure (its white
+  icon holds ~7:1 either way), and fixing it means choosing a disabled-surface
+  treatment the palette has no token for, so it was left alone deliberately.
+- `VolatileItemsChart`'s x-axis labels clip at both ends ("iscuits", "Bre").
+  Pre-existing — the chart's own width is unchanged — but there is now ~46dp of
+  spare width it could use.
 - ReceiptViewScreen's till-roll block — legibility of 12px mono line items only;
   the hierarchy question above is answered.
 - The offline notice with the network actually down.
-- A long category name beside a measurement on a narrow screen (1.34.2).
+- `ItemStoreComparison`'s green bar could not be exercised: it needs one item
+  priced at two or more stores, and the test account has no such item. The fix
+  is a token swap verified by arithmetic, not on screen.
 - `ReceiptMatchScreen:693-698` still pins its badge tints as rgba literals with
   theme-tracking foregrounds. Not measured — that screen was swept in 1.35.2 and
   was out of scope here.
