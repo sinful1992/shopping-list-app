@@ -83,15 +83,10 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: theme.glass.subtle,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    padding: 12,
-    marginHorizontal: 15,
-    marginTop: 10,
-  },
+  // No border or fill: the analytics screen separates its sections with space
+  // alone. Insets come from the parent ScrollView's padding, so this lines up
+  // with the rest of the screen rather than setting its own margins.
+  card: {},
   title: {
     fontSize: 18,
     fontWeight: '700',

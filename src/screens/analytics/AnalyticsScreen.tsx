@@ -17,7 +17,7 @@ import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import CrashReporting from '../../services/CrashReporting';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { RADIUS, NUMERIC } from '../../styles/theme';
+import { RADIUS, NUMERIC, SPACING, TYPOGRAPHY, SHADOWS, RECEIPT_FONT } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -41,25 +41,17 @@ const PieCenterLabel = ({ totalSpent, containerStyle, totalStyle, labelStyle }: 
 
 // ─── Tab definition ───────────────────────────────────────────────────────────
 
+// Ionicons rather than emoji, matching the rest of the app after the 1.35.0
+// icon sweep. The filled variant marks the active tab, so the selection reads
+// without relying on the tint alone. Both names in every pair were checked
+// against the installed glyphmap — a wrong name renders as nothing, silently.
 type Tab = 'overview' | 'items' | 'stores' | 'prices';
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', icon: '📊' },
-  { id: 'items',    label: 'Items',    icon: '🛒' },
-  { id: 'stores',   label: 'Stores',   icon: '🏪' },
-  { id: 'prices',   label: 'Prices',   icon: '💰' },
+const TABS: { id: Tab; label: string; icon: string; iconActive: string }[] = [
+  { id: 'overview', label: 'Overview', icon: 'stats-chart-outline', iconActive: 'stats-chart' },
+  { id: 'items',    label: 'Items',    icon: 'cart-outline',        iconActive: 'cart'        },
+  { id: 'stores',   label: 'Stores',   icon: 'storefront-outline',  iconActive: 'storefront'  },
+  { id: 'prices',   label: 'Prices',   icon: 'pricetag-outline',    iconActive: 'pricetag'    },
 ];
-
-// ─── Stat card config ─────────────────────────────────────────────────────────
-
-// Colours resolve from the theme rather than being pinned here: as foreground
-// on a 12% tint of themselves, the old dark-theme hexes measured 1.21–2.20:1
-// in light mode.
-const STAT_KEYS = [
-  { key: 'totalSpent',      label: 'Total Spent',    icon: 'wallet-outline',      accent: 'blue'   },
-  { key: 'totalTrips',      label: 'Shopping Trips', icon: 'bag-handle-outline',  accent: 'green'  },
-  { key: 'averagePerTrip',  label: 'Avg per Trip',   icon: 'analytics-outline',   accent: 'purple' },
-  { key: 'itemsPurchased',  label: 'Items Bought',   icon: 'cube-outline',        accent: 'yellow' },
-] as const;
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -68,10 +60,6 @@ const AnalyticsScreen = () => {
   const user = useUser();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const statConfig = useMemo(
-    () => STAT_KEYS.map(s => ({ ...s, color: theme.accent[s.accent], bg: theme.accent[s.accent] + '1F' })),
-    [theme],
-  );
   const rankColors = useMemo(
     () => [theme.medal.gold, theme.medal.silver, theme.medal.bronze],
     [theme],
@@ -206,7 +194,7 @@ const AnalyticsScreen = () => {
   const renderOverviewTab = () => (
     <>
       {/* Monthly trend */}
-      <View style={styles.card}>
+      <View>
         <Text style={styles.cardTitle}>Spending Trend</Text>
         <Text style={styles.cardSub}>Monthly spend over the selected period</Text>
         {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 ? (
@@ -245,7 +233,7 @@ const AnalyticsScreen = () => {
       </View>
 
       {/* Category breakdown */}
-      <View style={styles.card}>
+      <View>
         <Text style={styles.cardTitle}>Spending by Category</Text>
         <Text style={styles.cardSub}>What you spend most on</Text>
         {categoryPieData.length > 0 ? (
@@ -255,7 +243,7 @@ const AnalyticsScreen = () => {
               donut
               radius={72}
               innerRadius={46}
-              innerCircleColor={theme.glass.subtle}
+              innerCircleColor={theme.background.primary}
               centerLabelComponent={() => (
                 <PieCenterLabel
                   totalSpent={analytics.totalSpent}
@@ -293,7 +281,7 @@ const AnalyticsScreen = () => {
   );
 
   const renderItemsTab = () => (
-    <View style={styles.card}>
+    <View>
       <Text style={styles.cardTitle}>Most Purchased</Text>
       <Text style={styles.cardSub}>Your top items by frequency</Text>
       <View style={styles.itemsContainer}>
@@ -325,7 +313,7 @@ const AnalyticsScreen = () => {
     <>
       {/* Bar chart */}
       {storeChartData.length > 0 && (
-        <View style={styles.card}>
+        <View>
           <Text style={styles.cardTitle}>Spend by Store</Text>
           <Text style={styles.cardSub}>Total spent at each location</Text>
           <View style={styles.chartWrapper}>
@@ -353,7 +341,7 @@ const AnalyticsScreen = () => {
       )}
 
       {/* Store detail list */}
-      <View style={styles.card}>
+      <View>
         <Text style={styles.cardTitle}>Store Breakdown</Text>
         <Text style={styles.cardSub}>Trips, totals, and averages</Text>
         <View style={styles.storeListContainer}>
@@ -401,7 +389,7 @@ const AnalyticsScreen = () => {
           <SmartSavingsCard familyGroupId={familyGroupId} trackedItems={trackedItems} />
         </>
       ) : (
-        <View style={styles.card}>
+        <View>
           <Text style={styles.noData}>No price data available yet</Text>
         </View>
       )}
@@ -413,61 +401,75 @@ const AnalyticsScreen = () => {
   return (
     <View style={styles.screen}>
 
-      {/* ── Time period selector ─────────────────────────────────────────── */}
-      <View style={styles.periodRow}>
-        {([30, 90, 365] as const).map(p => (
-          <TouchableOpacity
-            key={p}
-            style={[styles.periodBtn, timePeriod === p && styles.periodBtnActive]}
-            onPress={() => setTimePeriod(p)}
-          >
-            <Text style={[styles.periodText, timePeriod === p && styles.periodTextActive]}>
-              {p === 365 ? '1 Year' : `${p} Days`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ── 2×2 Stat grid ────────────────────────────────────────────────── */}
-      <View style={styles.statGrid}>
-        {statConfig.map(cfg => {
-          const raw  = analytics[cfg.key as keyof AnalyticsSummary] as number;
-          const value = cfg.key === 'totalSpent' || cfg.key === 'averagePerTrip'
-            ? fmt(raw)
-            : String(raw);
-          const statCardStyle = { backgroundColor: cfg.bg, borderColor: cfg.color + '30' };
+      {/* ── Tab bar — the only pinned chrome ─────────────────────────────── */}
+      <View style={styles.tabBar}>
+        {TABS.map(tab => {
+          const active = activeTab === tab.id;
           return (
-            <View key={cfg.key} style={[styles.statCard, statCardStyle]}>
-              <Icon name={cfg.icon} size={20} color={cfg.color} style={styles.statIcon} />
-              <Text style={styles.statValue}>{value}</Text>
-              <Text style={styles.statLabel}>{cfg.label}</Text>
-            </View>
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.tab, active && styles.tabActive]}
+              onPress={() => setActiveTab(tab.id)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={tab.label}
+            >
+              <Icon
+                name={active ? tab.iconActive : tab.icon}
+                size={15}
+                color={active ? theme.accent.blue : theme.text.secondary}
+              />
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
-      <View style={styles.tabBar}>
-        {TABS.map(tab => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-            onPress={() => setActiveTab(tab.id)}
-          >
-            <Text style={styles.tabIcon}>{tab.icon}</Text>
-            <Text style={[styles.tabLabel, activeTab === tab.id && styles.tabLabelActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ── Tab content ──────────────────────────────────────────────────── */}
+      {/* ── Everything else scrolls ──────────────────────────────────────── */}
       <ScrollView
         style={styles.scrollFlex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Period filter */}
+        <View style={styles.segmented}>
+          {([30, 90, 365] as const).map(p => {
+            const active = timePeriod === p;
+            return (
+              <TouchableOpacity
+                key={p}
+                style={[styles.segment, active && styles.segmentActive]}
+                onPress={() => setTimePeriod(p)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                  {p === 365 ? '1 Year' : `${p} Days`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Period total, set as a till-roll total line */}
+        <View style={styles.totalBlock}>
+          <View style={styles.rule} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>TOTAL SPENT</Text>
+            <Text style={styles.totalValue} numberOfLines={1}>{fmt(analytics.totalSpent)}</Text>
+          </View>
+          <View style={styles.rule} />
+          <Text style={styles.totalMeta}>
+            <Text style={styles.totalMetaStrong}>{analytics.totalTrips}</Text> trips
+            {'   ·   '}
+            <Text style={styles.totalMetaStrong}>{fmt(analytics.averagePerTrip)}</Text> avg
+            {'   ·   '}
+            <Text style={styles.totalMetaStrong}>{analytics.itemsPurchased}</Text> items
+          </Text>
+        </View>
+
         {activeTab === 'overview' && renderOverviewTab()}
         {activeTab === 'items'    && renderItemsTab()}
         {activeTab === 'stores'   && renderStoresTab()}
@@ -501,100 +503,110 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   retryBtn:   { backgroundColor: theme.accent.blue, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
   retryBtnText: { color: theme.text.onAccent, fontSize: 14, fontWeight: '600' },
 
-  // ── Period row ────────────────────────────────────────────────────────────
-  periodRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border.subtle,
-  },
-  periodBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: RADIUS.large,
-    alignItems: 'center',
-    backgroundColor: theme.glass.subtle,
-    borderWidth: 1,
-    borderColor: theme.border.medium,
-  },
-  periodBtnActive: {
-    backgroundColor: theme.accent.blueSubtle,
-    borderColor: theme.accent.blue,
-  },
-  periodText:       { fontSize: 12, fontWeight: '600', color: theme.text.secondary },
-  periodTextActive: { color: theme.accent.blue },
-
-  // ── 2×2 Stat grid ─────────────────────────────────────────────────────────
-  statGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
-    paddingTop: 14,
-    paddingBottom: 6,
-    gap: 8,
-  },
-  statCard: {
-    width: (screenWidth - 32) / 2 - 4,
-    borderRadius: RADIUS.large,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-  },
-  // A vector glyph, so the 3:1 non-text contrast minimum applies rather than
-  // 4.5:1 — which is what the accent-on-its-own-tint pattern can hold in both
-  // themes. contrast.test.ts asserts it.
-  statIcon:  { marginBottom: 6 },
-  statValue: { ...NUMERIC, fontSize: 24, fontWeight: '700', color: theme.text.primary, marginBottom: 2 },
-  statLabel: { fontSize: 12, color: theme.text.secondary },
-
   // ── Tab bar ───────────────────────────────────────────────────────────────
+  // The only thing that stays put. It is navigation, so it has to stay
+  // reachable; the summary and the period filter below it are read once and
+  // then scrolled past, and pinning them cost ~290dp of a ~755dp screen.
   tabBar: {
     flexDirection: 'row',
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 4,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
     backgroundColor: theme.glass.subtle,
     borderRadius: RADIUS.large,
-    borderWidth: 1,
-    borderColor: theme.border.medium,
-    padding: 4,
+    padding: SPACING.xs,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 8,
+    gap: 5,
+    paddingVertical: SPACING.sm,
     borderRadius: RADIUS.medium,
   },
   tabActive: {
     backgroundColor: theme.accent.blueSubtle,
   },
-  tabIcon:  { fontSize: 12 },
-  tabLabel: { fontSize: 12, fontWeight: '600', color: theme.text.secondary },
+  tabLabel: { fontSize: TYPOGRAPHY.fontSize.sm, fontWeight: '600', color: theme.text.secondary },
   tabLabelActive: { color: theme.accent.blue },
 
+  // ── Period filter ─────────────────────────────────────────────────────────
+  // A segmented control, not pills: the active segment reads as a raised
+  // surface rather than a tint, so this does not look like a second tab bar
+  // when it scrolls up under the real one.
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: theme.glass.subtle,
+    borderRadius: RADIUS.small,
+    padding: 3,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: RADIUS.small - 2,
+    alignItems: 'center',
+  },
+  segmentActive: {
+    backgroundColor: theme.background.secondary,
+    ...SHADOWS.small,
+  },
+  segmentText:       { fontSize: TYPOGRAPHY.fontSize.sm, fontWeight: '600', color: theme.text.secondary },
+  segmentTextActive: { color: theme.text.primary },
+
+  // ── Period total ──────────────────────────────────────────────────────────
+  // The app's own till-roll idiom, reused on the screen that is entirely about
+  // money: label left, figure right, ruled above and below, set in the receipt
+  // mono. This is the only ruled element on the screen, so a rule here means
+  // "this is the total" rather than "this is a box".
+  totalBlock: { marginTop: SPACING.xs },
+  rule: { height: 1, backgroundColor: theme.border.medium },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingVertical: SPACING.md,
+    gap: SPACING.md,
+  },
+  totalLabel: {
+    fontFamily: RECEIPT_FONT,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: theme.text.secondary,
+  },
+  // 32 rather than 36: the widest realistic figure is £99999.99, which at this
+  // size is ~173dp of a ~371dp content width, leaving room for the label.
+  totalValue: {
+    ...NUMERIC,
+    fontFamily: RECEIPT_FONT,
+    fontSize: TYPOGRAPHY.fontSize.displayLg,
+    fontWeight: '700',
+    color: theme.text.primary,
+  },
+  // The small print under the total. Same size throughout — the figures are
+  // separated from their units by weight and colour, not by scale.
+  totalMeta: {
+    fontFamily: RECEIPT_FONT,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: theme.text.secondary,
+    marginTop: SPACING.sm,
+  },
+  totalMetaStrong: { color: theme.text.primary, fontWeight: '700' },
+
   // ── Scroll area ───────────────────────────────────────────────────────────
+  // gap replaces what card borders used to do: sections are separated by
+  // space, so the screen has one framing level instead of five.
   scrollContent: {
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    gap: 12,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    gap: SPACING.xxl,
   },
 
-  // ── Shared card ───────────────────────────────────────────────────────────
-  card: {
-    backgroundColor: theme.glass.subtle,
-    borderRadius: RADIUS.xlarge,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    padding: 16,
-  },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: theme.text.primary },
-  cardSub:   { fontSize: 12, color: theme.text.secondary, marginTop: 2 },
-  noData:    { fontSize: 12, color: theme.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
+  // ── Shared section ────────────────────────────────────────────────────────
+  cardTitle: { fontSize: TYPOGRAPHY.fontSize.lg, fontWeight: '700', color: theme.text.primary },
+  cardSub:   { fontSize: TYPOGRAPHY.fontSize.sm, color: theme.text.secondary, marginTop: 2 },
+  noData:    { fontSize: TYPOGRAPHY.fontSize.sm, color: theme.text.secondary, fontStyle: 'italic', textAlign: 'center', marginVertical: 20 },
 
   // ── Items tab ─────────────────────────────────────────────────────────────
   itemRow: {
@@ -648,7 +660,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // ── No-data screen ────────────────────────────────────────────────────────
 
   // ── Chart helpers ─────────────────────────────────────────────────────────
-  chartWrapper: { marginTop: 12 },
+  // Chart widths are unchanged from when each sat inside a padded card, so
+  // they are now narrower than the space available — centre them rather than
+  // widening, which would risk the y-axis labels overflowing on a small screen.
+  chartWrapper: { marginTop: SPACING.md, alignItems: 'center' },
   chartTopLabel: { color: theme.text.primary, fontSize: 12, fontWeight: '600' as const },
   chartAxisStyle: { color: theme.text.secondary, fontSize: 10 },
 

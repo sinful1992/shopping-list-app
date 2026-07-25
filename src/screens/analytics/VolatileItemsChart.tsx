@@ -86,15 +86,10 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: theme.glass.subtle,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    padding: 12,
-    marginHorizontal: 15,
-    marginTop: 10,
-  },
+  // No border or fill: the analytics screen separates its sections with space
+  // alone. Insets come from the parent ScrollView's padding, so this lines up
+  // with the rest of the screen rather than setting its own margins.
+  card: {},
   title: {
     fontSize: 18,
     fontWeight: '700',
@@ -115,6 +110,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   chartContainer: {
     marginTop: 4,
+    // The chart width predates the card's removal, so it is narrower than the
+    // space available now — centre it rather than widening it.
+    alignItems: 'center',
   },
   activityIndicator: { marginVertical: 20 },
   chartTopLabel: { color: theme.text.primary, fontSize: 10, fontWeight: '600' as const },

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.0] - 2026-07-25
+
+### Changed
+- **The Analytics screen is one scrolling surface instead of two halves.** The period selector, the 2×2 stat grid and the tab bar were all siblings above the `ScrollView`, so roughly 341dp — about 45% of the screen — never moved, and the charts were read through the ~412dp window left over. Only the tab bar stays pinned now; everything else scrolls, which gives the content back around 290dp on every tab.
+- **The four stat cards are now a till-roll total.** The grid's four tinted, bordered boxes carried the largest type on the screen (24px/700) — the frozen summary out-ranked the live charts it was summarising. In their place: the period total as a receipt total line, label left and figure right in the receipt mono, ruled above and below, with trips, average and item count as a single line of small print beneath it. Same four numbers, roughly a third of the height.
+- **One framing level instead of five.** Bordered period pills inside a bordered tab bar above bordered tint cards above bordered content cards all stacked up in the top third. Chart sections lose their borders and fills and are separated by space; the period control becomes a segmented control whose active segment reads as a raised surface, so it no longer looks like a second tab bar. The total block's rules are now the only ruled element on the screen.
+- **The tab bar's four emoji are Ionicons.** 📊🛒🏪💰 became `stats-chart` / `cart` / `storefront` / `pricetag`, matching the rest of the app after the 1.35.0 icon sweep; the active tab takes the filled variant so selection does not rest on the tint alone. All eight names were checked against the installed glyphmap.
+- The Prices tab's three components (`ItemStoreComparison`, `VolatileItemsChart`, `SmartSavingsCard`) lose their own cards and margins, so that tab lines up with the rest of the screen instead of setting its own insets.
+
 ## [1.35.6] - 2026-07-25
 
 ### Changed
