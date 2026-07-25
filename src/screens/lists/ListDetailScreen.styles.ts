@@ -536,7 +536,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center' as const,
     padding: 12,
     width: '100%' as const,
-    height: '100%' as const,
+    // flex, not height: '100%'. The parent's height is auto, so a percentage
+    // height has no definite box to resolve against and Yoga measures it
+    // against the available space instead — the gradient claimed the whole
+    // viewport, its parent grew to contain it, and the row (and the status
+    // bar with it) filled the screen. flex: 1 fills the height the row's
+    // stretch actually hands out, which Cancel's intrinsic height sets.
+    flex: 1,
   },
 });
 

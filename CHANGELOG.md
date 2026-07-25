@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.4] - 2026-07-25
+
+### Fixed
+- **The expanded shopping panel no longer fills the whole screen.** 1.34.2 gave the Done button's gradient `height: '100%'` to close a gap under it. Its parent is auto-height, so there was no definite box for the percentage to resolve against and it was measured against the available space instead: the gradient took the viewport, its parent grew to contain it, and the panel — with Cancel stretched alongside it — pushed the entire item list off screen. The gradient now uses `flex: 1`, which fills the height the row actually hands out.
+
 ## [1.35.3] - 2026-07-25
 
 ### Fixed
