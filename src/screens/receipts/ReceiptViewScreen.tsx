@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
-import { NUMERIC } from '../../styles/theme';
+import { NUMERIC, RECEIPT_FONT } from '../../styles/theme';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { toFileUri } from '../../utils/uri';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -27,7 +27,7 @@ import { ReceiptData, ShoppingList } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateTime } from '../../utils/date';
-import ReceiptCard, { ReceiptRule, RECEIPT_FONT } from '../../components/ReceiptCard';
+import ReceiptCard, { ReceiptRule } from '../../components/ReceiptCard';
 
 type EditableReceipt = ReceiptData & {
   merchantName: string | null;

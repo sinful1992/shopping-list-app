@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.35.6] - 2026-07-25
+
+### Changed
+- `RECEIPT_FONT` moved from `ReceiptCard` to the theme tokens. It is a typographic token rather than a property of one component, and the analytics total is about to use it. No visual change.
+
 ## [1.35.5] - 2026-07-25
 
 ### Fixed

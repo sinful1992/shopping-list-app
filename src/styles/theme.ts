@@ -3,6 +3,8 @@
  * Liquid Glass Dark Theme with glassmorphism effects — v2
  */
 
+import { Platform } from 'react-native';
+
 const COLORS = {
   // Background colors
   background: {
@@ -201,6 +203,12 @@ export const TYPOGRAPHY = {
 export const NUMERIC = {
   fontVariant: ['tabular-nums' as const],
 };
+
+// Font that evokes thermal receipt print. Lives here rather than next to the
+// receipt component because it is a typographic token, not a property of one
+// view: the analytics total is set in it too, so both screens read the same
+// way when they are talking about money.
+export const RECEIPT_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
 // Shopping-mode status bar. Deliberately theme-independent: the bar is a mode
 // indicator that has to read identically in-store in either theme, and pinning
