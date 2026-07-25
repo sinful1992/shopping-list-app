@@ -349,7 +349,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
 
             <TouchableOpacity onPress={handleApply} style={styles.applyButtonWrapper}>
               <LinearGradient
-                colors={['#6EA8FE', '#A78BFA']}
+                colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.applyButton}
@@ -593,9 +593,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
   },
+  // Sits on the button gradient, not on the sheet, so it takes the on-accent
+  // ink. text.primary inverts with the surface and failed both themes.
   applyButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });

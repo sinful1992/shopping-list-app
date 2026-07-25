@@ -204,7 +204,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSave}>
             <LinearGradient
-              colors={['#6EA8FE', '#A78BFA']}
+              colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.saveButton}
@@ -363,8 +363,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.large,
   },
+  // Sits on the button gradient, not on the sheet, so it takes the on-accent
+  // ink. text.primary inverts with the surface and failed both themes.
   saveText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },

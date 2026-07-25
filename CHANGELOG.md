@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.3] - 2026-07-26
+
+### Fixed
+- **Five modal buttons were unreadable in dark mode and the wrong colour in light.** The confirm buttons in the store picker, price editor, size editor, details editor and filter sheet each pinned the dark theme's gradient (`#6EA8FE → #A78BFA`) instead of taking `gradient.buttonStart`/`buttonEnd`, *and* drew their label with `text.primary` instead of `text.onAccent`. In dark mode that is white on a light blue — **2.42:1**, measured on device at 7.28:1 after the fix. In light mode the button rendered in the dark theme's pale gradient, matching nothing else on the screen. This is the same defect 1.35.2 and 1.35.3 fixed elsewhere; these five call sites were missed because the sweep covered screens, not shared components.
+
 ## [1.36.2] - 2026-07-25
 
 ### Fixed
