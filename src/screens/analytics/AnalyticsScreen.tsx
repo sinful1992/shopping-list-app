@@ -208,8 +208,10 @@ const AnalyticsScreen = () => {
               endSpacing={0}
               color={theme.accent.blue}
               thickness={3}
-              startFillColor="rgba(110,168,254,0.3)"
-              endFillColor="rgba(110,168,254,0.01)"
+              startFillColor={theme.accent.blue}
+              startOpacity={0.3}
+              endFillColor={theme.accent.blue}
+              endOpacity={0.01}
               areaChart
               curved
               isAnimated

@@ -45,7 +45,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   const [viewMode, setViewMode] = useState<ViewMode>('avg');
   const [pricePoints, setPricePoints] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(false);
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const filteredItems = useMemo(() => {
@@ -136,7 +136,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   }, [storeStats]);
 
   const chartWidth = screenWidth - 62 - 40;
-  const chartAxisStyle = { color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 };
+  const chartAxisStyle = { color: theme.text.secondary, fontSize: 10 };
 
   const getVolatilityLabel = (v: number) => {
     if (v < 10) return { label: 'Low', color: theme.accent.green };
@@ -245,8 +245,10 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               data={storeStats.map((s, i) => ({
                 value: viewMode === 'avg' ? s.average : s.latest,
                 label: s.storeName.length > 8 ? s.storeName.substring(0, 8) + '...' : s.storeName,
-                labelTextStyle: { color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 },
-                frontColor: i === 0 ? '#30D158' : '#007AFF',
+                labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+                // The cheapest store's bar is the point of this chart, and at
+                // iOS systemGreen it measured 1.65:1 against a light card.
+                frontColor: i === 0 ? theme.accent.green : theme.accent.blue,
               }))}
               width={chartWidth}
               height={180}
@@ -257,10 +259,10 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               animationDuration={600}
               showValuesAsTopLabel
               topLabelTextStyle={styles.chartTopLabel}
-              {...(isDark ? {rulesColor:'rgba(255,255,255,0.1)'} : {rulesColor:'rgba(0,0,0,0.1)'})}
+              rulesColor={theme.border.strong}
               rulesThickness={1}
-              xAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
-              yAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
+              xAxisColor={theme.border.strong}
+              yAxisColor={theme.border.strong}
               yAxisTextStyle={chartAxisStyle}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={40}

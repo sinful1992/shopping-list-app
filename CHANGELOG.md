@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.1] - 2026-07-25
+
+### Fixed
+- **The cheapest-store bar is visible in light mode.** The price-comparison chart drew its bars with iOS systemGreen and systemBlue, pinned rather than themed. The green bar — which marks the cheapest store and is the point of the chart — measured **1.65:1** against the light card, well under the 3:1 a graphical object needs. Both bars now take theme accents, matching the same green/blue pairing the store breakdown already uses.
+- **The spending-trend area fill follows the theme.** Its gradient was hardcoded to the dark theme's blue, so in light mode a pale wash sat under a dark blue line. It now derives from `accent.blue` with the alpha passed separately.
+- Chart axis, rule and label colours in the price charts now use `border.strong` and `text.secondary` instead of hand-rolled light/dark ternaries, matching the charts on the main analytics screen.
+- The History detail screen's loading spinner was pinned to iOS systemBlue and did not follow the theme.
+
 ## [1.36.0] - 2026-07-25
 
 ### Changed

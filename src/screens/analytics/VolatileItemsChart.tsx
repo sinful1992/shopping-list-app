@@ -14,7 +14,7 @@ interface Props {
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [data, setData] = useState<Array<{ itemName: string; volatility: number; priceRange: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -35,8 +35,10 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
   }, [familyGroupId]);
 
   const chartWidth = screenWidth - 62 - 40;
-  const axisColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-  const labelColor = isDark ? '#a0a0a0' : '#6B7280';
+  // Tokens, not a hand-rolled isDark ternary: these are the same axis and
+  // label colours AnalyticsScreen's own charts use, and they already flip.
+  const axisColor = theme.border.strong;
+  const labelColor = theme.text.secondary;
   const chartAxisStyle = { color: labelColor, fontSize: 10 };
 
   return (
