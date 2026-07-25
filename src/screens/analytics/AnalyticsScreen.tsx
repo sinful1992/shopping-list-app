@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import CrashReporting from '../../services/CrashReporting';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { RADIUS, NUMERIC, SPACING, TYPOGRAPHY, SHADOWS, RECEIPT_FONT } from '../../styles/theme';
+import { RADIUS, NUMERIC, SPACING, TYPOGRAPHY, RECEIPT_FONT } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -71,6 +71,15 @@ const AnalyticsScreen = () => {
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [trackedItems, setTrackedItems]   = useState<{ itemName: string; itemNameNormalized: string }[]>([]);
   const [activeTab, setActiveTab]     = useState<Tab>('overview');
+
+  // The summary and the period filter scroll with the content now, so
+  // switching tabs while scrolled down would drop you into the middle of the
+  // new tab with both of them off screen. Every tab starts at the top.
+  const scrollRef = useRef<ScrollView>(null);
+  const selectTab = useCallback((tab: Tab) => {
+    setActiveTab(tab);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
 
   useEffect(() => {
     try { loadAnalytics(); } catch (err: any) {
@@ -218,7 +227,7 @@ const AnalyticsScreen = () => {
               animateOnDataChange
               animationDuration={700}
               rulesType="solid"
-              rulesColor={theme.border.subtle}
+              rulesColor={theme.border.strong}
               xAxisColor="transparent"
               yAxisColor="transparent"
               yAxisTextStyle={styles.chartAxisStyle}
@@ -330,7 +339,7 @@ const AnalyticsScreen = () => {
               animationDuration={700}
               showValuesAsTopLabel
               topLabelTextStyle={styles.chartTopLabel}
-              rulesColor={theme.border.subtle}
+              rulesColor={theme.border.strong}
               xAxisColor="transparent"
               yAxisColor="transparent"
               yAxisTextStyle={styles.chartAxisStyle}
@@ -411,7 +420,7 @@ const AnalyticsScreen = () => {
             <TouchableOpacity
               key={tab.id}
               style={[styles.tab, active && styles.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
+              onPress={() => selectTab(tab.id)}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={tab.label}
@@ -431,6 +440,7 @@ const AnalyticsScreen = () => {
 
       {/* ── Everything else scrolls ──────────────────────────────────────── */}
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollFlex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -534,9 +544,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   tabLabelActive: { color: theme.accent.blue },
 
   // ── Period filter ─────────────────────────────────────────────────────────
-  // A segmented control, not pills: the active segment reads as a raised
-  // surface rather than a tint, so this does not look like a second tab bar
-  // when it scrolls up under the real one.
+  // A segmented control, not pills: one container, no per-item borders. The
+  // active segment is a solid accent rather than the tab bar's tint, which
+  // both keeps the two controls distinguishable and is the only fill that
+  // separates from this container in *both* themes. Measured against the
+  // container (glass.subtle over background.primary): solid accent 7.21:1
+  // dark / 5.48:1 light, where background.secondary managed 1.06:1 dark and
+  // glass.strong 1.43:1 — a raised surface does not exist on a near-black
+  // ground, so a "lifted" segment would have been invisible in dark mode.
   segmented: {
     flexDirection: 'row',
     backgroundColor: theme.glass.subtle,
@@ -550,11 +565,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   segmentActive: {
-    backgroundColor: theme.background.secondary,
-    ...SHADOWS.small,
+    backgroundColor: theme.accent.blue,
   },
   segmentText:       { fontSize: TYPOGRAPHY.fontSize.sm, fontWeight: '600', color: theme.text.secondary },
-  segmentTextActive: { color: theme.text.primary },
+  segmentTextActive: { color: theme.text.onAccent },
 
   // ── Period total ──────────────────────────────────────────────────────────
   // The app's own till-roll idiom, reused on the screen that is entirely about

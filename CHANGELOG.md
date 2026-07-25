@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.2] - 2026-07-25
+
+### Fixed
+- **The selected time period is visible in dark mode.** 1.36.0's segmented control marked the active segment with a raised `background.secondary` surface — an iOS convention that assumes a light ground. Measured against the control's own container it comes to **1.06:1** in dark and 1.22:1 in light, and the shadow that would normally sell the lift is black at 20% on a near-black background. The selection rested entirely on 65%-white text becoming 100%-white. The active segment is now a solid accent fill with on-accent ink: 7.21:1 dark and 5.48:1 light against the container, with the label at 7.35:1 and 6.70:1. `glass.strong` was measured first and rejected at 1.43:1 — a "raised" surface does not exist on a near-black ground.
+- **Switching tabs returns you to the top.** With the summary and period filter inside the scroll view, changing tab while scrolled down left the new tab starting mid-content with both scrolled off screen.
+- Chart gridlines now use the same `border.strong` across all four charts on the screen; the two on the main screen were a step fainter than the two on the Prices tab.
+
 ## [1.36.1] - 2026-07-25
 
 ### Fixed
