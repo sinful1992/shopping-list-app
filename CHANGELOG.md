@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.9] - 2026-07-26
+
+### Fixed
+- **The spelling-group cache could be stored stale.** `getPriceVariants` fetched the rows, then cached the map it built — with no check that a write hadn't landed in between. The sync listener streams price records in via `child_added` while Analytics is loading, so the window is reachable, and losing it means a newly synced spelling stays invisible for the rest of the session rather than until the next write. Writes now bump a per-family-group generation, and a read only caches a map whose generation still matches. Not unit-covered: the interleaving needs the write to commit *during* the read's fetch, which cannot be forced without injecting into the adapter — a test written for it passed with the guard removed, so it was dropped rather than left as false cover.
+
 ## [1.36.8] - 2026-07-26
 
 ### Fixed

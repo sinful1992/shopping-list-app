@@ -22,12 +22,20 @@ export class HistoryStorage {
    */
   private priceVariants = new Map<string, Map<string, string[]>>();
 
+  // Bumped on every write. A read that started before a write must not store
+  // the map it built from the older rows — the sync listener streams price
+  // records in while Analytics is loading, so that window is reachable, and a
+  // map cached stale hides the new spelling for the rest of the session.
+  private priceVariantsGeneration = new Map<string, number>();
+
   private invalidatePriceVariants(familyGroupId: string): void {
     this.priceVariants.delete(familyGroupId);
+    this.priceVariantsGeneration.set(familyGroupId, (this.priceVariantsGeneration.get(familyGroupId) ?? 0) + 1);
   }
 
   /** For callers that delete price rows without going through this class. */
   clearPriceVariantCache(): void {
+    for (const id of this.priceVariants.keys()) this.invalidatePriceVariants(id);
     this.priceVariants.clear();
   }
 
@@ -35,6 +43,7 @@ export class HistoryStorage {
     const cached = this.priceVariants.get(familyGroupId);
     if (cached) return cached;
 
+    const generation = this.priceVariantsGeneration.get(familyGroupId) ?? 0;
     const collection = this.database.get<PriceHistoryModel>('price_history');
     const records = await collection.query(Q.where('family_group_id', familyGroupId)).fetch();
 
@@ -46,7 +55,9 @@ export class HistoryStorage {
       else if (!names.includes(r.itemNameNormalized)) names.push(r.itemNameNormalized);
     }
 
-    this.priceVariants.set(familyGroupId, map);
+    if ((this.priceVariantsGeneration.get(familyGroupId) ?? 0) === generation) {
+      this.priceVariants.set(familyGroupId, map);
+    }
     return map;
   }
 
