@@ -7,7 +7,6 @@
     "@babel/preset-env",
     "@react-native/gradle-plugin",
     "postinstall-postinstall",
-    "react-test-renderer",
     "metro-config",
     "@env"
   ]

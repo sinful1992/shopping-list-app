@@ -4,10 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.6] - 2026-07-26
+
+### Added
+- **Encoding guard.** `scripts/check-encoding.js` fails the build on any U+FFFD in a tracked source file. A replacement character is decoding damage rather than text, and nothing else in the stack can see it — TypeScript checks types, knip checks reachability, ESLint sees an ordinary text node. Wired into CI and the pre-commit hook. Verified against the real 1.36.5 defect: it flags all three occurrences.
+- **Knip now actually runs.** It was installed and configured but had no npm script and no CI job, so it had never executed. Added `npm run knip` and a CI step; a stale `ignoreDependencies` entry was removed so its output is clean. Note it works at module-export level, so it does not catch unused object properties such as StyleSheet keys.
+
+### Fixed
+- `scripts/pre-commit.sh` had drifted out of sync with the installed hook — the versioned copy was still the original nine-line test runner while the live hook carried the version and changelog checks, so a fresh clone got none of them. The versioned copy is now the source of truth.
+
 ## [1.36.5] - 2026-07-26
 
 ### Fixed
-- **Smart Savings showed `�` instead of `£`.** All three prices on that card — the potential-savings total, each item's best price, and each saving — rendered a replacement character. The file had been saved in the wrong encoding by a tooling pass back in PR #28, so the pound signs were stored as U+FFFD rather than U+00A3. It is the only file in `src/` affected.
+- **Smart Savings rendered the replacement character instead of `£`.** All three prices on that card — the potential-savings total, each item's best price, and each saving — rendered a replacement character. The file had been saved in the wrong encoding by a tooling pass back in PR #28, so the pound signs were stored as U+FFFD rather than U+00A3. It is the only file in `src/` affected.
 
 ## [1.36.4] - 2026-07-26
 

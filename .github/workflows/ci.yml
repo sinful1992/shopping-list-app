@@ -27,5 +27,15 @@ jobs:
       - name: Lint
         run: npx eslint .
 
+      # U+FFFD is decoding damage, never intentional text. Neither tsc, knip nor
+      # eslint can see it: it is a valid string character to all three.
+      - name: Check encoding
+        run: npm run check:encoding
+
+      # Unused files, exports and dependencies. Does not cover unused object
+      # properties (e.g. StyleSheet keys) — knip works at module-export level.
+      - name: Knip
+        run: npm run knip
+
       - name: Test (with coverage gate)
         run: npx jest --coverage --coverageReporters=text-summary
