@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Encoding guard.** `scripts/check-encoding.js` fails the build on any U+FFFD in a tracked source file. A replacement character is decoding damage rather than text, and nothing else in the stack can see it — TypeScript checks types, knip checks reachability, ESLint sees an ordinary text node. Wired into CI and the pre-commit hook. Verified against the real 1.36.5 defect: it flags all three occurrences.
-- **Knip now actually runs.** It was installed and configured but had no npm script and no CI job, so it had never executed. Added `npm run knip` and a CI step; a stale `ignoreDependencies` entry was removed so its output is clean. Note it works at module-export level, so it does not catch unused object properties such as StyleSheet keys.
+- **Knip now runs in CI.** It was already invoked by the `pre-push` hook, but had no npm script and no CI step — so it was enforced only locally, and only for people who have the hook installed and don't pass `--no-verify`. Added `npm run knip` and a CI step; a stale `ignoreDependencies` entry was removed so its output is clean. Note it works at module-export level, so it does not catch unused object properties such as StyleSheet keys — it had been running on every push throughout, and never saw the 21 dead styles removed in 1.36.4.
 
 ### Fixed
 - `scripts/pre-commit.sh` had drifted out of sync with the installed hook — the versioned copy was still the original nine-line test runner while the live hook carried the version and changelog checks, so a fresh clone got none of them. The versioned copy is now the source of truth.
