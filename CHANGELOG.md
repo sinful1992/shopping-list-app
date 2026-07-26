@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.13] - 2026-07-26
+
+### Changed
+- **Messaging moved to the Firebase modular API**, in `NotificationManager` and `App.tsx`'s deep-link `linking` config. `messaging.AuthorizationStatus` becomes the package's named `AuthorizationStatus` export. Both listener registrations (`onMessage`, `onTokenRefresh`, `onNotificationOpenedApp`) still return their unsubscribe and it is still wired into the existing cleanup — a dropped one would leak a listener silently, with no warning and no failing test to catch it. The three `auth().currentUser?.getIdToken()` calls in this file went modular at the same time rather than leaving it half-migrated; each became an explicit `currentUser ? await getIdToken(currentUser) : undefined` so the signed-out case still yields `undefined` as the optional chain did.
+
 ## [1.36.12] - 2026-07-26
 
 ### Changed

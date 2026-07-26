@@ -17,7 +17,7 @@ import { createBottomTabNavigator, BottomTabBar } from '@react-navigation/bottom
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, getInitialNotification, onNotificationOpenedApp } from '@react-native-firebase/messaging';
 import SplashScreen from 'react-native-splash-screen';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
@@ -47,7 +47,7 @@ const linking = {
   prefixes: ['familyshoppinglist://', 'https://familyshoppinglist.app'],
   // Quit state: app opened from a notification
   async getInitialURL(): Promise<string | null> {
-    const message = await messaging().getInitialNotification();
+    const message = await getInitialNotification(getMessaging());
     const deepLink = notificationToDeepLink(message);
     if (deepLink) {
       return deepLink;
@@ -56,7 +56,7 @@ const linking = {
   },
   // Background state: notification tapped while the app is alive
   subscribe(listener: (url: string) => void) {
-    const unsubNotification = messaging().onNotificationOpenedApp((message) => {
+    const unsubNotification = onNotificationOpenedApp(getMessaging(), (message) => {
       const deepLink = notificationToDeepLink(message);
       if (deepLink) {
         listener(deepLink);
