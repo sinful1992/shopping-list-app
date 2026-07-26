@@ -1,8 +1,21 @@
-import crashlytics from '@react-native-firebase/crashlytics';
+import {
+  getCrashlytics,
+  setCrashlyticsCollectionEnabled,
+  setUserId as setCrashlyticsUserId,
+  setAttributes as setCrashlyticsAttributes,
+  log as crashlyticsLog,
+  recordError as crashlyticsRecordError,
+  crash as crashlyticsCrash,
+} from '@react-native-firebase/crashlytics';
 
 /**
  * CrashReporting Service
  * Wraps Firebase Crashlytics for error reporting and crash monitoring
+ *
+ * The imports are aliased because this class has methods of the same names —
+ * an unaliased `log` would read like a recursive call rather than the SDK's.
+ * getCrashlytics() is called per method rather than once at module scope, so
+ * the instance is still created lazily, as the namespaced accessor was.
  */
 class CrashReporting {
   /**
@@ -10,21 +23,21 @@ class CrashReporting {
    */
   async initialize(): Promise<void> {
     // Enable Crashlytics collection (can be disabled for testing)
-    await crashlytics().setCrashlyticsCollectionEnabled(true);
+    await setCrashlyticsCollectionEnabled(getCrashlytics(), true);
   }
 
   /**
    * Set user identifier for crash reports
    */
   async setUserId(userId: string): Promise<void> {
-    await crashlytics().setUserId(userId);
+    await setCrashlyticsUserId(getCrashlytics(), userId);
   }
 
   /**
    * Set custom attributes for crash reports
    */
   async setAttributes(attributes: Record<string, string>): Promise<void> {
-    await crashlytics().setAttributes(attributes);
+    await setCrashlyticsAttributes(getCrashlytics(), attributes);
   }
 
   /**
@@ -33,27 +46,27 @@ class CrashReporting {
    */
   recordError(error: Error, context?: string): void {
     if (context) {
-      crashlytics().log(`Context: ${context}`);
+      crashlyticsLog(getCrashlytics(), `Context: ${context}`);
     }
-    crashlytics().recordError(error);
+    crashlyticsRecordError(getCrashlytics(), error);
   }
 
   /**
    * Log a message (for debugging in crash reports)
    */
   log(message: string): void {
-    crashlytics().log(message);
+    crashlyticsLog(getCrashlytics(), message);
   }
 
   /**
    * Log a JavaScript error from ErrorBoundary
    */
   recordJSError(error: Error, componentStack?: string): void {
-    crashlytics().log('ErrorBoundary caught an error');
+    crashlyticsLog(getCrashlytics(), 'ErrorBoundary caught an error');
     if (componentStack) {
-      crashlytics().log(`Component stack: ${componentStack}`);
+      crashlyticsLog(getCrashlytics(), `Component stack: ${componentStack}`);
     }
-    crashlytics().recordError(error);
+    crashlyticsRecordError(getCrashlytics(), error);
   }
 
   /**
@@ -61,7 +74,7 @@ class CrashReporting {
    */
   testCrash(): void {
     if (__DEV__) {
-      crashlytics().crash();
+      crashlyticsCrash(getCrashlytics());
     }
   }
 
@@ -69,8 +82,8 @@ class CrashReporting {
    * Clear user data on logout
    */
   async clearUser(): Promise<void> {
-    await crashlytics().setUserId('');
-    await crashlytics().setAttributes({});
+    await setCrashlyticsUserId(getCrashlytics(), '');
+    await setCrashlyticsAttributes(getCrashlytics(), {});
   }
 }
 

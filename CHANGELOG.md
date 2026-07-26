@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.12] - 2026-07-26
+
+### Changed
+- **Crashlytics and Analytics moved to the Firebase modular API.** `@react-native-firebase` v22 deprecated the namespaced form (`crashlytics().log(...)`), and every call fired two dev warnings — one for the `crashlytics()` accessor, one for the method. `database` and `storage` were already modular; this starts on the four that were not. 32 call sites across the two files. Imports that share a name with one of the wrapper class's own methods are aliased (`log as crashlyticsLog`), so a call reads as the SDK's rather than a recursive one. `getCrashlytics()`/`getAnalytics()` are called per method rather than once at module scope, so the instance stays as lazily created as the namespaced accessor was — calling them at import time would touch Firebase before app init.
+
 ## [1.36.11] - 2026-07-26
 
 ### Fixed
