@@ -248,14 +248,22 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
           {/* Bar Chart */}
           <View style={styles.chartContainer}>
             <BarChart
-              data={storeStats.map((s, i) => ({
-                value: viewMode === 'avg' ? s.average : s.latest,
-                label: s.storeName.length > 8 ? s.storeName.substring(0, 8) + '...' : s.storeName,
-                labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
-                // The cheapest store's bar is the point of this chart, and at
-                // iOS systemGreen it measured 1.65:1 against a light card.
-                frontColor: i === 0 ? theme.accent.green : theme.accent.blue,
-              }))}
+              data={storeStats.map((s, i) => {
+                const value = viewMode === 'avg' ? s.average : s.latest;
+                return {
+                  value,
+                  label: s.storeName.length > 8 ? s.storeName.substring(0, 8) + '...' : s.storeName,
+                  labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+                  // showValuesAsTopLabel prints the raw float, so an average
+                  // that does not divide cleanly reads as 1.4614285714285715.
+                  topLabelComponent: () => (
+                    <Text style={styles.chartTopLabel}>{value.toFixed(2)}</Text>
+                  ),
+                  // The cheapest store's bar is the point of this chart, and at
+                  // iOS systemGreen it measured 1.65:1 against a light card.
+                  frontColor: i === 0 ? theme.accent.green : theme.accent.blue,
+                };
+              })}
               width={chartWidth}
               height={180}
               adjustToWidth
@@ -263,8 +271,6 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               barBorderRadius={8}
               isAnimated
               animationDuration={600}
-              showValuesAsTopLabel
-              topLabelTextStyle={styles.chartTopLabel}
               rulesColor={theme.border.strong}
               rulesThickness={1}
               xAxisColor={theme.border.strong}

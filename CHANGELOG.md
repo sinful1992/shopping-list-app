@@ -4,7 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.36.10] - 2026-07-26
+## [1.36.11] - 2026-07-26
+
+### Fixed
+- **Bar charts printed raw floats as their top labels.** Found on the AVD verifying 1.36.7: the Lidl bar in Store Price Comparison read `1.4614285714285715`. `showValuesAsTopLabel` renders `value` with no formatting, so any average that does not divide cleanly — or any total that is a float sum of 2dp prices — surfaces in full. Latent before this batch; the grouping fix makes it likelier by averaging over more records. All three currency bar charts (Store Price Comparison, Spend by Store, and the price modal's Price by Store) now render the label through a `topLabelComponent` at 2dp. Verified on device: the same bar reads `1.46`, and Spend by Store's labels match the Store Breakdown figures below it. `VolatileItemsChart` already rounded its values and is unaffected.
 
 ### Changed
 - The generation counter added in 1.36.9 is now a single global counter rather than one per family group. Per-group only defends groups that already have a cache entry — and `clearAllData`, the out-of-band path `clearPriceVariantCache` exists for, is exactly the case where the group being read may have none, so a read in flight during account deletion could still cache rows that had just been deleted. A global counter closes that, and costs only an in-flight read its caching when an unrelated group is written.

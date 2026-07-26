@@ -201,6 +201,11 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                             value: data.average,
                             label: store.length > 8 ? store.substring(0, 8) + '...' : store,
                             labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+                            // Raw floats otherwise: an average that does not
+                            // divide cleanly reads as 1.4614285714285715.
+                            topLabelComponent: () => (
+                              <Text style={chartTopLabelStyle}>{data.average.toFixed(2)}</Text>
+                            ),
                             frontColor: isCheapest ? theme.accent.green : theme.accent.blue,
                           };
                         })}
@@ -210,8 +215,6 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                         barBorderRadius={8}
                         isAnimated
                         animationDuration={600}
-                        showValuesAsTopLabel
-                        topLabelTextStyle={chartTopLabelStyle}
                         rulesColor={theme.border.medium}
                         rulesThickness={1}
                         xAxisColor={theme.border.medium}

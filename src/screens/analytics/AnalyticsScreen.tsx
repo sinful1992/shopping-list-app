@@ -172,6 +172,11 @@ const AnalyticsScreen = () => {
         value: store.totalSpent,
         label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
         labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+        // showValuesAsTopLabel prints the raw float, and a total is a sum of
+        // 2dp prices — enough to surface as 112.09000000000002.
+        topLabelComponent: () => (
+          <Text style={styles.chartTopLabel}>{store.totalSpent.toFixed(2)}</Text>
+        ),
         frontColor: theme.accent.blue,
       }));
     }
@@ -337,8 +342,6 @@ const AnalyticsScreen = () => {
               barBorderRadius={6}
               isAnimated
               animationDuration={700}
-              showValuesAsTopLabel
-              topLabelTextStyle={styles.chartTopLabel}
               rulesColor={theme.border.strong}
               xAxisColor="transparent"
               yAxisColor="transparent"
