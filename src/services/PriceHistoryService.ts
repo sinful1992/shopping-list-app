@@ -4,6 +4,7 @@ import { getDatabase, ref, set, update } from '@react-native-firebase/database';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { PriceHistoryRecord } from '../models/types';
+import { itemGroupKey } from '../utils/itemGrouping';
 
 /**
  * PriceHistoryService
@@ -208,14 +209,16 @@ class PriceHistoryService {
       const PAGE = 100;
       let offset = 0;
       const pricePoints: PricePoint[] = [];
-      const nameLower = itemName.toLowerCase();
+      // Group key, not raw equality — the backfilled path must fold singular
+      // and plural spellings together the same way the table path does.
+      const groupKey = itemGroupKey(itemName);
 
       while (true) {
         const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
         for (const list of page) {
           const items = await LocalStorageManager.getItemsForList(list.id);
           for (const item of items) {
-            if (item.name.toLowerCase() === nameLower && item.price) {
+            if (itemGroupKey(item.name) === groupKey && item.price) {
               pricePoints.push({
                 price: item.price,
                 date: list.completedAt || list.createdAt,
@@ -332,7 +335,10 @@ class PriceHistoryService {
     try {
       const PAGE = 100;
       let offset = 0;
-      const itemNamesSet = new Set<string>();
+      // Keyed by group so an item bought as both "avocado" and "avocados"
+      // yields one bar. The value is a real stored name — the key is not a
+      // word, so it must never reach the chart label.
+      const itemNamesByGroup = new Map<string, string>();
 
       while (true) {
         const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
@@ -340,7 +346,12 @@ class PriceHistoryService {
           const items = await LocalStorageManager.getItemsForList(list.id);
           items.forEach(item => {
             if (item.price !== null) {
-              itemNamesSet.add(item.name.toLowerCase());
+              const name = item.name.toLowerCase();
+              const key = itemGroupKey(name);
+              const existing = itemNamesByGroup.get(key);
+              if (existing === undefined || name.localeCompare(existing) < 0) {
+                itemNamesByGroup.set(key, name);
+              }
             }
           });
         }
@@ -350,7 +361,7 @@ class PriceHistoryService {
 
       const volatilityData: Array<{ itemName: string; volatility: number; priceRange: number }> = [];
 
-      for (const itemName of Array.from(itemNamesSet)) {
+      for (const itemName of Array.from(itemNamesByGroup.values())) {
         const priceHistory = await this.getPriceHistory(familyGroupId, itemName);
 
         if (priceHistory.length >= 2) {

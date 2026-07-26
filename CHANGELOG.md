@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.7] - 2026-07-26
+
+### Fixed
+- **Price history treated singular and plural spellings as different items.** The Prices tab listed "avocado" and "avocados" as two entries, and selecting either showed only half that item's purchases — enough to skew every average and to show the single-store card when the item had in fact been bought at two. The split is in the data: `price_history` is keyed on `itemName.toLowerCase().trim()`, so each spelling is its own key. Rather than migrate the column, both reads now resolve through a stem key (`itemGroupKey`, reusing the receipt matcher's stemmer): `getPriceHistoryForItem` gathers every spelling in the group, `getDistinctTrackedItems` returns one entry per group with the most-recorded spelling as its label. Fixing the read path rather than the call sites means Smart Savings, the volatility chart and the in-list price modal are all covered without a signature change or a backfill, and a newly written "avocados" row folds into the group on the next read. The legacy completed-list path is stemmed the same way, so a fresh install behaves like an upgraded one. The key is a lookup value and not a word ("hummus" keys as "hummu"), so labels always come from a stored `itemName`. Note the `-ss` guard means "glass" and "glasses" are deliberately left apart.
+
 ## [1.36.6] - 2026-07-26
 
 ### Added

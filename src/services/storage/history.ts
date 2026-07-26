@@ -4,6 +4,7 @@ import { CategoryHistory, PriceHistoryRecord } from '../../models/types';
 import CrashReporting from '../CrashReporting';
 import { CategoryHistoryModel } from '../../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../../database/models/PriceHistory';
+import { itemGroupKey } from '../../utils/itemGrouping';
 
 /**
  * History storage domain: category-usage history and price history.
@@ -12,6 +13,38 @@ import { PriceHistoryModel } from '../../database/models/PriceHistory';
  */
 export class HistoryStorage {
   constructor(private database: Database) {}
+
+  /**
+   * familyGroupId → group key → the stored normalized names in that group.
+   * Price history is keyed on the raw normalized name, so "avocado" and
+   * "avocados" are separate rows; every read resolves through this map to
+   * gather the whole group. Rebuilt on the next read after any write.
+   */
+  private priceVariants = new Map<string, Map<string, string[]>>();
+
+  private invalidatePriceVariants(familyGroupId?: string): void {
+    if (familyGroupId) this.priceVariants.delete(familyGroupId);
+    else this.priceVariants.clear();
+  }
+
+  private async getPriceVariants(familyGroupId: string): Promise<Map<string, string[]>> {
+    const cached = this.priceVariants.get(familyGroupId);
+    if (cached) return cached;
+
+    const collection = this.database.get<PriceHistoryModel>('price_history');
+    const records = await collection.query(Q.where('family_group_id', familyGroupId)).fetch();
+
+    const map = new Map<string, string[]>();
+    for (const r of records) {
+      const key = itemGroupKey(r.itemNameNormalized);
+      const names = map.get(key);
+      if (!names) map.set(key, [r.itemNameNormalized]);
+      else if (!names.includes(r.itemNameNormalized)) names.push(r.itemNameNormalized);
+    }
+
+    this.priceVariants.set(familyGroupId, map);
+    return map;
+  }
 
   /**
    * Save category history (create or update)
@@ -223,6 +256,8 @@ export class HistoryStorage {
         });
       }
     }, 'savePriceHistoryRecord');
+
+    this.invalidatePriceVariants(record.familyGroupId);
   }
 
   /**
@@ -276,22 +311,30 @@ export class HistoryStorage {
         }
       }
     }, 'savePriceHistoryBatch');
+
+    for (const id of new Set(toCreate.map(r => r.familyGroupId))) {
+      this.invalidatePriceVariants(id);
+    }
   }
 
   /**
    * Get all price history records for a specific item (normalized name).
-   * Returns records ordered oldest-first for trend analysis.
+   * Matches every singular/plural spelling of the item, not just the one
+   * passed in. Returns records ordered oldest-first for trend analysis.
    */
   async getPriceHistoryForItem(
     familyGroupId: string,
     itemNameNormalized: string
   ): Promise<PriceHistoryRecord[]> {
     try {
+      const variants = await this.getPriceVariants(familyGroupId);
+      const names = variants.get(itemGroupKey(itemNameNormalized)) ?? [itemNameNormalized];
+
       const collection = this.database.get<PriceHistoryModel>('price_history');
       const records = await collection
         .query(
           Q.where('family_group_id', familyGroupId),
-          Q.where('item_name_normalized', itemNameNormalized),
+          Q.where('item_name_normalized', Q.oneOf(names)),
           Q.sortBy('recorded_at', Q.asc)
         )
         .fetch();
@@ -332,15 +375,33 @@ export class HistoryStorage {
         .query(Q.where('family_group_id', familyGroupId))
         .fetch();
 
-      const itemMap = new Map<string, string>();
+      // One entry per group, so singular and plural spellings of the same item
+      // are offered once. The representative is the most-recorded spelling —
+      // ties broken alphabetically so the picker order is stable across reads.
+      const groups = new Map<string, Map<string, { name: string; count: number }>>();
       for (const r of records) {
-        if (!itemMap.has(r.itemNameNormalized)) {
-          itemMap.set(r.itemNameNormalized, r.itemName);
+        const key = itemGroupKey(r.itemNameNormalized);
+        let spellings = groups.get(key);
+        if (!spellings) {
+          spellings = new Map();
+          groups.set(key, spellings);
+        }
+        const seen = spellings.get(r.itemNameNormalized);
+        if (!seen) {
+          spellings.set(r.itemNameNormalized, { name: r.itemName, count: 1 });
+        } else {
+          seen.count++;
+          if (r.itemName.localeCompare(seen.name) < 0) seen.name = r.itemName;
         }
       }
 
-      return Array.from(itemMap.entries())
-        .map(([normalized, name]) => ({ itemName: name, itemNameNormalized: normalized }))
+      return Array.from(groups.values())
+        .map(spellings => {
+          const [normalized, { name }] = Array.from(spellings.entries()).sort(
+            (a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]),
+          )[0];
+          return { itemName: name, itemNameNormalized: normalized };
+        })
         .sort((a, b) => a.itemName.localeCompare(b.itemName));
     } catch (error: any) {
       throw new Error(`Failed to get distinct tracked items: ${error.message}`);
