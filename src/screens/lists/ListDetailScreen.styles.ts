@@ -25,10 +25,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
     flex: 1,
   },
-  editIcon: {
-    fontSize: 20,
-    padding: 5,
-  },
   titleInput: {
     flex: 1,
     fontSize: 24,
@@ -47,18 +43,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.accent.greenDim,
   },
-  titleSaveButtonText: {
-    fontSize: 20,
-  },
   titleCancelButton: {
     backgroundColor: theme.accent.redSubtle,
     padding: 10,
     borderRadius: RADIUS.small,
     borderWidth: 1,
     borderColor: theme.accent.redDim,
-  },
-  titleCancelButtonText: {
-    fontSize: 20,
   },
   addItemContainer: {
     flexDirection: 'row',
@@ -99,79 +89,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.border.medium,
     marginRight: 10,
     minWidth: 44,
-  },
-  frequentItemsIcon: {
-    fontSize: 20,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemPriceCompact: {
-    ...NUMERIC,
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.accent.green,
-    marginLeft: 8,
-  },
-  itemTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  itemName: {
-    fontSize: 16,
-    color: theme.text.primary,
-    flex: 1,
-  },
-  itemPrice: {
-    ...NUMERIC,
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.accent.green,
-    marginLeft: 8,
-  },
-  itemChecked: {
-    textDecorationLine: 'line-through',
-    color: theme.text.tertiary,
-  },
-  priceText: {
-    ...NUMERIC,
-    fontSize: 14,
-    color: theme.accent.green,
-    marginTop: 4,
-  },
-  priceInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  priceInputField: {
-    flex: 1,
-    backgroundColor: theme.glass.subtle,
-    padding: 8,
-    borderRadius: RADIUS.small,
-    borderWidth: 1,
-    borderColor: theme.border.medium,
-    color: theme.text.primary,
-    fontSize: 14,
-    marginRight: 8,
-  },
-  saveButton: {
-    backgroundColor: theme.accent.green,
-    padding: 8,
-    borderRadius: RADIUS.small,
-    borderWidth: 1,
-    borderColor: theme.accent.greenDim,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 36,
-  },
-  saveButtonText: {
-    fontSize: 16,
-  },
-  deleteButton: {
-    fontSize: 20,
-    padding: 5,
   },
   emptyState: {
     alignItems: 'center',
@@ -273,37 +190,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   attachPhotoText: {
     color: theme.text.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  importButton: {
-    backgroundColor: theme.accent.blue,
-    padding: 12,
-    borderRadius: RADIUS.medium,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.accent.blueDim,
-  },
-  importButtonText: {
-    color: theme.text.onAccent,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  completeButton: {
-    borderRadius: RADIUS.xlarge,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  completeButtonGradient: {
-    width: '100%',
-    padding: 16,
-    borderRadius: RADIUS.xlarge,
-    alignItems: 'center',
-  },
-  completeButtonText: {
-    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

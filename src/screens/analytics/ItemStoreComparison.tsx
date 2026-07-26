@@ -145,7 +145,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   };
 
   return (
-    <View style={styles.card}>
+    <View>
       <Text style={styles.title}>Store Price Comparison</Text>
 
       {/* Item Picker */}
@@ -302,10 +302,6 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  // No border or fill: the analytics screen separates its sections with space
-  // alone. Insets come from the parent ScrollView's padding, so this lines up
-  // with the rest of the screen rather than setting its own margins.
-  card: {},
   title: {
     fontSize: 18,
     fontWeight: '700',

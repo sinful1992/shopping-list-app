@@ -42,7 +42,7 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
   const chartAxisStyle = { color: labelColor, fontSize: 10 };
 
   return (
-    <View style={styles.card}>
+    <View>
       <Text style={styles.title}>Most Volatile Prices</Text>
       <Text style={styles.subtitle}>Items with the biggest price swings</Text>
 
@@ -88,10 +88,6 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  // No border or fill: the analytics screen separates its sections with space
-  // alone. Insets come from the parent ScrollView's padding, so this lines up
-  // with the rest of the screen rather than setting its own margins.
-  card: {},
   title: {
     fontSize: 18,
     fontWeight: '700',

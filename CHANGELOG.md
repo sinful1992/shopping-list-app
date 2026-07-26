@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.4] - 2026-07-26
+
+### Changed
+- Removed 21 dead style definitions from `ListDetailScreen.styles.ts` (114 lines) left behind by earlier refactors, and the three empty `card` styles the analytics rebuild left in `ItemStoreComparison`, `VolatileItemsChart` and `SmartSavingsCard`. No behaviour change.
+
 ## [1.36.3] - 2026-07-26
 
 ### Fixed
