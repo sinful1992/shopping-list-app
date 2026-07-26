@@ -14,6 +14,7 @@ import PriceHistoryService, { PricePoint } from '../../services/PriceHistoryServ
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC } from '../../styles/theme';
+import { itemGroupKey } from '../../utils/itemGrouping';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -51,7 +52,12 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return trackedItems;
     const q = searchQuery.toLowerCase();
-    return trackedItems.filter(i => i.itemNameNormalized.includes(q));
+    // The list holds one spelling per item, so searching "avocados" when the
+    // stored spelling is "avocado" has to match on the shared key too.
+    const key = itemGroupKey(q);
+    return trackedItems.filter(
+      i => i.itemNameNormalized.includes(q) || itemGroupKey(i.itemNameNormalized).includes(key),
+    );
   }, [trackedItems, searchQuery]);
 
   const loadPriceData = useCallback(async (itemNormalized: string) => {

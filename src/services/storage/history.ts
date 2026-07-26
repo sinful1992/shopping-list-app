@@ -22,9 +22,13 @@ export class HistoryStorage {
    */
   private priceVariants = new Map<string, Map<string, string[]>>();
 
-  private invalidatePriceVariants(familyGroupId?: string): void {
-    if (familyGroupId) this.priceVariants.delete(familyGroupId);
-    else this.priceVariants.clear();
+  private invalidatePriceVariants(familyGroupId: string): void {
+    this.priceVariants.delete(familyGroupId);
+  }
+
+  /** For callers that delete price rows without going through this class. */
+  clearPriceVariantCache(): void {
+    this.priceVariants.clear();
   }
 
   private async getPriceVariants(familyGroupId: string): Promise<Map<string, string[]>> {

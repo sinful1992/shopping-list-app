@@ -323,6 +323,10 @@ class LocalStorageManager {
           await this.database.batch(ops);
         }
       }, 'clearAllData');
+
+      // The price rows were deleted outside HistoryStorage, so its cached
+      // spelling groups would otherwise outlive the data they describe.
+      this.history.clearPriceVariantCache();
     } catch (error: any) {
       throw new Error(`Failed to clear local data: ${error.message}`);
     }

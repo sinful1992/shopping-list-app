@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.8] - 2026-07-26
+
+### Fixed
+- **The price picker's search stopped matching plurals.** Follow-up to 1.36.7: with one spelling per item in the list, typing "avocados" no longer found a stored "avocado", because `includes` is not symmetric — which spelling you could search by depended on which had more records, so it read as intermittent. The filter now falls back to comparing group keys.
+
+### Added
+- DB-level tests for the grouping, against real WatermelonDB: one picker entry per group, both spellings' rows gathered whichever is asked for, look-alikes kept apart, per-family-group scoping, and a spelling first seen after the group was cached. That last one is the only cover on the cache invalidation. `clearAllData` deletes price rows outside `HistoryStorage`, so it now clears that cache too.
+
 ## [1.36.7] - 2026-07-26
 
 ### Fixed
