@@ -22,28 +22,31 @@ export class HistoryStorage {
    */
   private priceVariants = new Map<string, Map<string, string[]>>();
 
-  // Bumped on every write. A read that started before a write must not store
-  // the map it built from the older rows — the sync listener streams price
-  // records in while Analytics is loading, so that window is reachable, and a
-  // map cached stale hides the new spelling for the rest of the session.
-  private priceVariantsGeneration = new Map<string, number>();
+  // Bumped by every price write. A read that started before a write must not
+  // store the map it built from the older rows — the sync listener streams
+  // price records in while Analytics is loading, so that window is reachable,
+  // and a map cached stale hides the new spelling for the rest of the session.
+  // One counter rather than one per family group: a write to another group
+  // then costs an in-flight read its caching, which is far cheaper than
+  // tracking generations for groups that have never been read.
+  private priceVariantsGeneration = 0;
 
   private invalidatePriceVariants(familyGroupId: string): void {
     this.priceVariants.delete(familyGroupId);
-    this.priceVariantsGeneration.set(familyGroupId, (this.priceVariantsGeneration.get(familyGroupId) ?? 0) + 1);
+    this.priceVariantsGeneration++;
   }
 
   /** For callers that delete price rows without going through this class. */
   clearPriceVariantCache(): void {
-    for (const id of this.priceVariants.keys()) this.invalidatePriceVariants(id);
     this.priceVariants.clear();
+    this.priceVariantsGeneration++;
   }
 
   private async getPriceVariants(familyGroupId: string): Promise<Map<string, string[]>> {
     const cached = this.priceVariants.get(familyGroupId);
     if (cached) return cached;
 
-    const generation = this.priceVariantsGeneration.get(familyGroupId) ?? 0;
+    const generation = this.priceVariantsGeneration;
     const collection = this.database.get<PriceHistoryModel>('price_history');
     const records = await collection.query(Q.where('family_group_id', familyGroupId)).fetch();
 
@@ -55,7 +58,7 @@ export class HistoryStorage {
       else if (!names.includes(r.itemNameNormalized)) names.push(r.itemNameNormalized);
     }
 
-    if ((this.priceVariantsGeneration.get(familyGroupId) ?? 0) === generation) {
+    if (this.priceVariantsGeneration === generation) {
       this.priceVariants.set(familyGroupId, map);
     }
     return map;

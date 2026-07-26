@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.10] - 2026-07-26
+
+### Changed
+- The generation counter added in 1.36.9 is now a single global counter rather than one per family group. Per-group only defends groups that already have a cache entry — and `clearAllData`, the out-of-band path `clearPriceVariantCache` exists for, is exactly the case where the group being read may have none, so a read in flight during account deletion could still cache rows that had just been deleted. A global counter closes that, and costs only an in-flight read its caching when an unrelated group is written.
+
 ## [1.36.9] - 2026-07-26
 
 ### Fixed
