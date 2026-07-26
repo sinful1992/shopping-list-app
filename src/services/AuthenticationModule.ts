@@ -1,4 +1,15 @@
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithCredential,
+  signOut as firebaseSignOut,
+  onAuthStateChanged as onFirebaseAuthStateChanged,
+  getIdToken,
+  updateProfile,
+  GoogleAuthProvider,
+  type User as FirebaseUser,
+} from '@react-native-firebase/auth';
 import { getDatabase, ref, get, set, update, remove, runTransaction, push, query, orderByChild, equalTo, onValue } from '@react-native-firebase/database';
 import { getStorage, ref as storageRef, deleteObject } from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,12 +43,12 @@ class AuthenticationModule {
    */
   async signUp(email: string, password: string, displayName?: string): Promise<UserCredential> {
     try {
-      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
-      const token = await userCredential.user.getIdToken();
+      const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
+      const token = await getIdToken(userCredential.user);
 
       // Update Firebase Auth profile with display name
       if (displayName) {
-        await userCredential.user.updateProfile({ displayName });
+        await updateProfile(userCredential.user, { displayName });
       }
 
       const user: User = {
@@ -72,8 +83,8 @@ class AuthenticationModule {
    */
   async signIn(email: string, password: string): Promise<UserCredential> {
     try {
-      const userCredential = await auth().signInWithEmailAndPassword(email, password);
-      const token = await userCredential.user.getIdToken();
+      const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
+      const token = await getIdToken(userCredential.user);
 
       // Fetch user data from database
       const userSnapshot = await get(ref(getDatabase(), `/users/${userCredential.user.uid}`));
@@ -135,10 +146,10 @@ class AuthenticationModule {
       // "accessToken cannot be empty"), so fetch it explicitly rather than
       // relying on the idToken-only credential overload.
       const { accessToken } = await GoogleSignin.getTokens();
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken, accessToken);
-      const firebaseUserCredential = await auth().signInWithCredential(googleCredential);
+      const googleCredential = GoogleAuthProvider.credential(idToken, accessToken);
+      const firebaseUserCredential = await signInWithCredential(getAuth(), googleCredential);
       const firebaseUser = firebaseUserCredential.user;
-      const token = await firebaseUser.getIdToken();
+      const token = await getIdToken(firebaseUser);
 
       // Check if this user already exists in RTDB (returning user)
       const userSnapshot = await get(ref(getDatabase(), `/users/${firebaseUser.uid}`));
@@ -193,8 +204,8 @@ class AuthenticationModule {
   /**
    * Get current Firebase user
    */
-  async getCurrentFirebaseUser(): Promise<FirebaseAuthTypes.User | null> {
-    return auth().currentUser;
+  async getCurrentFirebaseUser(): Promise<FirebaseUser | null> {
+    return getAuth().currentUser;
   }
 
   /**
@@ -212,7 +223,7 @@ class AuthenticationModule {
         // Not a Google user or already signed out — ignore
       }
 
-      await auth().signOut();
+      await firebaseSignOut(getAuth());
       // Clear user data and token from encrypted storage
       await EncryptedStorage.removeItem(this.USER_KEY);
       await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
@@ -326,7 +337,7 @@ class AuthenticationModule {
    * an offline app doesn't behave as if the user were logged out.
    */
   async getCurrentUser(): Promise<User | null> {
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     if (!currentUser) {
       return null;
     }
@@ -378,9 +389,9 @@ class AuthenticationModule {
       }
 
       // Get fresh token from Firebase
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (currentUser) {
-        const freshToken = await currentUser.getIdToken();
+        const freshToken = await getIdToken(currentUser);
         await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, freshToken);
         return freshToken;
       }
@@ -402,7 +413,7 @@ class AuthenticationModule {
     let lastProcessedUid: string | null = null;
     let latestFirebaseUser: any = null;
 
-    const authUnsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+    const authUnsubscribe = onFirebaseAuthStateChanged(getAuth(), async (firebaseUser) => {
       latestFirebaseUser = firebaseUser;
 
       if (firebaseUser && firebaseUser.uid === lastProcessedUid) {
@@ -441,7 +452,9 @@ class AuthenticationModule {
           const claimsUpdatedAt = snapshot.val();
           if (claimsUpdatedAt && lastClaimsUpdatedAt !== null && claimsUpdatedAt !== lastClaimsUpdatedAt) {
             try {
-              await latestFirebaseUser?.getIdToken(true);
+              if (latestFirebaseUser) {
+                await getIdToken(latestFirebaseUser, true);
+              }
             } catch {
               // Token refresh failed — will retry on next claims update
             }
@@ -479,7 +492,7 @@ class AuthenticationModule {
    */
   async deleteUserAccount(): Promise<void> {
     try {
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
         throw new Error('No user is currently signed in');
       }
@@ -797,7 +810,7 @@ class AuthenticationModule {
    */
   async refreshUserData(): Promise<User | null> {
     try {
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
         return null;
       }

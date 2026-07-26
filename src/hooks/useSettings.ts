@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDatabase, ref, get, update } from '@react-native-firebase/database';
+import { updateProfile } from '@react-native-firebase/auth';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import { useUser } from '../contexts/UserContext';
 import AuthenticationModule from '../services/AuthenticationModule';
@@ -162,7 +163,7 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
 
     const firebaseUser = await AuthenticationModule.getCurrentFirebaseUser();
     if (firebaseUser) {
-      await firebaseUser.updateProfile({ displayName: newName.trim() });
+      await updateProfile(firebaseUser, { displayName: newName.trim() });
     }
 
     // Context user refreshes via the live /users/<uid> listener in App

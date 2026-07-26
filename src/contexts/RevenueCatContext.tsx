@@ -7,7 +7,7 @@ import Purchases, {
 } from 'react-native-purchases';
 import RevenueCatUI from 'react-native-purchases-ui';
 import { getDatabase, ref, onValue } from '@react-native-firebase/database';
-import auth from '@react-native-firebase/auth';
+import { getAuth, getIdToken } from '@react-native-firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubscriptionTier, User } from '../models/types';
 import { ENTITLEMENT_ID, TIER_CACHE_KEY } from '../models/SubscriptionConfig';
@@ -178,13 +178,18 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
       reconciledGroupRef.current = currentGroupId;
       // Send a fresh Firebase ID token so the edge function can verify the caller
       // server-side (reconcile writes the family's subscription tier).
-      auth().currentUser?.getIdToken().then((idToken) =>
-        supabase.functions.invoke('reconcile-subscription', {
-          body: { appUserId: user.uid, familyGroupId: currentGroupId, idToken },
-        })
-      ).catch((error) => {
-        CrashReporting.recordError(error as Error, 'RevenueCatContext tier reconciliation');
-      });
+      // The optional chain short-circuited the whole call when signed out;
+      // an explicit guard keeps that behaviour.
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        getIdToken(currentUser).then((idToken) =>
+          supabase.functions.invoke('reconcile-subscription', {
+            body: { appUserId: user.uid, familyGroupId: currentGroupId, idToken },
+          })
+        ).catch((error) => {
+          CrashReporting.recordError(error as Error, 'RevenueCatContext tier reconciliation');
+        });
+      }
     }
   }, [user?.familyGroupId, user?.uid]);
 

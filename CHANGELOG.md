@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.14] - 2026-07-26
+
+### Changed
+- **Auth moved to the Firebase modular API** — the last of the four, across `AuthenticationModule`, `RevenueCatContext`, `UrgentItemManager`, `UsageTracker` and `useSettings`. No namespaced `@react-native-firebase` call remains in `src/` or `App.tsx`.
+  - The **User object's methods are deprecated too**, not only the `auth()` accessor — verified in the SDK source, where the modular wrappers pass a sentinel argument that suppresses the warning. So `user.getIdToken()`, `getIdTokenResult()` and `updateProfile()` all had to move, which is how `useSettings` entered scope: it never imported from `@react-native-firebase/auth`, it just called a deprecated method on a user handed to it.
+  - `getCurrentFirebaseUser()` now returns the modular `User` type, aliased to `FirebaseUser` because the app has its own `User` model.
+  - Two behavioural details preserved deliberately. `GoogleAuthProvider.credential(idToken, accessToken)` keeps **both** arguments — the one-argument overload is what caused the v1.27.1 `accessToken cannot be empty` crash. And in `RevenueCatContext` the optional chain short-circuited the entire promise chain when signed out; that is now an explicit `if (currentUser)` guard rather than a call on `undefined`.
+
 ## [1.36.13] - 2026-07-26
 
 ### Changed
