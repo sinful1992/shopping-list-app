@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.5] - 2026-07-26
+
+### Fixed
+- **Smart Savings showed `�` instead of `£`.** All three prices on that card — the potential-savings total, each item's best price, and each saving — rendered a replacement character. The file had been saved in the wrong encoding by a tooling pass back in PR #28, so the pound signs were stored as U+FFFD rather than U+00A3. It is the only file in `src/` affected.
+
 ## [1.36.4] - 2026-07-26
 
 ### Changed

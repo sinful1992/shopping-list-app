@@ -58,7 +58,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
         <>
           <View style={styles.totalBanner}>
             <Text style={styles.totalLabel}>Potential savings per shop</Text>
-            <Text style={styles.totalValue}>�{totalSavings.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>£{totalSavings.toFixed(2)}</Text>
           </View>
 
           {entries.map(([key, val]) => {
@@ -70,8 +70,8 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
                   <Text style={styles.itemStore}>Best at {val.bestStore}</Text>
                 </View>
                 <View style={styles.itemRight}>
-                  <Text style={styles.itemPrice}>�{val.bestPrice.toFixed(2)}</Text>
-                  <Text style={styles.itemSavings}>Save �{val.savings.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>£{val.bestPrice.toFixed(2)}</Text>
+                  <Text style={styles.itemSavings}>Save £{val.savings.toFixed(2)}</Text>
                 </View>
               </View>
             );
