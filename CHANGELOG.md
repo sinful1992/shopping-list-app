@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.17] - 2026-07-27
+
+### Added
+- **Tests for the late-landing Firebase write** introduced in 1.36.15 — an async race no device pass can exercise on demand and nothing else would catch if it broke. Covers all four outcomes: the write times out and a fallback is queued; it lands afterwards and the fallback is dropped, the record marked synced and the banner notified; it genuinely rejects and the fallback stands; it lands in time and nothing is queued. Note the module factories need `__esModule: true` or Babel's interop nests the mock under a second `default` and the singleton picks up an undefined `recordError`.
+
 ## [1.36.16] - 2026-07-27
 
 ### Changed
