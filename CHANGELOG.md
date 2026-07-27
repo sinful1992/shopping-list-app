@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.15] - 2026-07-27
+
+### Fixed
+- **Adding an item while the screen locked left the typed text in the field and a sync that never cleared.** `ItemManager.addItem` was the only write path that *awaited* `SyncEngine.pushChange` (`updateItem`, `addItemsBatch` and `updateItemsBatch` all fire-and-forget), so the input cleared only once the network write settled. Lock the phone mid-add and Doze freezes the JS timers, so the 30s `withTimeout` doesn't elapse in app time either — the item was already in the list, but the field still held its text on return. Now fire-and-forget, matching the rest of the file.
+- **A timed-out push left a phantom "N changes not synced".** `withTimeout` rejecting does not cancel the Firebase write: RTDB keeps it in its outbox and lands it when connectivity returns. The queued fallback outlived the write that had already succeeded, so the banner reported a pending change indefinitely and the queue replayed the same payload on the next retry. `pushChange` now holds on to the write promise and, if it lands late, drops the queued fallback and marks the record synced. A genuine rejection leaves the queue entry alone.
+
 ## [1.36.14] - 2026-07-26
 
 ### Changed

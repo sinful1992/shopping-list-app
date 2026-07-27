@@ -158,14 +158,17 @@ class SyncEngine {
       else if (entityType === 'storeLayout') syncData = await LocalStorageManager.getStoreLayoutById(entityId);
     }
 
+    const updatedAt = syncData && 'updatedAt' in syncData ? syncData.updatedAt : null;
+
     if (this.isOnline) {
+      const write = this.syncToFirebase(entityType, entityId, operation, syncData);
       try {
-        await this.withTimeout(this.syncToFirebase(entityType, entityId, operation, syncData));
-        const updatedAt = syncData && 'updatedAt' in syncData ? syncData.updatedAt : null;
+        await this.withTimeout(write);
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
-        await this.queueOperation(entityType, entityId, operation, syncData);
+        const queuedId = await this.queueOperation(entityType, entityId, operation, syncData);
+        this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
       }
     } else {
       await this.queueOperation(entityType, entityId, operation, syncData);
@@ -400,14 +403,43 @@ class SyncEngine {
   }
 
   /**
-   * Helper: Add operation to queue
+   * A timed-out push isn't a cancelled push: the Firebase write stays in the
+   * RTDB outbox and lands once connectivity returns (typically the moment the
+   * screen unlocks). Without this the queued fallback outlives the write that
+   * already succeeded, so the banner reports a pending change forever and the
+   * queue replays the same payload.
+   */
+  private dropQueuedOperationOnLateWrite(
+    queuedId: string,
+    write: Promise<void>,
+    entityType: EntityType,
+    entityId: string,
+    updatedAt: number | null
+  ): void {
+    write
+      .then(async () => {
+        try {
+          await LocalStorageManager.removeFromSyncQueue(queuedId);
+        } catch {
+          // processOperationQueue drained it first — nothing left to drop
+        }
+        await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
+        this.notifyStatus();
+      })
+      .catch(() => {
+        // The write really did fail; the queued operation stands
+      });
+  }
+
+  /**
+   * Helper: Add operation to queue. Returns the queued operation's id.
    */
   private async queueOperation(
     entityType: EntityType,
     entityId: string,
     operation: Operation,
     data: ShoppingList | Item | UrgentItem | StoreLayout | null
-  ): Promise<void> {
+  ): Promise<string> {
     // Single localized assertion: TS can't prove entityType/data pair up,
     // but callers always pass matching pairs.
     const queuedOp = {
@@ -422,6 +454,7 @@ class SyncEngine {
 
     await LocalStorageManager.addToSyncQueue(queuedOp);
     this.notifyStatus();
+    return queuedOp.id;
   }
 }
 

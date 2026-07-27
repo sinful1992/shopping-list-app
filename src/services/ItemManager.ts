@@ -43,8 +43,14 @@ class ItemManager {
     // Save locally first (offline-first)
     await LocalStorageManager.saveItem(item);
 
-    // Trigger sync
-    await SyncEngine.pushChange('item', item.id, 'create', item);
+    // Trigger sync in background (fire-and-forget for instant local updates).
+    // Awaiting it left the add-item field holding the typed text for as long
+    // as the network write stalled — a screen lock mid-add froze the timeout
+    // timer, so the input never cleared. pushChange queues the operation
+    // itself if the write fails.
+    SyncEngine.pushChange('item', item.id, 'create', item).catch(error => {
+      CrashReporting.recordError(error as Error, 'ItemManager.addItem sync');
+    });
 
     return item;
   }
