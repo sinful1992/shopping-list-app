@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.36.16] - 2026-07-27
+
+### Changed
+- **The sync banner no longer reads as a second store warning.** In `ListDetailScreen` it sits directly above the "No store selected" banner, and the two shared a tint (`yellowDim`) while disagreeing on geometry — one an inset rounded card with its own margins, the other full-bleed. Sync is now full-bleed with the same padding as its neighbour, tinted `blueSubtle` with a blue icon: informational and self-clearing, so it should not wear the warning colour. The Retry link picks up the underline the store banner's link already had. `blueDim` was the first pick and missed AA in the dark theme by 0.14 — `contrast.test.ts` now asserts both this pair and the body copy on it, since it asserts token pairs rather than call sites.
+
 ## [1.36.15] - 2026-07-27
 
 ### Fixed

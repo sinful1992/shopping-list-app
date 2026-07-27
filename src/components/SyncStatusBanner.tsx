@@ -60,7 +60,7 @@ const SyncStatusBanner: React.FC = () => {
       <Icon
         name={status.isOnline ? 'cloud-upload-outline' : 'cloud-offline-outline'}
         size={16}
-        color={theme.accent.yellow}
+        color={theme.accent.blue}
         style={styles.icon}
       />
       <Text style={styles.text}>
@@ -82,15 +82,15 @@ const SyncStatusBanner: React.FC = () => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
+  // Full-bleed to match the store-warning banner it stacks with in
+  // ListDetailScreen; blue keeps sync (informational, self-clearing) visually
+  // distinct from the amber warnings sitting right below it.
   banner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 10,
-    backgroundColor: theme.accent.yellowDim,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: theme.accent.blueSubtle,
   },
   icon: {
     marginRight: 8,
@@ -109,6 +109,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: theme.accent.blue,
+    textDecorationLine: 'underline',
   },
 });
 

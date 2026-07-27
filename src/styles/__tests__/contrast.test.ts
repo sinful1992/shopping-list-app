@@ -180,6 +180,14 @@ describe.each(THEMES)('%s theme', (_name, theme) => {
     expect(
       contrast(theme.accent.yellow, [page, theme.accent.yellowDim]),
     ).toBeGreaterThanOrEqual(AA_BODY);
+    // Sync status banner: body copy and the Retry link on blueSubtle, on the
+    // page. blueDim was the first pick and missed AA in dark by 0.14.
+    expect(
+      contrast(theme.text.primary, [page, theme.accent.blueSubtle]),
+    ).toBeGreaterThanOrEqual(AA_BODY);
+    expect(
+      contrast(theme.accent.blue, [page, theme.accent.blueSubtle]),
+    ).toBeGreaterThanOrEqual(AA_BODY);
   });
 
   it('stat-card icons clear large-text contrast on their own 12% tint', () => {
