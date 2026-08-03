@@ -34,6 +34,7 @@ import CategoryService, { CategoryType } from '../../services/CategoryService';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
 import StoreLayoutService from '../../services/StoreLayoutService';
+import { getPresetCategoryOrder, completeCategoryOrder } from '../../services/storeLayoutPresets';
 import PriceEditModal from '../../components/PriceEditModal';
 import SizeEditModal from '../../components/SizeEditModal';
 import DetailsEditModal from '../../components/DetailsEditModal';
@@ -794,13 +795,16 @@ const ListDetailScreen = () => {
     };
   }, [optimisticItems]);
 
-  // Category display order: use layout order when layout is active, otherwise default service order
+  // Category display order: a saved layout wins, then a preset for known chains,
+  // otherwise the default service order. completeCategoryOrder guarantees every
+  // category is present — one missing would hide its items from the list.
   const categoryDisplayOrder = useMemo(() => {
     if (storeLayout) {
-      return storeLayout.categoryOrder;
+      return completeCategoryOrder(storeLayout.categoryOrder);
     }
-    return CategoryService.getCategories().map(c => c.id as CategoryType);
-  }, [storeLayout]);
+    const preset = getPresetCategoryOrder(list?.storeName);
+    return preset ?? CategoryService.getCategories().map(c => c.id as CategoryType);
+  }, [storeLayout, list?.storeName]);
 
   // Local category order for arrow-tap reordering (syncs from categoryDisplayOrder, diverges while user reorders)
   const [localCategoryOrder, setLocalCategoryOrder] = useState<CategoryType[]>([]);
