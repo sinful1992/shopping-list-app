@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.37.0] - 2026-08-03
+## [1.37.1] - 2026-08-03
+
+### Removed
+- **The Tesco store-layout preset, withdrawn before release.** 1.37.0 was never tagged or merged, so this removes the feature rather than deprecating it. The preset was a hardcoded category order matched on the store name — it never contacted Tesco and contained no Tesco data, just a guess at a generic UK superstore wearing Tesco's name. That is worse than no feature: it implies the app knows where things are in a shop it has never had data about. The order that would make this worthwhile is the per-store aisle order in Tesco's own app, which is reachable only by reading it manually — Tesco's Terms prohibit automated access to the site *and* the Clubcard app, "for any purpose", with no personal-use exception. `storeLayoutPresets.ts` and its tests are gone; `completeCategoryOrder` moved to `categoryOrder.ts`, which is what the module now honestly contains.
+
+### Fixed
+- **A category missing from a stored order made its items render nowhere.** (Kept from 1.37.0, independent of the preset.) The unchecked list is built by filtering `categoryOrder`, and the sibling branch that catches stragglers filters for keys that *aren't* known categories — so a known category absent from the order fell between the two and its items silently vanished. Reachable without any preset: `mapFirebaseStoreLayout` defaults `categoryOrder` to `[]`, so a layout synced from another device could empty the list. Orders now pass through `completeCategoryOrder`, which appends whatever they leave out.
+
+## [1.37.0] - 2026-08-03 [WITHDRAWN — never released, see 1.37.1]
 
 ### Added
 - **Store-layout presets, seeded with Tesco.** A list at a store with no saved `StoreLayout` fell back to `CategoryService`'s declaration order, which reflects nothing about walking a shop — Produce, Dairy, Meat, Fish, Bakery, Frozen… `getPresetCategoryOrder` now matches the store name (lowercased substring, so "Tesco Extra Watford" hits) against a preset table and returns that order instead, so a Tesco list opens roughly in aisle order before anyone touches it. Resolved at display time in `ListDetailScreen`, deliberately *not* inside `StoreLayoutService`: returning a synthetic layout would make `storeLayout` truthy and break the `isLayoutDirty`/Save gating that depends on it being null when nothing is persisted. A saved layout still wins, and the first manual reorder-and-save replaces the preset for good. The order is a starting guess at a generic UK Tesco superstore, not data from Tesco — it is one array literal to correct.
