@@ -28,23 +28,31 @@ Two things to watch:
 
 ## Seed basket
 
-One per category. Swap any item for an equivalent you'd genuinely buy — what
-matters is that it lands in one obvious aisle, not what it is.
+Sample each category at more than one point. A category is not a single spot on
+the floor — in a large Extra, Pantry sprawls across tins, pasta, cereal and
+condiments, and one seed picks one arbitrary point in that range. Several seeds
+show you the spread, and whether a category is split across the store.
 
-| Category      | Seed item          | Why this one                                  |
-| ------------- | ------------------ | --------------------------------------------- |
-| Produce       | Bananas            | Always in fresh fruit & veg                    |
-| Bakery        | White bread loaf   | In-store bakery, not the ambient cake aisle    |
-| Dairy         | Semi-skimmed milk  | Chilled wall                                   |
-| Meat          | Chicken breasts    | Fresh meat, not frozen or deli                 |
-| Fish          | Salmon fillets     | Fresh fish counter/chiller                     |
-| Frozen        | Frozen peas        | Unambiguously a freezer aisle                  |
-| Pantry        | Baked beans        | Centre ambient aisle                           |
-| Beverages     | Cola or squash     | Ambient drinks — avoid juice, often chilled    |
-| Household     | Washing-up liquid  | Cleaning aisle                                 |
-| Personal Care | Shampoo            | Toiletries                                     |
-| Medicine      | Paracetamol        | Pharmacy counter — often far from toiletries   |
-| Other         | *(no seed)*        | Catch-all, has no shelf                        |
+Scale it to the shop: a small Express is fine on one seed per category, a 20+
+aisle Extra wants the lot. Swap anything for an equivalent you'd genuinely buy.
+
+| Category      | Seeds                                                       | Watch for                                             |
+| ------------- | ----------------------------------------------------------- | ----------------------------------------------------- |
+| Produce       | Bananas · potatoes · bagged salad                            | Fruit, veg and prepared salad are often separate bays  |
+| Bakery        | White loaf · croissants                                      | In-store bakery vs the ambient cake/biscuit aisle      |
+| Dairy         | Milk · cheddar · yoghurt · butter · eggs                     | Eggs frequently sit off the chilled wall               |
+| Meat          | Chicken breasts · beef mince · bacon                         | Bacon often lands by the deli, away from raw meat      |
+| Fish          | Salmon fillets                                               | Counter vs chiller — usually one place either way      |
+| Frozen        | Frozen peas · ice cream · frozen pizza                       | Freezer runs span several aisles                       |
+| Pantry        | Baked beans · pasta · cereal · cooking oil · tinned tomatoes · crisps | The worst offender for sprawl                 |
+| Beverages     | Cola · squash · teabags · coffee                             | Tea/coffee is often nowhere near soft drinks           |
+| Household     | Washing-up liquid · laundry detergent · bin bags · kitchen roll | Cleaning vs paper goods are often distinct         |
+| Personal Care | Shampoo · toothpaste · deodorant                             | —                                                      |
+| Medicine      | Paracetamol · plasters                                       | Pharmacy counter, usually far from toiletries          |
+| Other         | *(no seed)*                                                  | Catch-all, has no shelf                                |
+
+Where a category's seeds come back split across distant aisles, note it — that's
+a real limit of a 12-bucket model, not a mistake in the capture.
 
 ## Captured stores
 
