@@ -5,10 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  ScrollView,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Item } from '../models/types';
-import CategoryService, { CategoryType } from '../services/CategoryService';
+import CategoryService, { Category, CategoryGroup, CategoryType } from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { useAlert } from '../contexts/AlertContext';
 import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
@@ -38,6 +39,27 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
+
+  // Retired categories are deliberately absent: existing items keep theirs, but
+  // nothing new gets filed under a bucket that has since been split up.
+  const groupedCategories = useMemo(() => {
+    const groups = new Map<CategoryGroup, Category[]>();
+    for (const cat of CategoryService.getPickerCategories()) {
+      const existing = groups.get(cat.group);
+      if (existing) existing.push(cat);
+      else groups.set(cat.group, [cat]);
+    }
+    return [...groups.entries()];
+  }, []);
+
+  // An item filed under a retired category has nothing selected in the grid
+  // below, which reads as "uncategorised" when it isn't. Show it its own
+  // category so the selection is visible and stays pickable until it's changed.
+  const retiredCurrent = useMemo(() => {
+    if (!category) return null;
+    const current = CategoryService.getCategory(category);
+    return current?.legacy ? current : null;
+  }, [category]);
 
   useEffect(() => {
     if (item) {
@@ -86,11 +108,39 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
 
   if (!item) return null;
 
-  const categories = CategoryService.getCategories();
+  const renderCell = (cat: Category) => {
+    const isSelected = category === cat.id;
+    return (
+      <TouchableOpacity
+        key={cat.id}
+        style={[
+          styles.categoryCell,
+          isSelected && {
+            borderColor: cat.color,
+            backgroundColor: `${cat.color}20`,
+          },
+        ]}
+        onPress={() => setCategory(cat.id as CategoryType)}
+      >
+        <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+        <Text style={[
+          styles.categoryText,
+          // The category hex tints the cell, but never the label — as
+          // text on a light cell most of the palette fails contrast.
+          isSelected && { color: theme.text.primary, fontWeight: TYPOGRAPHY.fontWeight.semibold },
+        ]} numberOfLines={1}>
+          {cat.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <ModalBottomSheet visible={visible} onClose={onClose}>
-      <View style={styles.content}>
+      {/* Scrolls because the picker outgrew the sheet: two columns of 20-odd
+          categories no longer fit under maxHeight, and the footer below must
+          stay reachable. */}
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <TextInput
           style={styles.nameInput}
           value={name}
@@ -108,34 +158,24 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
             <Text style={styles.categoryEmoji}>✖️</Text>
             <Text style={[styles.categoryText, !category && styles.categoryTextSelected]}>None</Text>
           </TouchableOpacity>
-          {categories.map(cat => {
-            const isSelected = category === cat.id;
-            return (
-              <TouchableOpacity
-                key={cat.id}
-                style={[
-                  styles.categoryCell,
-                  isSelected && {
-                    borderColor: cat.color,
-                    backgroundColor: `${cat.color}20`,
-                  },
-                ]}
-                onPress={() => setCategory(cat.id as CategoryType)}
-              >
-                <Text style={styles.categoryEmoji}>{cat.icon}</Text>
-                <Text style={[
-                  styles.categoryText,
-                  // The category hex tints the cell, but never the label — as
-                  // text on a light cell most of the palette fails contrast.
-                  isSelected && { color: theme.text.primary, fontWeight: TYPOGRAPHY.fontWeight.semibold },
-                ]} numberOfLines={1}>
-                  {cat.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
         </View>
-      </View>
+
+        {retiredCurrent && (
+          <View>
+            <Text style={styles.groupLabel}>Currently</Text>
+            <View style={styles.categoryGrid}>{renderCell(retiredCurrent)}</View>
+          </View>
+        )}
+
+        {/* Grouped rather than one flat run — 20-odd cells is a lot to scan,
+            and the groups match the order you walk the shop in. */}
+        {groupedCategories.map(([group, cats]) => (
+          <View key={group}>
+            <Text style={styles.groupLabel}>{group}</Text>
+            <View style={styles.categoryGrid}>{cats.map(renderCell)}</View>
+          </View>
+        ))}
+      </ScrollView>
 
       <View style={styles.footer}>
         {onDelete && (
@@ -164,10 +204,24 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
+  // flexShrink lets the sheet's maxHeight bound the scroll instead of the
+  // content pushing the footer off the bottom of the screen.
+  scroll: {
+    flexShrink: 1,
+  },
   content: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.md,
+  },
+  groupLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: theme.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   nameInput: {
     fontSize: 20,

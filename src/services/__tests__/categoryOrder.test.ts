@@ -9,12 +9,37 @@ describe('completeCategoryOrder', () => {
     expect(completeCategoryOrder(complete)).toBe(complete);
   });
 
-  it('appends categories the order leaves out, keeping the given order first', () => {
+  it('adds the categories the order leaves out, keeping the given order intact', () => {
     const partial: CategoryType[] = ['Frozen', 'Produce'];
     const result = completeCategoryOrder(partial);
 
-    expect(result.slice(0, 2)).toEqual(['Frozen', 'Produce']);
+    expect(result.indexOf('Frozen')).toBeLessThan(result.indexOf('Produce'));
     expect([...result].sort()).toEqual(allCategoryIds);
+  });
+
+  // A layout saved before the categories were split holds only the old twelve.
+  // Appending the new ones put them all below Other, at the far end of the shop
+  // walk, where the only repair is one arrow tap per position.
+  it('places categories missing from an older layout beside their siblings, not last', () => {
+    const savedBeforeTheSplit: CategoryType[] = [
+      'Produce', 'Dairy', 'Meat', 'Fish', 'Bakery', 'Frozen',
+      'Pantry', 'Beverages', 'Household', 'Personal Care', 'Medicine', 'Other',
+    ];
+    const result = completeCategoryOrder(savedBeforeTheSplit);
+
+    expect([...result].sort()).toEqual(allCategoryIds);
+    expect(result[result.length - 1]).toBe('Other');
+
+    // Produce's replacements sit with Produce, well clear of the Other bucket.
+    expect(result.indexOf('Fruit')).toBeLessThan(result.indexOf('Produce'));
+    expect(result.indexOf('Vegetables')).toBeLessThan(result.indexOf('Produce'));
+    expect(result.indexOf('Tins & Packets')).toBeLessThan(result.indexOf('Pantry'));
+    expect(result.indexOf('Tea & Coffee')).toBeLessThan(result.indexOf('Beverages'));
+    expect(result.indexOf('Cleaning')).toBeLessThan(result.indexOf('Household'));
+
+    // The saved order itself is untouched.
+    const savedPositions = savedBeforeTheSplit.map(id => result.indexOf(id));
+    expect(savedPositions).toEqual([...savedPositions].sort((a, b) => a - b));
   });
 
   // The case that reaches this from Firebase: mapFirebaseStoreLayout defaults
