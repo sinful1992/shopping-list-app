@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.3] - 2026-08-13
+
+### Fixed
+- **The 1.38.0 navigation-bar fix did nothing, and this makes it work.** `useSafeAreaInsets()` returns `bottom = 0` inside an RN `<Modal>` on Android: a modal is its own native window and the app-level `SafeAreaProvider` never measures it. Measured on a Pixel 6 AVD with 3-button navigation, the same hook returned **48 on the screen and 0 in the sheet rendered over it** — so every bottom sheet fell back to its floor and the buttons stayed under the navigation bar. `useBottomInset` now also considers `initialWindowMetrics`, a static snapshot taken before first render that the modal window cannot zero out, and `ModalBottomSheet` additionally nests its own `SafeAreaProvider` so its value stays live if the navigation mode changes. Verified on device: the Details footer moved up ~32dp and Delete/Cancel/Save now sit clear of the bar.
+- The Android floor went back to 20, matching the literal it replaced. 1.38.0 had lowered it to 16, which was a 4dp regression on any device with no bar to clear.
+
 ## [1.38.2] - 2026-08-13
 
 ### Changed

@@ -6,6 +6,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { View } from 'react-native';
 import { RADIUS } from '../styles/theme';
@@ -19,43 +20,62 @@ interface ModalBottomSheetProps {
   children: React.ReactNode;
 }
 
-const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, children }) => {
+/**
+ * The sheet itself, and the only place the bottom inset is read.
+ *
+ * It has to be a separate component below the SafeAreaProvider: on Android an
+ * RN <Modal> is its own native window, and the app-level provider does not
+ * measure it. Reading useSafeAreaInsets() from the component that renders the
+ * <Modal> returns bottom=0 there while the same hook returns 48 on the screen
+ * behind it — measured on a Pixel 6 AVD with 3-button navigation. Padding by
+ * that 0 is what left Save and Cancel under the navigation bar.
+ */
+const Sheet: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ onClose, children }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const bottomInset = useBottomInset();
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.overlay}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.overlay}
+      <TouchableOpacity
+        style={styles.backdrop}
+        activeOpacity={1}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      />
+      <LinearGradient
+        colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
+        style={[styles.modal, { paddingBottom: bottomInset }]}
+        accessibilityViewIsModal
       >
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        />
-        <LinearGradient
-          colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={[styles.modal, { paddingBottom: bottomInset }]}
-          accessibilityViewIsModal
-        >
-          <View style={styles.modalHandleContainer}>
-            <View style={styles.modalHandle} />
-          </View>
-          {children}
-        </LinearGradient>
-      </KeyboardAvoidingView>
-    </Modal>
+        <View style={styles.modalHandleContainer}>
+          <View style={styles.modalHandle} />
+        </View>
+        {children}
+      </LinearGradient>
+    </KeyboardAvoidingView>
   );
 };
+
+const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, children }) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="slide"
+    onRequestClose={onClose}
+  >
+    {/* Measures this modal's own window, so the sheet inside it gets a live
+        inset rather than the 0 the app-level provider reports here. The other
+        sheets rely on the initialWindowMetrics fallback in useBottomInset. */}
+    <SafeAreaProvider style={StyleSheet.absoluteFill}>
+      <Sheet onClose={onClose}>{children}</Sheet>
+    </SafeAreaProvider>
+  </Modal>
+);
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
