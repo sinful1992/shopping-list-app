@@ -181,17 +181,24 @@ const AnalyticsScreen = () => {
       }));
     }
     if (Array.isArray(analytics.categoryBreakdown)) {
-      // All five from the theme (two were pinned dark-theme hexes, so in light
+      // All from the theme (two were pinned dark-theme hexes, so in light
       // mode the pie came out three muted colours and two neon ones), ordered
       // so red and green are never adjacent slices.
+      //
+      // Six, not five: splitting Pantry and Beverages spread spend that used to
+      // land in one slice across several, and a top-five cut started hiding most
+      // of the basket. Six is every accent the theme has — going wider means new
+      // tokens in both palettes, which belongs with the palette work in
+      // docs/DESIGN_AUDIT.md, not here.
       const PIE_COLORS = [
         theme.accent.blue,
         theme.accent.orange,
         theme.accent.green,
         theme.accent.purple,
         theme.accent.red,
+        theme.accent.yellow,
       ];
-      categoryPieData = analytics.categoryBreakdown.slice(0, 5).map((cat, i) => ({
+      categoryPieData = analytics.categoryBreakdown.slice(0, PIE_COLORS.length).map((cat, i) => ({
         value: cat.totalSpent,
         text: cat.category,
         color: PIE_COLORS[i] || theme.text.tertiary,

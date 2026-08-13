@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 ## [1.38.2] - 2026-08-13
 
 ### Changed
-- **The analytics category pie shows six slices, up from five.** Spend that used to fall in one `Pantry` slice now spreads across several, so a top-five cut had started hiding most of the basket. Six is every accent the theme defines; going wider needs new tokens in both palettes, which belongs with the palette work in `docs/DESIGN_AUDIT.md`.
+- **The analytics category pie shows six slices, up from five.** Spend that used to fall in one `Pantry` slice now spreads across several, so a top-five cut had started hiding most of the basket. Six is every accent the theme defines; going wider needs new tokens in both palettes, which belongs with the palette work in `docs/DESIGN_AUDIT.md`. The slice count now reads `PIE_COLORS.length` rather than a second literal, so the two cannot drift apart and leave a slice drawn in the fallback grey.
 - `docs/store-layouts.md` retabled for the new categories. Most now need one seed rather than several — the ones that needed several were precisely the ones that got split.
 
 ## [1.38.1] - 2026-08-13
