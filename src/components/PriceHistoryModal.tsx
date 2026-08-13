@@ -17,6 +17,7 @@ import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -33,6 +34,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomInset = useBottomInset();
   const user = useUser();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<PriceStats | null>(null);
@@ -102,7 +104,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
       <View style={styles.modalOverlay}>
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={styles.modalContainer}
+          style={[styles.modalContainer, { paddingBottom: bottomInset }]}
         >
           <View style={styles.modalHandleContainer}>
             <View style={styles.modalHandle} />
@@ -290,6 +292,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     maxHeight: '85%',
+    // paddingBottom comes from useBottomInset, inline. This sheet had none at
+    // all, so its content ran straight under the nav bar.
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

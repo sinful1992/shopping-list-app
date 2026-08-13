@@ -11,6 +11,7 @@ import { View } from 'react-native';
 import { RADIUS } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 interface ModalBottomSheetProps {
   visible: boolean;
@@ -21,6 +22,7 @@ interface ModalBottomSheetProps {
 const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, children }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomInset = useBottomInset();
 
   return (
     <Modal
@@ -42,7 +44,7 @@ const ModalBottomSheet: React.FC<ModalBottomSheetProps> = ({ visible, onClose, c
         />
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={styles.modal}
+          style={[styles.modal, { paddingBottom: bottomInset }]}
           accessibilityViewIsModal
         >
           <View style={styles.modalHandleContainer}>
@@ -72,7 +74,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    // paddingBottom is applied inline from useBottomInset — the nav bar is
+    // taller than any literal we could put here.
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

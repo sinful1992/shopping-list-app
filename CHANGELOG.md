@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.3] - 2026-08-13
+
+### Changed
+- **The category picker scrolls and is grouped** into Fresh / Chilled & Frozen / Cupboard / Drinks / Household. Two columns of twenty-odd cells no longer fit under the sheet's `maxHeight`, and the footer has to stay reachable; the headings are there because a flat run of that many is a lot to scan. Retired categories are not offered — but an item still filed under one shows it under a "Currently" heading, so the selection is visible rather than reading as uncategorised.
+- **The analytics category pie shows six slices, up from five.** Spend that used to fall in one `Pantry` slice now spreads across several, so a top-five cut had started hiding most of the basket. Six is every accent the theme defines; going wider needs new tokens in both palettes, which belongs with the palette work in `docs/DESIGN_AUDIT.md`.
+- `docs/store-layouts.md` retabled for the new categories. Most now need one seed rather than several — the ones that needed several were precisely the ones that got split.
+
+## [1.38.2] - 2026-08-13
+
+### Fixed
+- **Categories missing from a saved store layout landed after `Other`.** `completeCategoryOrder` appended what an order left out, which was harmless when the canonical list never grew. Splitting the categories made it harmful: a layout saved beforehand holds only the old twelve, so all eleven new categories would have arrived below the catch-all bucket, at the far end of the shop walk, repairable only by tapping the up arrow once per position. Missing categories are now inserted after the nearest earlier category the stored order does contain — the stored order survives untouched, and a new category appears beside whichever one it was split from.
+
+## [1.38.1] - 2026-08-13
+
+### Added
+- **Eleven more categories, splitting the four that sprawled.** Twelve buckets could not describe a real shop: fruit alone runs past one bay, and `docs/store-layouts.md` already recorded which categories its own seed items came back split across — Produce, Pantry, Beverages and Household. Those four are now Fruit / Vegetables / Salad & Herbs; Tins & Packets / Pasta & Rice / Cereals / Cooking & Condiments / Snacks & Sweets; Soft Drinks / Tea & Coffee / Alcohol; and Cleaning / Kitchen & Paper. Cheese and Deli & Chilled are new too, and `Dairy` keeps its id while its label widens to "Dairy & Eggs". **No migration**: `items.category` is a free-text string column and unknown values already resolved to null everywhere, so the change is additive. An id is permanent — it is what lands in `items.category`, in `category_history.category`, in `store_layouts.category_order`, and raw as an RTDB path segment in `CategoryHistoryService`, so renaming one would orphan all four. A test asserts no id contains `. # $ [ ] /`, which Firebase rejects in a key.
+
+## [1.38.0] - 2026-08-13
+
+### Added
+- **`useBottomInset`**, the one place that decides how much room the system navigation bar needs. Replaces a `Platform.OS === 'ios' ? 34 : 20` literal that had been copy-pasted into three files and forgotten in a fourth. It floors at the old value, so a device with nothing to clear is unaffected — which also covers the case where an RN `<Modal>`, being a separate Android window, reports a zero inset.
+
+### Fixed
+- **Modal buttons sat underneath the Android navigation bar.** The app enables edge-to-edge and targets SDK 36, so it draws under the transparent nav bar unconditionally, but every bottom-anchored sheet padded itself with a hardcoded 20 — less than half the ~48dp a 3-button nav bar occupies. Save, Cancel and Delete on the item Details/Price/Size sheets were partly or wholly untappable, as were the footers of Filter and Frequently Bought; Price History had no bottom padding at all. The floating action button had the same 20. All now measure the real inset. Same class of bug as the Settings screen fix in 1.36.x, generalised this time rather than patched in one place.
+
 ## [1.37.1] - 2026-08-03
 
 ### Removed

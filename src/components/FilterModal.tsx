@@ -16,6 +16,7 @@ import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDateShort } from '../utils/date';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 export interface FilterOptions {
   startDate: Date | null;
@@ -46,6 +47,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomInset = useBottomInset();
 
   const [startDate, setStartDate] = useState<Date | null>(currentFilters.startDate);
   const [endDate, setEndDate] = useState<Date | null>(currentFilters.endDate);
@@ -135,7 +137,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
         />
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={styles.modal}
+          style={[styles.modal, { paddingBottom: bottomInset }]}
         >
           <View style={styles.modalHandleContainer}>
             <View style={styles.modalHandle} />
@@ -381,7 +383,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    // paddingBottom comes from useBottomInset, inline.
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,

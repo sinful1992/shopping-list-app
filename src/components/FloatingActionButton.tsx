@@ -10,6 +10,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Theme } from '../styles/theme';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 interface FloatingActionButtonProps {
   icon?: string;
@@ -38,11 +39,15 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const [pressed, setPressed] = useState(false);
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  // Keeps its original 20 as the floor, so nothing moves on a device with no
+  // nav bar to clear. `style` stays after this so callers can still override.
+  const bottomInset = useBottomInset(20);
 
   return (
     <Animated.View
       style={[
         styles.fabContainer,
+        { bottom: bottomInset },
         style,
         {
           transform: [{ scale: pressed ? 0.9 : 1 }],
