@@ -9,7 +9,7 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { View } from 'react-native';
-import { RADIUS } from '../styles/theme';
+import { RADIUS, SPACING } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBottomInset } from '../hooks/useBottomInset';
@@ -49,7 +49,7 @@ const Sheet: React.FC<{ onClose: () => void; children: React.ReactNode }> = ({ o
       />
       <LinearGradient
         colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-        style={[styles.modal, { paddingBottom: bottomInset }]}
+        style={[styles.modal, { paddingBottom: bottomInset + SPACING.lg }]}
         accessibilityViewIsModal
       >
         <View style={styles.modalHandleContainer}>
@@ -94,8 +94,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     maxHeight: '90%',
-    // paddingBottom is applied inline from useBottomInset — the nav bar is
-    // taller than any literal we could put here.
+    // paddingBottom is applied inline: useBottomInset (the nav bar is taller
+    // than any literal we could put here) plus SPACING.lg. The inset alone is
+    // the line nothing may be drawn below, not spacing — padding by exactly it
+    // lands the footer buttons flush on the nav bar, the only edge of the sheet
+    // with no air. The added lg matches the footers' own paddingTop, so the
+    // button row sits in a symmetric band.
     flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },

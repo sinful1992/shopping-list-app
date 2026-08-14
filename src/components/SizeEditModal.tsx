@@ -330,7 +330,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.accent.redSubtle,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
-    borderRadius: RADIUS.medium,
+    // Matches Cancel and Save — see DetailsEditModal.deleteButton.
+    borderRadius: RADIUS.large,
     borderWidth: 1,
     borderColor: theme.accent.redDim,
   },

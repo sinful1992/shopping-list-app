@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.4] - 2026-08-14
+
+### Changed
+- **The item sheet's buttons no longer sit flush on the navigation bar.** 1.38.3 got them out from under it, but padded by exactly the inset — and an inset is the line nothing may be drawn below, not spacing. The result was a sheet with 20dp of air on every edge except the bottom, where Delete/Cancel/Save landed right on the bar with their touch targets abutting its own. `ModalBottomSheet` now pads by the inset **plus** `SPACING.lg`, matching the footers' existing `paddingTop`, so the button row sits in a symmetric band. Applied in the sheet rather than in `useBottomInset`, whose other consumers — the FAB, Filter, Frequently Bought, Price History — are positioned against the bar deliberately and should not move.
+- Delete on the Details sheet and Clear on the Size sheet take `RADIUS.large`, the radius Cancel and Save already used. Three pills in one row read as one control group; one of them at `RADIUS.medium` read as a slip.
+
 ## [1.38.3] - 2026-08-13
 
 ### Fixed

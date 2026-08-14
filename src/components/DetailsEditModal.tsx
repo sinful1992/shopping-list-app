@@ -288,7 +288,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.accent.redSubtle,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
-    borderRadius: RADIUS.medium,
+    // Same radius as Cancel and Save — three pills in one row read as one
+    // control group, and medium next to large just looked like a slip.
+    borderRadius: RADIUS.large,
     borderWidth: 1,
     borderColor: theme.accent.redDim,
   },
