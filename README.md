@@ -2,6 +2,17 @@
 
 A React Native mobile application for collaborative family shopping list management with real-time synchronization, offline support, receipt capture, OCR, and expenditure tracking.
 
+## 🚦 Release Status
+
+**On Google Play, in closed testing.** The Android app is published to the Play Console and distributed on a **closed testing track** — it is not publicly listed, does not appear in Play Store search, and can only be installed by testers who have been invited and have accepted the opt-in. There is no open testing or production release, so a Play Store link is of no use to anyone outside the tester list.
+
+- **Package**: `com.familyshoppinglist.app`
+- **Track**: closed testing (invite-only)
+- **iOS**: not released — the codebase builds for iOS, but nothing has been submitted to App Store Connect
+- **Builds**: signed AAB/APK produced by GitHub Actions; see [.github/workflows](./.github/workflows)
+
+Treat everything below about installing and running the app as developer instructions, not as a way for the public to get it.
+
 ## 📱 Features
 
 ### ✅ Implemented
@@ -216,11 +227,11 @@ npm run lint
 2. Configure signing in `android/app/build.gradle`
 3. Build release: `cd android && ./gradlew bundleRelease`
 4. Upload to Play Console
-5. Submit for review
+5. Roll out to the **closed testing** track (current release channel) — production rollout has not been opened
 
 ## 📝 License
 
-Proprietary - All rights reserved
+**Proprietary — all rights reserved.** See [LICENSE](./LICENSE). This is not open source: being able to read the code grants no right to use, copy, modify or distribute it. Third-party dependencies keep their own licences, and people who install the published app are covered by the in-app Terms of Service in [`src/legal/`](./src/legal), not by this repository licence.
 
 ## 👥 Contributors
 
@@ -233,4 +244,4 @@ For issues or questions, please refer to the specification documents or create a
 ---
 
 **Generated with**: Specification Architect AI
-**Last Updated**: February 2026
+**Last Updated**: August 2026 (v1.38.5)

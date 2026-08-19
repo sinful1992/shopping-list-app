@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.5] - 2026-08-19
+
+### Added
+- **A LICENSE file, because the claim of one had no file behind it.** The README had said "Proprietary - All rights reserved" since February and the repository contained no licence at all. Copyright exists without one — but with no file stating the terms, anyone with access to the code has to infer what they may do with it, and a line in a README is not where that belongs. `LICENSE` now says it explicitly — no right to use, copy, modify or distribute is granted by the code being readable; access given to a collaborator confers no ownership; third-party dependencies keep the licences their own authors granted; and end users of the published app are covered by the in-app Terms of Service in `src/legal/`, not by this file. `package.json` carries `"license": "UNLICENSED"` to match, which is the npm-registry marker for proprietary and pairs with the `private: true` that was already there.
+- **A release-status section in the README.** The app is on Google Play but on a **closed testing** track: not publicly listed, not in search, installable only by invited testers who accepted the opt-in. Nothing in the repository said so, so the install instructions read as though anyone could get it. iOS is recorded as unreleased — the codebase builds, but nothing has been submitted.
+
+### Changed
+- The Play Store deployment step says "roll out to the closed testing track" rather than "submit for review", which is the step that actually applies at this stage.
+
 ## [1.38.4] - 2026-08-14
 
 ### Changed

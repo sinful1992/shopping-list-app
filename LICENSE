@@ -1,0 +1,75 @@
+Copyright (c) 2026 sinful1992. All rights reserved.
+
+PROPRIETARY SOFTWARE LICENSE
+
+This repository and everything in it — source code, build configuration,
+assets, documentation and commit history (collectively, "the Software") — is
+proprietary and confidential. It is not open source and it is not public
+domain.
+
+1. NO LICENCE GRANTED
+
+   No right or licence to the Software is granted to anyone by its being
+   readable, cloned, forked, mirrored, or otherwise made available. Without
+   the prior written permission of the copyright holder, you may not:
+
+   - use, run, or execute the Software for any purpose;
+   - copy, reproduce, or store the Software;
+   - modify, adapt, translate, or create derivative works from it;
+   - publish, distribute, sublicense, sell, rent, lease, or lend it;
+   - reverse engineer, decompile, or disassemble any compiled artefact
+     produced from it, except to the extent that restriction is void under
+     applicable law;
+   - remove or alter this notice or any copyright notice within the Software.
+
+   Permission, where granted, must be in writing, is limited to what it says,
+   and may be revoked.
+
+2. AUTHORISED CONTRIBUTORS
+
+   Access granted to a collaborator is for the sole purpose of contributing to
+   this project on behalf of the copyright holder. It confers no ownership and
+   no continuing right to use the Software. All contributions become part of
+   the Software and are subject to this licence.
+
+3. THIRD-PARTY COMPONENTS
+
+   The Software depends on third-party components (npm packages, Gradle and
+   CocoaPods dependencies, and platform SDKs) that are not covered by this
+   licence. Each remains governed by the licence its own author granted, and
+   nothing here purports to restrict or extend those terms.
+
+4. END USERS OF THE PUBLISHED APP
+
+   This licence governs the Software as source. People who install the
+   published application are not licensed by this file — their use is governed
+   by the app's Terms of Service and Privacy Policy, which are shown in the app
+   and kept in src/legal/.
+
+5. TRADE MARKS
+
+   No trade mark, service mark, or product name of the copyright holder is
+   licensed by this file.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT.
+
+7. LIMITATION OF LIABILITY
+
+   IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE. Nothing in this licence excludes liability that
+   cannot lawfully be excluded.
+
+8. TERMINATION
+
+   Any use of the Software in breach of this licence terminates whatever
+   permission you had automatically, and does not limit any other remedy
+   available to the copyright holder.
+
+For permission to use the Software, contact the copyright holder through the
+repository's hosting account (github.com/sinful1992).
