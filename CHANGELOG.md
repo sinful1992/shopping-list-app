@@ -4,6 +4,256 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.5] - 2026-08-19
+
+### Added
+- **A LICENSE file, because the claim of one had no file behind it.** The README had said "Proprietary - All rights reserved" since February and the repository contained no licence at all. Copyright exists without one — but with no file stating the terms, anyone with access to the code has to infer what they may do with it, and a line in a README is not where that belongs. `LICENSE` now says it explicitly — no right to use, copy, modify or distribute is granted by the code being readable; access given to a collaborator confers no ownership; third-party dependencies keep the licences their own authors granted; and end users of the published app are covered by the in-app Terms of Service in `src/legal/`, not by this file. `package.json` carries `"license": "UNLICENSED"` to match, which is the npm-registry marker for proprietary and pairs with the `private: true` that was already there.
+- **A release-status section in the README.** The app is on Google Play but on a **closed testing** track: not publicly listed, not in search, installable only by invited testers who accepted the opt-in. Nothing in the repository said so, so the install instructions read as though anyone could get it. iOS is recorded as unreleased — the codebase builds, but nothing has been submitted.
+
+### Changed
+- The Play Store deployment step says "roll out to the closed testing track" rather than "submit for review", which is the step that actually applies at this stage.
+
+## [1.38.4] - 2026-08-14
+
+### Changed
+- **The item sheet's buttons no longer sit flush on the navigation bar.** 1.38.3 got them out from under it, but padded by exactly the inset — and an inset is the line nothing may be drawn below, not spacing. The result was a sheet with 20dp of air on every edge except the bottom, where Delete/Cancel/Save landed right on the bar with their touch targets abutting its own. `ModalBottomSheet` now pads by the inset **plus** `SPACING.lg`, matching the footers' existing `paddingTop`, so the button row sits in a symmetric band. Applied in the sheet rather than in `useBottomInset`, whose other consumers — the FAB, Filter, Frequently Bought, Price History — are positioned against the bar deliberately and should not move.
+- Delete on the Details sheet and Clear on the Size sheet take `RADIUS.large`, the radius Cancel and Save already used. Three pills in one row read as one control group; one of them at `RADIUS.medium` read as a slip.
+
+## [1.38.3] - 2026-08-13
+
+### Fixed
+- **The 1.38.0 navigation-bar fix did nothing, and this makes it work.** `useSafeAreaInsets()` returns `bottom = 0` inside an RN `<Modal>` on Android: a modal is its own native window and the app-level `SafeAreaProvider` never measures it. Measured on a Pixel 6 AVD with 3-button navigation, the same hook returned **48 on the screen and 0 in the sheet rendered over it** — so every bottom sheet fell back to its floor and the buttons stayed under the navigation bar. `useBottomInset` now also considers `initialWindowMetrics`, a static snapshot taken before first render that the modal window cannot zero out, and `ModalBottomSheet` additionally nests its own `SafeAreaProvider` so its value stays live if the navigation mode changes. Verified on device: the Details footer moved up ~32dp and Delete/Cancel/Save now sit clear of the bar.
+- The Android floor went back to 20, matching the literal it replaced. 1.38.0 had lowered it to 16, which was a 4dp regression on any device with no bar to clear.
+
+## [1.38.2] - 2026-08-13
+
+### Changed
+- **The analytics category pie shows six slices, up from five.** Spend that used to fall in one `Pantry` slice now spreads across several, so a top-five cut had started hiding most of the basket. Six is every accent the theme defines; going wider needs new tokens in both palettes, which belongs with the palette work in `docs/DESIGN_AUDIT.md`. The slice count now reads `PIE_COLORS.length` rather than a second literal, so the two cannot drift apart and leave a slice drawn in the fallback grey.
+- `docs/store-layouts.md` retabled for the new categories. Most now need one seed rather than several — the ones that needed several were precisely the ones that got split.
+
+## [1.38.1] - 2026-08-13
+
+### Added
+- **Eleven more categories, splitting the four that sprawled.** Twelve buckets could not describe a real shop: fruit alone runs past one bay, and `docs/store-layouts.md` already recorded which categories its own seed items came back split across — Produce, Pantry, Beverages and Household. Those four are now Fruit / Vegetables / Salad & Herbs; Tins & Packets / Pasta & Rice / Cereals / Cooking & Condiments / Snacks & Sweets; Soft Drinks / Tea & Coffee / Alcohol; and Cleaning / Kitchen & Paper. Cheese and Deli & Chilled are new too, and `Dairy` keeps its id while its label widens to "Dairy & Eggs". **No migration**: `items.category` is a free-text string column and unknown values already resolved to null everywhere, so the change is additive. An id is permanent — it is what lands in `items.category`, in `category_history.category`, in `store_layouts.category_order`, and raw as an RTDB path segment in `CategoryHistoryService`, so renaming one would orphan all four. A test asserts no id contains `. # $ [ ] /`, which Firebase rejects in a key.
+
+### Fixed
+- **Categories missing from a saved store layout landed after `Other`.** `completeCategoryOrder` appended what an order left out, which was harmless when the canonical list never grew. Splitting the categories made it harmful: a layout saved beforehand holds only the old twelve, so all eleven new categories would have arrived below the catch-all bucket, at the far end of the shop walk, repairable only by tapping the up arrow once per position. Missing categories are now inserted after the nearest earlier category the stored order does contain — the stored order survives untouched, and a new category appears beside whichever one it was split from.
+
+### Changed
+- **The category picker scrolls and is grouped** into Fresh / Chilled & Frozen / Cupboard / Drinks / Household. Two columns of twenty-odd cells no longer fit under the sheet's `maxHeight`, and the footer has to stay reachable; the headings are there because a flat run of that many is a lot to scan. Retired categories are not offered — but an item still filed under one shows it under a "Currently" heading, so the selection is visible rather than reading as uncategorised.
+
+## [1.38.0] - 2026-08-13
+
+### Added
+- **`useBottomInset`**, the one place that decides how much room the system navigation bar needs. Replaces a `Platform.OS === 'ios' ? 34 : 20` literal that had been copy-pasted into three files and forgotten in a fourth. It floors at the old value, so a device with nothing to clear is unaffected — which also covers the case where an RN `<Modal>`, being a separate Android window, reports a zero inset.
+
+### Fixed
+- **Modal buttons sat underneath the Android navigation bar.** The app enables edge-to-edge and targets SDK 36, so it draws under the transparent nav bar unconditionally, but every bottom-anchored sheet padded itself with a hardcoded 20 — less than half the ~48dp a 3-button nav bar occupies. Save, Cancel and Delete on the item Details/Price/Size sheets were partly or wholly untappable, as were the footers of Filter and Frequently Bought; Price History had no bottom padding at all. The floating action button had the same 20. All now measure the real inset. Same class of bug as the Settings screen fix in 1.36.x, generalised this time rather than patched in one place.
+
+## [1.37.1] - 2026-08-03
+
+### Removed
+- **The Tesco store-layout preset, withdrawn before release.** 1.37.0 was never tagged or merged, so this removes the feature rather than deprecating it. The preset was a hardcoded category order matched on the store name — it never contacted Tesco and contained no Tesco data, just a guess at a generic UK superstore wearing Tesco's name. That is worse than no feature: it implies the app knows where things are in a shop it has never had data about. The order that would make this worthwhile is the per-store aisle order in Tesco's own app, which is reachable only by reading it manually — Tesco's Terms prohibit automated access to the site *and* the Clubcard app, "for any purpose", with no personal-use exception. `storeLayoutPresets.ts` and its tests are gone; `completeCategoryOrder` moved to `categoryOrder.ts`, which is what the module now honestly contains.
+
+### Fixed
+- **A category missing from a stored order made its items render nowhere.** (Kept from 1.37.0, independent of the preset.) The unchecked list is built by filtering `categoryOrder`, and the sibling branch that catches stragglers filters for keys that *aren't* known categories — so a known category absent from the order fell between the two and its items silently vanished. Reachable without any preset: `mapFirebaseStoreLayout` defaults `categoryOrder` to `[]`, so a layout synced from another device could empty the list. Orders now pass through `completeCategoryOrder`, which appends whatever they leave out.
+
+## [1.37.0] - 2026-08-03 [WITHDRAWN — never released, see 1.37.1]
+
+### Added
+- **Store-layout presets, seeded with Tesco.** A list at a store with no saved `StoreLayout` fell back to `CategoryService`'s declaration order, which reflects nothing about walking a shop — Produce, Dairy, Meat, Fish, Bakery, Frozen… `getPresetCategoryOrder` now matches the store name (lowercased substring, so "Tesco Extra Watford" hits) against a preset table and returns that order instead, so a Tesco list opens roughly in aisle order before anyone touches it. Resolved at display time in `ListDetailScreen`, deliberately *not* inside `StoreLayoutService`: returning a synthetic layout would make `storeLayout` truthy and break the `isLayoutDirty`/Save gating that depends on it being null when nothing is persisted. A saved layout still wins, and the first manual reorder-and-save replaces the preset for good. The order is a starting guess at a generic UK Tesco superstore, not data from Tesco — it is one array literal to correct.
+
+### Fixed
+- **A category missing from a stored order made its items render nowhere.** The unchecked list is built by filtering `categoryOrder`, and the sibling branch that catches stragglers filters for keys that *aren't* known categories — so a known category absent from the order fell between the two and its items silently vanished. Reachable today without presets: `mapFirebaseStoreLayout` defaults `categoryOrder` to `[]`, so a layout synced from another device could empty the list. Orders now pass through `completeCategoryOrder`, which appends whatever they leave out. A test asserts each preset is an exact permutation of the twelve `CategoryType` values, which is what stops a typo in the table from reintroducing this.
+
+## [1.36.17] - 2026-07-27
+
+### Added
+- **Tests for the late-landing Firebase write** introduced in 1.36.15 — an async race no device pass can exercise on demand and nothing else would catch if it broke. Covers all four outcomes: the write times out and a fallback is queued; it lands afterwards and the fallback is dropped, the record marked synced and the banner notified; it genuinely rejects and the fallback stands; it lands in time and nothing is queued. Note the module factories need `__esModule: true` or Babel's interop nests the mock under a second `default` and the singleton picks up an undefined `recordError`.
+
+## [1.36.16] - 2026-07-27
+
+### Changed
+- **The sync banner no longer reads as a second store warning.** In `ListDetailScreen` it sits directly above the "No store selected" banner, and the two shared a tint (`yellowDim`) while disagreeing on geometry — one an inset rounded card with its own margins, the other full-bleed. Sync is now full-bleed with the same padding as its neighbour, tinted `blueSubtle` with a blue icon: informational and self-clearing, so it should not wear the warning colour. The Retry link picks up the underline the store banner's link already had. `blueDim` was the first pick and missed AA in the dark theme by 0.14 — `contrast.test.ts` now asserts both this pair and the body copy on it, since it asserts token pairs rather than call sites.
+
+## [1.36.15] - 2026-07-27
+
+### Fixed
+- **Adding an item while the screen locked left the typed text in the field and a sync that never cleared.** `ItemManager.addItem` was the only write path that *awaited* `SyncEngine.pushChange` (`updateItem`, `addItemsBatch` and `updateItemsBatch` all fire-and-forget), so the input cleared only once the network write settled. Lock the phone mid-add and Doze freezes the JS timers, so the 30s `withTimeout` doesn't elapse in app time either — the item was already in the list, but the field still held its text on return. Now fire-and-forget, matching the rest of the file.
+- **A timed-out push left a phantom "N changes not synced".** `withTimeout` rejecting does not cancel the Firebase write: RTDB keeps it in its outbox and lands it when connectivity returns. The queued fallback outlived the write that had already succeeded, so the banner reported a pending change indefinitely and the queue replayed the same payload on the next retry. `pushChange` now holds on to the write promise and, if it lands late, drops the queued fallback and marks the record synced. A genuine rejection leaves the queue entry alone.
+
+## [1.36.14] - 2026-07-26
+
+### Changed
+- **Auth moved to the Firebase modular API** — the last of the four, across `AuthenticationModule`, `RevenueCatContext`, `UrgentItemManager`, `UsageTracker` and `useSettings`. No namespaced `@react-native-firebase` call remains in `src/` or `App.tsx`.
+  - The **User object's methods are deprecated too**, not only the `auth()` accessor — verified in the SDK source, where the modular wrappers pass a sentinel argument that suppresses the warning. So `user.getIdToken()`, `getIdTokenResult()` and `updateProfile()` all had to move, which is how `useSettings` entered scope: it never imported from `@react-native-firebase/auth`, it just called a deprecated method on a user handed to it.
+  - `getCurrentFirebaseUser()` now returns the modular `User` type, aliased to `FirebaseUser` because the app has its own `User` model.
+  - Two behavioural details preserved deliberately. `GoogleAuthProvider.credential(idToken, accessToken)` keeps **both** arguments — the one-argument overload is what caused the v1.27.1 `accessToken cannot be empty` crash. And in `RevenueCatContext` the optional chain short-circuited the entire promise chain when signed out; that is now an explicit `if (currentUser)` guard rather than a call on `undefined`.
+
+## [1.36.13] - 2026-07-26
+
+### Changed
+- **Messaging moved to the Firebase modular API**, in `NotificationManager` and `App.tsx`'s deep-link `linking` config. `messaging.AuthorizationStatus` becomes the package's named `AuthorizationStatus` export. Both listener registrations (`onMessage`, `onTokenRefresh`, `onNotificationOpenedApp`) still return their unsubscribe and it is still wired into the existing cleanup — a dropped one would leak a listener silently, with no warning and no failing test to catch it. The three `auth().currentUser?.getIdToken()` calls in this file went modular at the same time rather than leaving it half-migrated; each became an explicit `currentUser ? await getIdToken(currentUser) : undefined` so the signed-out case still yields `undefined` as the optional chain did.
+
+## [1.36.12] - 2026-07-26
+
+### Changed
+- **Crashlytics and Analytics moved to the Firebase modular API.** `@react-native-firebase` v22 deprecated the namespaced form (`crashlytics().log(...)`), and every call fired two dev warnings — one for the `crashlytics()` accessor, one for the method. `database` and `storage` were already modular; this starts on the four that were not. 32 call sites across the two files. Imports that share a name with one of the wrapper class's own methods are aliased (`log as crashlyticsLog`), so a call reads as the SDK's rather than a recursive one. `getCrashlytics()`/`getAnalytics()` are called per method rather than once at module scope, so the instance stays as lazily created as the namespaced accessor was — calling them at import time would touch Firebase before app init.
+
+## [1.36.11] - 2026-07-26
+
+### Fixed
+- **Bar charts printed raw floats as their top labels.** Found on the AVD verifying 1.36.7: the Lidl bar in Store Price Comparison read `1.4614285714285715`. `showValuesAsTopLabel` renders `value` with no formatting, so any average that does not divide cleanly — or any total that is a float sum of 2dp prices — surfaces in full. Latent before this batch; the grouping fix makes it likelier by averaging over more records. All three currency bar charts (Store Price Comparison, Spend by Store, and the price modal's Price by Store) now render the label through a `topLabelComponent` at 2dp. Verified on device: the same bar reads `1.46`, and Spend by Store's labels match the Store Breakdown figures below it. `VolatileItemsChart` already rounded its values and is unaffected.
+
+### Changed
+- The generation counter added in 1.36.9 is now a single global counter rather than one per family group. Per-group only defends groups that already have a cache entry — and `clearAllData`, the out-of-band path `clearPriceVariantCache` exists for, is exactly the case where the group being read may have none, so a read in flight during account deletion could still cache rows that had just been deleted. A global counter closes that, and costs only an in-flight read its caching when an unrelated group is written.
+
+## [1.36.9] - 2026-07-26
+
+### Fixed
+- **The spelling-group cache could be stored stale.** `getPriceVariants` fetched the rows, then cached the map it built — with no check that a write hadn't landed in between. The sync listener streams price records in via `child_added` while Analytics is loading, so the window is reachable, and losing it means a newly synced spelling stays invisible for the rest of the session rather than until the next write. Writes now bump a per-family-group generation, and a read only caches a map whose generation still matches. Not unit-covered: the interleaving needs the write to commit *during* the read's fetch, which cannot be forced without injecting into the adapter — a test written for it passed with the guard removed, so it was dropped rather than left as false cover.
+
+## [1.36.8] - 2026-07-26
+
+### Fixed
+- **The price picker's search stopped matching plurals.** Follow-up to 1.36.7: with one spelling per item in the list, typing "avocados" no longer found a stored "avocado", because `includes` is not symmetric — which spelling you could search by depended on which had more records, so it read as intermittent. The filter now falls back to comparing group keys.
+
+### Added
+- DB-level tests for the grouping, against real WatermelonDB: one picker entry per group, both spellings' rows gathered whichever is asked for, look-alikes kept apart, per-family-group scoping, and a spelling first seen after the group was cached. That last one is the only cover on the cache invalidation. `clearAllData` deletes price rows outside `HistoryStorage`, so it now clears that cache too.
+
+## [1.36.7] - 2026-07-26
+
+### Fixed
+- **Price history treated singular and plural spellings as different items.** The Prices tab listed "avocado" and "avocados" as two entries, and selecting either showed only half that item's purchases — enough to skew every average and to show the single-store card when the item had in fact been bought at two. The split is in the data: `price_history` is keyed on `itemName.toLowerCase().trim()`, so each spelling is its own key. Rather than migrate the column, both reads now resolve through a stem key (`itemGroupKey`, reusing the receipt matcher's stemmer): `getPriceHistoryForItem` gathers every spelling in the group, `getDistinctTrackedItems` returns one entry per group with the most-recorded spelling as its label. Fixing the read path rather than the call sites means Smart Savings, the volatility chart and the in-list price modal are all covered without a signature change or a backfill, and a newly written "avocados" row folds into the group on the next read. The legacy completed-list path is stemmed the same way, so a fresh install behaves like an upgraded one. The key is a lookup value and not a word ("hummus" keys as "hummu"), so labels always come from a stored `itemName`. Note the `-ss` guard means "glass" and "glasses" are deliberately left apart.
+
+## [1.36.6] - 2026-07-26
+
+### Added
+- **Encoding guard.** `scripts/check-encoding.js` fails the build on any U+FFFD in a tracked source file. A replacement character is decoding damage rather than text, and nothing else in the stack can see it — TypeScript checks types, knip checks reachability, ESLint sees an ordinary text node. Wired into CI and the pre-commit hook. Verified against the real 1.36.5 defect: it flags all three occurrences.
+- **Knip now runs in CI.** It was already invoked by the `pre-push` hook, but had no npm script and no CI step — so it was enforced only locally, and only for people who have the hook installed and don't pass `--no-verify`. Added `npm run knip` and a CI step; a stale `ignoreDependencies` entry was removed so its output is clean. Note it works at module-export level, so it does not catch unused object properties such as StyleSheet keys — it had been running on every push throughout, and never saw the 21 dead styles removed in 1.36.4.
+
+### Fixed
+- `scripts/pre-commit.sh` had drifted out of sync with the installed hook — the versioned copy was still the original nine-line test runner while the live hook carried the version and changelog checks, so a fresh clone got none of them. The versioned copy is now the source of truth.
+
+## [1.36.5] - 2026-07-26
+
+### Fixed
+- **Smart Savings rendered the replacement character instead of `£`.** All three prices on that card — the potential-savings total, each item's best price, and each saving — rendered a replacement character. The file had been saved in the wrong encoding by a tooling pass back in PR #28, so the pound signs were stored as U+FFFD rather than U+00A3. It is the only file in `src/` affected.
+
+## [1.36.4] - 2026-07-26
+
+### Changed
+- Removed 21 dead style definitions from `ListDetailScreen.styles.ts` (114 lines) left behind by earlier refactors, and the three empty `card` styles the analytics rebuild left in `ItemStoreComparison`, `VolatileItemsChart` and `SmartSavingsCard`. No behaviour change.
+
+## [1.36.3] - 2026-07-26
+
+### Fixed
+- **Five modal buttons were unreadable in dark mode and the wrong colour in light.** The confirm buttons in the store picker, price editor, size editor, details editor and filter sheet each pinned the dark theme's gradient (`#6EA8FE → #A78BFA`) instead of taking `gradient.buttonStart`/`buttonEnd`, *and* drew their label with `text.primary` instead of `text.onAccent`. In dark mode that is white on a light blue — **2.42:1**, measured on device at 7.28:1 after the fix. In light mode the button rendered in the dark theme's pale gradient, matching nothing else on the screen. This is the same defect 1.35.2 and 1.35.3 fixed elsewhere; these five call sites were missed because the sweep covered screens, not shared components.
+
+## [1.36.2] - 2026-07-25
+
+### Fixed
+- **The selected time period is visible in dark mode.** 1.36.0's segmented control marked the active segment with a raised `background.secondary` surface — an iOS convention that assumes a light ground. Measured against the control's own container it comes to **1.06:1** in dark and 1.22:1 in light, and the shadow that would normally sell the lift is black at 20% on a near-black background. The selection rested entirely on 65%-white text becoming 100%-white. The active segment is now a solid accent fill with on-accent ink: 7.21:1 dark and 5.48:1 light against the container, with the label at 7.35:1 and 6.70:1. `glass.strong` was measured first and rejected at 1.43:1 — a "raised" surface does not exist on a near-black ground.
+- **Switching tabs returns you to the top.** With the summary and period filter inside the scroll view, changing tab while scrolled down left the new tab starting mid-content with both scrolled off screen.
+- Chart gridlines now use the same `border.strong` across all four charts on the screen; the two on the main screen were a step fainter than the two on the Prices tab.
+
+## [1.36.1] - 2026-07-25
+
+### Fixed
+- **The cheapest-store bar is visible in light mode.** The price-comparison chart drew its bars with iOS systemGreen and systemBlue, pinned rather than themed. The green bar — which marks the cheapest store and is the point of the chart — measured **1.65:1** against the light card, well under the 3:1 a graphical object needs. Both bars now take theme accents, matching the same green/blue pairing the store breakdown already uses.
+- **The spending-trend area fill follows the theme.** Its gradient was hardcoded to the dark theme's blue, so in light mode a pale wash sat under a dark blue line. It now derives from `accent.blue` with the alpha passed separately.
+- Chart axis, rule and label colours in the price charts now use `border.strong` and `text.secondary` instead of hand-rolled light/dark ternaries, matching the charts on the main analytics screen.
+- The History detail screen's loading spinner was pinned to iOS systemBlue and did not follow the theme.
+
+## [1.36.0] - 2026-07-25
+
+### Changed
+- **The Analytics screen is one scrolling surface instead of two halves.** The period selector, the 2×2 stat grid and the tab bar were all siblings above the `ScrollView`, so roughly 341dp — about 45% of the screen — never moved, and the charts were read through the ~412dp window left over. Only the tab bar stays pinned now; everything else scrolls, which gives the content back around 290dp on every tab.
+- **The four stat cards are now a till-roll total.** The grid's four tinted, bordered boxes carried the largest type on the screen (24px/700) — the frozen summary out-ranked the live charts it was summarising. In their place: the period total as a receipt total line, label left and figure right in the receipt mono, ruled above and below, with trips, average and item count as a single line of small print beneath it. Same four numbers, roughly a third of the height.
+- **One framing level instead of five.** Bordered period pills inside a bordered tab bar above bordered tint cards above bordered content cards all stacked up in the top third. Chart sections lose their borders and fills and are separated by space; the period control becomes a segmented control whose active segment reads as a raised surface, so it no longer looks like a second tab bar. The total block's rules are now the only ruled element on the screen.
+- **The tab bar's four emoji are Ionicons.** 📊🛒🏪💰 became `stats-chart` / `cart` / `storefront` / `pricetag`, matching the rest of the app after the 1.35.0 icon sweep; the active tab takes the filled variant so selection does not rest on the tint alone. All eight names were checked against the installed glyphmap.
+- The Prices tab's three components (`ItemStoreComparison`, `VolatileItemsChart`, `SmartSavingsCard`) lose their own cards and margins, so that tab lines up with the rest of the screen instead of setting its own insets.
+
+## [1.35.6] - 2026-07-25
+
+### Changed
+- `RECEIPT_FONT` moved from `ReceiptCard` to the theme tokens. It is a typographic token rather than a property of one component, and the analytics total is about to use it. No visual change.
+
+## [1.35.5] - 2026-07-25
+
+### Fixed
+- **No hairline gap around the Done button in the expanded shopping panel.** 1.34.2 gave the button a transparent border so its box would match Cancel's; 1.35.4 made the gradient `flex: 1`, which does that job properly and left the border with nothing to do. Because a border insets a child, the gradient was sitting 1px in from every edge with the green panel showing through the gap, and Done's gradient was 2px smaller than Cancel's outline.
+
+## [1.35.4] - 2026-07-25
+
+### Fixed
+- **The expanded shopping panel no longer fills the whole screen.** 1.34.2 gave the Done button's gradient `height: '100%'` to close a gap under it. Its parent is auto-height, so there was no definite box for the percentage to resolve against and it was measured against the available space instead: the gradient took the viewport, its parent grew to contain it, and the panel — with Cancel stretched alongside it — pushed the entire item list off screen. The gradient now uses `flex: 1`, which fills the height the row actually hands out.
+
+## [1.35.3] - 2026-07-25
+
+### Fixed
+- **Alert buttons are readable.** Every default and destructive button in the app's alert dialog drew its label with the surface ink while sitting on a filled accent — white on the dark theme's light blue measured 2.4:1. They now use the on-accent ink, measuring ~7:1. This affects every alert in the app, so it was the widest-reaching instance of the problem fixed in 1.35.2.
+
+## [1.35.2] - 2026-07-25
+
+### Fixed
+- **Text on filled gradient buttons is readable again.** The create-list modal's Create button used the surface ink instead of the on-accent ink, so it failed in both themes — measured 2.4:1 in light and 2.5:1 in dark, against a 3:1 floor. The same miss was on the lists FAB, the receipt apply button and two loading spinners. All now use the token that flips with the theme, measuring ~7:1.
+- **Cancel is no longer taller than Create.** The Create button was padded twice — `padding: 0` does not override `paddingVertical`/`paddingHorizontal`, so the base style's padding survived and wrapped the gradient in an invisible shell. The row stretched Cancel to match it. Fixing the padding also removes the third of Create's touch target that sat outside the visible button.
+
+## [1.35.1] - 2026-07-24
+
+### Fixed
+- Uneven spacing under the receipt warning banners, and the offline notice in shopping mode overflowing its row on a narrow screen — both introduced by moving those messages from emoji to icons in 1.35.0.
+
+## [1.35.0] - 2026-07-24
+
+### Changed
+- **Text sizes now produce actual levels.** The app used 19 distinct font sizes against a scale defining 8, and 13/14/15/16/17 sat on adjacent rows — HomeScreen ran six sizes down a single card. Because 15-vs-14 isn't a perceptible difference, none of it read as hierarchy; it read as one flat band. Collapsed to 12 (meta) / 14 (body) / 16 (emphasis) / 20 (title) / 24 (screen title), with weight and colour carrying the rest. The item card was already doing this correctly and is unchanged. The display sizes above 24 — used for glyphs and hero numbers — are named in the scale now instead of being loose numbers.
+- **Emoji no longer carry UI meaning.** The price trend was encoded as 📈/📉/➡️ with no text alternative for a screen reader — it's an arrow icon and a signed percentage now. The urgent-item button was labelled 🔥, which didn't say what it does and rendered differently across phone makers. Analytics' error and empty icons, and its 2×2 stat grid (which mixed a currency symbol, an emoji, a tilde and a hash), are consistent vector icons. Category emoji stay — those are content.
+- **Empty screens say what to do next.** "No completed shopping trips", "No active urgent items", "No family members" and the rest were bare negations; each now states the situation and the next action.
+
+## [1.34.2] - 2026-07-24
+
+### Fixed
+- **Cancel and Done line up again in the expanded shopping panel.** Making Cancel an outlined button in 1.33.4 changed its box by the width of its border, which left the Done button's gradient sitting short inside a taller row.
+- **Long category names no longer crowd the item row.** Adding the category emoji in 1.33.4 widened a row that also carries the size and the add-size prompt; the label now truncates instead of pushing them off a narrow screen.
+
+## [1.34.1] - 2026-07-24
+
+### Fixed
+- **Small icon buttons are easier to hit.** Back, the category reorder arrows, expand/collapse on the shopping bar, delete-list and Settings' copy/edit buttons all had touch targets around 26–32dp against Android's 48dp minimum. They now extend their tap area without moving anything on screen. The reorder arrows and delete-list were worst — one is a repeated fine-motor action, the other is destructive and was the smallest target in the app.
+- **Prices line up in the seven places they didn't.** Urgent Items, the filter, frequently-bought, price edit, price history, the receipt preview and the size editor all rendered money without fixed-width digits, so columns of prices didn't align and totals jiggled as they changed. Price history was the worst case — a whole column of them.
+- The back chevron and the category reorder arrows also used pinned iOS greys, so they didn't follow the theme.
+
+## [1.34.0] - 2026-07-24
+
+### Changed
+- **One palette instead of five.** The app had accumulated four greens, five oranges, three reds and two yellows — iOS system colours, stray hexes and theme tokens sitting side by side, none of them noticeable alone but collectively why the app read as assembled rather than designed. Every one of them now comes from the theme, so colour follows light/dark consistently: History's "not purchased" markers, Settings' danger zone and join-request badges, Urgent Items' cards and action button, the receipt warning banners, the size editor's unit badges.
+- **The spending pie no longer half-changes with the theme.** Three of its five colours flipped with the theme and two were pinned, so in light mode it came out three muted colours and two neon ones. All five are themed now, and ordered so red and green are never adjacent slices.
+- **Dark red got lighter, light blue and purple got darker.** Each was too close to its own background to survive being drawn on a tint of itself.
+
+### Fixed
+- **Modal drag handles are visible in light theme.** All five bottom sheets drew the grab handle as 15% white, which is invisible on a white sheet.
+
+## [1.33.5] - 2026-07-24
+
+### Fixed
+- **Text on filled buttons is readable in both themes.** Blue-filled buttons across the app — add item, view receipt, import, save budget, filter chips, retry, modal confirm — drew light text on a light-blue fill, measuring 2.4–3.7:1. Buttons now use the solid accent with a new on-accent ink that flips with the theme (dark ink on the dark theme's light accents, white on the light theme's dark ones). Same fix for the resolve/create buttons on Urgent Items, the receipt save button, the History delete button, the floating action button, and every sign-in button — the auth screens pinned a light gradient with white text on it, so the first screen of the app measured 2.42:1.
+- **Logout no longer looks as dangerous as deleting your account.** Both were filled red with a coloured glow; logout is one tap to undo and is now a quiet outlined button, with filled red reserved for account deletion.
+- **Secondary text on cards is readable.** The tertiary text colour measured 4.38:1 on cards in dark mode and 3.30:1 everywhere in light mode, despite the token comment promising it stayed readable at small sizes. The "+ add size" prompt on item rows also used the disabled/placeholder colour despite being tappable.
+- **Status badges on list cards.** "Completed" sat as green text on a green tint on a green card — three layers, 3.67:1. Badges now use the subtle tint rather than the dim one, and the light theme's orange darkened a further step so the "Shopping" badge clears the bar too.
+
+## [1.33.4] - 2026-07-24
+
+### Fixed
+- **Shopping mode is readable in dark theme again.** The in-store status bar drew itself with hardcoded iOS system colours that never followed the theme, while its text used the theme's primary ink — so on a dark phone the bar users actually shop from measured between 1.61:1 and 3.84:1 against WCAG's 4.5:1 minimum, worst of all the 11px budget badge. The bar now pins its own surfaces *and* its ink, so it reads identically in either theme; worst pair is 5.21:1. Cancel is an outlined button rather than white-on-a-white-scrim, which failed in both themes.
+- **Category labels on item rows are readable in both themes.** The 12 category colours are a fixed Material palette that can't follow the theme, drawn as 11px text: 5 of 12 failed contrast in dark, 10 of 12 in light (Bakery at 2.16:1). Labels now use the theme's secondary text colour and show the category emoji, which carries the identity the colour was carrying. Category colours still tint cells and borders, where they're decorative. The size and details editors had the same defect and are fixed with them.
+- **Analytics stat cards and rank medals are readable in light theme.** Their colours were pinned dark-theme hexes drawn on a 12% tint of themselves — "Items Bought" measured 1.21:1 and the gold medal 1.41:1, effectively invisible. Both now come from the theme, with a medal palette per theme.
+- **Light-theme accent colours are a step darker.** They were light enough that accent-coloured text collapsed on a white card — prices, the number users open the app to read, measured 3.30:1.
+
+### Added
+- Contrast regression tests (`src/styles/__tests__/contrast.test.ts`) asserting every colour pair fixed above, since none of these are visible in a dark-only emulator pass.
+
 ## [1.33.3] - 2026-07-24
 
 ### Fixed

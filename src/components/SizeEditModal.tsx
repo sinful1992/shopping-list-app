@@ -12,13 +12,15 @@ import CategoryService from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { parseCombinedInput } from '../utils/measurement';
 import { useAlert } from '../contexts/AlertContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 
-const UNIT_GROUPS: Array<{ label: string; units: string[]; color: string }> = [
-  { label: 'Volume', units: ['ml', 'L'], color: '#6EA8FE' },
-  { label: 'Weight', units: ['g', 'kg'], color: '#A78BFA' },
+// Accent is a token name, not a hex: these render as text, and a pinned
+// dark-theme hex is unreadable on a light card.
+const UNIT_GROUPS: Array<{ label: string; units: string[]; accent: 'blue' | 'purple' }> = [
+  { label: 'Volume', units: ['ml', 'L'], accent: 'blue' },
+  { label: 'Weight', units: ['g', 'kg'], accent: 'purple' },
 ];
 
 interface SizeEditModalProps {
@@ -145,16 +147,18 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
         </View>
 
         <View style={styles.pillGroups}>
-          {UNIT_GROUPS.map(group => (
+          {UNIT_GROUPS.map(group => {
+            const groupColor = theme.accent[group.accent];
+            return (
             <View key={group.label} style={styles.pillGroup}>
-              <Text style={[styles.pillGroupLabel, { color: group.color }]}>{group.label}</Text>
+              <Text style={[styles.pillGroupLabel, { color: groupColor }]}>{group.label}</Text>
               <View style={styles.pillRow}>
                 {group.units.map(unit => (
                   <TouchableOpacity
                     key={unit}
                     style={[
                       styles.pill,
-                      measurementUnit === unit && { borderColor: group.color, backgroundColor: `${group.color}20` },
+                      measurementUnit === unit && { borderColor: groupColor, backgroundColor: `${groupColor}20` },
                     ]}
                     onPress={() => {
                       const newUnit = measurementUnit === unit ? null : unit;
@@ -175,7 +179,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
                   >
                     <Text style={[
                       styles.pillText,
-                      measurementUnit === unit && { color: group.color, fontWeight: TYPOGRAPHY.fontWeight.semibold },
+                      measurementUnit === unit && { color: groupColor, fontWeight: TYPOGRAPHY.fontWeight.semibold },
                     ]}>
                       {unit}
                     </Text>
@@ -183,7 +187,8 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
                 ))}
               </View>
             </View>
-          ))}
+            );
+          })}
         </View>
       </View>
 
@@ -199,7 +204,7 @@ const SizeEditModal: React.FC<SizeEditModalProps> = ({ visible, item, onClose, o
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSave}>
             <LinearGradient
-              colors={['#6EA8FE', '#A78BFA']}
+              colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.saveButton}
@@ -232,6 +237,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   contextPrice: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.md,
     color: theme.text.secondary,
   },
@@ -261,24 +267,24 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: RADIUS.medium,
   },
   unitBadgeBlue: {
-    backgroundColor: 'rgba(110,168,254,0.15)',
+    backgroundColor: theme.accent.blueSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(110,168,254,0.3)',
+    borderColor: theme.accent.blueDim,
   },
   unitBadgePurple: {
-    backgroundColor: 'rgba(167,139,250,0.15)',
+    backgroundColor: theme.accent.purpleSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
+    borderColor: theme.accent.purpleDim,
   },
   unitBadgeText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   unitBadgeTextBlue: {
-    color: '#6EA8FE',
+    color: theme.accent.blue,
   },
   unitBadgeTextPurple: {
-    color: '#A78BFA',
+    color: theme.accent.purple,
   },
   pillGroups: {
     flexDirection: 'row',
@@ -324,7 +330,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.accent.redSubtle,
     paddingHorizontal: SPACING.xl,
     paddingVertical: SPACING.md,
-    borderRadius: RADIUS.medium,
+    // Matches Cancel and Save — see DetailsEditModal.deleteButton.
+    borderRadius: RADIUS.large,
     borderWidth: 1,
     borderColor: theme.accent.redDim,
   },
@@ -357,8 +364,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.large,
   },
+  // Sits on the button gradient, not on the sheet, so it takes the on-accent
+  // ink. text.primary inverts with the surface and failed both themes.
   saveText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },

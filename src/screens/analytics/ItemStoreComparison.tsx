@@ -14,6 +14,7 @@ import PriceHistoryService, { PricePoint } from '../../services/PriceHistoryServ
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC } from '../../styles/theme';
+import { itemGroupKey } from '../../utils/itemGrouping';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -45,13 +46,18 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   const [viewMode, setViewMode] = useState<ViewMode>('avg');
   const [pricePoints, setPricePoints] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(false);
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return trackedItems;
     const q = searchQuery.toLowerCase();
-    return trackedItems.filter(i => i.itemNameNormalized.includes(q));
+    // The list holds one spelling per item, so searching "avocados" when the
+    // stored spelling is "avocado" has to match on the shared key too.
+    const key = itemGroupKey(q);
+    return trackedItems.filter(
+      i => i.itemNameNormalized.includes(q) || itemGroupKey(i.itemNameNormalized).includes(key),
+    );
   }, [trackedItems, searchQuery]);
 
   const loadPriceData = useCallback(async (itemNormalized: string) => {
@@ -136,7 +142,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   }, [storeStats]);
 
   const chartWidth = screenWidth - 62 - 40;
-  const chartAxisStyle = { color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 };
+  const chartAxisStyle = { color: theme.text.secondary, fontSize: 10 };
 
   const getVolatilityLabel = (v: number) => {
     if (v < 10) return { label: 'Low', color: theme.accent.green };
@@ -145,7 +151,7 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
   };
 
   return (
-    <View style={styles.card}>
+    <View>
       <Text style={styles.title}>Store Price Comparison</Text>
 
       {/* Item Picker */}
@@ -242,12 +248,22 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
           {/* Bar Chart */}
           <View style={styles.chartContainer}>
             <BarChart
-              data={storeStats.map((s, i) => ({
-                value: viewMode === 'avg' ? s.average : s.latest,
-                label: s.storeName.length > 8 ? s.storeName.substring(0, 8) + '...' : s.storeName,
-                labelTextStyle: { color: isDark ? '#a0a0a0' : '#6B7280', fontSize: 10 },
-                frontColor: i === 0 ? '#30D158' : '#007AFF',
-              }))}
+              data={storeStats.map((s, i) => {
+                const value = viewMode === 'avg' ? s.average : s.latest;
+                return {
+                  value,
+                  label: s.storeName.length > 8 ? s.storeName.substring(0, 8) + '...' : s.storeName,
+                  labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+                  // showValuesAsTopLabel prints the raw float, so an average
+                  // that does not divide cleanly reads as 1.4614285714285715.
+                  topLabelComponent: () => (
+                    <Text style={styles.chartTopLabel}>{value.toFixed(2)}</Text>
+                  ),
+                  // The cheapest store's bar is the point of this chart, and at
+                  // iOS systemGreen it measured 1.65:1 against a light card.
+                  frontColor: i === 0 ? theme.accent.green : theme.accent.blue,
+                };
+              })}
               width={chartWidth}
               height={180}
               adjustToWidth
@@ -255,12 +271,10 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
               barBorderRadius={8}
               isAnimated
               animationDuration={600}
-              showValuesAsTopLabel
-              topLabelTextStyle={styles.chartTopLabel}
-              {...(isDark ? {rulesColor:'rgba(255,255,255,0.1)'} : {rulesColor:'rgba(0,0,0,0.1)'})}
+              rulesColor={theme.border.strong}
               rulesThickness={1}
-              xAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
-              yAxisColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
+              xAxisColor={theme.border.strong}
+              yAxisColor={theme.border.strong}
               yAxisTextStyle={chartAxisStyle}
               yAxisLabelPrefix="£"
               yAxisLabelWidth={40}
@@ -300,15 +314,6 @@ const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) =
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: theme.glass.subtle,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    padding: 12,
-    marginHorizontal: 15,
-    marginTop: 10,
-  },
   title: {
     fontSize: 18,
     fontWeight: '700',
@@ -325,11 +330,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   pickerText: {
     color: theme.text.primary,
-    fontSize: 15,
+    fontSize: 14,
   },
   pickerPlaceholder: {
     color: theme.text.tertiary,
-    fontSize: 15,
+    fontSize: 14,
     fontStyle: 'italic',
   },
   pickerDropdown: {
@@ -417,6 +422,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   chartContainer: {
     marginTop: 8,
     marginBottom: 12,
+    // The chart width predates the card's removal, so it is narrower than the
+    // space available now — centre it rather than widening it.
+    alignItems: 'center',
   },
   sectionLabel: {
     fontSize: 14,
@@ -450,7 +458,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 4,
   },
   stabilityLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     width: 70,
     textAlign: 'right',
@@ -460,7 +468,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   insightText: {
     color: theme.text.secondary,
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 4,
     lineHeight: 18,
   },

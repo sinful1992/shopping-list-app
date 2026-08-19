@@ -11,7 +11,7 @@ import { Item } from '../models/types';
 import CategoryService from '../services/CategoryService';
 import ModalBottomSheet from './ModalBottomSheet';
 import { useAlert } from '../contexts/AlertContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -134,7 +134,7 @@ const PriceEditModal: React.FC<PriceEditModalProps> = ({
         </TouchableOpacity>
         <TouchableOpacity onPress={handleSave}>
           <LinearGradient
-            colors={['#6EA8FE', '#A78BFA']}
+            colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.saveButton}
@@ -191,6 +191,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginRight: SPACING.sm,
   },
   priceInput: {
+    ...NUMERIC,
     flex: 1,
     fontSize: 32,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
@@ -213,6 +214,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.sm,
   },
   chipText: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.md,
     color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
@@ -267,8 +269,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.md,
     borderRadius: RADIUS.large,
   },
+  // Sits on the button gradient, not on the sheet, so it takes the on-accent
+  // ink. text.primary inverts with the surface and failed both themes.
   saveText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },

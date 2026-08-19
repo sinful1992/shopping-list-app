@@ -3,6 +3,8 @@
  * Liquid Glass Dark Theme with glassmorphism effects — v2
  */
 
+import { Platform } from 'react-native';
+
 const COLORS = {
   // Background colors
   background: {
@@ -30,28 +32,45 @@ const COLORS = {
     greenSubtle: 'rgba(48, 209, 88, 0.1)',
     yellow: '#FFD60A',
     yellowDim: 'rgba(255, 214, 10, 0.3)',
-    red: '#FF453A',
-    redDim: 'rgba(255, 69, 58, 0.3)',
-    redSubtle: 'rgba(255, 59, 48, 0.15)',
+    yellowSubtle: 'rgba(255, 214, 10, 0.1)',
+    // Lighter than iOS systemRed: at #FF453A the red only cleared 4.81:1 on a
+    // card bare, so anything drawn on its own tint fell under the bar.
+    red: '#FF7A70',
+    redDim: 'rgba(255, 122, 112, 0.3)',
+    redSubtle: 'rgba(255, 122, 112, 0.15)',
     orange: '#FFB340',
     orangeDim: 'rgba(255, 179, 64, 0.2)',
+    orangeSubtle: 'rgba(255, 179, 64, 0.12)',
     purple: '#A78BFA',
+    purpleDim: 'rgba(167, 139, 250, 0.3)',
+    purpleSubtle: 'rgba(167, 139, 250, 0.15)',
   },
 
   // Sync status indicators
   sync: {
     synced: '#30D158',
     pending: '#FFD60A',
-    failed: '#FF453A',
+    failed: '#FF7A70',
+  },
+
+  // Leaderboard ranks. The metal semantics don't map onto the accent palette,
+  // so they get their own pair of triads. Used as text on background.secondary.
+  medal: {
+    gold: '#FFD60A',
+    silver: '#C0C0C0',
+    bronze: '#CD7F32',
   },
 
   // Text colors. secondary/tertiary must stay readable at small sizes on
   // background.primary (WCAG-ish); dim is for disabled/placeholder only.
+  // onAccent is for text sitting ON a filled accent surface — it is dark here
+  // because the dark theme's accents are light colours.
   text: {
     primary: '#ffffff',
     secondary: 'rgba(255, 255, 255, 0.65)',
-    tertiary: 'rgba(255, 255, 255, 0.45)',
+    tertiary: 'rgba(255, 255, 255, 0.55)',
     dim: 'rgba(255, 255, 255, 0.25)',
+    onAccent: '#111827',
   },
 
   // Border colors
@@ -150,6 +169,11 @@ export const SPACING = {
   xxl: 24,
 } as const;
 
+// The ramp is deliberately sparse below 24: 13-vs-14 and 16-vs-17 are not
+// perceptible differences, so intermediate steps produced one flat weight-band
+// instead of hierarchy. Levels come from weight and colour; size marks the
+// jumps. The display sizes above 24 are for glyphs and hero numerals, not body
+// copy — they existed unnamed before (28/32/36/52/64 were all in use).
 export const TYPOGRAPHY = {
   fontSize: {
     xs: 10,
@@ -159,7 +183,12 @@ export const TYPOGRAPHY = {
     xl: 18,
     xxl: 20,
     xxxl: 24,
+    display: 28,
+    displayLg: 32,
+    displayXl: 36,
     huge: 42,
+    mark: 52,
+    markLg: 64,
   },
   fontWeight: {
     regular: '400' as const,
@@ -174,6 +203,41 @@ export const TYPOGRAPHY = {
 export const NUMERIC = {
   fontVariant: ['tabular-nums' as const],
 };
+
+// Font that evokes thermal receipt print. Lives here rather than next to the
+// receipt component because it is a typographic token, not a property of one
+// view: the analytics total is set in it too, so both screens read the same
+// way when they are talking about money.
+export const RECEIPT_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' });
+
+// Shopping-mode status bar. Deliberately theme-independent: the bar is a mode
+// indicator that has to read identically in-store in either theme, and pinning
+// the surface as well as the ink is what makes its contrast provable. Every
+// surface here is a saturated light colour, so the ink is dark in both themes.
+// Worst measured pair is `ink` on `budgetOver` at 5.21:1. These deliberately do
+// not track accent.* — budgetOver stayed at iOS systemRed after the dark accent
+// red was lightened, because here the ink is dark and the surface must not be.
+export const STATUS_BAR = {
+  shopping: '#30D158',
+  locked: '#FFB340',
+  completed: '#8E8E93',
+  shoppingBorder: 'rgba(48, 209, 88, 0.35)',
+  lockedBorder: 'rgba(255, 179, 64, 0.35)',
+  completedBorder: 'rgba(142, 142, 147, 0.35)',
+  budgetWarning: '#FFD60A',
+  budgetOver: '#FF453A',
+  // White scrims lighten the bar, so they only improve the dark ink's ratio.
+  scrim: 'rgba(255, 255, 255, 0.3)',
+  ink: '#111827',
+  inkMuted: 'rgba(17, 24, 39, 0.75)',
+  inkWarning: '#4D3300',
+  inkOver: '#6B1616',
+} as const;
+
+// Extends an icon button's touch target without changing its layout. Icon-only
+// controls in this app sit at 26-32dp of padded box; Android's minimum is 48dp
+// and Apple's is 44pt, and 8dp on each side closes that gap.
+export const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
 
 // Animation durations (milliseconds)
 export const ANIMATION = {
@@ -202,35 +266,51 @@ export const LIGHT_THEME: Theme = {
     strong: 'rgba(0, 0, 0, 0.12)',
   },
 
+  // Accents here are a step darker than the -600 shades they started as. The
+  // dark theme's accents are light colours on a dark ground; mirroring that in
+  // light mode needs genuinely dark ink, or accent-coloured text collapses on a
+  // white card (prices measured 3.30:1 at -600). The *Dim tints are halved to
+  // match: a darker foreground on an equally dark tint gains nothing.
   accent: {
-    blue: '#2563EB',
-    blueLight: 'rgba(37, 99, 235, 0.8)',
-    blueDim: 'rgba(37, 99, 235, 0.3)',
-    blueSubtle: 'rgba(37, 99, 235, 0.12)',
-    green: '#16A34A',
-    greenDim: 'rgba(22, 163, 74, 0.3)',
-    greenSubtle: 'rgba(22, 163, 74, 0.08)',
-    yellow: '#CA8A04',
-    yellowDim: 'rgba(202, 138, 4, 0.3)',
-    red: '#DC2626',
-    redDim: 'rgba(220, 38, 38, 0.3)',
-    redSubtle: 'rgba(220, 38, 38, 0.12)',
-    orange: '#EA580C',
-    orangeDim: 'rgba(234, 88, 12, 0.15)',
-    purple: '#7C3AED',
+    blue: '#1D4ED8',
+    blueLight: 'rgba(29, 78, 216, 0.8)',
+    blueDim: 'rgba(29, 78, 216, 0.15)',
+    blueSubtle: 'rgba(29, 78, 216, 0.10)',
+    green: '#166534',
+    greenDim: 'rgba(22, 101, 52, 0.15)',
+    greenSubtle: 'rgba(22, 101, 52, 0.08)',
+    yellow: '#854D0E',
+    yellowDim: 'rgba(133, 77, 14, 0.15)',
+    yellowSubtle: 'rgba(133, 77, 14, 0.10)',
+    red: '#B91C1C',
+    redDim: 'rgba(185, 28, 28, 0.15)',
+    redSubtle: 'rgba(185, 28, 28, 0.12)',
+    orange: '#9A3412',
+    orangeDim: 'rgba(154, 52, 18, 0.12)',
+    orangeSubtle: 'rgba(154, 52, 18, 0.10)',
+    purple: '#6D28D9',
+    purpleDim: 'rgba(109, 40, 217, 0.15)',
+    purpleSubtle: 'rgba(109, 40, 217, 0.10)',
   },
 
   sync: {
-    synced: '#16A34A',
-    pending: '#CA8A04',
-    failed: '#DC2626',
+    synced: '#166534',
+    pending: '#854D0E',
+    failed: '#B91C1C',
+  },
+
+  medal: {
+    gold: '#856404',
+    silver: '#5F6368',
+    bronze: '#8B5A2B',
   },
 
   text: {
     primary: '#111827',
     secondary: 'rgba(17, 24, 39, 0.70)',
-    tertiary: 'rgba(17, 24, 39, 0.50)',
+    tertiary: 'rgba(17, 24, 39, 0.62)',
     dim: 'rgba(17, 24, 39, 0.30)',
+    onAccent: '#FFFFFF',
   },
 
   border: {
@@ -246,8 +326,8 @@ export const LIGHT_THEME: Theme = {
   },
 
   gradient: {
-    buttonStart: '#2563EB',
-    buttonEnd: '#7C3AED',
+    buttonStart: '#1D4ED8',
+    buttonEnd: '#6D28D9',
     modalStart: '#FFFFFF',
     modalEnd: '#F8F9FA',
   },

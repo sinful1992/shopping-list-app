@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatDateShort } from '../utils/date';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 export interface FilterOptions {
   startDate: Date | null;
@@ -46,6 +47,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomInset = useBottomInset();
 
   const [startDate, setStartDate] = useState<Date | null>(currentFilters.startDate);
   const [endDate, setEndDate] = useState<Date | null>(currentFilters.endDate);
@@ -135,7 +137,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
         />
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={styles.modal}
+          style={[styles.modal, { paddingBottom: bottomInset }]}
         >
           <View style={styles.modalHandleContainer}>
             <View style={styles.modalHandle} />
@@ -349,7 +351,7 @@ const FilterModal: React.FC<FilterModalProps> = ({
 
             <TouchableOpacity onPress={handleApply} style={styles.applyButtonWrapper}>
               <LinearGradient
-                colors={['#6EA8FE', '#A78BFA']}
+                colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.applyButton}
@@ -381,7 +383,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     maxHeight: '90%',
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    // paddingBottom comes from useBottomInset, inline.
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -397,7 +400,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.border.strong,
   },
   header: {
     flexDirection: 'row',
@@ -414,7 +417,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 0,
   },
   badge: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderRadius: RADIUS.pill,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 2,
@@ -422,7 +425,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   badgeText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
@@ -483,7 +486,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: SPACING.md,
   },
   chipSelected: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderWidth: 1,
     borderColor: theme.accent.blueDim,
     borderRadius: RADIUS.large,
@@ -498,7 +501,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   chipTextSelected: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   priceRow: {
@@ -520,6 +523,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingTop: 20,
   },
   input: {
+    ...NUMERIC,
     backgroundColor: theme.glass.subtle,
     borderWidth: 1.5,
     borderColor: theme.border.medium,
@@ -542,7 +546,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   receiptButtonActive: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderWidth: 1,
     borderColor: theme.accent.blueDim,
     borderRadius: RADIUS.large,
@@ -557,7 +561,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   receiptButtonTextActive: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   footer: {
@@ -592,9 +596,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
   },
+  // Sits on the button gradient, not on the sheet, so it takes the on-accent
+  // ink. text.primary inverts with the surface and failed both themes.
   applyButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });

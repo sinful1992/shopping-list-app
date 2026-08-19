@@ -481,7 +481,7 @@ const HistoryScreen = () => {
       {/* List */}
       {lists.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No completed shopping trips</Text>
+          <Text style={styles.emptyText}>Finished trips land here — complete a list to start your history</Text>
         </View>
       ) : (
         <FlatList
@@ -635,7 +635,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     padding: 15,
   },
   listName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.text.primary,
     marginBottom: 4,
@@ -646,20 +646,20 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   listDate: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     fontWeight: '500',
     flex: 1,
   },
   listTotal: {
     ...NUMERIC,
-    fontSize: 15,
+    fontSize: 14,
     color: theme.accent.green,
     fontWeight: '700',
   },
   itemsNotBought: {
     fontSize: 12,
-    color: '#FF9500',
+    color: theme.accent.orange,
     fontWeight: '500',
     marginTop: 4,
   },

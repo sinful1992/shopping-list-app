@@ -48,7 +48,7 @@ function normalize(input: string): string {
   return input.normalize('NFKC').toLowerCase().trim();
 }
 
-function tokenize(input: string): string[] {
+export function tokenize(input: string): string[] {
   return normalize(input)
     .split(TOKEN_SPLIT)
     .filter(t => t.length > 0)

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Theme, RADIUS, NUMERIC } from '../../styles/theme';
+import { Theme, RADIUS, NUMERIC, STATUS_BAR } from '../../styles/theme';
 
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
@@ -25,10 +25,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
     flex: 1,
   },
-  editIcon: {
-    fontSize: 20,
-    padding: 5,
-  },
   titleInput: {
     flex: 1,
     fontSize: 24,
@@ -47,18 +43,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.accent.greenDim,
   },
-  titleSaveButtonText: {
-    fontSize: 20,
-  },
   titleCancelButton: {
     backgroundColor: theme.accent.redSubtle,
     padding: 10,
     borderRadius: RADIUS.small,
     borderWidth: 1,
     borderColor: theme.accent.redDim,
-  },
-  titleCancelButtonText: {
-    fontSize: 20,
   },
   addItemContainer: {
     flexDirection: 'row',
@@ -78,7 +68,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   addButton: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     padding: 10,
     borderRadius: RADIUS.medium,
     justifyContent: 'center',
@@ -86,7 +76,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.accent.blueDim,
   },
   addButtonText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontWeight: '600',
   },
   frequentItemsButton: {
@@ -99,79 +89,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.border.medium,
     marginRight: 10,
     minWidth: 44,
-  },
-  frequentItemsIcon: {
-    fontSize: 20,
-  },
-  itemContent: {
-    flex: 1,
-  },
-  itemPriceCompact: {
-    ...NUMERIC,
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.accent.green,
-    marginLeft: 8,
-  },
-  itemTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  itemName: {
-    fontSize: 16,
-    color: theme.text.primary,
-    flex: 1,
-  },
-  itemPrice: {
-    ...NUMERIC,
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.accent.green,
-    marginLeft: 8,
-  },
-  itemChecked: {
-    textDecorationLine: 'line-through',
-    color: theme.text.tertiary,
-  },
-  priceText: {
-    ...NUMERIC,
-    fontSize: 14,
-    color: theme.accent.green,
-    marginTop: 4,
-  },
-  priceInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  priceInputField: {
-    flex: 1,
-    backgroundColor: theme.glass.subtle,
-    padding: 8,
-    borderRadius: RADIUS.small,
-    borderWidth: 1,
-    borderColor: theme.border.medium,
-    color: theme.text.primary,
-    fontSize: 14,
-    marginRight: 8,
-  },
-  saveButton: {
-    backgroundColor: theme.accent.green,
-    padding: 8,
-    borderRadius: RADIUS.small,
-    borderWidth: 1,
-    borderColor: theme.accent.greenDim,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 36,
-  },
-  saveButtonText: {
-    fontSize: 16,
-  },
-  deleteButton: {
-    fontSize: 20,
-    padding: 5,
   },
   emptyState: {
     alignItems: 'center',
@@ -238,7 +155,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     padding: 16,
     borderRadius: RADIUS.xlarge,
     borderWidth: 1,
@@ -250,7 +167,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 20,
   },
   viewReceiptText: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -276,52 +193,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  importButton: {
-    backgroundColor: theme.accent.blueLight,
-    padding: 12,
-    borderRadius: RADIUS.medium,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.accent.blueDim,
-  },
-  importButtonText: {
-    color: theme.text.primary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  completeButton: {
-    borderRadius: RADIUS.xlarge,
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  completeButtonGradient: {
-    width: '100%',
-    padding: 16,
-    borderRadius: RADIUS.xlarge,
-    alignItems: 'center',
-  },
-  completeButtonText: {
-    color: theme.text.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
   smartStatusBar: {
     borderBottomWidth: 1,
     minHeight: 40,
   },
   statusShopping: {
-    backgroundColor: 'rgba(52, 199, 89, 0.95)',
-    borderBottomColor: 'rgba(52, 199, 89, 0.3)',
+    backgroundColor: STATUS_BAR.shopping,
+    borderBottomColor: STATUS_BAR.shoppingBorder,
   },
   statusLocked: {
-    backgroundColor: 'rgba(255, 149, 0, 0.9)',
-    borderBottomColor: 'rgba(255, 149, 0, 0.3)',
+    backgroundColor: STATUS_BAR.locked,
+    borderBottomColor: STATUS_BAR.lockedBorder,
   },
   statusCompleted: {
-    backgroundColor: 'rgba(142, 142, 147, 0.9)',
-    borderBottomColor: 'rgba(142, 142, 147, 0.3)',
+    backgroundColor: STATUS_BAR.completed,
+    borderBottomColor: STATUS_BAR.completedBorder,
   },
   statusContentCompact: {
     flexDirection: 'row',
@@ -345,7 +231,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
   },
   statusTextCompact: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -356,33 +242,28 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginLeft: 4,
   },
   budgetBadgeWarning: {
-    backgroundColor: 'rgba(255, 204, 0, 0.9)',
+    backgroundColor: STATUS_BAR.budgetWarning,
   },
   budgetBadgeOver: {
-    backgroundColor: 'rgba(255, 59, 48, 0.9)',
+    backgroundColor: STATUS_BAR.budgetOver,
   },
   budgetBadgeText: {
     ...NUMERIC,
-    color: theme.text.primary,
-    fontSize: 11,
+    color: STATUS_BAR.ink,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   expandButton: {
     padding: 4,
   },
-  expandIcon: {
-    color: theme.text.primary,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   doneButtonCompact: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: STATUS_BAR.scrim,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 16,
   },
   doneButtonText: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -395,8 +276,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  expandedTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  // Same row, but on the right of a space-between row against a "Status:"
+  // label, so it has to give way rather than overflow on a narrow screen.
+  expandedStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
   expandedTitle: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -413,46 +307,58 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   expandedLabel: {
-    color: theme.text.secondary,
-    fontSize: 13,
+    color: STATUS_BAR.inkMuted,
+    fontSize: 12,
     fontWeight: '500',
   },
   expandedValue: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
     fontSize: 14,
     fontWeight: '600',
   },
   textOk: {
-    color: theme.text.primary,
+    color: STATUS_BAR.ink,
   },
   textWarning: {
-    color: theme.accent.yellow,
+    color: STATUS_BAR.inkWarning,
+    flexShrink: 1,
   },
   textOver: {
-    color: theme.accent.red,
+    color: STATUS_BAR.inkOver,
   },
   expandedButtons: {
     flexDirection: 'row',
     gap: 10,
   },
+  // Outlined, not a white scrim: white-on-white-over-green never passed in
+  // either theme, and an outline reads as the secondary action it is.
   cancelButtonExpanded: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: STATUS_BAR.ink,
     padding: 12,
     borderRadius: RADIUS.small,
     alignItems: 'center',
   },
   cancelButtonText: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: STATUS_BAR.ink,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
+  // No border: the gradient is this button's only child and fills it, so a
+  // border would inset the gradient by 1px and show the panel through the gap.
   doneButtonExpanded: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    padding: 12,
     borderRadius: RADIUS.small,
-    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  // Sits on the blue→purple gradient, not on the status bar, so it takes the
+  // theme's on-accent ink rather than the pinned bar ink.
+  gradientDoneButtonText: {
+    color: theme.text.onAccent,
+    fontSize: 14,
+    fontWeight: '600',
   },
   storeWarningBanner: {
     flexDirection: 'row',
@@ -465,11 +371,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   storeWarningText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.yellow,
   },
   storeWarningLink: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.blue,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -486,11 +392,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   changeStoreLabel: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
   },
   changeStoreLink: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.accent.blue,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -510,8 +416,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   gradientDoneButton: {
     borderRadius: 8,
     alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     padding: 12,
     width: '100%' as const,
+    // flex, not height: '100%'. The parent's height is auto, so a percentage
+    // height has no definite box to resolve against and Yoga measures it
+    // against the available space instead — the gradient claimed the whole
+    // viewport, its parent grew to contain it, and the row (and the status
+    // bar with it) filled the screen. flex: 1 fills the height the row's
+    // stretch actually hands out, which Cancel's intrinsic height sets.
+    flex: 1,
   },
 });
 

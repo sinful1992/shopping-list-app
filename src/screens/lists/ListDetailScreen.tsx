@@ -11,6 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import createStyles from './ListDetailScreen.styles';
+import { STATUS_BAR, HIT_SLOP } from '../../styles/theme';
 import { ScrollViewContainer } from 'react-native-reorderable-list';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +34,7 @@ import CategoryService, { CategoryType } from '../../services/CategoryService';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import StoreHistoryService from '../../services/StoreHistoryService';
 import StoreLayoutService from '../../services/StoreLayoutService';
+import { completeCategoryOrder } from '../../services/categoryOrder';
 import PriceEditModal from '../../components/PriceEditModal';
 import SizeEditModal from '../../components/SizeEditModal';
 import DetailsEditModal from '../../components/DetailsEditModal';
@@ -793,10 +795,12 @@ const ListDetailScreen = () => {
     };
   }, [optimisticItems]);
 
-  // Category display order: use layout order when layout is active, otherwise default service order
+  // Category display order: use layout order when layout is active, otherwise
+  // default service order. completeCategoryOrder guarantees every category is
+  // present — one missing would hide its items from the list.
   const categoryDisplayOrder = useMemo(() => {
     if (storeLayout) {
-      return storeLayout.categoryOrder;
+      return completeCategoryOrder(storeLayout.categoryOrder);
     }
     return CategoryService.getCategories().map(c => c.id as CategoryType);
   }, [storeLayout]);
@@ -855,10 +859,11 @@ const ListDetailScreen = () => {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          hitSlop={HIT_SLOP}
           accessibilityLabel="Go back"
           accessibilityRole="button"
         >
-          <Icon name="chevron-back" size={24} color="#007AFF" />
+          <Icon name="chevron-back" size={24} color={theme.accent.blue} />
         </TouchableOpacity>
         {isEditingListName ? (
           <>
@@ -914,7 +919,7 @@ const ListDetailScreen = () => {
           {isShoppingMode && !isShoppingHeaderExpanded && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Icon name="cart" size={16} color={theme.text.primary} style={styles.statusIcon} />
+                <Icon name="cart" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   £{runningTotal.toFixed(2)} • {checkedCount}/{checkedCount + uncheckedCount}
                 </Text>
@@ -929,11 +934,11 @@ const ListDetailScreen = () => {
                     </Text>
                   </View>
                 )}
-                {!isOnline && <Icon name="cloud-offline-outline" size={16} color={theme.text.primary} style={styles.statusIcon} />}
+                {!isOnline && <Icon name="cloud-offline-outline" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />}
               </View>
               <View style={styles.statusRight}>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
-                  <Icon name="chevron-down" size={14} color={theme.text.primary} />
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(true)} style={styles.expandButton} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Expand shopping summary">
+                  <Icon name="chevron-down" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.doneButtonCompact} onPress={handleDoneShopping}>
                   <Text style={styles.doneButtonText}>Done</Text>
@@ -946,9 +951,12 @@ const ListDetailScreen = () => {
           {isShoppingMode && isShoppingHeaderExpanded && (
             <View style={styles.statusContentExpanded}>
               <View style={styles.expandedHeader}>
-                <Text style={styles.expandedTitle}>🛒 Shopping Mode</Text>
-                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
-                  <Icon name="chevron-up" size={14} color={theme.text.primary} />
+                <View style={styles.expandedTitleRow}>
+                  <Icon name="cart" size={16} color={STATUS_BAR.ink} />
+                  <Text style={styles.expandedTitle}>Shopping Mode</Text>
+                </View>
+                <TouchableOpacity onPress={() => setIsShoppingHeaderExpanded(false)} style={styles.collapseButton} hitSlop={HIT_SLOP} accessibilityRole="button" accessibilityLabel="Collapse shopping summary">
+                  <Icon name="chevron-up" size={14} color={STATUS_BAR.ink} />
                 </TouchableOpacity>
               </View>
               <View style={styles.expandedStats}>
@@ -976,7 +984,10 @@ const ListDetailScreen = () => {
                 {!isOnline && (
                   <View style={styles.expandedRow}>
                     <Text style={styles.expandedLabel}>Status:</Text>
-                    <Text style={styles.textWarning}>📡 Offline - Changes will sync later</Text>
+                    <View style={styles.expandedStatusRow}>
+                      <Icon name="cloud-offline-outline" size={14} color={STATUS_BAR.inkWarning} />
+                      <Text style={styles.textWarning}>Offline — changes will sync later</Text>
+                    </View>
                   </View>
                 )}
               </View>
@@ -991,7 +1002,7 @@ const ListDetailScreen = () => {
                     end={{ x: 1, y: 1 }}
                     style={styles.gradientDoneButton}
                   >
-                    <Text style={styles.doneButtonText}>Done Shopping</Text>
+                    <Text style={styles.gradientDoneButtonText}>Done Shopping</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1002,7 +1013,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && isListLocked && list && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Icon name="lock-closed" size={16} color={theme.text.primary} style={styles.statusIcon} />
+                <Icon name="lock-closed" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   {list.lockedByRole || list.lockedByName || 'Someone'} is shopping now
                 </Text>
@@ -1014,7 +1025,7 @@ const ListDetailScreen = () => {
           {!isShoppingMode && !isListLocked && isListCompleted && !canAddItems && (
             <View style={styles.statusContentCompact}>
               <View style={styles.statusLeft}>
-                <Icon name="checkmark-circle" size={16} color={theme.accent.green} style={styles.statusIcon} />
+                <Icon name="checkmark-circle" size={16} color={STATUS_BAR.ink} style={styles.statusIcon} />
                 <Text style={styles.statusTextCompact}>
                   Completed - Only shopper can add items
                 </Text>
@@ -1083,7 +1094,7 @@ const ListDetailScreen = () => {
       >
         {Object.keys(uncheckedGrouped).length === 0 && Object.keys(checkedGrouped).length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No items yet</Text>
+            <Text style={styles.emptyText}>Add your first item above</Text>
           </View>
         ) : (
           <>
@@ -1102,19 +1113,21 @@ const ListDetailScreen = () => {
                             onPress={() => handleMoveCategory(cat, 'up')}
                             disabled={idx === 0}
                             style={styles.arrowButton}
+                            hitSlop={HIT_SLOP}
                             accessibilityRole="button"
                             accessibilityLabel={`Move ${category?.name || cat} up`}
                           >
-                            <Icon name="chevron-up" size={18} color={idx === 0 ? '#3A3A3C' : '#6E6E73'} />
+                            <Icon name="chevron-up" size={18} color={idx === 0 ? theme.text.dim : theme.text.secondary} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             onPress={() => handleMoveCategory(cat, 'down')}
                             disabled={idx === visibleCategories.length - 1}
                             style={styles.arrowButton}
+                            hitSlop={HIT_SLOP}
                             accessibilityRole="button"
                             accessibilityLabel={`Move ${category?.name || cat} down`}
                           >
-                            <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? '#3A3A3C' : '#6E6E73'} />
+                            <Icon name="chevron-down" size={18} color={idx === visibleCategories.length - 1 ? theme.text.dim : theme.text.secondary} />
                           </TouchableOpacity>
                         </View>
                       )}
@@ -1237,7 +1250,7 @@ const ListDetailScreen = () => {
                 style={styles.viewReceiptButton}
                 onPress={() => navigation.navigate('ReceiptView', { listId })}
               >
-                <Icon name="document-text-outline" size={20} color={theme.text.primary} style={styles.viewReceiptIcon} />
+                <Icon name="document-text-outline" size={20} color={theme.text.onAccent} style={styles.viewReceiptIcon} />
                 <Text style={styles.viewReceiptText}>View Receipt</Text>
               </TouchableOpacity>
             )}

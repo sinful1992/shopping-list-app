@@ -165,7 +165,7 @@ const FamilyGroupScreen = () => {
                   {'\n'}was declined.
                 </Text>
                 <TouchableOpacity style={styles.retryButton} onPress={handleRetryAfterRejection}>
-                  <LinearGradient colors={['#6EA8FE', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
+                  <LinearGradient colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
                     <Text style={styles.buttonText}>Try Another Code</Text>
                   </LinearGradient>
                 </TouchableOpacity>
@@ -210,8 +210,8 @@ const FamilyGroupScreen = () => {
                       editable={!loading}
                     />
                     <TouchableOpacity style={loading ? styles.buttonDisabled : undefined} onPress={handleCreateGroup} disabled={loading}>
-                      <LinearGradient colors={['#6EA8FE', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
-                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create Family Group</Text>}
+                      <LinearGradient colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
+                        {loading ? <ActivityIndicator color={theme.text.onAccent} /> : <Text style={styles.buttonText}>Create Family Group</Text>}
                       </LinearGradient>
                     </TouchableOpacity>
                   </>
@@ -231,8 +231,8 @@ const FamilyGroupScreen = () => {
                       A member of the group will need to approve your request.
                     </Text>
                     <TouchableOpacity style={loading ? styles.buttonDisabled : undefined} onPress={handleRequestJoin} disabled={loading}>
-                      <LinearGradient colors={['#6EA8FE', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
-                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Request to Join</Text>}
+                      <LinearGradient colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
+                        {loading ? <ActivityIndicator color={theme.text.onAccent} /> : <Text style={styles.buttonText}>Request to Join</Text>}
                       </LinearGradient>
                     </TouchableOpacity>
                   </>
@@ -297,7 +297,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
   },
   joinHint: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.dim,
     textAlign: 'center',
     marginBottom: 20,
@@ -312,7 +312,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -347,7 +347,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   cancelButtonText: {
     color: theme.text.secondary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   rejectedIcon: {

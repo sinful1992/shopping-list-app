@@ -1,5 +1,13 @@
-import messaging from '@react-native-firebase/messaging';
-import auth from '@react-native-firebase/auth';
+import {
+  getMessaging,
+  requestPermission,
+  getToken,
+  onMessage,
+  onTokenRefresh,
+  deleteToken,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
+import { getAuth, getIdToken } from '@react-native-firebase/auth';
 import { PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EncryptedStorage from 'react-native-encrypted-storage';
@@ -28,10 +36,10 @@ class NotificationManager {
       }
 
       // For iOS or older Android versions
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(getMessaging());
       const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
 
       return enabled;
     } catch {
@@ -71,7 +79,7 @@ class NotificationManager {
       }
 
       // Get new token from FCM
-      const token = await messaging().getToken();
+      const token = await getToken(getMessaging());
 
       // Cache the token
       this.fcmToken = token;
@@ -94,7 +102,8 @@ class NotificationManager {
         return;
       }
 
-      const idToken = await auth().currentUser?.getIdToken();
+      const currentUser = getAuth().currentUser;
+      const idToken = currentUser ? await getIdToken(currentUser) : undefined;
       const { error } = await supabase.functions.invoke('register-device-token', {
         body: {
           idToken,
@@ -131,12 +140,12 @@ class NotificationManager {
    */
   initializeListeners(onNotificationReceived: (notification: any) => void): () => void {
     // Handle foreground notifications
-    const unsubMessage = messaging().onMessage(async (remoteMessage) => {
+    const unsubMessage = onMessage(getMessaging(), async (remoteMessage) => {
       onNotificationReceived(remoteMessage);
     });
 
     // Handle token refresh
-    const unsubTokenRefresh = messaging().onTokenRefresh(async (token) => {
+    const unsubTokenRefresh = onTokenRefresh(getMessaging(), async (token) => {
       this.fcmToken = token;
       await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
 
@@ -174,7 +183,8 @@ class NotificationManager {
     listName: string
   ): Promise<void> {
     try {
-      const idToken = await auth().currentUser?.getIdToken();
+      const currentUser = getAuth().currentUser;
+      const idToken = currentUser ? await getIdToken(currentUser) : undefined;
       await supabase.functions.invoke('notify-shopping-started', {
         body: {
           idToken,
@@ -206,7 +216,8 @@ class NotificationManager {
     currency?: string | null;
   }): Promise<void> {
     try {
-      const idToken = await auth().currentUser?.getIdToken();
+      const currentUser = getAuth().currentUser;
+      const idToken = currentUser ? await getIdToken(currentUser) : undefined;
       await supabase.functions.invoke('notify-receipt-scanned', {
         body: {
           idToken,
@@ -231,7 +242,7 @@ class NotificationManager {
    */
   async clearToken(): Promise<void> {
     try {
-      await messaging().deleteToken();
+      await deleteToken(getMessaging());
       await EncryptedStorage.removeItem(this.FCM_TOKEN_KEY);
       await EncryptedStorage.removeItem('@fcm_token_data');
       this.fcmToken = null;

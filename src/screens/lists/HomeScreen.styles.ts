@@ -51,10 +51,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   completedBadge: {
     fontSize: 12,
     color: theme.accent.green,
-    backgroundColor: theme.accent.greenDim,
+    backgroundColor: theme.accent.greenSubtle,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: SPACING.sm,
+    borderRadius: RADIUS.small,
     fontWeight: '600',
   },
   listDate: {
@@ -62,19 +62,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   listDateFormatted: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.text.primary,
     fontWeight: '600',
     marginTop: 4,
   },
   storeName: {
-    fontSize: 17,
+    fontSize: 16,
     color: theme.text.primary,
     fontWeight: '700',
     marginTop: 6,
   },
   listDateSecondary: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.tertiary,
     marginTop: 4,
   },
@@ -86,7 +86,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   shoppingBadge: {
     fontSize: 12,
     color: theme.accent.orange,
-    backgroundColor: theme.accent.orangeDim,
+    backgroundColor: theme.accent.orangeSubtle,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -104,7 +104,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingTop: 100,
   },
   emptyText: {
-    fontSize: 22,
+    fontSize: 20,
     color: theme.text.primary,
     marginBottom: 10,
     fontWeight: '600',
@@ -227,7 +227,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   modalButtonConfirm: {
     overflow: 'hidden',
-    padding: 0,
+    // The inner gradient carries the padding, so the outer pressable must have
+    // none. `padding: 0` does not do that: Yoga resolves paddingVertical /
+    // paddingHorizontal ahead of the padding shorthand, so modalButton's values
+    // survived and the button was padded twice. The row then stretched Cancel
+    // to match, which is why it rendered noticeably taller than Create.
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   modalButtonConfirmGradient: {
     paddingVertical: 12,
@@ -237,7 +243,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonText: {
-    color: theme.text.primary,
+    // Sits on the button gradient, not on a surface: text.primary measured
+    // 2.4:1 in light and 2.5:1 in dark. onAccent flips with the theme and
+    // measures ~7:1 on both.
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

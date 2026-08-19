@@ -169,17 +169,27 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       gap: 6,
       marginTop: 2,
     },
+    // Not coloured by category: the 12 category hexes are a fixed Material
+    // palette that can't follow the theme, and 10 of them failed contrast as
+    // 11px text on a light card. The category emoji carries the identity.
     categoryLabel: {
       fontSize: 11,
       fontWeight: '600',
+      color: theme.text.secondary,
+      // The glyph is a real width addition to a row that also carries the
+      // measurement and the add-size prompt; shrink and truncate rather than
+      // pushing them off a narrow screen.
+      flexShrink: 1,
     },
     measurementText: {
       fontSize: 11,
       fontWeight: '700',
     },
+    // tertiary, not dim: this is a call to action ("+ add size"), and dim is
+    // the disabled/placeholder token.
     addSizeText: {
       fontSize: 11,
-      color: theme.text.dim,
+      color: theme.text.tertiary,
       fontStyle: 'italic',
     },
     checkedOpacity: { opacity: 0.5 },
@@ -194,7 +204,6 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
   const qty = item.unitQty ?? 1;
   const totalPrice = itemPrice * qty;
   const categoryInfo = item.category ? CategoryService.getCategory(item.category) : null;
-  const categoryColorStyle = categoryInfo ? { color: categoryInfo.color } : null;
   const measurementColorStyle = { color: VOLUME_UNITS.includes(item.measurementUnit ?? '') ? theme.accent.blue : theme.accent.purple };
 
   const checkScale = useSharedValue(displayChecked ? 1 : 0);
@@ -304,8 +313,8 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
           </View>
           <View style={cardStyles.subRow}>
             {categoryInfo && (
-              <Text style={[cardStyles.categoryLabel, categoryColorStyle]}>
-                {categoryInfo.name}
+              <Text style={cardStyles.categoryLabel} numberOfLines={1}>
+                {categoryInfo.icon} {categoryInfo.name}
               </Text>
             )}
             {item.measurementUnit ? (

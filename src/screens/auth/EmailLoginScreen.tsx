@@ -83,13 +83,13 @@ const EmailLoginScreen = () => {
               disabled={loading}
             >
               <LinearGradient
-                colors={['#6EA8FE', '#A78BFA']}
+                colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.button}
               >
                 {loading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={theme.text.onAccent} />
                 ) : (
                   <Text style={styles.buttonText}>Sign In</Text>
                 )}
@@ -148,7 +148,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

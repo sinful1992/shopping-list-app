@@ -14,7 +14,7 @@ interface Props {
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [data, setData] = useState<Array<{ itemName: string; volatility: number; priceRange: number }>>([]);
   const [loading, setLoading] = useState(true);
@@ -35,12 +35,14 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
   }, [familyGroupId]);
 
   const chartWidth = screenWidth - 62 - 40;
-  const axisColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-  const labelColor = isDark ? '#a0a0a0' : '#6B7280';
+  // Tokens, not a hand-rolled isDark ternary: these are the same axis and
+  // label colours AnalyticsScreen's own charts use, and they already flip.
+  const axisColor = theme.border.strong;
+  const labelColor = theme.text.secondary;
   const chartAxisStyle = { color: labelColor, fontSize: 10 };
 
   return (
-    <View style={styles.card}>
+    <View>
       <Text style={styles.title}>Most Volatile Prices</Text>
       <Text style={styles.subtitle}>Items with the biggest price swings</Text>
 
@@ -58,7 +60,7 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
               label: capitalize(d.itemName).length > 10
                 ? capitalize(d.itemName).substring(0, 10) + '...'
                 : capitalize(d.itemName),
-              labelTextStyle: { color: labelColor, fontSize: 9 },
+              labelTextStyle: { color: labelColor, fontSize: 10 },
               frontColor: theme.accent.red,
             }))}
             width={chartWidth}
@@ -86,15 +88,6 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: theme.glass.subtle,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    padding: 12,
-    marginHorizontal: 15,
-    marginTop: 10,
-  },
   title: {
     fontSize: 18,
     fontWeight: '700',
@@ -102,7 +95,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     marginBottom: 12,
   },
@@ -115,6 +108,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   chartContainer: {
     marginTop: 4,
+    // The chart width predates the card's removal, so it is narrower than the
+    // space available now — centre it rather than widening it.
+    alignItems: 'center',
   },
   activityIndicator: { marginVertical: 20 },
   chartTopLabel: { color: theme.text.primary, fontSize: 10, fontWeight: '600' as const },

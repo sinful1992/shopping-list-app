@@ -7,16 +7,16 @@ import {
   Modal,
   ScrollView,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { TopItem } from '../services/AnalyticsService';
 import AnalyticsService from '../services/AnalyticsService';
 import { useUser } from '../contexts/UserContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 interface FrequentlyBoughtModalProps {
   visible: boolean;
@@ -31,6 +31,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomInset = useBottomInset();
   const user = useUser();
   const [loading, setLoading] = useState(true);
   const [frequentItems, setFrequentItems] = useState<TopItem[]>([]);
@@ -94,7 +95,7 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
         />
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={styles.modal}
+          style={[styles.modal, { paddingBottom: bottomInset }]}
         >
           <View style={styles.modalHandleContainer}>
             <View style={styles.modalHandle} />
@@ -170,8 +171,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   modal: {
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    // paddingBottom comes from useBottomInset, inline.
     maxHeight: '80%',
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -187,7 +189,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.border.strong,
   },
   header: {
     flexDirection: 'row',
@@ -276,6 +278,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   itemPrice: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: theme.accent.green,

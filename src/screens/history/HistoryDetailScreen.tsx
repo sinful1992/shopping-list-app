@@ -201,7 +201,7 @@ const HistoryDetailScreen = () => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color={theme.accent.blue} />
         <Text style={styles.loadingText}>Loading details...</Text>
       </View>
     );
@@ -243,7 +243,7 @@ const HistoryDetailScreen = () => {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Items ({checkedItems.length}/{items.length} bought)</Text>
         {items.length === 0 ? (
-          <Text style={styles.emptyText}>No items in this list</Text>
+          <Text style={styles.emptyText}>This trip was completed without any items</Text>
         ) : (
           <>
             {uncheckedItems.length > 0 && (
@@ -533,7 +533,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.tertiary,
   },
   itemQuantity: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     marginTop: 2,
   },
@@ -600,32 +600,32 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   deleteButton: {
     padding: 15,
     marginHorizontal: 10,
-    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    backgroundColor: theme.accent.red,
     borderRadius: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.3)',
-    shadowColor: '#FF3B30',
+    borderColor: theme.accent.redDim,
+    shadowColor: theme.accent.red,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 5,
   },
   deleteButtonText: {
-    color: '#fff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
   subSectionHeaderNotPurchased: {
-    backgroundColor: 'rgba(255, 149, 0, 0.12)',
+    backgroundColor: theme.accent.orangeSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(255, 149, 0, 0.3)',
+    borderColor: theme.accent.orangeDim,
     borderRadius: 10,
     padding: 10,
     marginBottom: 4,
   },
   subSectionTitleNotPurchased: {
-    color: '#FF9500',
+    color: theme.accent.orange,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -634,16 +634,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   subSectionTitlePurchased: {
-    color: '#30D158',
+    color: theme.accent.green,
     fontSize: 14,
     fontWeight: '700',
   },
   itemNameNotPurchased: {
-    color: '#FF9500',
+    color: theme.accent.orange,
   },
   itemPriceNotPurchased: {
     ...NUMERIC,
-    color: '#FF9500',
+    color: theme.accent.orange,
   },
   itemsMarginTop: { marginTop: 12 },
 });

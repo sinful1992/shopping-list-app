@@ -1,10 +1,7 @@
 import React from 'react';
-import { Platform, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import Svg, { Polygon, Line } from 'react-native-svg';
 import { useTheme } from '../contexts/ThemeContext';
-
-/** Font that evokes thermal receipt print. */
-export const RECEIPT_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' });
 
 const TOOTH_HEIGHT = 7;
 const TEETH = 24;

@@ -424,7 +424,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 15,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderRadius: 14,
     alignItems: 'center',
     borderWidth: 1,
@@ -437,7 +437,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   filterButtonText: {
     fontSize: 14,
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontWeight: '600',
   },
   alertsContainer: {
@@ -534,7 +534,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
   },
   saveButton: {
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     padding: SPACING.md,
     borderRadius: RADIUS.medium,
     alignItems: 'center',
@@ -545,7 +545,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   saveButtonText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: theme.text.primary,
+    color: theme.text.onAccent,
   },
   breakdownContainer: {
     flex: 1,
@@ -583,11 +583,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   listDate: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
   },
   merchantName: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.tertiary,
     marginTop: 2,
   },

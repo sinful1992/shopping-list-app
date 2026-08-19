@@ -20,6 +20,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { HIT_SLOP } from '../../styles/theme';
 import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
@@ -268,6 +269,7 @@ const SettingsScreen = () => {
             <Text style={styles.value}>{user?.displayName || 'Not set'}</Text>
             <TouchableOpacity
               style={styles.editButton}
+              hitSlop={HIT_SLOP}
               onPress={handleEditName}
               accessibilityRole="button"
               accessibilityLabel="Edit name"
@@ -285,6 +287,7 @@ const SettingsScreen = () => {
             </View>
             <TouchableOpacity
               style={styles.editButton}
+              hitSlop={HIT_SLOP}
               onPress={handleEditRole}
               accessibilityRole="button"
               accessibilityLabel="Edit family role"
@@ -372,6 +375,7 @@ const SettingsScreen = () => {
                 )}
                 <TouchableOpacity
                   style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
+                  hitSlop={HIT_SLOP}
                   onPress={() => {
                     if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
                       // Retry loading
@@ -423,8 +427,8 @@ const SettingsScreen = () => {
                       disabled={approvingId === req.userId || rejectingId === req.userId}
                     >
                       {approvingId === req.userId
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Icon name="checkmark" size={18} color="#fff" />}
+                        ? <ActivityIndicator size="small" color={theme.text.onAccent} />
+                        : <Icon name="checkmark" size={18} color={theme.text.onAccent} />}
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.requestActionButton, styles.requestRejectButton]}
@@ -432,8 +436,8 @@ const SettingsScreen = () => {
                       disabled={approvingId === req.userId || rejectingId === req.userId}
                     >
                       {rejectingId === req.userId
-                        ? <ActivityIndicator size="small" color="#fff" />
-                        : <Icon name="close" size={18} color="#fff" />}
+                        ? <ActivityIndicator size="small" color={theme.text.onAccent} />
+                        : <Icon name="close" size={18} color={theme.text.onAccent} />}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -448,7 +452,7 @@ const SettingsScreen = () => {
               <Text style={styles.sectionTitle}>Family Members</Text>
             </View>
             {familyMembers.length === 0 ? (
-              <Text style={styles.emptyText}>No family members</Text>
+              <Text style={styles.emptyText}>Share your invitation code above to shop together</Text>
             ) : (
               <>
                 {familyMembers.map((member, index) => (
@@ -528,7 +532,7 @@ const SettingsScreen = () => {
       {/* Logout Section */}
       <View style={styles.section}>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Icon name="log-out-outline" size={24} color="#ffffff" />
+          <Icon name="log-out-outline" size={24} color={theme.accent.red} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -536,11 +540,11 @@ const SettingsScreen = () => {
       {/* Danger Zone */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Icon name="warning-outline" size={24} color="#FF3B30" />
+          <Icon name="warning-outline" size={24} color={theme.accent.red} />
           <Text style={[styles.sectionTitle, styles.dangerTitle]}>Danger Zone</Text>
         </View>
         <Text style={styles.dangerWarning}>
-          ⚠️ Permanently delete your account and all associated data. This action cannot be undone.
+          Permanently delete your account and all associated data. This action cannot be undone.
         </Text>
         <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
           <Icon name="trash-outline" size={24} color="#ffffff" />

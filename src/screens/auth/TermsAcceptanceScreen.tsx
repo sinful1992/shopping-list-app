@@ -94,13 +94,13 @@ const TermsAcceptanceScreen = () => {
           onPress={handleAccept}
           disabled={loading}>
           <LinearGradient
-            colors={['#6EA8FE', '#A78BFA']}
+            colors={[theme.gradient.buttonStart, theme.gradient.buttonEnd]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.acceptButton}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#ffffff" />
+              <ActivityIndicator size="small" color={theme.text.onAccent} />
             ) : (
               <Text style={styles.acceptButtonText}>I Accept</Text>
             )}
@@ -171,7 +171,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     opacity: 0.6,
   },
   acceptButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 18,
     fontWeight: '700',
   },

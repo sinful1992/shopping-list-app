@@ -13,10 +13,11 @@ import LinearGradient from 'react-native-linear-gradient';
 import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService, { PriceStats } from '../services/PriceHistoryService';
 import { useUser } from '../contexts/UserContext';
-import { RADIUS, SPACING, TYPOGRAPHY } from '../styles/theme';
+import { RADIUS, SPACING, TYPOGRAPHY, NUMERIC } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -33,6 +34,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const bottomInset = useBottomInset();
   const user = useUser();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<PriceStats | null>(null);
@@ -74,10 +76,13 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
     });
   };
 
+  // A vector arrow rather than 📈/📉/➡️: the emoji carried the direction with
+  // no text alternative for a screen reader, and rendered differently across
+  // OEM font stacks. The signed percentage beside it now says the same thing.
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    if (trend === 'up') return '📈';
-    if (trend === 'down') return '📉';
-    return '➡️';
+    if (trend === 'up') return 'arrow-up';
+    if (trend === 'down') return 'arrow-down';
+    return 'remove';
   };
 
   const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
@@ -99,7 +104,7 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
       <View style={styles.modalOverlay}>
         <LinearGradient
           colors={[theme.gradient.modalStart, theme.gradient.modalEnd]}
-          style={styles.modalContainer}
+          style={[styles.modalContainer, { paddingBottom: bottomInset }]}
         >
           <View style={styles.modalHandleContainer}>
             <View style={styles.modalHandle} />
@@ -134,10 +139,20 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                     <Text style={styles.statValueLarge}>
                       £{stats.currentPrice?.toFixed(2) || 'N/A'}
                     </Text>
-                    <View style={[styles.trendBadge, { backgroundColor: getTrendColor(stats.trend) }]}>
-                      <Text style={styles.trendIcon}>{getTrendIcon(stats.trend)}</Text>
+                    <View
+                      style={[styles.trendBadge, { backgroundColor: getTrendColor(stats.trend) }]}
+                      accessibilityRole="text"
+                      accessibilityLabel={
+                        stats.trend === 'stable'
+                          ? 'Price stable'
+                          : `Price ${stats.trend} ${Math.abs(stats.percentageChange).toFixed(1)} percent`
+                      }
+                    >
+                      <Icon name={getTrendIcon(stats.trend)} size={14} color={theme.text.onAccent} />
                       <Text style={styles.trendText}>
-                        {stats.trend === 'stable' ? 'Stable' : `${Math.abs(stats.percentageChange).toFixed(1)}%`}
+                        {stats.trend === 'stable'
+                          ? 'Stable'
+                          : `${stats.trend === 'up' ? '+' : '−'}${Math.abs(stats.percentageChange).toFixed(1)}%`}
                       </Text>
                     </View>
                   </View>
@@ -188,6 +203,11 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                             value: data.average,
                             label: store.length > 8 ? store.substring(0, 8) + '...' : store,
                             labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+                            // Raw floats otherwise: an average that does not
+                            // divide cleanly reads as 1.4614285714285715.
+                            topLabelComponent: () => (
+                              <Text style={chartTopLabelStyle}>{data.average.toFixed(2)}</Text>
+                            ),
                             frontColor: isCheapest ? theme.accent.green : theme.accent.blue,
                           };
                         })}
@@ -197,8 +217,6 @@ const PriceHistoryModal: React.FC<PriceHistoryModalProps> = ({
                         barBorderRadius={8}
                         isAnimated
                         animationDuration={600}
-                        showValuesAsTopLabel
-                        topLabelTextStyle={chartTopLabelStyle}
                         rulesColor={theme.border.medium}
                         rulesThickness={1}
                         xAxisColor={theme.border.medium}
@@ -274,6 +292,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderTopLeftRadius: RADIUS.modal,
     borderTopRightRadius: RADIUS.modal,
     maxHeight: '85%',
+    // paddingBottom comes from useBottomInset, inline. This sheet had none at
+    // all, so its content ran straight under the nav bar.
+    flexShrink: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
@@ -289,7 +310,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: theme.border.strong,
   },
   header: {
     flexDirection: 'row',
@@ -387,11 +408,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
   },
   statValue: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: theme.text.primary,
   },
   statValueLarge: {
+    ...NUMERIC,
     fontSize: 28,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: theme.text.primary,
@@ -408,13 +431,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.medium,
   },
-  trendIcon: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-  },
   trendText: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: theme.text.primary,
+    color: theme.text.onAccent,
   },
   priceGreen: {
     color: theme.accent.green,
@@ -503,6 +524,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 2,
   },
   historyPrice: {
+    ...NUMERIC,
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: theme.accent.green,

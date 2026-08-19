@@ -16,6 +16,7 @@ import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { UrgentItem } from '../../models/types';
 import { useUrgentItems } from '../../hooks';
+import { NUMERIC } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -134,7 +135,7 @@ const UrgentItemsScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Active Urgent Items ({activeItems.length})</Text>
           {activeItems.length === 0 ? (
-            <Text style={styles.emptyText}>No active urgent items</Text>
+            <Text style={styles.emptyText}>Nothing urgent right now — tap + when you need something picked up</Text>
           ) : (
             <View>
               {activeItems.map((item) => (
@@ -167,7 +168,7 @@ const UrgentItemsScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Resolved ({resolvedItems.length})</Text>
           {resolvedItems.length === 0 ? (
-            <Text style={styles.emptyText}>No resolved items</Text>
+            <Text style={styles.emptyText}>Urgent items appear here once someone picks them up</Text>
           ) : (
             <View>
               {resolvedItems.map((item) => (
@@ -198,7 +199,7 @@ const UrgentItemsScreen = () => {
         accessibilityRole="button"
         accessibilityLabel="Create urgent item"
       >
-        <Text style={styles.fabText}>🔥</Text>
+        <Icon name="add" size={32} color={theme.text.onAccent} />
       </TouchableOpacity>
 
       {/* Create Modal */}
@@ -328,9 +329,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: 20,
   },
   activeItemCard: {
-    backgroundColor: 'rgba(255, 107, 53, 0.15)',
+    backgroundColor: theme.accent.orangeSubtle,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: theme.accent.orange,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -372,12 +373,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 4,
   },
   itemMeta: {
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.secondary,
     marginBottom: 8,
   },
   resolvedMeta: {
-    fontSize: 13,
+    ...NUMERIC,
+    fontSize: 12,
     color: theme.accent.green,
     fontWeight: '600',
   },
@@ -390,7 +392,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   resolveButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -401,17 +403,14 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#FF6B35',
+    backgroundColor: theme.accent.orange,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#FF6B35',
+    shadowColor: theme.accent.orange,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 12,
     elevation: 8,
-  },
-  fabText: {
-    fontSize: 32,
   },
   modalOverlay: {
     flex: 1,
@@ -430,7 +429,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderColor: theme.border.subtle,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.text.primary,
     marginBottom: 8,
@@ -472,13 +471,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   createButton: {
     flex: 1,
-    backgroundColor: '#FF6B35',
+    backgroundColor: theme.accent.orange,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   createButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '700',
   },

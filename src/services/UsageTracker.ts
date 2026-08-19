@@ -1,5 +1,5 @@
 import { getDatabase, ref, get, set, runTransaction } from '@react-native-firebase/database';
-import auth from '@react-native-firebase/auth';
+import { getAuth, getIdTokenResult } from '@react-native-firebase/auth';
 import { User, UsageCounters, FamilyGroup, SubscriptionTier } from '../models/types';
 import { SUBSCRIPTION_LIMITS } from '../models/SubscriptionConfig';
 
@@ -23,12 +23,12 @@ class UsageTracker {
    */
   private async isAdmin(): Promise<boolean> {
     try {
-      const currentUser = auth().currentUser;
+      const currentUser = getAuth().currentUser;
       if (!currentUser) {
         return false;
       }
 
-      const idTokenResult = await currentUser.getIdTokenResult();
+      const idTokenResult = await getIdTokenResult(currentUser);
       return idTokenResult.claims.admin === true;
     } catch {
       return false;

@@ -1,7 +1,9 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.33.3",
+  "version": "1.38.5",
   "private": true,
+  "license": "UNLICENSED",
+  "author": "sinful1992",
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
@@ -9,6 +11,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "knip": "knip",
+    "check:encoding": "node scripts/check-encoding.js",
     "postinstall": "patch-package"
   },
   "dependencies": {

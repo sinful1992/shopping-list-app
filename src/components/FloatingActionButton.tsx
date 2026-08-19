@@ -10,6 +10,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Theme } from '../styles/theme';
+import { useBottomInset } from '../hooks/useBottomInset';
 
 interface FloatingActionButtonProps {
   icon?: string;
@@ -38,11 +39,15 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   const [pressed, setPressed] = useState(false);
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  // Keeps its original 20 as the floor, so nothing moves on a device with no
+  // nav bar to clear. `style` stays after this so callers can still override.
+  const bottomInset = useBottomInset(20);
 
   return (
     <Animated.View
       style={[
         styles.fabContainer,
+        { bottom: bottomInset },
         style,
         {
           transform: [{ scale: pressed ? 0.9 : 1 }],
@@ -77,7 +82,7 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
           >
             <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
-            {label && <Text style={styles.fabLabel}>{label}</Text>}
+            {label && <Text style={[styles.fabLabel, styles.fabLabelDisabled]}>{label}</Text>}
           </LinearGradient>
         ) : (
           <LinearGradient
@@ -86,8 +91,8 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             end={{ x: 1, y: 1 }}
             style={[styles.fabGradient, { borderRadius: size / 2, width: size, height: size }]}
           >
-            <Icon name={icon} size={size * 0.4} color="#FFFFFF" />
-            {label && <Text style={styles.fabLabel}>{label}</Text>}
+            <Icon name={icon} size={size * 0.4} color={theme.text.onAccent} />
+            {label && <Text style={[styles.fabLabel, { color: theme.text.onAccent }]}>{label}</Text>}
           </LinearGradient>
         )}
       </TouchableOpacity>
@@ -116,8 +121,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  fabLabel: {
+  // The disabled state keeps its own fixed dark grey gradient, so its label
+  // stays white rather than following the theme's on-accent ink.
+  fabLabelDisabled: {
     color: '#FFFFFF',
+  },
+  fabLabel: {
     fontSize: 10,
     fontWeight: '600',
     marginTop: 2,

@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
-import { NUMERIC } from '../../styles/theme';
+import { NUMERIC, RECEIPT_FONT } from '../../styles/theme';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { toFileUri } from '../../utils/uri';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -26,7 +27,7 @@ import { ReceiptData, ShoppingList } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateTime } from '../../utils/date';
-import ReceiptCard, { ReceiptRule, RECEIPT_FONT } from '../../components/ReceiptCard';
+import ReceiptCard, { ReceiptRule } from '../../components/ReceiptCard';
 
 type EditableReceipt = ReceiptData & {
   merchantName: string | null;
@@ -352,7 +353,7 @@ const ReceiptViewScreen = () => {
                       <>
                         <View style={styles.itemDescRow}>
                           {item.needsReview && (
-                            <Text style={styles.itemReviewIcon}>⚠️</Text>
+                            <Icon name="alert-circle" size={12} color={theme.accent.orange} />
                           )}
                           <Text
                             style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
@@ -404,10 +405,13 @@ const ReceiptViewScreen = () => {
             {/* Items Needing Review */}
             {needsReviewCount > 0 && (
               <View style={styles.warningContainer}>
-                <Text style={styles.warningText}>
-                  ⚠️ Check the highlighted item{needsReviewCount > 1 ? 's' : ''} above — the
-                  scanner wasn't sure about the description or price.
-                </Text>
+                <View style={styles.warningRow}>
+                  <Icon name="alert-circle-outline" size={18} color={theme.accent.orange} />
+                  <Text style={styles.warningText}>
+                    Check the highlighted item{needsReviewCount > 1 ? 's' : ''} above — the
+                    scanner wasn't sure about the description or price.
+                  </Text>
+                </View>
               </View>
             )}
 
@@ -420,10 +424,13 @@ const ReceiptViewScreen = () => {
             {/* Low Confidence Warning */}
             {receiptData.confidence && receiptData.confidence < 70 && (
               <View style={styles.warningContainer}>
-                <Text style={styles.warningText}>
-                  ⚠️ Low confidence OCR result. Please verify the data is
-                  correct.
-                </Text>
+                <View style={styles.warningRow}>
+                  <Icon name="alert-circle-outline" size={18} color={theme.accent.orange} />
+                  <Text style={styles.warningText}>
+                    Low confidence OCR result. Please verify the data is
+                    correct.
+                  </Text>
+                </View>
                 <TouchableOpacity
                   style={styles.retryButton}
                   onPress={handleRetryOCR}
@@ -532,7 +539,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginBottom: 5,
   },
   value: {
-    fontSize: 15,
+    fontSize: 14,
     color: theme.text.primary,
     fontWeight: '600',
     fontFamily: RECEIPT_FONT,
@@ -544,7 +551,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginTop: 4,
   },
   totalLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: theme.text.primary,
     fontFamily: RECEIPT_FONT,
@@ -587,7 +594,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     // danger=red). A single suspect field is a minor, one-tap fix — it
     // shouldn't outrank the orange "low confidence" banner for the whole
     // receipt a tier below it.
-    backgroundColor: 'rgba(255, 214, 10, 0.1)',
+    backgroundColor: theme.accent.yellowSubtle,
     borderLeftWidth: 4, // matches BudgetScreen's alertCard left-accent pattern
     borderLeftColor: theme.accent.yellow,
     paddingLeft: 8,
@@ -599,12 +606,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  itemReviewIcon: {
-    fontSize: 12,
-  },
   itemDescription: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     color: theme.text.primary,
     fontFamily: RECEIPT_FONT,
   },
@@ -614,7 +618,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   itemPrice: {
     ...NUMERIC,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: theme.accent.green,
     minWidth: 60,
@@ -648,7 +652,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   retryButton: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: theme.accent.blueLight,
+    backgroundColor: theme.accent.blue,
     borderRadius: 14,
     marginTop: 10,
     borderWidth: 1,
@@ -660,22 +664,28 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     elevation: 5,
   },
   retryButtonText: {
-    color: '#ffffff',
+    color: theme.text.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },
   warningContainer: {
     marginTop: 20,
     padding: 15,
-    backgroundColor: 'rgba(255, 159, 10, 0.15)',
+    backgroundColor: theme.accent.orangeSubtle,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 159, 10, 0.3)',
+    borderColor: theme.accent.orangeDim,
+  },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
   },
   warningText: {
+    flex: 1,
     fontSize: 14,
     color: theme.accent.orange,
-    marginBottom: 10,
   },
   editActions: {
     flexDirection: 'row',
@@ -713,7 +723,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.text.onAccent,
   },
 });
 

@@ -28,6 +28,22 @@ module.exports = [
     },
   },
   {
+    // Plain-JS maintenance scripts run under Node, not React Native, so the
+    // Node globals have to be declared — no-undef is only switched off for
+    // TS below, where the compiler already covers it.
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      globals: {
+        require: 'readonly',
+        module: 'writable',
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.ts', '**/*.tsx'],
     rules: {
       'no-shadow': 'off',

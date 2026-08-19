@@ -45,7 +45,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
   }
 
   return (
-    <View style={styles.card}>
+    <View>
       <Text style={styles.title}>Smart Savings</Text>
 
       {loading && <ActivityIndicator color={theme.accent.blue} style={styles.activityIndicator} />}
@@ -58,7 +58,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
         <>
           <View style={styles.totalBanner}>
             <Text style={styles.totalLabel}>Potential savings per shop</Text>
-            <Text style={styles.totalValue}>�{totalSavings.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>£{totalSavings.toFixed(2)}</Text>
           </View>
 
           {entries.map(([key, val]) => {
@@ -70,8 +70,8 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
                   <Text style={styles.itemStore}>Best at {val.bestStore}</Text>
                 </View>
                 <View style={styles.itemRight}>
-                  <Text style={styles.itemPrice}>�{val.bestPrice.toFixed(2)}</Text>
-                  <Text style={styles.itemSavings}>Save �{val.savings.toFixed(2)}</Text>
+                  <Text style={styles.itemPrice}>£{val.bestPrice.toFixed(2)}</Text>
+                  <Text style={styles.itemSavings}>Save £{val.savings.toFixed(2)}</Text>
                 </View>
               </View>
             );
@@ -83,15 +83,6 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
 };
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: theme.glass.subtle,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    padding: 12,
-    marginHorizontal: 15,
-    marginTop: 10,
-  },
   title: {
     fontSize: 18,
     fontWeight: '700',
@@ -116,12 +107,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   totalLabel: {
     color: theme.text.secondary,
-    fontSize: 13,
+    fontSize: 12,
   },
   totalValue: {
     ...NUMERIC,
     color: theme.accent.green,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
   },
   itemRow: {

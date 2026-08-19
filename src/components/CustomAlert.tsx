@@ -198,14 +198,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
+  // Default and destructive sit on filled accent fills, so they take the
+  // accent ink; cancel sits on glass over the alert surface and keeps the
+  // surface ink.
   buttonTextDefault: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
   },
   buttonTextCancel: {
     color: theme.text.secondary,
   },
   buttonTextDestructive: {
-    color: theme.text.primary,
+    color: theme.text.onAccent,
   },
 });
 

@@ -98,7 +98,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingHorizontal: 32,
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.text.primary,
     marginBottom: 16,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Animated, TouchableOpacity, View, Text, StyleProp, ViewStyle } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { HIT_SLOP } from '../styles/theme';
 import type { Theme } from '../styles/theme';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -70,12 +71,12 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
         </View>
         <View style={staticStyles.listBadges}>
           {isLocked && (
-            <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange }]}>
+            <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange, backgroundColor: theme.accent.orangeSubtle }]}>
               <Icon name="cart" size={11} color={theme.accent.orange} /> {lockedByRole || lockedByName || 'Shopping'}
             </Text>
           )}
           {isCompleted && (
-            <Text style={[staticStyles.completedBadge, { color: theme.accent.green }]}>
+            <Text style={[staticStyles.completedBadge, { color: theme.accent.green, backgroundColor: theme.accent.greenSubtle }]}>
               <Icon name="checkmark" size={11} color={theme.accent.green} /> Completed
             </Text>
           )}
@@ -85,6 +86,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
               onDelete();
             }}
             style={staticStyles.deleteIconButton}
+            hitSlop={HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={`Delete list ${listName}`}
           >
@@ -137,14 +139,12 @@ const staticStyles = {
   },
   shoppingBadge: {
     fontSize: 12,
-    backgroundColor: 'rgba(255, 214, 10, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
   },
   completedBadge: {
     fontSize: 12,
-    backgroundColor: 'rgba(48, 209, 88, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
