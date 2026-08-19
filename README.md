@@ -17,13 +17,13 @@ Treat everything below about installing and running the app as developer instruc
 
 ### ✅ Implemented
 - **User Authentication** - Email/password sign up and login via Firebase
-- **Family Groups** - Create or join family groups with invitation codes *(Navigation fixed Nov 2025)*
+- **Family Groups** - Create or join family groups with invitation codes
 - **Shopping Lists** - Create, view, and manage shopping lists
 - **Real-Time Items** - Add, edit, check off, and delete items
-- **Real-Time Sync** - Multi-user collaboration with Firebase Realtime Database *(Import fixed Nov 2025)*
-- **Offline Support** - Full functionality when offline with automatic sync *(WatermelonDB config fixed Nov 2025)*
+- **Real-Time Sync** - Multi-user collaboration with Firebase Realtime Database
+- **Offline Support** - Full functionality when offline with automatic sync
 - **Cross-Platform** - iOS and Android support
-- **CI/CD Pipeline** - Automated Android builds via GitHub Actions *(Fully functional Nov 2025)*
+- **CI/CD Pipeline** - Automated Android builds via GitHub Actions
 - **In-App Legal Viewer** - Privacy Policy and Terms of Service rendered in-app with markdown
 - **Terms Acceptance** - Versioned terms acceptance flow with decline/logout option
 - **Subscription Management** - RevenueCat integration with free/premium/family tiers
@@ -35,7 +35,7 @@ Treat everything below about installing and running the app as developer instruc
 
 ## 🏗 Architecture
 
-The app follows a rigorous specification-architect methodology with complete traceability from requirements to implementation:
+Offline-first: every write lands in WatermelonDB on the device, then syncs. The app stays fully usable with no network.
 
 - **Frontend**: React Native with TypeScript
 - **Backend**: Firebase (Authentication, Realtime Database, Cloud Storage)
@@ -84,25 +84,12 @@ The app follows a rigorous specification-architect methodology with complete tra
 
    b. Enable Authentication (Email/Password provider)
 
-   c. Create Realtime Database and set security rules:
-   ```json
-   {
-     "rules": {
-       "users": {
-         "$uid": {
-           ".read": "$uid === auth.uid",
-           ".write": "$uid === auth.uid"
-         }
-       },
-       "familyGroups": {
-         "$groupId": {
-           ".read": "auth != null && data.child('memberIds').val().contains(auth.uid)",
-           ".write": "auth != null && data.child('memberIds').val().contains(auth.uid)"
-         }
-       }
-     }
-   }
-   ```
+   c. Create a Realtime Database. **Do not hand-write the rules** — deploy
+      [`database.rules.json`](./database.rules.json) from this repository. It is the
+      source of truth and covers `users`, `familyGroups`, `invitations` and
+      `urgentItems`, including family-group membership checks, monotonic usage
+      counters and join-request handling. Rules are deployed by hand through the
+      Firebase console, not by CI; see [RUNBOOK.md](./RUNBOOK.md).
 
    d. Enable Firebase Cloud Storage
 
@@ -129,49 +116,26 @@ The app follows a rigorous specification-architect methodology with complete tra
 ## 📂 Project Structure
 
 ```
-shoping/
-├── App.tsx                          # Main app entry point
-├── package.json                     # Dependencies
-├── tsconfig.json                    # TypeScript configuration
-├── .env.example                     # Environment variables template
-├── src/
-│   ├── models/
-│   │   └── types.ts                # TypeScript interfaces
-│   ├── database/
-│   │   ├── schema.ts               # WatermelonDB schema
-│   │   └── models/                 # Database models
-│   │       ├── ShoppingList.ts
-│   │       ├── Item.ts
-│   │       └── SyncQueue.ts
-│   ├── services/
-│   │   ├── AuthenticationModule.ts  # User authentication
-│   │   ├── LocalStorageManager.ts   # Offline storage
-│   │   ├── SyncEngine.ts            # Real-time sync
-│   │   ├── ShoppingListManager.ts   # List management
-│   │   └── ItemManager.ts           # Item management
-│   ├── components/
-│   │   └── SimpleMarkdown.tsx       # Lightweight markdown renderer
-│   ├── legal/
-│   │   ├── index.ts                 # Legal exports & CURRENT_TERMS_VERSION
-│   │   ├── PrivacyPolicy.ts         # Privacy policy content
-│   │   └── TermsOfService.ts        # Terms of service content
-│   └── screens/
-│       ├── auth/
-│       │   ├── LoginScreen.tsx
-│       │   ├── SignUpScreen.tsx
-│       │   ├── FamilyGroupScreen.tsx
-│       │   └── TermsAcceptanceScreen.tsx  # Terms acceptance flow
-│       ├── settings/
-│       │   ├── SettingsScreen.tsx
-│       │   └── LegalDocumentScreen.tsx    # In-app legal viewer
-│       ├── lists/
-│       │   ├── HomeScreen.tsx       # Main list view
-│       │   └── ListDetailScreen.tsx # Item management
-│       ├── budget/
-│       │   └── BudgetScreen.tsx     # Expenditure tracking
-│       └── history/
-│           └── HistoryScreen.tsx    # Shopping history
+src/
+├── components/   shared UI (modals, cards, bottom sheets)
+├── contexts/     User, Theme, Alert, AdMob, RevenueCat providers
+├── database/     WatermelonDB schema, models, migrations
+├── hooks/        screen-level hooks extracted from the big screens
+├── legal/        Privacy Policy, Terms, CURRENT_TERMS_VERSION
+├── models/       shared TypeScript types
+├── screens/      auth, lists, budget, history, settings, receipts
+├── services/     the bulk of the logic — auth, sync, storage, OCR, analytics
+├── styles/       theme tokens and the contrast tests
+└── utils/        sanitisation, grouping, formatting
+
+android/  ios/                native projects
+supabase/functions/           edge functions (auto-deployed from master)
+database.rules.json           RTDB security rules (deployed by hand)
+docs/                         design audit, data safety, store layouts
 ```
+
+`services/` is where most of the behaviour lives. `SyncEngine`, `LocalStorageManager`
+and `ShoppingListManager` are the three to read first.
 
 ## 🔐 Security
 
@@ -180,23 +144,15 @@ shoping/
 - Per-UID rate limiting on sensitive edge functions
 - Offline data encrypted at rest (platform-provided)
 
-## 💰 Cost Estimate
-
-### Development Costs
-- Timeline: 18 weeks
-- Team: 1-2 developers
-- Estimated: $40,000-$80,000 (varies by location/rates)
-
-### Ongoing Costs
-- **Firebase**: Free tier sufficient for small families; ~$25-50/month for larger usage
-- **OCR**: Self-hosted PaddleOCR — no per-request cost
-- **App Store Fees**: $99/year (Apple) + $25 one-time (Google)
-
 ## 📋 Documentation
 
 - **[CHANGELOG.md](./CHANGELOG.md)** - Recent fixes and changes
 - **[RUNBOOK.md](./RUNBOOK.md)** - Operational runbook (backups, rollback, secrets)
 - **[CLAUDE.md](./CLAUDE.md)** - Project workflow and conventions
+- **[LICENSE](./LICENSE)** - Proprietary licence terms
+- **[docs/DESIGN_AUDIT.md](./docs/DESIGN_AUDIT.md)** - Design system audit and its follow-up
+- **[docs/DATA_SAFETY.md](./docs/DATA_SAFETY.md)** - Play Console data-safety declarations
+- **[docs/store-layouts.md](./docs/store-layouts.md)** - Per-store category order capture
 
 ## 🧪 Testing
 
@@ -209,7 +165,17 @@ npm test -- --coverage
 
 # Run linting
 npm run lint
+
+# Type check
+npm run typecheck
+
+# Dead code and unused dependencies
+npm run knip
 ```
+
+A pre-commit hook runs the encoding check and the full jest suite, and refuses a
+`src/` change that has not bumped the version in `package.json`. A pre-push hook
+runs knip, `tsc` and eslint — the same gates CI runs.
 
 ## 🚀 Deployment
 
@@ -233,15 +199,10 @@ npm run lint
 
 **Proprietary — all rights reserved.** See [LICENSE](./LICENSE). This is not open source: being able to read the code grants no right to use, copy, modify or distribute it. Third-party dependencies keep their own licences, and people who install the published app are covered by the in-app Terms of Service in [`src/legal/`](./src/legal), not by this repository licence.
 
-## 👥 Contributors
-
-Implementation based on specification-architect methodology
-
 ## 📞 Support
 
-For issues or questions, please refer to the specification documents or create an issue in the repository.
+Open an issue in the repository.
 
 ---
 
-**Generated with**: Specification Architect AI
-**Last Updated**: August 2026 (v1.38.5)
+**Last Updated**: August 2026
