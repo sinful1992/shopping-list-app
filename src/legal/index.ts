@@ -6,4 +6,7 @@
 export { PRIVACY_POLICY_CONTENT } from './PrivacyPolicy';
 export { TERMS_OF_SERVICE_CONTENT } from './TermsOfService';
 
-export const CURRENT_TERMS_VERSION = 1;
+// Bumped whenever the wording of either document changes: an acceptance record
+// points at a version, so the version has to move when the words do. Raising it
+// makes every user re-accept on next launch.
+export const CURRENT_TERMS_VERSION = 2;

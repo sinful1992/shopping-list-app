@@ -1,14 +1,16 @@
 /**
  * Terms of Service for Family Shopping List
- * Last updated: February 2026
+ * Last updated: August 2026
  */
 
 export const TERMS_OF_SERVICE_CONTENT = `
 # Terms of Service for Family Shopping List
 
-**Last Updated: February 2026**
+**Last Updated: August 2026**
 
 ## Agreement to Terms
+
+The App is provided and operated by sinful1992 ("we", "us", or "our"). These Terms form an agreement between you and sinful1992.
 
 By downloading, installing, or using Family Shopping List ("the App"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the App.
 
@@ -98,7 +100,7 @@ You agree NOT to:
 
 ## Intellectual Property
 
-- The App, including its design, features, and content, is owned by us
+- The App, including its design, features, and content, is owned by sinful1992
 - "Family Shopping List" name and logo are our trademarks
 - You may not copy, modify, or distribute any part of the App
 - Third-party libraries are subject to their respective licenses
@@ -177,7 +179,7 @@ If any provision of these Terms is found unenforceable, the remaining provisions
 
 ## Entire Agreement
 
-These Terms, together with our Privacy Policy, constitute the entire agreement between you and Family Shopping List regarding the use of the App.
+These Terms, together with our Privacy Policy, constitute the entire agreement between you and sinful1992 regarding the use of the App.
 
 ## Contact Us
 

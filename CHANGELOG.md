@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.6] - 2026-08-19
+
+### Changed
+- **The legal documents now name who you are contracting with.** Both read "we", "us" and "our" throughout without ever saying who that was — the Terms said the App "is owned by us" and called the agreement one "between you and Family Shopping List", which is the product, not a party. Both documents now name sinful1992: the Terms as the operator and the counterparty to the agreement, the Privacy Policy as the **data controller**, which is what the GDPR section needed and did not have. The same name is on `LICENSE`, so the three agree.
+- **`CURRENT_TERMS_VERSION` is 2.** An acceptance record points at a version number, so the number has to move when the words do — otherwise a stored acceptance of version 1 refers to text that no longer exists. Every user re-accepts on next launch, which on a closed testing track is a handful of testers.
+
 ## [1.38.5] - 2026-08-19
 
 ### Added
