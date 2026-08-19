@@ -1,16 +1,16 @@
 /**
  * Privacy Policy for Family Shopping List
- * Last updated: February 2026
+ * Last updated: August 2026
  */
 
 export const PRIVACY_POLICY_CONTENT = `
 # Privacy Policy for Family Shopping List
 
-**Last Updated: February 2026**
+**Last Updated: August 2026**
 
 ## Introduction
 
-Family Shopping List ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
+Family Shopping List is operated by sinful1992 ("we", "our", or "us"), the data controller for the personal data described below. We are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.
 
 ## Information We Collect
 
@@ -121,6 +121,8 @@ For privacy-related questions or concerns:
 - In-app: Settings > Contact Support
 
 ## Legal Basis for Processing (GDPR)
+
+The data controller is sinful1992, reachable at privacy@familyshoppinglist.app.
 
 For users in the European Economic Area, we process your data based on:
 - **Contract**: To provide the shopping list service
