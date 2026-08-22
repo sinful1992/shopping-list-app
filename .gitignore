@@ -127,3 +127,14 @@ design.md
 tasks.md
 validation.md
 research.md
+
+# Internal operational docs — kept local, not published to the public repo.
+# These carry no secret values, but they describe backup/restore and rotation
+# procedures, the secret inventory, RTDB path layout and a known-defect list.
+# That is reconnaissance, so it stays off a public repo.
+RUNBOOK.md
+CLAUDE.md
+docs/IMPROVEMENT_PLAN.md
+.github/copilot-instructions.md
+setup-secrets.ps1
+setup-secrets.bat
