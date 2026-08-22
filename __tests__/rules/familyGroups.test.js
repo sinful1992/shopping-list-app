@@ -95,28 +95,17 @@ describe('group creation', () => {
     });
   });
 
-  // KNOWN FAILURE, pre-existing since 7675269 (2026-05-06) — not caused by the
-  // S1/S5/S6 work, and deliberately left unfixed for now.
-  //
-  // The write is denied on its `/users/{uid}/familyGroupId` leg. That path is
-  // gated on root.child('familyGroups')…memberIds.hasChild($uid) (rules :15),
-  // and `root` is the state *before* the operation, so the group being created
-  // in the very same atomic update is not visible yet. The `invitations` rule
-  // carries an explicit escape hatch for exactly this case (:141); the `users`
-  // rule does not. Isolated: the leg fails alone when the group is absent and
-  // succeeds alone when it is already present.
-  //
-  // it.failing passes while the write is denied and goes RED the moment it
-  // starts succeeding — so this test is what will report the fix landing.
-  it.failing('allows the real multi-path create', async () => {
+  // Denied from 7675269 (2026-05-06) until the newData.parent() disjunct
+  // landed: the `/users/{uid}/familyGroupId` leg is gated on membership, and
+  // read through `root` — the state *before* the operation — the group being
+  // created in the same atomic update is not visible yet.
+  it('allows the real multi-path create', async () => {
     const db = asUser(testEnv, ALICE, ALICE_EMAIL);
     await assertSucceeds(update(ref(db), creationUpdate()));
   });
 
-  // The guards below are asserted against the group node on its own. Routing
-  // them through creationUpdate() would pass vacuously: that update is denied
-  // on its users leg regardless of what the group node contains, so it could
-  // not tell a working tier guard from a missing one.
+  // The guards below are asserted against the group node on its own, so that
+  // each one is the sole reason its update is refused.
   const createGroupNode = (db, overrides = {}) =>
     set(ref(db, `/familyGroups/${GROUP}`), {
       ...makeGroup(GROUP, ALICE, { [ALICE]: true }, CODE),
@@ -141,6 +130,62 @@ describe('group creation', () => {
   it('denies smuggling tierUpdatedAt in at creation', async () => {
     const db = asUser(testEnv, ALICE, ALICE_EMAIL);
     await assertFails(createGroupNode(db, { tierUpdatedAt: 1700000000000 }));
+  });
+});
+
+// The membership guard on /users/{uid}/familyGroupId is what 7675269 added to
+// stop a phantom join — claiming a group by writing your own profile. The
+// newData.parent() disjunct reads the *resulting* state instead of the
+// pre-write one, which is what lets the create succeed; these assert that it
+// widened the rule by exactly that much and no further.
+//
+// All three hold under the pre-disjunct rule as well — verified by running the
+// suite against `git show 3bf6120:database.rules.json`, where the create above
+// is the only one of the 30 that fails. They are the standing description of
+// what the guard refuses, not guards on the change itself.
+describe('user profile membership guard', () => {
+  it('denies claiming a group the user is not a member of', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(set(ref(db, `/users/${BOB}/familyGroupId`), GROUP));
+  });
+
+  // Reading the resulting state means a self-admit can no longer be hidden by
+  // bundling the two writes together — the profile leg would see the fabricated
+  // membership. It is the memberIds rule that refuses, and this proves it does.
+  it('denies self-admitting into an existing group in one update', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(
+      update(ref(db), {
+        [`/users/${BOB}/familyGroupId`]: GROUP,
+        [`/familyGroups/${GROUP}/memberIds/${BOB}`]: true,
+      }),
+    );
+  });
+
+  // The reason the guard reads the resulting state rather than carrying the
+  // escape hatch `invitations` uses for the same situation — that one admits
+  // any group that does not exist yet, so a profile could be pointed at an
+  // arbitrary unclaimed id. Nothing creates the group here, so it is absent
+  // from the resulting state too and every disjunct is false.
+  it('denies claiming a group id that does not exist', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(set(ref(db, `/users/${BOB}/familyGroupId`), '-Nnosuchgroup'));
+  });
+
+  // Passes through the pre-write disjunct — Alice is already a member — so it
+  // does not exercise the newData.parent() one. Nothing here does, in
+  // isolation: the pre-write disjunct is kept as a hedge against the emulator's
+  // rules engine differing from production's, and it shadows the new one for
+  // every write except the create. To see the new disjunct carry a write on its
+  // own, delete the `root.child('familyGroups')…hasChild($uid)` line and re-run
+  // — the suite stays green. That is what was done to confirm it works.
+  it('allows a member to edit the rest of their profile', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(set(ref(db, `/users/${ALICE}/displayName`), 'Alice B'));
   });
 });
 

@@ -12,7 +12,8 @@
             (
               !newData.hasChild('familyGroupId') ||
               newData.child('familyGroupId').val() == null ||
-              root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
+              root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid) ||
+              newData.parent().parent().child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
             ) &&
             newData.child('claimsUpdatedAt').val() == data.child('claimsUpdatedAt').val() &&
             (
