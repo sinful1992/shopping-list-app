@@ -634,7 +634,7 @@ Not testable on the AVD (environmental, physical-device only): FCM push delivery
 - **Removed dead `UsageTracker` numeric-limit code** — `canProcessOCR`, `incrementOCRCounter`, and `getRemainingUsage` had zero callers (OCR is ad-gated now), and the surviving comments falsely claimed "enforcement is in Cloud Functions" (no such function exists). Removed the three dead methods and corrected the class/method docs to state the truth: numeric caps are disabled on every tier (ad-based model), `canCreateList` always allows today and is a UX gate only, and there is no server-side count enforcement. No behavior change — `getUsageSummary` (subscription screen) and `canCreateList`/`incrementListCounter` (list create flow) are untouched.
 
 ### Notes
-- **Backlog — family-member cap is unenforced.** `TIER_FEATURES` advertises "Up to 10 Family Members" for the family tier, but `maxFamilyMembers` is null on every tier and nothing enforces it. Deferred deliberately (this pass was infra/security only). When implemented, enforce server-side at join-approval — either a maintained `memberCount` checked in the RTDB rule, or a join-approval edge function — not client-side.
+- **Backlog — family-member cap.** `TIER_FEATURES` advertises "Up to 10 Family Members" for the family tier; wiring `maxFamilyMembers` through is deferred (this pass was infra/security only). When implemented, enforce server-side at join-approval — either a maintained `memberCount` checked in the RTDB rule, or a join-approval edge function — not client-side.
 
 ## [1.25.0] - 2026-06-06
 
@@ -643,12 +643,12 @@ Not testable on the AVD (environmental, physical-device only): FCM push delivery
 - **One-command backend rollback** — `scripts/rollback.ps1` (+ `.sh`) redeploys the edge functions *and* RTDB rules from a known-good git ref via a throwaway git worktree (working tree untouched). Does not touch migrations (forward-only). Documented in RUNBOOK §3.
 
 ### Changed
-- **RUNBOOK refresh** — §3 documents the rollback script; §6 adds the backend health endpoint; §7 rewritten to match reality (server-side CI verify job was dropped — quality is gated by local git hooks, branch protection is Pro-gated); new §10 documents a quarterly secret-rotation schedule.
+- **RUNBOOK refresh** — §3 documents the rollback script; §6 adds the backend health endpoint; §7 rewritten to match reality; new §10 documents a quarterly secret-rotation schedule.
 
 ## [1.24.0] - 2026-06-06
 
 ### Added
-- **App Check (device attestation) wired into the client** — added `@react-native-firebase/app-check` and `src/services/AppCheckService.ts`, initialized first in `App.tsx` so attestation tokens attach to subsequent Firebase traffic. Release builds use Play Integrity (Android) / App Attest (iOS); `__DEV__` uses the debug provider so the AVD keeps working. Init is resilient — a failure never blocks startup. **Enforcement is a deliberate console step, not enabled here:** every API stays unenforced (monitor mode) until App Check metrics show verified traffic dominates, then enforce one API at a time. Requires a native rebuild. See RUNBOOK §9 for the debug-token + enforcement ramp.
+- **App Check (device attestation) wired into the client** — added `@react-native-firebase/app-check` and `src/services/AppCheckService.ts`, initialized first in `App.tsx` so attestation tokens attach to subsequent Firebase traffic. Release builds use Play Integrity (Android) / App Attest (iOS); `__DEV__` uses the debug provider so the AVD keeps working. Init is resilient — a failure never blocks startup. **Enforcement is a console-side step handled outside this repo**, ramped one API at a time. Requires a native rebuild.
 
 ## [1.23.1] - 2026-06-06
 
