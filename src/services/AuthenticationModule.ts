@@ -270,10 +270,36 @@ class AuthenticationModule {
   }
 
   /**
+   * Drop this user's own entry from a group's memberIds.
+   *
+   * memberIds is what every read permission on a group derives from, so a user
+   * who has detached from a group but kept an entry there would keep reading
+   * its lists, items, prices and layouts. This is the one place that removal
+   * happens, so no detach path can forget it.
+   *
+   * Failures propagate. deleteUserAccount depends on this succeeding before it
+   * removes /users/{uid} and the auth account — a swallowed failure there would
+   * strand an entry for a uid that no longer exists, which nothing can remove
+   * afterwards, since the self-write rule requires auth.uid to match it.
+   */
+  private async removeSelfFromGroup(userId: string, groupId: string): Promise<void> {
+    await remove(ref(getDatabase(), `/familyGroups/${groupId}/memberIds/${userId}`));
+  }
+
+  /**
    * Detach a user from a family group that no longer exists, so the app
    * can prompt them to create or join a new one.
    */
-  async clearFamilyGroupReference(userId: string): Promise<void> {
+  async clearFamilyGroupReference(userId: string, groupId: string | null): Promise<void> {
+    if (groupId) {
+      try {
+        await this.removeSelfFromGroup(userId, groupId);
+      } catch {
+        // Expected here, unlike in deleteUserAccount: this runs because the
+        // group has gone, and the rule requires the entry to still exist.
+        // Detaching the user is what matters and it happens either way.
+      }
+    }
     await update(ref(getDatabase(), `/users/${userId}`), {
       familyGroupId: null,
     });
@@ -587,7 +613,7 @@ class AuthenticationModule {
             await remove(ref(db, `/invitations/${familyGroup.invitationCode}`));
           }
 
-          await remove(ref(db, `/familyGroups/${familyGroupId}/memberIds/${userId}`));
+          await this.removeSelfFromGroup(userId, familyGroupId);
         }
       }
 

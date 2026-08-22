@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.10] - 2026-08-22
+
+### Changed
+- **Leaving a family group now removes your `memberIds` entry in one place.** `memberIds` is the list every read permission on a group derives from, so a user who detaches from a group but keeps an entry in it would go on reading its lists, items, prices and store layouts. Deleting your account was the only code that removed one. This is not currently reachable — the detach path only runs once the group is already gone, and there is no leave-group or remove-member feature to create a live user detached from a live group — but the removal now lives in a single `removeSelfFromGroup` helper that both paths call, so the first feature that does detach a user cannot forget it. The helper lets failures propagate, and only the detach path ignores them — there, the group has already gone and the rule requires the entry to still exist, so a denial is the expected case. Account deletion must not ignore it: it goes on to remove the user record and the auth account, and a stranded `memberIds` entry for a uid that no longer exists could never be removed afterwards, since the rule permitting that write requires you to *be* that user.
+
 ## [1.38.9] - 2026-08-22
 
 ### Security
