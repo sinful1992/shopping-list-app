@@ -15,7 +15,7 @@ function emulatorAddress() {
 async function createTestEnv() {
   const { host, port } = emulatorAddress();
   return initializeTestEnvironment({
-    projectId: 'shopping-rules-test',
+    projectId: 'demo-shopping-rules',
     database: {
       rules: fs.readFileSync(RULES_PATH, 'utf8'),
       host,

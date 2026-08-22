@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.11] - 2026-08-22
+
+### Fixed
+- **The rules test suite names the project it runs against.** `firebase emulators:exec` was relying on whatever default project the CLI could find, which on a developer machine is the one in the global firebase-tools config and in CI is nothing at all — there is no `.firebaserc` in the repository. The step would have failed to resolve a project before Jest ever started. It now passes `--project demo-shopping-rules` explicitly, matching the id the test environment uses; the `demo-` prefix is the reserved form that needs no credentials.
+
 ## [1.38.10] - 2026-08-22
 
 ### Changed
