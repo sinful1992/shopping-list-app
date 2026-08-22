@@ -681,11 +681,19 @@ class AuthenticationModule {
         throw new Error('You are already a member of this family group.');
       }
 
+      // The email is bound to auth.token.email by rule, because it is the only
+      // part of a join request the approver can trust. Read it from the token
+      // rather than /users/{uid} so the write matches by construction.
+      const tokenEmail = getAuth().currentUser?.email;
+      if (!tokenEmail) {
+        throw new Error('Your account has no verified email address, so it cannot request to join a group.');
+      }
+
       const joinRequest: JoinRequest = {
         userId,
         groupId,
         displayName: userData.displayName,
-        email: userData.email,
+        email: tokenEmail,
         requestedAt: Date.now(),
         status: 'pending',
       };

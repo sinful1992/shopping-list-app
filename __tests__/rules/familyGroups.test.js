@@ -293,6 +293,58 @@ describe('join requests', () => {
     );
   });
 
+  // S5: the rule checked only that displayName and email were *present*. The
+  // approver decides from those strings, so a requester could show up as "Mum".
+  // The invitation code is ~2^40 and not enumerable, which makes that human
+  // approval the real second factor — so it has to be shown something verified.
+  it('denies a request carrying a forged email', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(
+      set(
+        ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}`),
+        makeJoinRequest(BOB, GROUP, 'mum@example.com', 'Mum'),
+      ),
+    );
+  });
+
+  // Guards the bind itself: if authenticatedContext did not put the email on
+  // the token, the deny above would pass for the wrong reason and the allow
+  // below would fail. Together they prove the rule reads a real token claim.
+  it('allows a request whose email matches the token, with any display name', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertSucceeds(
+      set(
+        ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}`),
+        makeJoinRequest(BOB, GROUP, BOB_EMAIL, 'Mum'),
+      ),
+    );
+  });
+
+  // A parent .validate is not re-evaluated when only a child path is written,
+  // so binding the email on the parent expression alone would be bypassable in
+  // two writes. The bind lives on the email field for this reason.
+  it('denies overwriting the email field on its own after the fact', async () => {
+    await seedGroup();
+    await seedJoinRequest();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(
+      set(ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}/email`), 'mum@example.com'),
+    );
+  });
+
+  // Isolated against an existing request, so the status rule is what rejects it
+  // rather than the parent's hasChildren check.
+  it('denies writing a status outside the allowed set', async () => {
+    await seedGroup();
+    await seedJoinRequest();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      set(ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}/status`), 'accepted'),
+    );
+  });
+
   it('denies an unrelated user reading another user request', async () => {
     await seedGroup();
     await seedJoinRequest();

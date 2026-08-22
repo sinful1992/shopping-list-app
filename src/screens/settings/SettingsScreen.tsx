@@ -416,9 +416,15 @@ const SettingsScreen = () => {
                   <View style={[styles.memberIconContainer, styles.joinRequestsMemberIcon]}>
                     <Icon name="person-outline" size={20} color="#FFB340" />
                   </View>
+                  {/* The email is the only part of a request the approver can
+                      trust — it is bound to the requester's verified token by
+                      rule. The display name is whatever they typed, so it sits
+                      underneath as a hint rather than leading the row. */}
                   <View style={styles.memberInfo}>
-                    <Text style={styles.memberEmail}>{req.displayName || req.email}</Text>
-                    {req.displayName && <Text style={styles.memberEmailSmall}>{req.email}</Text>}
+                    <Text style={styles.memberEmail}>{req.email}</Text>
+                    {!!req.displayName && (
+                      <Text style={styles.memberEmailSmall}>{req.displayName}</Text>
+                    )}
                   </View>
                   <View style={styles.requestActions}>
                     <TouchableOpacity

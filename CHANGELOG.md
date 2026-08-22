@@ -4,8 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.9] - 2026-08-22
+
 ### Security
+- **The approve/decline decision was based entirely on strings the requester chose.** A join request was validated for having a `displayName` and an `email`, never for either matching the account making it — and the approval row led with the display name. So a request could arrive labelled "Mum" and be approved on that basis. This matters more than it looks: the invitation code is about 2^40 and cannot be enumerated, which means the human approval *is* the second factor, and it was being shown unverified text. The `email` on a join request is now bound to the requester's verified token, checked per field rather than on the request as a whole — a check on the whole request would not re-run if only the email were overwritten afterwards, which is a two-write bypass. `submitJoinRequest` reads the email from the auth token instead of the user record, so the write matches the rule by construction. The display name is deliberately *not* bound: it is null on both account-creation paths, so binding it would couple two nullable values and verify nothing.
 - **A member could fabricate a join request for any account and then approve it.** Writing `joinRequests/{uid}` was open to any member for any `uid`, and the rule admitting someone to `memberIds` asks only whether a request exists — so one member could manufacture the request and immediately satisfy the check, adding an account whose owner never asked to join and never consented. Request creation is now restricted to the account making the request; members may still write `status` on requests that already exist, which is what approving and rejecting do. The practical impact was limited — `users/{uid}/familyGroupId` still requires you to be that user, so the added account was never really pulled into the group and its own data stayed unreadable — but it inflated `memberIds`, which is the list every read permission on the group is derived from.
+
+### Changed
+- **The join-request row leads with the email address.** It used to show the display name in the primary line and the email underneath only when a display name existed — so the unverified string was prominent exactly when it was present, and the verified one was demoted. The email is now the identity line and the display name sits beneath it as a hint.
 
 ## [1.38.8] - 2026-08-22
 
