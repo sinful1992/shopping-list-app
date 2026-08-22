@@ -259,6 +259,40 @@ describe('join requests', () => {
     );
   });
 
+  // S6: a member could author a request for any uid and then admit it, because
+  // the admit rule only asks whether a request exists. Nobody's consent was
+  // needed. Members may still write status on requests that already exist.
+  it('denies a member fabricating a request for someone else', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      set(
+        ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}`),
+        makeJoinRequest(BOB, GROUP, BOB_EMAIL, 'Bob'),
+      ),
+    );
+  });
+
+  // This one held before S6 too, but for an unrelated reason: the admit leg
+  // reads joinRequests through `root`, which is the pre-write state, so the
+  // request written in the same update is not visible to it. The two-step
+  // version is the attack S6 actually closes — that is the test above.
+  it('denies the fabricate-then-admit sequence in one update', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      update(ref(db), {
+        [`/familyGroups/${GROUP}/joinRequests/${BOB}`]: makeJoinRequest(
+          BOB,
+          GROUP,
+          BOB_EMAIL,
+          'Bob',
+        ),
+        [`/familyGroups/${GROUP}/memberIds/${BOB}`]: true,
+      }),
+    );
+  });
+
   it('denies an unrelated user reading another user request', async () => {
     await seedGroup();
     await seedJoinRequest();

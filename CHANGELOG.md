@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+- **A member could fabricate a join request for any account and then approve it.** Writing `joinRequests/{uid}` was open to any member for any `uid`, and the rule admitting someone to `memberIds` asks only whether a request exists — so one member could manufacture the request and immediately satisfy the check, adding an account whose owner never asked to join and never consented. Request creation is now restricted to the account making the request; members may still write `status` on requests that already exist, which is what approving and rejecting do. The practical impact was limited — `users/{uid}/familyGroupId` still requires you to be that user, so the added account was never really pulled into the group and its own data stayed unreadable — but it inflated `memberIds`, which is the list every read permission on the group is derived from.
+
 ## [1.38.8] - 2026-08-22
 
 ### Security

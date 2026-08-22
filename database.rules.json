@@ -60,7 +60,7 @@
             ".read": "auth != null && auth.uid == $userId",
             ".write": "auth != null && (
               auth.uid == $userId ||
-              root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)
+              (data.exists() && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid))
             )",
             ".validate": "!newData.exists() || (
               newData.hasChildren(['userId', 'groupId', 'displayName', 'email', 'requestedAt', 'status']) &&
