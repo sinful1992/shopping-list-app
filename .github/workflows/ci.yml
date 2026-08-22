@@ -39,3 +39,17 @@ jobs:
 
       - name: Test (with coverage gate)
         run: npx jest --coverage --coverageReporters=text-summary
+
+      # database.rules.json is the sole authorization boundary for family-group
+      # data and auto-deploys to the live database on a master push
+      # (android-build.yml). This is the only gate that can catch a bad rule
+      # before it gets there. Needs a JDK for the emulator; firebase-tools is a
+      # devDependency, so npm ci already provides the CLI.
+      - name: Setup Java (Firebase emulator)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Test RTDB security rules
+        run: npm run test:rules

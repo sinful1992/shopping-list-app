@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.7] - 2026-08-22
+
+### Added
+- **`database.rules.json` has tests.** It is the sole authorization boundary for every family group's lists, items, prices and store layouts, it is ~8.5 KB of nested expressions, and it had no test of any kind — while `android-build.yml` deploys it to the live database on every push to `master`. The failure mode of a wrong rule is a locked-out user, not an exception someone catches. `npm run test:rules` now runs an allow/deny suite against the Firebase database emulator: group creation and the tier lockout, member and non-member reads, self-removal from `memberIds`, and the full join-request handshake including who may approve. It runs in CI on every push and pull request. These tests live under `jest.rules.config.js` rather than the main config, which uses the React Native preset and stubs `@react-native-firebase/*` — rules tests need the web SDK talking to a real emulator under Node — and they are excluded from the coverage ratchet, since they exercise a JSON rules file rather than any module under `src/`.
+
+### Deferred (tracked, not yet applied)
+- **Creating a family group is rejected by the rules, and has been since 2026-05-06.** The first thing the new suite found. `createFamilyGroup` writes the group, the invitation and `/users/{uid}/familyGroupId` in one atomic update; that third path is gated on the caller already appearing in the new group's `memberIds`, read through `root` — which is the state *before* the operation, so the group created in the same update is not visible yet and the whole write is refused. Joining an existing group is unaffected; only creating a new one. The `invitations` rule carries an explicit escape hatch for exactly this situation and the `users` rule does not. Recorded as a deliberate `it.failing` test rather than fixed here, so it stays visible and turns red the moment it starts passing.
+
 ## [1.38.6] - 2026-08-19
 
 ### Changed
