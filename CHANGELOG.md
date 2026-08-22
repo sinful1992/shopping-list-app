@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.8] - 2026-08-22
+
+### Security
+- **Any member could delete an entire family group.** The rule authorizing the whole-group delete asked only whether the caller was a member, so one modified or compromised account could null `/familyGroups/{id}` and take every list, item, price record, store layout and category history with it, however many other people were in the group. The client only did this when the last member left, but that check ran on the device, which is not where an authorization decision can live. The permission is gone: a client may now create a group and nothing else. The one legitimate caller — deleting your own account as the last member — removes its own `memberIds` entry instead, retiring the invitation code first, since that write is itself only permitted while still a member. What is left behind is an unreadable, unjoinable node: `memberIds` disappears once empty and every read on the group is gated on having an entry in it. That is storage to sweep up, not data anyone can reach.
+
 ## [1.38.7] - 2026-08-22
 
 ### Added

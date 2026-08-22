@@ -577,22 +577,17 @@ class AuthenticationModule {
         const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
 
         if (familyGroup && familyGroup.memberIds) {
-          // Remove user from memberIds
-          delete familyGroup.memberIds[userId];
-          const remainingMembers = Object.keys(familyGroup.memberIds);
+          const remainingMembers = Object.keys(familyGroup.memberIds).filter(
+            (id) => id !== userId
+          );
 
-          // If this was the last member, delete the entire family group
-          if (remainingMembers.length === 0) {
-            const deletions: { [key: string]: null } = {
-              [`/familyGroups/${familyGroupId}`]: null,
-            };
-            if (familyGroup.invitationCode) {
-              deletions[`/invitations/${familyGroup.invitationCode}`] = null;
-            }
-            await update(ref(db), deletions);
-          } else {
-            await remove(ref(db, `/familyGroups/${familyGroupId}/memberIds/${userId}`));
+          // Retiring the invitation is only permitted while still a member, so
+          // it has to happen before the memberIds entry goes.
+          if (remainingMembers.length === 0 && familyGroup.invitationCode) {
+            await remove(ref(db, `/invitations/${familyGroup.invitationCode}`));
           }
+
+          await remove(ref(db, `/familyGroups/${familyGroupId}/memberIds/${userId}`));
         }
       }
 

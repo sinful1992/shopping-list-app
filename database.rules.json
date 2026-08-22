@@ -35,15 +35,11 @@
     "familyGroups": {
       "$groupId": {
         ".read": "auth != null && data.child('memberIds').child(auth.uid).exists()",
-        ".write": "auth != null && (
-          (
-            !data.exists() &&
-            newData.child('memberIds').child(auth.uid).val() === true &&
-            (!newData.hasChild('subscriptionTier') || newData.child('subscriptionTier').val() === 'free') &&
-            !newData.hasChild('tierUpdatedAt')
-          ) ||
-          (data.child('memberIds').child(auth.uid).exists() && !newData.exists())
-        )",
+        ".write": "auth != null &&
+          !data.exists() &&
+          newData.child('memberIds').child(auth.uid).val() === true &&
+          (!newData.hasChild('subscriptionTier') || newData.child('subscriptionTier').val() === 'free') &&
+          !newData.hasChild('tierUpdatedAt')",
 
         "memberIds": {
           "$userId": {

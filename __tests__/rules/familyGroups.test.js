@@ -173,6 +173,37 @@ describe('membership', () => {
     await assertSucceeds(remove(ref(db, `/familyGroups/${GROUP}/memberIds/${BOB}`)));
   });
 
+  // S1: membership alone used to authorize nulling the whole group node, taking
+  // every list, item, price and store layout with it. The only legitimate caller
+  // was deleteUserAccount's last-member branch, so the permission is gone and
+  // that branch now just removes its own memberIds entry.
+  it('denies a member deleting the entire group', async () => {
+    await seedGroup({ withBob: true });
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(remove(ref(db, `/familyGroups/${GROUP}`)));
+  });
+
+  it('denies the sole member deleting the entire group', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(remove(ref(db, `/familyGroups/${GROUP}`)));
+  });
+
+  it('allows the last member to retire the invitation, then themselves', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    // Order matters: deleting the invitation requires still being a member.
+    await assertSucceeds(remove(ref(db, `/invitations/${CODE}`)));
+    await assertSucceeds(remove(ref(db, `/familyGroups/${GROUP}/memberIds/${ALICE}`)));
+  });
+
+  it('denies retiring the invitation once no longer a member', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(remove(ref(db, `/familyGroups/${GROUP}/memberIds/${ALICE}`)));
+    await assertFails(remove(ref(db, `/invitations/${CODE}`)));
+  });
+
   it('denies a member adding someone with no join request on file', async () => {
     await seedGroup();
     const db = asUser(testEnv, ALICE, ALICE_EMAIL);
