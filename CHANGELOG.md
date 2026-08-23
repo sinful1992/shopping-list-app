@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.11] - 2026-08-23
+
+### Fixed
+- **A live session with no profile behind it was permanent.** Sign-up creates the Firebase Auth account first and writes `/users/{uid}` second, so an interruption between the two leaves credentials that work and a profile that is not there — and a deletion interrupted after step 6 leaves exactly the same thing. Neither entry point could get out of it: `signIn` threw `User data not found` on every attempt for ever, and the app's own listener only ever reported a profile that *exists*, so the splash screen stayed up indefinitely with the auth listener firing normally against a valid user. No logout, no retry, no way to delete the account either, since deletion starts by reading the profile that is gone.
+
+  A missing profile is now repaired rather than reported. `ensureUserProfile` writes the same record sign-up would have, as a **transaction** rather than a `set`, because it runs alongside the sign-up paths that write the profile themselves and the fuller record they write has to win — the updater aborts on any existing value. `signIn` repairs instead of throwing, `signInWithGoogle`'s new-user path now shares the same helper instead of a third copy of the literal, and the profile listener repairs once per sign-in and falls back to reporting no user, which at least lands the app on the sign-in screen, if the repair itself fails.
+
+  The repair is suppressed while `deleteUserAccount` is running. Step 6 removes the profile deliberately, and recreating it there would strand a `/users` entry behind an account about to stop existing — the inverse of the bug.
+
 ## [1.39.10] - 2026-08-23
 
 ### Fixed

@@ -90,11 +90,11 @@ jest.mock('@react-native-firebase/database', () => {
     // auth
     getAuth: jest.fn(() => ({ currentUser: mockCurrentUser })),
     createUserWithEmailAndPassword: jest.fn(),
-    signInWithEmailAndPassword: jest.fn(),
+    signInWithEmailAndPassword: jest.fn(() => Promise.resolve({ user: mockCurrentUser })),
     signInWithCredential: jest.fn(),
     signOut: jest.fn(() => Promise.resolve()),
     onAuthStateChanged: jest.fn(),
-    getIdToken: jest.fn(),
+    getIdToken: jest.fn(() => Promise.resolve('id-token')),
     updateProfile: jest.fn(),
     GoogleAuthProvider: {
       credential: jest.fn((idToken: string, accessToken: string) => ({
@@ -145,7 +145,19 @@ jest.mock('@react-native-firebase/database', () => {
     orderByChild: jest.fn(),
     equalTo: jest.fn(),
     push: jest.fn(() => ({ key: 'new-key' })),
-    runTransaction: jest.fn(),
+    // Real enough to matter: the updater must be able to abort on an existing
+    // value, which is the whole reason the profile repair is a transaction.
+    runTransaction: jest.fn((r: { path: string }, updater: (current: unknown) => unknown) => {
+      const current = mockTree[r.path] ?? null;
+      const next = updater(current);
+      if (next === undefined) {
+        return Promise.resolve({ committed: false, snapshot: snapshot(current) });
+      }
+      if (mockDenied.has(r.path)) return Promise.reject(new Error('permission_denied'));
+      mockTree[r.path] = next;
+      mockWrites.push({ op: 'transaction', path: r.path, value: next });
+      return Promise.resolve({ committed: true, snapshot: snapshot(next) });
+    }),
     onValue: jest.fn(),
   };
 });
@@ -537,5 +549,36 @@ describe('getReauthMethod', () => {
       { providerId: 'google.com', email: 'bob@example.com' },
     ];
     expect(AuthenticationModule.getReauthMethod()).toBe('google');
+  });
+});
+
+/**
+ * A live session with no profile behind it. Sign-up can be interrupted between
+ * creating the account and writing the profile, and a deletion interrupted
+ * after step 6 leaves the same thing: credentials that work, a profile that is
+ * not there. It used to be permanent — "User data not found" on every sign-in
+ * attempt, and the app itself sat on its splash screen, because the listener
+ * only ever reported a profile that exists.
+ */
+describe('profile repair', () => {
+  it('creates the missing profile rather than refusing the sign-in', async () => {
+    const { user } = await AuthenticationModule.signIn('bob@example.com', PASSWORD);
+
+    expect(user.uid).toBe(BOB);
+    expect(user.email).toBe('bob@example.com');
+    expect(user.familyGroupId).toBeNull();
+    expect(pathsWritten()).toContain(`transaction /users/${BOB}`);
+  });
+
+  // A transaction, not a set: the repair races the sign-up paths that write the
+  // profile themselves, and the fuller record they write has to win.
+  it('leaves an existing profile untouched', async () => {
+    mockTree[`/users/${BOB}`] = bob({ displayName: 'Bob the Builder', familyGroupId: GROUP });
+
+    const { user } = await AuthenticationModule.signIn('bob@example.com', PASSWORD);
+
+    expect(user.displayName).toBe('Bob the Builder');
+    expect(user.familyGroupId).toBe(GROUP);
+    expect(pathsWritten()).not.toContain(`transaction /users/${BOB}`);
   });
 });

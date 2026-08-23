@@ -44,6 +44,12 @@ class AuthenticationModule {
   private readonly USER_KEY = '@user';
 
   /**
+   * Set while deleteUserAccount is removing things, so the profile listener
+   * does not treat the profile it deletes as a session to repair.
+   */
+  private deletionInProgress = false;
+
+  /**
    * Sign up new user with email and password
    * Implements Req 1.1, 1.2
    */
@@ -84,6 +90,37 @@ class AuthenticationModule {
   }
 
   /**
+   * The profile every authenticated session needs, created only if it is
+   * missing. A transaction rather than a set: this runs alongside the sign-up
+   * paths that write the profile themselves, and the fuller record they write
+   * must win rather than be overwritten by these defaults.
+   */
+  private async ensureUserProfile(firebaseUser: FirebaseUser): Promise<User> {
+    const result = await runTransaction(
+      ref(getDatabase(), `/users/${firebaseUser.uid}`),
+      (current: User | null) => {
+        if (current !== null) return; // abort — a real profile is already there
+        const now = Date.now();
+        return {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || firebaseUser.email || null,
+          familyGroupId: null,
+          createdAt: now,
+          usageCounters: {
+            listsCreated: 0,
+            ocrProcessed: 0,
+            urgentItemsCreated: 0,
+            lastResetDate: now,
+          },
+        };
+      },
+    );
+
+    return result.snapshot.val();
+  }
+
+  /**
    * Sign in existing user with email and password
    * Implements Req 1.2
    */
@@ -94,11 +131,11 @@ class AuthenticationModule {
 
       // Fetch user data from database
       const userSnapshot = await get(ref(getDatabase(), `/users/${userCredential.user.uid}`));
-      const user: User = userSnapshot.val();
-
-      if (!user) {
-        throw new Error('User data not found');
-      }
+      // A sign-up interrupted between creating the account and writing its
+      // profile leaves credentials that work and a profile that is not there.
+      // This used to be "User data not found" on every attempt for ever, with
+      // no way to recover and no way to delete the account either.
+      const user: User = userSnapshot.val() ?? await this.ensureUserProfile(userCredential.user);
 
       await this.storeAuthData(user, token);
 
@@ -166,22 +203,8 @@ class AuthenticationModule {
         return { user: existingUser, token };
       }
 
-      // New Google user — create RTDB record (same pattern as signUp)
-      const user: User = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        displayName: firebaseUser.displayName || firebaseUser.email || null,
-        familyGroupId: null,
-        createdAt: Date.now(),
-        usageCounters: {
-          listsCreated: 0,
-          ocrProcessed: 0,
-          urgentItemsCreated: 0,
-          lastResetDate: Date.now(),
-        },
-      };
-
-      await set(ref(getDatabase(), `/users/${user.uid}`), user);
+      // New Google user — create the RTDB record
+      const user = await this.ensureUserProfile(firebaseUser);
       await this.storeAuthData(user, token);
 
       return { user, token };
@@ -445,6 +468,7 @@ class AuthenticationModule {
     let lastProcessedUid: string | null = null;
     let latestFirebaseUser: any = null;
     let reconcileAttempted = false;
+    let healAttempted = false;
 
     const authUnsubscribe = onFirebaseAuthStateChanged(getAuth(), async (firebaseUser) => {
       latestFirebaseUser = firebaseUser;
@@ -465,6 +489,7 @@ class AuthenticationModule {
       }
       lastClaimsUpdatedAt = null;
       reconcileAttempted = false;
+      healAttempted = false;
 
       if (firebaseUser) {
         const db = getDatabase();
@@ -474,27 +499,52 @@ class AuthenticationModule {
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
           const userData = snapshot.val() as User | null;
-          if (userData) {
-            EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
-            callback(userData);
+          if (!userData) {
+            // A live session with no profile behind it. The callback only ever
+            // reported a profile that exists, so this state rendered as the
+            // splash screen for ever — no logout, no retry, nothing.
+            //
+            // Not during a deletion: step 6 removes the profile on purpose and
+            // recreating it would strand a /users entry behind an auth account
+            // about to stop existing.
+            if (this.deletionInProgress) return;
 
-            // Once per sign-in: an approval that landed while this account was
-            // not watching leaves it in memberIds with no group of its own.
-            // Completing it writes familyGroupId, which this same listener
-            // then delivers, so the app moves on without further prompting.
-            if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
-              reconcileAttempted = true;
-              this.reconcilePendingMembership(userData).catch(err => {
-                // Released on failure: a stranded account is exactly the one
-                // likely to be offline, and holding the flag would leave it
-                // stranded for the rest of the session over one failed read.
-                reconcileAttempted = false;
-                CrashReporting.recordError(
-                  err as Error,
-                  'AuthenticationModule reconcilePendingMembership',
-                );
-              });
+            if (healAttempted) {
+              // Already tried. Reporting no user drops the app at the sign-in
+              // screen, which is at least somewhere the account can act from.
+              callback(null);
+              return;
             }
+            healAttempted = true;
+            this.ensureUserProfile(latestFirebaseUser).catch(err => {
+              CrashReporting.recordError(
+                err as Error,
+                'AuthenticationModule ensureUserProfile',
+              );
+              callback(null);
+            });
+            return;
+          }
+
+          EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+          callback(userData);
+
+          // Once per sign-in: an approval that landed while this account was
+          // not watching leaves it in memberIds with no group of its own.
+          // Completing it writes familyGroupId, which this same listener
+          // then delivers, so the app moves on without further prompting.
+          if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
+            reconcileAttempted = true;
+            this.reconcilePendingMembership(userData).catch(err => {
+              // Released on failure: a stranded account is exactly the one
+              // likely to be offline, and holding the flag would leave it
+              // stranded for the rest of the session over one failed read.
+              reconcileAttempted = false;
+              CrashReporting.recordError(
+                err as Error,
+                'AuthenticationModule reconcilePendingMembership',
+              );
+            });
           }
         };
 
@@ -698,6 +748,10 @@ class AuthenticationModule {
       return false;
     }
 
+    // From here the profile is expected to disappear. The listener repairs a
+    // session that has lost its profile, which here would recreate the very
+    // record step 6 removes, behind an account about to stop existing.
+    this.deletionInProgress = true;
     try {
       const userId = currentUser.uid;
 
@@ -855,6 +909,10 @@ class AuthenticationModule {
 
     } catch (error: unknown) {
       throw new Error(`Failed to delete account: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      // Released before step 9 either way: from here on the account is either
+      // deleted, in which case there is no session to repair, or signed out.
+      this.deletionInProgress = false;
     }
 
     // Step 9: Delete user from Firebase Authentication (must be last). Outside
