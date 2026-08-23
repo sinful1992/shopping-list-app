@@ -5,20 +5,25 @@ record of what everything cost last time.
 
 ## 🧾 Why it exists
 
-Two things kept going wrong at home.
+It started with a scrunched-up piece of paper.
 
-The first was the paper. We would write the week's list out by hand, and then
-either walk round the shop reading a scrunched-up bit of paper, or realise it
-was still on the kitchen table. A list you left at home is no list at all. Phones
-are the one thing everybody has on them, so the list belongs there: anyone in the
-family can add to it during the week, and whoever ends up passing a shop already
-knows exactly what is needed at home.
+Every week the list got written out by hand, and every week it went one of two
+ways: round the shop squinting at a sheet that had been through a pocket, or the
+realisation halfway there that it was still on the kitchen table. A list you left
+at home isn't a list. And the whole time, the one thing nobody ever forgets was
+sitting in that same pocket.
 
-The second was prices. I could never remember what something had cost a while
-back — whether this week's price was normal or whether it had quietly gone up.
-So the app keeps the receipts: photograph one at the till, and the shop, date,
-total and line items are read off it and filed against that trip. The answer to
-"what did we pay for this last time" stops being a guess.
+So the list moved onto the phones. Anyone in the family adds to it as they notice
+things running low during the week, and it appears on everyone else's the moment
+they do — so whoever ends up passing a shop already knows exactly what is needed
+at home, without ringing round to find out.
+
+Then there were the prices. Standing in an aisle, I could never remember what
+we'd paid for something last time — whether this was the normal price or whether
+it had crept up while nobody was watching. Receipts go in the bin, and the memory
+of them goes not long after. So now the receipt gets photographed at the till and
+read automatically, filed against that trip. "What did we pay for this last
+time?" became something you look up rather than something you guess.
 
 ## 📱 What it does
 
