@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.7] - 2026-08-23
+
+### Added
+- **Unit tests for the membership flow, which had none.** Every change in 1.38.13 through 1.39.6 touched `submitJoinRequest`, `cancelJoinRequest`, `completeJoinAfterApproval`, `reconcilePendingMembership` or `deleteUserAccount`, and the suite stayed at exactly 182 tests throughout — because not one of those functions was covered, so rewriting `set` into a multi-path `update` could not break anything. Fourteen tests now assert the *shape* of those updates rather than merely that a write happened: the request paired with its pointer, the claim paired with the pointer's removal, and each of the three branches `deleteUserAccount` can take. The two covering 1.39.6 were confirmed to fail against the previous implementation and nothing else did.
+
+  Worth recording for whoever writes the next one: `jest.config.js` maps every `@react-native-firebase/*` specifier onto a single stub file, so a `jest.mock` factory per package silently collides and only the last registered survives — auth appeared to be ignored while database worked. One factory carrying every export the module imports is the way around it. `@env` is synthesised by the dotenv babel plugin and needs `{ virtual: true }`.
+
+## [1.39.6] - 2026-08-23
+
+### Fixed
+- **Deleting an account with a pending join request left the request behind.** The cleanup added in 1.39.1 sent both leftovers as one atomic update. For a request that was never approved there is no `memberIds` entry, the rule refuses to remove an entry that is not there, and the whole update was therefore denied — taking the join request leg down with it. The `.catch()` recorded the failure and the deletion carried on, so the group kept a pending request from an account that no longer existed, and a member approving it produced the phantom member that 1.39.5 now refuses outright. Confirmed against the emulator: the two-leg update is denied, the request on its own succeeds. The two removals are now independent, `memberIds` first — if the app dies between them an orphaned request remains, which a member can still reject, whereas the other order would leave an entry for an account about to stop existing that no one is permitted to remove. The denial on an absent entry is swallowed rather than recorded, since it is the expected case rather than a fault.
+
+## [1.39.5] - 2026-08-23
+
+### Fixed
+- **A join request could outlive the account that filed it, and approving it minted a member nothing could remove.** An account can be deleted while its request is still on file — see 1.39.6 for the path that made this the common case rather than a rarity — and nothing stopped a member from approving it afterwards. That wrote a `memberIds` entry for a uid whose profile no longer exists: a permanent phantom member, because the rule permitting that entry's removal requires you to *be* that account, and it is gone. `memberIds/{uid}` now validates that the account still has a profile. The guard reads the pre-write state, so the two writes that legitimately create an entry are unaffected — group creation and approval both act on profiles that already exist — and both were verified to still pass, along with a new denial for the deleted-account case, which was confirmed to succeed without the guard.
+
+## [1.39.4] - 2026-08-23
+
+### Changed
+- **Dropped an unreachable disjunct from the `memberIds` guard added in 1.39.3.** The new `.validate` accepted an entry that already existed, on the reasoning that re-writing a member's own entry should stay idempotent. Probing the rule showed that branch can never decide anything: every write that reaches `.validate` has already satisfied `.write`, which admits only the account itself — covered by the first disjunct — or an approver acting on a join request, covered by the third. An entry that exists but has neither is refused before `.validate` is consulted. Dead logic in a security predicate is worse than no logic, because the next reader takes it for a grant that exists, so it is gone. Behaviour is unchanged and the suite is unchanged at 42 assertions.
+
+### Added
+- **Two forgery variants the suite did not cover.** The 1.39.3 assertions send the group create and the profile claim as separate writes; the single multi-path update is the form an attacker would actually send, and the shape that defeated the `root`-based guard in 1.38.12, so it is now asserted in its own right. The second covers a write aimed at the `memberIds` map rather than at one entry under it — that node has no `.write` of its own, so it is refused by the absence of permission above it rather than by any rule naming it, which is precisely the kind of guarantee that disappears silently when a rule is added later.
+
 ## [1.39.3] - 2026-08-23
 
 ### Security

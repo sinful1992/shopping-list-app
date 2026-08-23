@@ -636,17 +636,29 @@ class AuthenticationModule {
           await this.removeSelfFromGroup(userId, familyGroupId);
         }
       } else if (userData.pendingGroupId) {
-        // Approved into a group but never completed the join, so none of the
-        // above ran. The memberIds entry still has to go: once /users/{uid} is
-        // deleted below, the only account permitted to remove it is gone, and
-        // it would sit in the group's member list unreadable forever.
-        await update(ref(db), {
-          [`/familyGroups/${userData.pendingGroupId}/joinRequests/${userId}`]: null,
-          [`/familyGroups/${userData.pendingGroupId}/memberIds/${userId}`]: null,
-        }).catch(err => CrashReporting.recordError(
-          err as Error,
-          'AuthenticationModule deleteUserAccount pending cleanup',
-        ));
+        // Requested a group but never completed the join, so none of the above
+        // ran. Both leftovers have to go, and deliberately not as one update:
+        // for a request that was never approved there is no memberIds entry,
+        // the rule refuses to remove one that is not there, and an atomic
+        // update took the join request down with it — leaving it orphaned in
+        // the group, pointing at an account that no longer exists.
+        const pendingGroupId = userData.pendingGroupId;
+
+        // memberIds first. Dying between the two leaves an orphaned request,
+        // which a member can still reject; the other order leaves a memberIds
+        // entry for an account about to stop existing, and once /users/{uid}
+        // is gone no one is permitted to remove it.
+        await this.removeSelfFromGroup(userId, pendingGroupId).catch(() => {
+          // Denial is the expected case here, as in clearFamilyGroupReference:
+          // an unapproved request has no entry, and the rule requires one to
+          // exist. Recording it would report the common path as a fault.
+        });
+
+        await remove(ref(db, `/familyGroups/${pendingGroupId}/joinRequests/${userId}`))
+          .catch(err => CrashReporting.recordError(
+            err as Error,
+            'AuthenticationModule deleteUserAccount pending request cleanup',
+          ));
       }
 
       // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)

@@ -533,6 +533,60 @@ describe('membership provenance', () => {
     await assertFails(get(ref(db, `/users/${BOB}`)));
   });
 
+  // The single-update form is the one an attacker would actually send, and it
+  // is the shape that defeated the `root`-based guard in 1.38.12 — worth its
+  // own assertion rather than trusting that the two-step case covers it.
+  it('denies creating the group and claiming it in one update', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      update(ref(db), {
+        [`/familyGroups/${EVIL}`]: makeGroup(EVIL, ALICE, { [ALICE]: true, [BOB]: true }, 'EVIL2345'),
+        [`/users/${ALICE}/familyGroupId`]: EVIL,
+      }),
+    );
+  });
+
+  // An account can be deleted while its join request is still on file, and
+  // approving that request would mint a memberIds entry for a uid whose
+  // profile is gone — the one state nothing can clean up afterwards, since the
+  // only account permitted to remove the entry no longer exists.
+  it('denies admitting a uid whose profile no longer exists', async () => {
+    await seedGroup();
+    await seedJoinRequest();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), `/users/${BOB}`), null);
+    });
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      update(ref(db), {
+        [`/familyGroups/${GROUP}/joinRequests/${BOB}/status`]: 'approved',
+        [`/familyGroups/${GROUP}/memberIds/${BOB}`]: true,
+      }),
+    );
+  });
+
+  // The deletion path this guard backs up: an account that requested but was
+  // never approved has no entry to remove, and the rule refuses to remove one
+  // that is not there. Bundling it with the request is what orphaned the
+  // request; sent separately, the request still goes.
+  it('allows clearing an unapproved request without a memberIds entry', async () => {
+    await seedGroup();
+    await seedJoinRequest();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertFails(remove(ref(db, `/familyGroups/${GROUP}/memberIds/${BOB}`)));
+    await assertSucceeds(remove(ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}`)));
+  });
+
+  // memberIds has no `.write` of its own, so a write aimed at the map rather
+  // than at one entry has to be refused by the absence of permission above it.
+  it('denies a member rewriting the whole memberIds map', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      set(ref(db, `/familyGroups/${GROUP}/memberIds`), { [ALICE]: true, [BOB]: true }),
+    );
+  });
+
   // Approval is the sanctioned way a second uid reaches memberIds, and it must
   // survive the new validate: the request is what authorises the entry.
   it('still allows an approver to admit a uid that filed a request', async () => {
