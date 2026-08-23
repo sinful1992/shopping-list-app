@@ -270,10 +270,36 @@ class AuthenticationModule {
   }
 
   /**
+   * Drop this user's own entry from a group's memberIds.
+   *
+   * memberIds is what every read permission on a group derives from, so a user
+   * who has detached from a group but kept an entry there would keep reading
+   * its lists, items, prices and layouts. This is the one place that removal
+   * happens, so no detach path can forget it.
+   *
+   * Failures propagate. deleteUserAccount depends on this succeeding before it
+   * removes /users/{uid} and the auth account — a swallowed failure there would
+   * strand an entry for a uid that no longer exists, which nothing can remove
+   * afterwards, since the self-write rule requires auth.uid to match it.
+   */
+  private async removeSelfFromGroup(userId: string, groupId: string): Promise<void> {
+    await remove(ref(getDatabase(), `/familyGroups/${groupId}/memberIds/${userId}`));
+  }
+
+  /**
    * Detach a user from a family group that no longer exists, so the app
    * can prompt them to create or join a new one.
    */
-  async clearFamilyGroupReference(userId: string): Promise<void> {
+  async clearFamilyGroupReference(userId: string, groupId: string | null): Promise<void> {
+    if (groupId) {
+      try {
+        await this.removeSelfFromGroup(userId, groupId);
+      } catch {
+        // Expected here, unlike in deleteUserAccount: this runs because the
+        // group has gone, and the rule requires the entry to still exist.
+        // Detaching the user is what matters and it happens either way.
+      }
+    }
     await update(ref(getDatabase(), `/users/${userId}`), {
       familyGroupId: null,
     });
@@ -412,6 +438,7 @@ class AuthenticationModule {
     let lastClaimsUpdatedAt: number | null = null;
     let lastProcessedUid: string | null = null;
     let latestFirebaseUser: any = null;
+    let reconcileAttempted = false;
 
     const authUnsubscribe = onFirebaseAuthStateChanged(getAuth(), async (firebaseUser) => {
       latestFirebaseUser = firebaseUser;
@@ -431,6 +458,7 @@ class AuthenticationModule {
         claimsUnsubscribe = null;
       }
       lastClaimsUpdatedAt = null;
+      reconcileAttempted = false;
 
       if (firebaseUser) {
         const db = getDatabase();
@@ -439,10 +467,28 @@ class AuthenticationModule {
 
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
-          const userData = snapshot.val();
+          const userData = snapshot.val() as User | null;
           if (userData) {
             EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
             callback(userData);
+
+            // Once per sign-in: an approval that landed while this account was
+            // not watching leaves it in memberIds with no group of its own.
+            // Completing it writes familyGroupId, which this same listener
+            // then delivers, so the app moves on without further prompting.
+            if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
+              reconcileAttempted = true;
+              this.reconcilePendingMembership(userData).catch(err => {
+                // Released on failure: a stranded account is exactly the one
+                // likely to be offline, and holding the flag would leave it
+                // stranded for the rest of the session over one failed read.
+                reconcileAttempted = false;
+                CrashReporting.recordError(
+                  err as Error,
+                  'AuthenticationModule reconcilePendingMembership',
+                );
+              });
+            }
           }
         };
 
@@ -577,23 +623,30 @@ class AuthenticationModule {
         const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
 
         if (familyGroup && familyGroup.memberIds) {
-          // Remove user from memberIds
-          delete familyGroup.memberIds[userId];
-          const remainingMembers = Object.keys(familyGroup.memberIds);
+          const remainingMembers = Object.keys(familyGroup.memberIds).filter(
+            (id) => id !== userId
+          );
 
-          // If this was the last member, delete the entire family group
-          if (remainingMembers.length === 0) {
-            const deletions: { [key: string]: null } = {
-              [`/familyGroups/${familyGroupId}`]: null,
-            };
-            if (familyGroup.invitationCode) {
-              deletions[`/invitations/${familyGroup.invitationCode}`] = null;
-            }
-            await update(ref(db), deletions);
-          } else {
-            await remove(ref(db, `/familyGroups/${familyGroupId}/memberIds/${userId}`));
+          // Retiring the invitation is only permitted while still a member, so
+          // it has to happen before the memberIds entry goes.
+          if (remainingMembers.length === 0 && familyGroup.invitationCode) {
+            await remove(ref(db, `/invitations/${familyGroup.invitationCode}`));
           }
+
+          await this.removeSelfFromGroup(userId, familyGroupId);
         }
+      } else if (userData.pendingGroupId) {
+        // Approved into a group but never completed the join, so none of the
+        // above ran. The memberIds entry still has to go: once /users/{uid} is
+        // deleted below, the only account permitted to remove it is gone, and
+        // it would sit in the group's member list unreadable forever.
+        await update(ref(db), {
+          [`/familyGroups/${userData.pendingGroupId}/joinRequests/${userId}`]: null,
+          [`/familyGroups/${userData.pendingGroupId}/memberIds/${userId}`]: null,
+        }).catch(err => CrashReporting.recordError(
+          err as Error,
+          'AuthenticationModule deleteUserAccount pending cleanup',
+        ));
       }
 
       // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)
@@ -686,16 +739,30 @@ class AuthenticationModule {
         throw new Error('You are already a member of this family group.');
       }
 
+      // The email is bound to auth.token.email by rule, because it is the only
+      // part of a join request the approver can trust. Read it from the token
+      // rather than /users/{uid} so the write matches by construction.
+      const tokenEmail = getAuth().currentUser?.email;
+      if (!tokenEmail) {
+        throw new Error('Your account has no verified email address, so it cannot request to join a group.');
+      }
+
       const joinRequest: JoinRequest = {
         userId,
         groupId,
         displayName: userData.displayName,
-        email: userData.email,
+        email: tokenEmail,
         requestedAt: Date.now(),
         status: 'pending',
       };
 
-      await set(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`), joinRequest);
+      // One update, so the pointer cannot go missing while the request exists.
+      // Approval is completed by this account, and after a restart the request
+      // alone gives it no way to find the group it belongs to.
+      await update(ref(db), {
+        [`/familyGroups/${groupId}/joinRequests/${userId}`]: joinRequest,
+        [`/users/${userId}/pendingGroupId`]: groupId,
+      });
 
       return { groupId, groupName: resolvedGroupName };
     } catch (error: unknown) {
@@ -731,7 +798,38 @@ class AuthenticationModule {
    * Cancel a pending join request (called by the requesting user themselves).
    */
   async cancelJoinRequest(groupId: string, userId: string): Promise<void> {
-    await remove(ref(getDatabase(), `/familyGroups/${groupId}/joinRequests/${userId}`));
+    // The pointer goes with the request: left behind, it would restore the
+    // waiting screen for a request that no longer exists.
+    await update(ref(getDatabase()), {
+      [`/familyGroups/${groupId}/joinRequests/${userId}`]: null,
+      [`/users/${userId}/pendingGroupId`]: null,
+    });
+  }
+
+  /**
+   * Finish a join whose approval arrived while this account was not watching.
+   *
+   * The approver can write memberIds but not /users/{uid}/familyGroupId, so a
+   * membership only completes when this account writes its own half. That
+   * write used to happen exclusively in the listener registered at request
+   * time, which means an app restart between request and approval stranded the
+   * account: in memberIds, but with no group in its own profile, and refused a
+   * fresh request because it is already a member.
+   *
+   * Returns whether the membership was completed.
+   */
+  async reconcilePendingMembership(user: User): Promise<boolean> {
+    const groupId = user.pendingGroupId;
+    if (!groupId || user.familyGroupId) return false;
+
+    // Readable per rule: memberIds/$userId is self-readable.
+    const membershipSnapshot = await get(
+      ref(getDatabase(), `/familyGroups/${groupId}/memberIds/${user.uid}`),
+    );
+    if (membershipSnapshot.val() !== true) return false;
+
+    await this.completeJoinAfterApproval(groupId, user.uid);
+    return true;
   }
 
   /**
@@ -756,7 +854,10 @@ class AuthenticationModule {
    */
   async completeJoinAfterApproval(groupId: string, userId: string): Promise<FamilyGroup> {
     const db = getDatabase();
-    await set(ref(db, `/users/${userId}/familyGroupId`), groupId);
+    await update(ref(db), {
+      [`/users/${userId}/familyGroupId`]: groupId,
+      [`/users/${userId}/pendingGroupId`]: null,
+    });
 
     await remove(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`)).catch(() => {});
 

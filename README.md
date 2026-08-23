@@ -84,12 +84,9 @@ Offline-first: every write lands in WatermelonDB on the device, then syncs. The 
 
    b. Enable Authentication (Email/Password provider)
 
-   c. Create a Realtime Database. **Do not hand-write the rules** — deploy
-      [`database.rules.json`](./database.rules.json) from this repository. It is the
-      source of truth and covers `users`, `familyGroups`, `invitations` and
-      `urgentItems`, including family-group membership checks, monotonic usage
-      counters and join-request handling. Rules are deployed by hand through the
-      Firebase console, not by CI; see [RUNBOOK.md](./RUNBOOK.md).
+   c. Create a Realtime Database and deploy the security rules from this
+      repository rather than hand-writing them. Rules are deployed through the
+      Firebase console, not by CI.
 
    d. Enable Firebase Cloud Storage
 
@@ -130,7 +127,6 @@ src/
 
 android/  ios/                native projects
 supabase/functions/           edge functions (auto-deployed from master)
-database.rules.json           RTDB security rules (deployed by hand)
 docs/                         design audit, data safety, store layouts
 ```
 
@@ -147,8 +143,6 @@ and `ShoppingListManager` are the three to read first.
 ## 📋 Documentation
 
 - **[CHANGELOG.md](./CHANGELOG.md)** - Recent fixes and changes
-- **[RUNBOOK.md](./RUNBOOK.md)** - Operational runbook (backups, rollback, secrets)
-- **[CLAUDE.md](./CLAUDE.md)** - Project workflow and conventions
 - **[LICENSE](./LICENSE)** - Proprietary licence terms
 - **[docs/DESIGN_AUDIT.md](./docs/DESIGN_AUDIT.md)** - Design system audit and its follow-up
 - **[docs/DATA_SAFETY.md](./docs/DATA_SAFETY.md)** - Play Console data-safety declarations

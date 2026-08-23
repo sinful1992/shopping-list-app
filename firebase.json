@@ -8,5 +8,14 @@
   "functions": {
     "source": "functions",
     "runtime": "nodejs18"
+  },
+  "emulators": {
+    "database": {
+      "port": 9000
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
   }
 }

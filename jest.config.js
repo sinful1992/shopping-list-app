@@ -20,7 +20,9 @@ module.exports = {
       lines: 33,
     },
   },
-  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/__mocks__/', '/__tests__/setup\\.js'],
+  // __tests__/rules needs a live Firebase emulator and the web SDK, neither of
+  // which this config provides — those run under jest.rules.config.js instead.
+  testPathIgnorePatterns: ['/node_modules/', '/.claude/', '/__tests__/__mocks__/', '/__tests__/rules/', '/__tests__/setup\\.js'],
   modulePathIgnorePatterns: ['/.claude/'],
   watchPathIgnorePatterns: ['/.claude/'],
 };

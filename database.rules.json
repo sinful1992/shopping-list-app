@@ -5,14 +5,23 @@
 
     "users": {
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || (root.child('users').child(auth.uid).child('familyGroupId').val() != null && root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()))",
+        ".read": "auth != null && (
+          auth.uid == $uid ||
+          (root.child('users').child(auth.uid).child('familyGroupId').val() != null &&
+           root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()) ||
+          (root.child('users').child(auth.uid).child('familyGroupId').val() != null &&
+           root.child('familyGroups')
+               .child(root.child('users').child(auth.uid).child('familyGroupId').val())
+               .child('memberIds').hasChild($uid))
+        )",
         ".write": "auth != null && auth.uid == $uid && (
           !newData.exists() ||
           (
             (
               !newData.hasChild('familyGroupId') ||
               newData.child('familyGroupId').val() == null ||
-              root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
+              root.child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid) ||
+              newData.parent().parent().child('familyGroups').child(newData.child('familyGroupId').val()).child('memberIds').hasChild($uid)
             ) &&
             newData.child('claimsUpdatedAt').val() == data.child('claimsUpdatedAt').val() &&
             (
@@ -35,15 +44,11 @@
     "familyGroups": {
       "$groupId": {
         ".read": "auth != null && data.child('memberIds').child(auth.uid).exists()",
-        ".write": "auth != null && (
-          (
-            !data.exists() &&
-            newData.child('memberIds').child(auth.uid).val() === true &&
-            (!newData.hasChild('subscriptionTier') || newData.child('subscriptionTier').val() === 'free') &&
-            !newData.hasChild('tierUpdatedAt')
-          ) ||
-          (data.child('memberIds').child(auth.uid).exists() && !newData.exists())
-        )",
+        ".write": "auth != null &&
+          !data.exists() &&
+          newData.child('memberIds').child(auth.uid).val() === true &&
+          (!newData.hasChild('subscriptionTier') || newData.child('subscriptionTier').val() === 'free') &&
+          !newData.hasChild('tierUpdatedAt')",
 
         "memberIds": {
           "$userId": {
@@ -54,7 +59,11 @@
                root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists() &&
                newData.val() === true)
             )",
-            ".validate": "newData.isBoolean() && newData.val() === true"
+            ".validate": "newData.isBoolean() && newData.val() === true && (
+              $userId === auth.uid ||
+              data.exists() ||
+              root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists()
+            )"
           }
         },
 
@@ -64,14 +73,16 @@
             ".read": "auth != null && auth.uid == $userId",
             ".write": "auth != null && (
               auth.uid == $userId ||
-              root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)
+              (data.exists() && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid))
             )",
-            ".validate": "!newData.exists() || (
-              newData.hasChildren(['userId', 'groupId', 'displayName', 'email', 'requestedAt', 'status']) &&
-              newData.child('groupId').isString() &&
-              newData.child('requestedAt').isNumber() &&
-              newData.child('status').val().matches(/^(pending|approved|rejected)$/)
-            )"
+            ".validate": "!newData.exists() || newData.hasChildren(['userId', 'groupId', 'displayName', 'email', 'requestedAt', 'status'])",
+
+            "userId": { ".validate": "newData.val() === $userId" },
+            "groupId": { ".validate": "newData.val() === $groupId" },
+            "email": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+            "displayName": { ".validate": "newData.isString()" },
+            "requestedAt": { ".validate": "newData.isNumber()" },
+            "status": { ".validate": "newData.val().matches(/^(pending|approved|rejected)$/)" }
           }
         },
 

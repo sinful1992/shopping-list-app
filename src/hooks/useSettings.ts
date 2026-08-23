@@ -5,6 +5,7 @@ import { updateProfile } from '@react-native-firebase/auth';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import { useUser } from '../contexts/UserContext';
 import AuthenticationModule from '../services/AuthenticationModule';
+import CrashReporting from '../services/CrashReporting';
 import NotificationManager from '../services/NotificationManager';
 import ReceiptOCRService from '../services/ReceiptOCRService';
 
@@ -124,22 +125,22 @@ export function useSettings() {
           }
         }
 
+        // Registered before the member load so that a failure reading members
+        // cannot take the join-request listener down with it.
+        joinRequestsUnsubscribeRef.current?.();
+        joinRequestsUnsubscribeRef.current = AuthenticationModule.listenForJoinRequests(
+          currentUser.familyGroupId,
+          setJoinRequests,
+        );
+
         if (group && group.memberIds) {
           const memberIdsList = Object.keys(group.memberIds);
           const members = await loadFamilyMembers(memberIdsList);
           setFamilyMembers(members);
         }
-
-        if (currentUser.familyGroupId) {
-          joinRequestsUnsubscribeRef.current?.();
-          joinRequestsUnsubscribeRef.current = AuthenticationModule.listenForJoinRequests(
-            currentUser.familyGroupId,
-            setJoinRequests,
-          );
-        }
       }
-    } catch {
-      // Failed to load settings
+    } catch (error: unknown) {
+      CrashReporting.recordError(error as Error, 'useSettings loadSettingsData');
     } finally {
       setLoading(false);
     }
@@ -149,13 +150,26 @@ export function useSettings() {
     if (memberIds.length === 0) return [];
 
     const db = getDatabase();
-    const snapshots = await Promise.all(
+    // allSettled, not all: a single unreadable member must cost one row, not
+    // the whole list. A member admitted into memberIds whose own profile has
+    // not caught up yet is exactly such a read.
+    const results = await Promise.allSettled(
       memberIds.map(id => get(ref(db, `/users/${id}`)))
     );
 
-    return snapshots
-      .map(snap => snap.val())
-      .filter(Boolean);
+    const members: User[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const member = result.value.val();
+        if (member) members.push(member);
+      } else {
+        CrashReporting.recordError(
+          result.reason as Error,
+          'useSettings loadFamilyMembers',
+        );
+      }
+    }
+    return members;
   };
 
 const updateName = useCallback(async (newName: string): Promise<void> => {

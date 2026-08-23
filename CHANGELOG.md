@@ -4,6 +4,74 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.3] - 2026-08-23
+
+### Security
+- **A member could read the profile of any account whose uid they knew.** The read rule on `/users/{uid}` gained a third disjunct in 1.38.13 deriving permission from `familyGroups/{myGroup}/memberIds`, on the reasoning that `memberIds` is the authoritative membership record everywhere else in these rules. It is — but nothing constrained who could appear in it at creation time. The group node's `.write` rule asks only that the creator is *among* the members, not that they are the only one, and RTDB stops consulting `.write` once a shallower path grants it, so the entry-level guard that demands a matching join request was never reached for a group arriving whole. Creating a group listing an arbitrary uid alongside your own and pointing your profile at it was therefore enough to read that account's email address, display name, role, group membership and terms acceptance, with no consent from it and nothing shown to it. Confirmed against the rules emulator rather than argued: the read succeeded, and the same read with the fabricated entry removed was denied.
+
+  The uid is the only prerequisite, and normal use hands them out — every current and former co-member, every account that has filed a join request to a group you belong to, and every `createdBy` on a list or item you can read. An account that left a shared group could be re-added to a throwaway group and read indefinitely afterwards.
+
+  Fixed at the point of forgery rather than at the read: `memberIds/{uid}` now carries a `.validate` requiring the entry to be your own, to already exist, or to be backed by a join request. `.validate` is evaluated at every level regardless of where write permission was granted, which is exactly what the ancestor-write path bypassed. The read disjunct is unchanged and the two-principal approval handshake is untouched — the four new assertions include the legitimate approval and a single-member create, both of which must keep working, and the two exploit assertions were verified to fail against the previous rules. Rules suite 40/40.
+
+## [1.39.2] - 2026-08-23
+
+### Fixed
+- **A failed reconciliation attempt disabled reconciliation for the rest of the session.** The once-per-sign-in guard added in 1.39.0 was set before the attempt rather than after it, so a single failed read — and a stranded account is exactly the one likely to be offline — left the account on "Join or Create Family Group" until the app was restarted, which is the situation the reconciliation exists to end. The guard is now released when the attempt fails, so the next profile update retries.
+- **The restored waiting screen could orphan an approval listener.** If a request was submitted while the mount-time `getCurrentUser()` read was still in flight, the restore overwrote the listener reference instead of replacing the listener, leaving the first one live and able to complete the join a second time.
+
+## [1.39.1] - 2026-08-23
+
+### Fixed
+- **Deleting an account that had been approved but never joined left it in the group forever.** `deleteUserAccount` gates every piece of group cleanup on the account's own `familyGroupId`, which for such an account is still null — so the `memberIds` entry survived the deletion, and once `/users/{uid}` was gone the only account permitted to remove that entry no longer existed. The group was then left with a member id that resolves to nothing, which is precisely the state that blanked the member list before 1.38.13. Deletion now also clears the `memberIds` entry and the join request through the `pendingGroupId` pointer added in 1.39.0.
+
+## [1.39.0] - 2026-08-23
+
+### Added
+- **A join request now survives the app closing.** Making someone a member takes two writes that no single account can perform: the approver writes `memberIds/{uid}`, and only the requester may write their own `/users/{uid}/familyGroupId`. The requester's half ran exclusively from a listener registered at the moment the request was submitted, so if that app was not sitting on the waiting screen when approval landed — closed, restarted, reinstalled — the membership never completed. Reproduced on device on 2026-08-23: the approved account signed back in to "Join or Create Family Group", and re-entering the invitation code was refused with "You are already a member of this family group", because it *was* in `memberIds`. There was no way back from inside the app. `submitJoinRequest` now writes `/users/{uid}/pendingGroupId` in the same update as the request itself — the request alone records no group the account can find afterwards — and a sign-in that sees a pointer with no `familyGroupId` checks `memberIds` (self-readable by rule) and finishes the join. The waiting screen is likewise restored from the pointer rather than from component state, so a restart mid-wait shows the request rather than an empty form, and cancelling clears request and pointer together.
+
+## [1.38.13] - 2026-08-23
+
+### Fixed
+- **Approving a join request emptied the Family Members list for the whole group.** Found on a device run, not in the repository: after approving, Settings showed "Share your invitation code above to shop together" and all three real members were gone. Two writes are needed to make someone a member and no single account can perform both — the approver writes `memberIds/{uid}`, and only the requester may write their own `/users/{uid}/familyGroupId`. Between the two, the group holds a member whose profile still reads `familyGroupId: null`, and the read rule on `/users/{uid}` asked for the two profiles' `familyGroupId` to be *equal*, so that one profile was unreadable. `loadFamilyMembers` fetched every member with `Promise.all`, so the single denied read rejected the whole call, propagated out of `loadSettingsData` and left the member list at its initial empty value — with the outer `catch` swallowing the error, nothing pointed at the cause. Three changes, each of which would have prevented the blank list on its own: read access to a profile now also derives from `memberIds`, which is the authoritative membership record everywhere else in these rules; the member load uses `allSettled`, so an unreadable member costs one row rather than the list, and the rejection is recorded; and the join-request listener is registered *before* the member load, having previously been unreachable once the load threw. The rule change is added as a third disjunct rather than replacing the equality check — keying only on `memberIds` would newly deny a user who has `familyGroupId` set but no `memberIds` entry, the stranded case tracked since 1.38.10.
+- **Correction to 1.38.9.** That entry justified leaving the join-request `displayName` unbound on the grounds that it "is null on both account-creation paths". It is not: `EmailSignUpScreen` requires a name and passes it to `signUp()`. The conclusion still holds — an unverified string should not be the identity line — but the reason given was wrong, and the two-line approval row is the common case rather than the edge one.
+
+## [1.38.12] - 2026-08-22
+
+### Fixed
+- **Creating a family group was rejected by the rules, and had been since 2026-05-06.** Confirmed live, not just in the repository: the guard reached `master` on 2026-05-06 and every `master` build since has run the rules deploy. `createFamilyGroup` writes the group, the invitation and `/users/{uid}/familyGroupId` in one atomic update, and the third path was gated on the caller already appearing in the new group's `memberIds` — read through `root`, which is the state *before* the operation, so the group being created alongside it was not visible and the whole write was refused. Joining an existing group was unaffected, which is why it went unnoticed. The guard now also accepts the **resulting** state, reached with `newData.parent().parent()`, which does see the sibling paths of a multi-path update. That is a tighter fix than the escape hatch `invitations` uses for the same situation, which admits any group that does not exist yet: this one still requires membership, only in the state the write produces rather than the one it started from. The self-admit it appears to open — bundling `familyGroupId` and a `memberIds` entry into one update so the profile leg sees the membership it just fabricated — is refused by the `memberIds` rule, which admits a uid only against a join request the account itself filed. The `it.failing` marker left in place last version is now a passing assertion, and the phantom join the guard exists to stop has explicit denials for the first time.
+
+## [1.38.11] - 2026-08-22
+
+### Fixed
+- **The rules test suite names the project it runs against.** `firebase emulators:exec` was relying on whatever default project the CLI could find, which on a developer machine is the one in the global firebase-tools config and in CI is nothing at all — there is no `.firebaserc` in the repository. The step would have failed to resolve a project before Jest ever started. It now passes `--project demo-shopping-rules` explicitly, matching the id the test environment uses; the `demo-` prefix is the reserved form that needs no credentials.
+
+## [1.38.10] - 2026-08-22
+
+### Changed
+- **Leaving a family group now removes your `memberIds` entry in one place.** `memberIds` is the list every read permission on a group derives from, so a user who detaches from a group but keeps an entry in it would go on reading its lists, items, prices and store layouts. Deleting your account was the only code that removed one. This is not currently reachable — the detach path only runs once the group is already gone, and there is no leave-group or remove-member feature to create a live user detached from a live group — but the removal now lives in a single `removeSelfFromGroup` helper that both paths call, so the first feature that does detach a user cannot forget it. The helper lets failures propagate, and only the detach path ignores them — there, the group has already gone and the rule requires the entry to still exist, so a denial is the expected case. Account deletion must not ignore it: it goes on to remove the user record and the auth account, and a stranded `memberIds` entry for a uid that no longer exists could never be removed afterwards, since the rule permitting that write requires you to *be* that user.
+
+## [1.38.9] - 2026-08-22
+
+### Security
+- **The approve/decline decision was based entirely on strings the requester chose.** A join request was validated for having a `displayName` and an `email`, never for either matching the account making it — and the approval row led with the display name. So a request could arrive labelled "Mum" and be approved on that basis. This matters more than it looks: the invitation code is about 2^40 and cannot be enumerated, which means the human approval *is* the second factor, and it was being shown unverified text. The `email` on a join request is now bound to the requester's verified token, checked per field rather than on the request as a whole — a check on the whole request would not re-run if only the email were overwritten afterwards, which is a two-write bypass. `submitJoinRequest` reads the email from the auth token instead of the user record, so the write matches the rule by construction. The display name is deliberately *not* bound: it is null on both account-creation paths, so binding it would couple two nullable values and verify nothing.
+- **A member could fabricate a join request for any account and then approve it.** Writing `joinRequests/{uid}` was open to any member for any `uid`, and the rule admitting someone to `memberIds` asks only whether a request exists — so one member could manufacture the request and immediately satisfy the check, adding an account whose owner never asked to join and never consented. Request creation is now restricted to the account making the request; members may still write `status` on requests that already exist, which is what approving and rejecting do. The practical impact was limited — `users/{uid}/familyGroupId` still requires you to be that user, so the added account was never really pulled into the group and its own data stayed unreadable — but it inflated `memberIds`, which is the list every read permission on the group is derived from.
+
+### Changed
+- **The join-request row leads with the email address.** It used to show the display name in the primary line and the email underneath only when a display name existed — so the unverified string was prominent exactly when it was present, and the verified one was demoted. The email is now the identity line and the display name sits beneath it as a hint.
+
+## [1.38.8] - 2026-08-22
+
+### Security
+- **Any member could delete an entire family group.** The rule authorizing the whole-group delete asked only whether the caller was a member, so one modified or compromised account could null `/familyGroups/{id}` and take every list, item, price record, store layout and category history with it, however many other people were in the group. The client only did this when the last member left, but that check ran on the device, which is not where an authorization decision can live. The permission is gone: a client may now create a group and nothing else. The one legitimate caller — deleting your own account as the last member — removes its own `memberIds` entry instead, retiring the invitation code first, since that write is itself only permitted while still a member. What is left behind is an unreadable, unjoinable node: `memberIds` disappears once empty and every read on the group is gated on having an entry in it. That is storage to sweep up, not data anyone can reach.
+
+## [1.38.7] - 2026-08-22
+
+### Added
+- **`database.rules.json` has tests.** It is the sole authorization boundary for every family group's lists, items, prices and store layouts, it is ~8.5 KB of nested expressions, and it had no test of any kind — while `android-build.yml` deploys it to the live database on every push to `master`. The failure mode of a wrong rule is a locked-out user, not an exception someone catches. `npm run test:rules` now runs an allow/deny suite against the Firebase database emulator: group creation and the tier lockout, member and non-member reads, self-removal from `memberIds`, and the full join-request handshake including who may approve. It runs in CI on every push and pull request. These tests live under `jest.rules.config.js` rather than the main config, which uses the React Native preset and stubs `@react-native-firebase/*` — rules tests need the web SDK talking to a real emulator under Node — and they are excluded from the coverage ratchet, since they exercise a JSON rules file rather than any module under `src/`.
+
+### Deferred (tracked, not yet applied)
+- **Creating a family group is rejected by the rules, and has been since 2026-05-06.** The first thing the new suite found. `createFamilyGroup` writes the group, the invitation and `/users/{uid}/familyGroupId` in one atomic update; that third path is gated on the caller already appearing in the new group's `memberIds`, read through `root` — which is the state *before* the operation, so the group created in the same update is not visible yet and the whole write is refused. Joining an existing group is unaffected; only creating a new one. The `invitations` rule carries an explicit escape hatch for exactly this situation and the `users` rule does not. Recorded as a deliberate `it.failing` test rather than fixed here, so it stays visible and turns red the moment it starts passing. *Resolved in 1.38.12.*
+
 ## [1.38.6] - 2026-08-19
 
 ### Changed
@@ -634,7 +702,7 @@ Not testable on the AVD (environmental, physical-device only): FCM push delivery
 - **Removed dead `UsageTracker` numeric-limit code** — `canProcessOCR`, `incrementOCRCounter`, and `getRemainingUsage` had zero callers (OCR is ad-gated now), and the surviving comments falsely claimed "enforcement is in Cloud Functions" (no such function exists). Removed the three dead methods and corrected the class/method docs to state the truth: numeric caps are disabled on every tier (ad-based model), `canCreateList` always allows today and is a UX gate only, and there is no server-side count enforcement. No behavior change — `getUsageSummary` (subscription screen) and `canCreateList`/`incrementListCounter` (list create flow) are untouched.
 
 ### Notes
-- **Backlog — family-member cap is unenforced.** `TIER_FEATURES` advertises "Up to 10 Family Members" for the family tier, but `maxFamilyMembers` is null on every tier and nothing enforces it. Deferred deliberately (this pass was infra/security only). When implemented, enforce server-side at join-approval — either a maintained `memberCount` checked in the RTDB rule, or a join-approval edge function — not client-side.
+- **Backlog — family-member cap.** `TIER_FEATURES` advertises "Up to 10 Family Members" for the family tier; wiring `maxFamilyMembers` through is deferred (this pass was infra/security only). When implemented, enforce server-side at join-approval — either a maintained `memberCount` checked in the RTDB rule, or a join-approval edge function — not client-side.
 
 ## [1.25.0] - 2026-06-06
 
@@ -643,12 +711,12 @@ Not testable on the AVD (environmental, physical-device only): FCM push delivery
 - **One-command backend rollback** — `scripts/rollback.ps1` (+ `.sh`) redeploys the edge functions *and* RTDB rules from a known-good git ref via a throwaway git worktree (working tree untouched). Does not touch migrations (forward-only). Documented in RUNBOOK §3.
 
 ### Changed
-- **RUNBOOK refresh** — §3 documents the rollback script; §6 adds the backend health endpoint; §7 rewritten to match reality (server-side CI verify job was dropped — quality is gated by local git hooks, branch protection is Pro-gated); new §10 documents a quarterly secret-rotation schedule.
+- **RUNBOOK refresh** — §3 documents the rollback script; §6 adds the backend health endpoint; §7 rewritten to match reality; new §10 documents a quarterly secret-rotation schedule.
 
 ## [1.24.0] - 2026-06-06
 
 ### Added
-- **App Check (device attestation) wired into the client** — added `@react-native-firebase/app-check` and `src/services/AppCheckService.ts`, initialized first in `App.tsx` so attestation tokens attach to subsequent Firebase traffic. Release builds use Play Integrity (Android) / App Attest (iOS); `__DEV__` uses the debug provider so the AVD keeps working. Init is resilient — a failure never blocks startup. **Enforcement is a deliberate console step, not enabled here:** every API stays unenforced (monitor mode) until App Check metrics show verified traffic dominates, then enforce one API at a time. Requires a native rebuild. See RUNBOOK §9 for the debug-token + enforcement ramp.
+- **App Check (device attestation) wired into the client** — added `@react-native-firebase/app-check` and `src/services/AppCheckService.ts`, initialized first in `App.tsx` so attestation tokens attach to subsequent Firebase traffic. Release builds use Play Integrity (Android) / App Attest (iOS); `__DEV__` uses the debug provider so the AVD keeps working. Init is resilient — a failure never blocks startup. **Enforcement is a console-side step handled outside this repo**, ramped one API at a time. Requires a native rebuild.
 
 ## [1.23.1] - 2026-06-06
 

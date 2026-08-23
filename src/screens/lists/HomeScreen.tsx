@@ -67,7 +67,7 @@ const HomeScreen = () => {
           { icon: 'warning' }
         );
 
-        await AuthenticationModule.clearFamilyGroupReference(user.uid);
+        await AuthenticationModule.clearFamilyGroupReference(user.uid, familyGroupId);
 
         return;
       }

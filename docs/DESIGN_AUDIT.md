@@ -8,7 +8,7 @@
 > Contrast figures are now regression-tested in
 > `src/styles/__tests__/contrast.test.ts`.
 
-This is a **design** audit, companion to `IMPROVEMENT_PLAN.md` (which covers structure,
+This is a **design** audit, companion to the internal improvement plan (which covers structure,
 types, and tests). It looks only at what the user sees: colour, contrast, hierarchy,
 touch targets, iconography, and copy.
 

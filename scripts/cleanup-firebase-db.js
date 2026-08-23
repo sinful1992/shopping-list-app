@@ -9,16 +9,21 @@
  *      (category is already the Firebase key — storing it inside was redundant)
  *
  * Usage:
- *   GOOGLE_APPLICATION_CREDENTIALS=path/to/serviceAccount.json node scripts/cleanup-firebase-db.js
+ *   FIREBASE_DB_URL=https://<project>-default-rtdb.<region>.firebasedatabase.app  *   GOOGLE_APPLICATION_CREDENTIALS=path/to/serviceAccount.json node scripts/cleanup-firebase-db.js
  *
  * Dry run (inspect only, no writes):
- *   DRY_RUN=true GOOGLE_APPLICATION_CREDENTIALS=... node scripts/cleanup-firebase-db.js
+ *   DRY_RUN=true FIREBASE_DB_URL=... GOOGLE_APPLICATION_CREDENTIALS=... node scripts/cleanup-firebase-db.js
  */
 
 const admin = require('firebase-admin');
 
 const DRY_RUN = process.env.DRY_RUN === 'true';
-const DATABASE_URL = 'https://shopinglist-8b921-default-rtdb.europe-west1.firebasedatabase.app';
+const DATABASE_URL = process.env.FIREBASE_DB_URL;
+
+if (!DATABASE_URL) {
+  console.error('Set FIREBASE_DB_URL to the Realtime Database URL.');
+  process.exit(1);
+}
 
 admin.initializeApp({
   credential: admin.credential.applicationDefault(),
