@@ -489,3 +489,61 @@ describe('approved-but-not-yet-joined member', () => {
     );
   });
 });
+
+// A memberIds entry is what the `/users/$uid` read rule derives permission
+// from, so an entry nobody consented to is a read grant nobody consented to.
+// Group creation is the one write that reaches memberIds through an ancestor
+// rule — RTDB stops consulting `.write` once a shallower path grants it — so
+// the entry-level `.write` guard never saw the members a new group arrived
+// with. `.validate` is evaluated at every level regardless, which is why the
+// provenance check lives there.
+describe('membership provenance', () => {
+  const EVIL = '-NevilGroupKey';
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.database();
+      await set(ref(db, `/users/${ALICE}`), makeUser(ALICE, ALICE_EMAIL, 'Alice', null));
+      await set(ref(db, `/users/${BOB}`), makeUser(BOB, BOB_EMAIL, 'Bob', GROUP));
+    });
+  });
+
+  const createEvilGroup = (db, memberIds) =>
+    set(ref(db, `/familyGroups/${EVIL}`), makeGroup(EVIL, ALICE, memberIds, 'EVIL2345'));
+
+  it('denies creating a group that lists a uid which never asked to join', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(createEvilGroup(db, { [ALICE]: true, [BOB]: true }));
+  });
+
+  // The payoff the entry buys, asserted end to end: without the guard Alice
+  // reads an account she shares no group with.
+  it('denies reading a profile via a membership the reader fabricated', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(createEvilGroup(db, { [ALICE]: true, [BOB]: true }));
+    await assertFails(get(ref(db, `/users/${BOB}`)));
+  });
+
+  // The guard must cost the legitimate creator nothing.
+  it('still allows creating a group with only the creator in it', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(createEvilGroup(db, { [ALICE]: true }));
+    await assertSucceeds(update(ref(db, `/users/${ALICE}`), { familyGroupId: EVIL }));
+    // Same read, same shape, no fabricated entry: the control for the above.
+    await assertFails(get(ref(db, `/users/${BOB}`)));
+  });
+
+  // Approval is the sanctioned way a second uid reaches memberIds, and it must
+  // survive the new validate: the request is what authorises the entry.
+  it('still allows an approver to admit a uid that filed a request', async () => {
+    await seedGroup();
+    await seedJoinRequest();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(
+      update(ref(db), {
+        [`/familyGroups/${GROUP}/joinRequests/${BOB}/status`]: 'approved',
+        [`/familyGroups/${GROUP}/memberIds/${BOB}`]: true,
+      }),
+    );
+  });
+});

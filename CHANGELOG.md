@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.3] - 2026-08-23
+
+### Security
+- **A member could read the profile of any account whose uid they knew.** The read rule on `/users/{uid}` gained a third disjunct in 1.38.13 deriving permission from `familyGroups/{myGroup}/memberIds`, on the reasoning that `memberIds` is the authoritative membership record everywhere else in these rules. It is — but nothing constrained who could appear in it at creation time. The group node's `.write` rule asks only that the creator is *among* the members, not that they are the only one, and RTDB stops consulting `.write` once a shallower path grants it, so the entry-level guard that demands a matching join request was never reached for a group arriving whole. Creating a group listing an arbitrary uid alongside your own and pointing your profile at it was therefore enough to read that account's email address, display name, role, group membership and terms acceptance, with no consent from it and nothing shown to it. Confirmed against the rules emulator rather than argued: the read succeeded, and the same read with the fabricated entry removed was denied.
+
+  The uid is the only prerequisite, and normal use hands them out — every current and former co-member, every account that has filed a join request to a group you belong to, and every `createdBy` on a list or item you can read. An account that left a shared group could be re-added to a throwaway group and read indefinitely afterwards.
+
+  Fixed at the point of forgery rather than at the read: `memberIds/{uid}` now carries a `.validate` requiring the entry to be your own, to already exist, or to be backed by a join request. `.validate` is evaluated at every level regardless of where write permission was granted, which is exactly what the ancestor-write path bypassed. The read disjunct is unchanged and the two-principal approval handshake is untouched — the four new assertions include the legitimate approval and a single-member create, both of which must keep working, and the two exploit assertions were verified to fail against the previous rules. Rules suite 40/40.
+
 ## [1.39.2] - 2026-08-23
 
 ### Fixed
