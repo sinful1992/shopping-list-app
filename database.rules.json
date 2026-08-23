@@ -61,7 +61,6 @@
             )",
             ".validate": "newData.isBoolean() && newData.val() === true && (
               $userId === auth.uid ||
-              data.exists() ||
               root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists()
             )"
           }

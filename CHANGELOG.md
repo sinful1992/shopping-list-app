@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.4] - 2026-08-23
+
+### Changed
+- **Dropped an unreachable disjunct from the `memberIds` guard added in 1.39.3.** The new `.validate` accepted an entry that already existed, on the reasoning that re-writing a member's own entry should stay idempotent. Probing the rule showed that branch can never decide anything: every write that reaches `.validate` has already satisfied `.write`, which admits only the account itself — covered by the first disjunct — or an approver acting on a join request, covered by the third. An entry that exists but has neither is refused before `.validate` is consulted. Dead logic in a security predicate is worse than no logic, because the next reader takes it for a grant that exists, so it is gone. Behaviour is unchanged and the suite is unchanged at 42 assertions.
+
+### Added
+- **Two forgery variants the suite did not cover.** The 1.39.3 assertions send the group create and the profile claim as separate writes; the single multi-path update is the form an attacker would actually send, and the shape that defeated the `root`-based guard in 1.38.12, so it is now asserted in its own right. The second covers a write aimed at the `memberIds` map rather than at one entry under it — that node has no `.write` of its own, so it is refused by the absence of permission above it rather than by any rule naming it, which is precisely the kind of guarantee that disappears silently when a rule is added later.
+
 ## [1.39.3] - 2026-08-23
 
 ### Security

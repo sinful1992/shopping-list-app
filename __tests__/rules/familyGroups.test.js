@@ -533,6 +533,29 @@ describe('membership provenance', () => {
     await assertFails(get(ref(db, `/users/${BOB}`)));
   });
 
+  // The single-update form is the one an attacker would actually send, and it
+  // is the shape that defeated the `root`-based guard in 1.38.12 — worth its
+  // own assertion rather than trusting that the two-step case covers it.
+  it('denies creating the group and claiming it in one update', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      update(ref(db), {
+        [`/familyGroups/${EVIL}`]: makeGroup(EVIL, ALICE, { [ALICE]: true, [BOB]: true }, 'EVIL2345'),
+        [`/users/${ALICE}/familyGroupId`]: EVIL,
+      }),
+    );
+  });
+
+  // memberIds has no `.write` of its own, so a write aimed at the map rather
+  // than at one entry has to be refused by the absence of permission above it.
+  it('denies a member rewriting the whole memberIds map', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      set(ref(db, `/familyGroups/${GROUP}/memberIds`), { [ALICE]: true, [BOB]: true }),
+    );
+  });
+
   // Approval is the sanctioned way a second uid reaches memberIds, and it must
   // survive the new validate: the request is what authorises the entry.
   it('still allows an approver to admit a uid that filed a request', async () => {
