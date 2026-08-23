@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.7] - 2026-08-23
+
+### Added
+- **Unit tests for the membership flow, which had none.** Every change in 1.38.13 through 1.39.6 touched `submitJoinRequest`, `cancelJoinRequest`, `completeJoinAfterApproval`, `reconcilePendingMembership` or `deleteUserAccount`, and the suite stayed at exactly 182 tests throughout — because not one of those functions was covered, so rewriting `set` into a multi-path `update` could not break anything. Fourteen tests now assert the *shape* of those updates rather than merely that a write happened: the request paired with its pointer, the claim paired with the pointer's removal, and each of the three branches `deleteUserAccount` can take. The two covering 1.39.6 were confirmed to fail against the previous implementation and nothing else did.
+
+  Worth recording for whoever writes the next one: `jest.config.js` maps every `@react-native-firebase/*` specifier onto a single stub file, so a `jest.mock` factory per package silently collides and only the last registered survives — auth appeared to be ignored while database worked. One factory carrying every export the module imports is the way around it. `@env` is synthesised by the dotenv babel plugin and needs `{ virtual: true }`.
+
 ## [1.39.6] - 2026-08-23
 
 ### Fixed
