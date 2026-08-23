@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.1] - 2026-08-23
+
+### Fixed
+- **Deleting an account that had been approved but never joined left it in the group forever.** `deleteUserAccount` gates every piece of group cleanup on the account's own `familyGroupId`, which for such an account is still null — so the `memberIds` entry survived the deletion, and once `/users/{uid}` was gone the only account permitted to remove that entry no longer existed. The group was then left with a member id that resolves to nothing, which is precisely the state that blanked the member list before 1.38.13. Deletion now also clears the `memberIds` entry and the join request through the `pendingGroupId` pointer added in 1.39.0.
+
 ## [1.39.0] - 2026-08-23
 
 ### Added

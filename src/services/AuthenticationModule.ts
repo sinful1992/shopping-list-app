@@ -631,6 +631,18 @@ class AuthenticationModule {
 
           await this.removeSelfFromGroup(userId, familyGroupId);
         }
+      } else if (userData.pendingGroupId) {
+        // Approved into a group but never completed the join, so none of the
+        // above ran. The memberIds entry still has to go: once /users/{uid} is
+        // deleted below, the only account permitted to remove it is gone, and
+        // it would sit in the group's member list unreadable forever.
+        await update(ref(db), {
+          [`/familyGroups/${userData.pendingGroupId}/joinRequests/${userId}`]: null,
+          [`/familyGroups/${userData.pendingGroupId}/memberIds/${userId}`]: null,
+        }).catch(err => CrashReporting.recordError(
+          err as Error,
+          'AuthenticationModule deleteUserAccount pending cleanup',
+        ));
       }
 
       // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)

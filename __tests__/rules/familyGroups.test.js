@@ -475,4 +475,17 @@ describe('approved-but-not-yet-joined member', () => {
       }),
     );
   });
+
+  // Account deletion for an account in this state: /users/{uid} is about to
+  // go, and afterwards no one is permitted to remove its memberIds entry.
+  it('allows the requester to drop its own memberIds entry and request at once', async () => {
+    await seedApprovedNotJoined();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertSucceeds(
+      update(ref(db), {
+        [`/familyGroups/${GROUP}/joinRequests/${BOB}`]: null,
+        [`/familyGroups/${GROUP}/memberIds/${BOB}`]: null,
+      }),
+    );
+  });
 });
