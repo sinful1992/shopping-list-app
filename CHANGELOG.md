@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.8] - 2026-08-23
+
+### Fixed
+- **Deleting an account destroyed its data and then failed, leaving an account that could not load, log out or retry.** Firebase only accepts `user.delete()` shortly after a sign-in, and that call was the tenth of ten steps. Any deletion more than a few minutes after signing in — the common path, not an edge case — ran the nine destructive steps and was then refused with `auth/requires-recent-login`. The RTDB profile was gone, the auth account survived, and on relaunch the app sat on "Loading…" indefinitely: the profile listener only reports a profile that exists, there is no logout on a splash screen, and retrying is impossible because step 1 reads the `/users/{uid}` that step 6 already removed. Reproduced against production while verifying 1.39.7, with the exception in logcat.
+
+  The preflight is now unconditional rather than guessed from `metadata.lastSignInTime`, whose window is undocumented — a wrong guess would reintroduce exactly this bug. Before anything is touched, `deleteUserAccount` reauthenticates: a Google account through the Google prompt, a password account through a new confirm-password modal in Settings. `getReauthMethod()` tells the screen which one to collect *before* the call, so the requirement is never discovered by throwing an error through two lossy layers — the `Failed to delete account:` wrapper and `sanitizeError`'s allowlist, which is what turned the original failure into "Something went wrong. Please try again." Google wins when both providers are linked, since it needs nothing typed. A prompt returning a different Google account is refused up front rather than after the data is gone, and backing out of it deletes nothing and reports no success.
+
+  The tenth step keeps a bounded retry for the case the preflight cannot cover — the cleanup between them is many round-trips — presenting the credential it already holds rather than asking twice. If that still fails, the account is signed out before the error is raised, so the profile-less-but-authenticated state that hangs on "Loading…" is not reachable from here at all. Twelve tests cover the preflight, the two providers, cancellation, the wrong password, the retry and the sign-out fallback; the five existing deletion tests now pass a password, which is what the module requires of every caller.
+
 ## [1.39.7] - 2026-08-23
 
 ### Added

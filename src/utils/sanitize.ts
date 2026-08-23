@@ -126,7 +126,11 @@ export function sanitizeError(error: unknown): string {
       msg.startsWith('Item not found') ||
       msg.startsWith('Google Sign-In') ||
       msg.startsWith('Google Play Services') ||
-      msg.startsWith('An account already exists')
+      msg.startsWith('An account already exists') ||
+      msg.startsWith('Re-authentication') ||
+      msg.startsWith('Incorrect password') ||
+      msg.startsWith('Password is required') ||
+      msg.startsWith('Your data was deleted')
     ) {
       return msg;
     }

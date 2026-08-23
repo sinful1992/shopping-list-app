@@ -4,7 +4,7 @@ import { getDatabase, ref, get, update } from '@react-native-firebase/database';
 import { updateProfile } from '@react-native-firebase/auth';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import { useUser } from '../contexts/UserContext';
-import AuthenticationModule from '../services/AuthenticationModule';
+import AuthenticationModule, { ReauthMethod } from '../services/AuthenticationModule';
 import CrashReporting from '../services/CrashReporting';
 import NotificationManager from '../services/NotificationManager';
 import ReceiptOCRService from '../services/ReceiptOCRService';
@@ -201,9 +201,14 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     await AuthenticationModule.signOut();
   }, []);
 
-  const deleteAccount = useCallback(async (): Promise<void> => {
-    await AuthenticationModule.deleteUserAccount();
+  const deleteAccount = useCallback(async (password?: string): Promise<boolean> => {
+    return AuthenticationModule.deleteUserAccount(password);
   }, []);
+
+  const getReauthMethod = useCallback(
+    (): ReauthMethod | null => AuthenticationModule.getReauthMethod(),
+    [],
+  );
 
   const retryLoadInvitationCode = useCallback(async (): Promise<void> => {
     if (!user?.familyGroupId) return;
@@ -244,6 +249,7 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     rejectJoinRequest,
     logout,
     deleteAccount,
+    getReauthMethod,
     retryLoadInvitationCode,
     refresh: loadSettingsData,
   };

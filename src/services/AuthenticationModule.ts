@@ -7,7 +7,10 @@ import {
   onAuthStateChanged as onFirebaseAuthStateChanged,
   getIdToken,
   updateProfile,
+  reauthenticateWithCredential,
   GoogleAuthProvider,
+  EmailAuthProvider,
+  type AuthCredential,
   type User as FirebaseUser,
 } from '@react-native-firebase/auth';
 import { getDatabase, ref, get, set, update, remove, runTransaction, push, query, orderByChild, equalTo, onValue } from '@react-native-firebase/database';
@@ -27,6 +30,9 @@ import { safeJsonParse } from '../utils/safeJsonParse';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
 import CrashReporting from './CrashReporting';
+
+/** How an already signed-in account proves it is still present. */
+export type ReauthMethod = 'google' | 'password';
 
 /**
  * AuthenticationModule
@@ -532,17 +538,167 @@ class AuthenticationModule {
   }
 
   /**
+   * How the signed-in account can prove it is present, which deleting it
+   * requires. Callers use this to collect a password before starting, since a
+   * Google account needs nothing collected in advance.
+   */
+  getReauthMethod(): ReauthMethod | null {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      return null;
+    }
+
+    const providerIds = currentUser.providerData.map(provider => provider.providerId);
+    // Google first when both are linked: it needs no password typed in.
+    if (providerIds.includes('google.com')) {
+      return 'google';
+    }
+    if (providerIds.includes('password')) {
+      return 'password';
+    }
+    return null;
+  }
+
+  /**
+   * Prove the account is present, resetting Firebase's recent-login window.
+   * Returns the credential used, so a later step can present it again without
+   * asking a second time, or null if the user backed out.
+   */
+  private async reauthenticate(
+    currentUser: FirebaseUser,
+    password?: string,
+  ): Promise<AuthCredential | null> {
+    const method = this.getReauthMethod();
+
+    if (method === 'google') {
+      this.ensureGoogleConfigured();
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      const response = await GoogleSignin.signIn();
+      if (isCancelledResponse(response)) {
+        return null;
+      }
+      if (!isSuccessResponse(response)) {
+        throw new Error('Re-authentication failed. Please try again.');
+      }
+
+      const idToken = response.data?.idToken;
+      if (!idToken) {
+        throw new Error('Re-authentication failed: no ID token returned');
+      }
+
+      // A device with several Google accounts can hand back a different one,
+      // and reauthenticating with it would fail anyway — say so plainly first.
+      const linkedEmail = currentUser.providerData
+        .find(provider => provider.providerId === 'google.com')?.email;
+      const signedInEmail = response.data?.user?.email;
+      if (linkedEmail && signedInEmail && linkedEmail.toLowerCase() !== signedInEmail.toLowerCase()) {
+        throw new Error('Re-authentication requires the same Google account this app is signed in with.');
+      }
+
+      const { accessToken } = await GoogleSignin.getTokens();
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+      await reauthenticateWithCredential(currentUser, credential);
+      return credential;
+    }
+
+    if (method === 'password') {
+      if (!currentUser.email) {
+        throw new Error('Re-authentication failed: this account has no email address.');
+      }
+      if (!password) {
+        throw new Error('Password is required to delete your account.');
+      }
+
+      const credential = EmailAuthProvider.credential(currentUser.email, password);
+      try {
+        await reauthenticateWithCredential(currentUser, credential);
+      } catch (error: unknown) {
+        const code = (error as { code?: string }).code;
+        if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+          throw new Error('Incorrect password. Please try again.');
+        }
+        throw error;
+      }
+      return credential;
+    }
+
+    throw new Error('Re-authentication is not available for this sign-in method.');
+  }
+
+  /**
+   * Step 10 of deletion, kept apart because it is the one step with nothing
+   * behind it: by the time it runs the profile is gone, so a failure here
+   * leaves an account that cannot load, cannot log out and cannot retry.
+   */
+  private async deleteAuthAccount(
+    currentUser: FirebaseUser,
+    credential: AuthCredential,
+  ): Promise<void> {
+    try {
+      await currentUser.delete();
+      return;
+    } catch (error: unknown) {
+      // The preflight reset the window seconds ago, but the cleanup in between
+      // is many round-trips. Present the same credential once more rather than
+      // asking the user to prove themselves twice.
+      if ((error as { code?: string }).code === 'auth/requires-recent-login') {
+        try {
+          await reauthenticateWithCredential(currentUser, credential);
+          await currentUser.delete();
+          return;
+        } catch (retryError: unknown) {
+          CrashReporting.recordError(
+            retryError as Error,
+            'AuthenticationModule deleteAuthAccount retry',
+          );
+        }
+      } else {
+        CrashReporting.recordError(
+          error as Error,
+          'AuthenticationModule deleteAuthAccount',
+        );
+      }
+    }
+
+    // Signing out is all that is left. Staying signed in means an authenticated
+    // session with no profile to load, which the app has no screen for.
+    await firebaseSignOut(getAuth()).catch(err => CrashReporting.recordError(
+      err as Error,
+      'AuthenticationModule deleteAuthAccount sign-out',
+    ));
+
+    throw new Error(
+      'Your data was deleted, but the sign-in account could not be removed. You have been signed out.'
+    );
+  }
+
+  /**
    * Delete user account and ALL associated data
    * WARNING: This is irreversible!
    * Deletes from: Firebase Auth, Realtime Database, Cloud Storage, Local WatermelonDB
+   *
+   * Returns false if the user backed out of re-authentication, in which case
+   * nothing was deleted.
    */
-  async deleteUserAccount(): Promise<void> {
-    try {
-      const currentUser = getAuth().currentUser;
-      if (!currentUser) {
-        throw new Error('No user is currently signed in');
-      }
+  async deleteUserAccount(password?: string): Promise<boolean> {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
 
+    // Before anything is destroyed. Firebase only accepts a deletion shortly
+    // after a sign-in, and the deletion is the last of ten steps — without this
+    // the first nine run, then the tenth is refused with
+    // auth/requires-recent-login, and the account is left with no data and no
+    // way back. Proving presence up front costs one prompt and moves the only
+    // step that can refuse to before the destructive ones.
+    const credential = await this.reauthenticate(currentUser, password);
+    if (!credential) {
+      return false;
+    }
+
+    try {
       const userId = currentUser.uid;
 
       const db = getDatabase();
@@ -685,12 +841,15 @@ class AuthenticationModule {
         // Not a Google user — ignore
       }
 
-      // Step 10: Delete user from Firebase Authentication (must be last)
-      await currentUser.delete();
-
     } catch (error: unknown) {
       throw new Error(`Failed to delete account: ${error instanceof Error ? error.message : String(error)}`);
     }
+
+    // Step 10: Delete user from Firebase Authentication (must be last). Outside
+    // the wrapper above so its message survives to the UI: this is the failure
+    // the user has to be told about precisely.
+    await this.deleteAuthAccount(currentUser, credential);
+    return true;
   }
 
   /**
