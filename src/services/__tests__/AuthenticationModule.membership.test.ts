@@ -352,6 +352,28 @@ describe('deleteUserAccount', () => {
     );
   });
 
+  // The joined branch has the same window as the pending one. Approving a
+  // request only flips its status and completing the join never removes it, so
+  // the request that admitted this account is still on file and still
+  // authorises writing memberIds back.
+  it('removes the request that admitted it before dropping the membership', async () => {
+    mockTree[`/users/${BOB}`] = bob({ familyGroupId: GROUP });
+    mockTree[`/familyGroups/${GROUP}`] = {
+      id: GROUP,
+      memberIds: { [BOB]: true, 'alice-uid': true },
+    };
+
+    await AuthenticationModule.deleteUserAccount(PASSWORD);
+
+    const written = pathsWritten();
+    // Asserted present as well as ordered: absent, indexOf is -1 and any
+    // ordering check against it passes for the wrong reason.
+    expect(written).toContain(`remove /familyGroups/${GROUP}/joinRequests/${BOB}`);
+    expect(written.indexOf(`remove /familyGroups/${GROUP}/joinRequests/${BOB}`)).toBeLessThan(
+      written.indexOf(`remove /familyGroups/${GROUP}/memberIds/${BOB}`),
+    );
+  });
+
   // A group with someone else left in it keeps its invitation.
   it('leaves the invitation alone when other members remain', async () => {
     mockTree[`/users/${BOB}`] = bob({ familyGroupId: GROUP });
@@ -479,6 +501,21 @@ describe('deleteUserAccount re-authentication', () => {
       /Your data was deleted/,
     );
     expect(authMock.signOut).toHaveBeenCalled();
+  });
+
+  // Revoking the OAuth grant invalidates the credential the retry re-presents,
+  // so doing it first would send every Google account past the retry.
+  it('revokes Google access only after the account is gone', async () => {
+    asGoogleAccount();
+    mockTree[`/users/${BOB}`] = bob();
+    const { GoogleSignin } = jest.requireMock('@react-native-google-signin/google-signin');
+    GoogleSignin.revokeAccess.mockResolvedValueOnce(undefined);
+
+    await AuthenticationModule.deleteUserAccount();
+
+    expect(mockCurrentUser.delete.mock.invocationCallOrder[0]).toBeLessThan(
+      GoogleSignin.revokeAccess.mock.invocationCallOrder[0],
+    );
   });
 });
 

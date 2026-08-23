@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.10] - 2026-08-23
+
+### Fixed
+- **The same approval window was open on the joined branch, which 1.39.9 did not touch.** Approving a request only flips its `status` to `approved`, and completing the join never removes it, so the request that admitted an account is still on file for as long as the account exists — and it is still what authorises writing `memberIds/{uid}`. Deleting a joined account therefore had the identical race 1.39.9 closed for pending ones: the `memberIds` entry goes, a member acting on the stale request writes it back, step 6 removes the profile, and the entry is unremovable. The request is now removed first here too. Removing one that was never there is permitted for the account itself, so an account that created its group rather than joining one is unaffected.
+
+- **The Google credential was revoked before the step that needed it.** Revoking the OAuth grant ran as step 9, immediately before the deletion — and the deletion's retry re-presents the credential minted during the preflight. Revoking first invalidates it, so every Google account would have skipped past the retry to the sign-out fallback the moment the retry was needed at all. The revoke now runs after the account is gone, which is where it belongs: it is a Google-side call and needs no Firebase session.
+
 ## [1.39.9] - 2026-08-23
 
 ### Fixed

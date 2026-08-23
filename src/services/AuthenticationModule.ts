@@ -774,7 +774,23 @@ class AuthenticationModule {
           await Promise.all(urgentDeletePromises);
         }
 
-        // Step 4: Remove user from family group members list
+        // Step 4: Remove user from family group members list.
+        //
+        // The request that admitted this account is still on file: approving
+        // one only flips its status to 'approved', and completing the join
+        // never removes it. It is also what authorises writing memberIds, so
+        // leaving it there keeps the approval window open across the removal
+        // below — a member acting on it writes the entry back, step 6 then
+        // takes the profile, and the entry becomes the unremovable phantom
+        // 1.39.5 hardened the rules against. Removing an entry that is not
+        // there is permitted for the account itself, so this is safe for a
+        // group this account created rather than joined.
+        await remove(ref(db, `/familyGroups/${familyGroupId}/joinRequests/${userId}`))
+          .catch(err => CrashReporting.recordError(
+            err as Error,
+            'AuthenticationModule deleteUserAccount joined request cleanup',
+          ));
+
         const familyGroupSnapshot = await get(ref(db, `/familyGroups/${familyGroupId}`));
         const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
 
@@ -837,23 +853,27 @@ class AuthenticationModule {
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
 
-      // Step 9: Revoke Google access if signed in with Google
-      try {
-        this.ensureGoogleConfigured();
-        await GoogleSignin.revokeAccess();
-        await GoogleSignin.signOut();
-      } catch {
-        // Not a Google user — ignore
-      }
-
     } catch (error: unknown) {
       throw new Error(`Failed to delete account: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Step 10: Delete user from Firebase Authentication (must be last). Outside
+    // Step 9: Delete user from Firebase Authentication (must be last). Outside
     // the wrapper above so its message survives to the UI: this is the failure
     // the user has to be told about precisely.
     await this.deleteAuthAccount(currentUser, credential);
+
+    // Step 10: Revoke Google access if signed in with Google. After the
+    // deletion, not before: revoking the grant invalidates the very credential
+    // deleteAuthAccount re-presents on its retry, which would send every Google
+    // account past the retry and straight to the sign-out fallback.
+    try {
+      this.ensureGoogleConfigured();
+      await GoogleSignin.revokeAccess();
+      await GoogleSignin.signOut();
+    } catch {
+      // Not a Google user — ignore
+    }
+
     return true;
   }
 
