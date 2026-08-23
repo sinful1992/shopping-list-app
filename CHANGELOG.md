@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.6] - 2026-08-23
+
+### Fixed
+- **Deleting an account with a pending join request left the request behind.** The cleanup added in 1.39.1 sent both leftovers as one atomic update. For a request that was never approved there is no `memberIds` entry, the rule refuses to remove an entry that is not there, and the whole update was therefore denied — taking the join request leg down with it. The `.catch()` recorded the failure and the deletion carried on, so the group kept a pending request from an account that no longer existed, and a member approving it produced the phantom member that 1.39.5 now refuses outright. Confirmed against the emulator: the two-leg update is denied, the request on its own succeeds. The two removals are now independent, `memberIds` first — if the app dies between them an orphaned request remains, which a member can still reject, whereas the other order would leave an entry for an account about to stop existing that no one is permitted to remove. The denial on an absent entry is swallowed rather than recorded, since it is the expected case rather than a fault.
+
 ## [1.39.5] - 2026-08-23
 
 ### Fixed
