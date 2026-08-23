@@ -438,6 +438,7 @@ class AuthenticationModule {
     let lastClaimsUpdatedAt: number | null = null;
     let lastProcessedUid: string | null = null;
     let latestFirebaseUser: any = null;
+    let reconcileAttempted = false;
 
     const authUnsubscribe = onFirebaseAuthStateChanged(getAuth(), async (firebaseUser) => {
       latestFirebaseUser = firebaseUser;
@@ -457,6 +458,7 @@ class AuthenticationModule {
         claimsUnsubscribe = null;
       }
       lastClaimsUpdatedAt = null;
+      reconcileAttempted = false;
 
       if (firebaseUser) {
         const db = getDatabase();
@@ -465,10 +467,24 @@ class AuthenticationModule {
 
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
-          const userData = snapshot.val();
+          const userData = snapshot.val() as User | null;
           if (userData) {
             EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
             callback(userData);
+
+            // Once per sign-in: an approval that landed while this account was
+            // not watching leaves it in memberIds with no group of its own.
+            // Completing it writes familyGroupId, which this same listener
+            // then delivers, so the app moves on without further prompting.
+            if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
+              reconcileAttempted = true;
+              this.reconcilePendingMembership(userData).catch(err =>
+                CrashReporting.recordError(
+                  err as Error,
+                  'AuthenticationModule reconcilePendingMembership',
+                ),
+              );
+            }
           }
         };
 
@@ -724,7 +740,13 @@ class AuthenticationModule {
         status: 'pending',
       };
 
-      await set(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`), joinRequest);
+      // One update, so the pointer cannot go missing while the request exists.
+      // Approval is completed by this account, and after a restart the request
+      // alone gives it no way to find the group it belongs to.
+      await update(ref(db), {
+        [`/familyGroups/${groupId}/joinRequests/${userId}`]: joinRequest,
+        [`/users/${userId}/pendingGroupId`]: groupId,
+      });
 
       return { groupId, groupName: resolvedGroupName };
     } catch (error: unknown) {
@@ -760,7 +782,38 @@ class AuthenticationModule {
    * Cancel a pending join request (called by the requesting user themselves).
    */
   async cancelJoinRequest(groupId: string, userId: string): Promise<void> {
-    await remove(ref(getDatabase(), `/familyGroups/${groupId}/joinRequests/${userId}`));
+    // The pointer goes with the request: left behind, it would restore the
+    // waiting screen for a request that no longer exists.
+    await update(ref(getDatabase()), {
+      [`/familyGroups/${groupId}/joinRequests/${userId}`]: null,
+      [`/users/${userId}/pendingGroupId`]: null,
+    });
+  }
+
+  /**
+   * Finish a join whose approval arrived while this account was not watching.
+   *
+   * The approver can write memberIds but not /users/{uid}/familyGroupId, so a
+   * membership only completes when this account writes its own half. That
+   * write used to happen exclusively in the listener registered at request
+   * time, which means an app restart between request and approval stranded the
+   * account: in memberIds, but with no group in its own profile, and refused a
+   * fresh request because it is already a member.
+   *
+   * Returns whether the membership was completed.
+   */
+  async reconcilePendingMembership(user: User): Promise<boolean> {
+    const groupId = user.pendingGroupId;
+    if (!groupId || user.familyGroupId) return false;
+
+    // Readable per rule: memberIds/$userId is self-readable.
+    const membershipSnapshot = await get(
+      ref(getDatabase(), `/familyGroups/${groupId}/memberIds/${user.uid}`),
+    );
+    if (membershipSnapshot.val() !== true) return false;
+
+    await this.completeJoinAfterApproval(groupId, user.uid);
+    return true;
   }
 
   /**
@@ -785,7 +838,10 @@ class AuthenticationModule {
    */
   async completeJoinAfterApproval(groupId: string, userId: string): Promise<FamilyGroup> {
     const db = getDatabase();
-    await set(ref(db, `/users/${userId}/familyGroupId`), groupId);
+    await update(ref(db), {
+      [`/users/${userId}/familyGroupId`]: groupId,
+      [`/users/${userId}/pendingGroupId`]: null,
+    });
 
     await remove(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`)).catch(() => {});
 

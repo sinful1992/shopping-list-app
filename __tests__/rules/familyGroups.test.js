@@ -428,4 +428,51 @@ describe('approved-but-not-yet-joined member', () => {
     const db = asUser(testEnv, 'carol-uid', 'carol@example.com');
     await assertFails(get(ref(db, `/users/${BOB}`)));
   });
+
+  // The requester needs a durable pointer to the group they asked to join, or
+  // a restart loses it: the approval listener is registered on submit only.
+  it('allows submitting a request and its pendingGroupId in one update', async () => {
+    await seedGroup();
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertSucceeds(
+      update(ref(db), {
+        [`/familyGroups/${GROUP}/joinRequests/${BOB}`]: makeJoinRequest(
+          BOB,
+          GROUP,
+          BOB_EMAIL,
+          'Bob',
+        ),
+        [`/users/${BOB}/pendingGroupId`]: GROUP,
+      }),
+    );
+  });
+
+  it('allows the requester to claim the group and clear the pointer at once', async () => {
+    await seedApprovedNotJoined();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), `/users/${BOB}/pendingGroupId`), GROUP);
+    });
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertSucceeds(
+      update(ref(db), {
+        [`/users/${BOB}/familyGroupId`]: GROUP,
+        [`/users/${BOB}/pendingGroupId`]: null,
+      }),
+    );
+  });
+
+  it('allows the requester to cancel the request and the pointer at once', async () => {
+    await seedGroup();
+    await seedJoinRequest();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await set(ref(ctx.database(), `/users/${BOB}/pendingGroupId`), GROUP);
+    });
+    const db = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertSucceeds(
+      update(ref(db), {
+        [`/familyGroups/${GROUP}/joinRequests/${BOB}`]: null,
+        [`/users/${BOB}/pendingGroupId`]: null,
+      }),
+    );
+  });
 });

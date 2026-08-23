@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -35,16 +35,53 @@ const FamilyGroupScreen = () => {
 
   const approvalUnsubscribeRef = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    return () => {
-      approvalUnsubscribeRef.current?.();
-    };
-  }, []);
-
   const stopApprovalListener = () => {
     approvalUnsubscribeRef.current?.();
     approvalUnsubscribeRef.current = null;
   };
+
+  const startApprovalListener = useCallback((groupId: string, userId: string) => {
+    approvalUnsubscribeRef.current = AuthenticationModule.listenForJoinApproval(
+      groupId,
+      userId,
+      async (status) => {
+        if (status === 'approved') {
+          stopApprovalListener();
+          setJoinState('approved');
+          try {
+            await AuthenticationModule.completeJoinAfterApproval(groupId, userId);
+            await AuthenticationModule.refreshUserData();
+          } catch {
+            // refreshUserData triggers onAuthStateChanged which navigates
+          }
+        } else if (status === 'rejected') {
+          stopApprovalListener();
+          setJoinState('rejected');
+        }
+      },
+    );
+  }, []);
+
+  // A request outlives the session that made it, so the waiting screen is
+  // restored from the stored pointer rather than from component state.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const user = await AuthenticationModule.getCurrentUser();
+      if (cancelled || !user?.pendingGroupId || user.familyGroupId) return;
+
+      setMode('join');
+      setPendingGroupId(user.pendingGroupId);
+      setJoinState('pending');
+      startApprovalListener(user.pendingGroupId, user.uid);
+    })();
+
+    return () => {
+      cancelled = true;
+      approvalUnsubscribeRef.current?.();
+    };
+  }, [startApprovalListener]);
 
   const handleCreateGroup = async () => {
     if (!groupName.trim()) {
@@ -86,25 +123,7 @@ const FamilyGroupScreen = () => {
       setPendingGroupName(name);
       setJoinState('pending');
 
-      approvalUnsubscribeRef.current = AuthenticationModule.listenForJoinApproval(
-        groupId,
-        user.uid,
-        async (status) => {
-          if (status === 'approved') {
-            stopApprovalListener();
-            setJoinState('approved');
-            try {
-              await AuthenticationModule.completeJoinAfterApproval(groupId, user.uid);
-              await AuthenticationModule.refreshUserData();
-            } catch {
-              // refreshUserData triggers onAuthStateChanged which navigates
-            }
-          } else if (status === 'rejected') {
-            stopApprovalListener();
-            setJoinState('rejected');
-          }
-        },
-      );
+      startApprovalListener(groupId, user.uid);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Something went wrong.';
       showAlert('Error', msg, undefined, { icon: 'error' });
@@ -145,7 +164,7 @@ const FamilyGroupScreen = () => {
                 <Text style={styles.waitingTitle}>Request Sent</Text>
                 <Text style={styles.waitingSubtitle}>
                   Waiting for a member of{'\n'}
-                  <Text style={styles.waitingGroupName}>{pendingGroupName}</Text>
+                  <Text style={styles.waitingGroupName}>{pendingGroupName ?? 'your family group'}</Text>
                   {'\n'}to approve your request.
                 </Text>
                 <TouchableOpacity style={styles.cancelButton} onPress={handleCancelRequest}>
@@ -161,7 +180,7 @@ const FamilyGroupScreen = () => {
                 <Text style={styles.rejectedTitle}>Request Declined</Text>
                 <Text style={styles.waitingSubtitle}>
                   Your request to join{'\n'}
-                  <Text style={styles.waitingGroupName}>{pendingGroupName}</Text>
+                  <Text style={styles.waitingGroupName}>{pendingGroupName ?? 'your family group'}</Text>
                   {'\n'}was declined.
                 </Text>
                 <TouchableOpacity style={styles.retryButton} onPress={handleRetryAfterRejection}>

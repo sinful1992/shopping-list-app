@@ -24,6 +24,10 @@ export interface User {
   email: string;
   displayName: string | null;
   familyGroupId: string | null;
+  // The group this account has asked to join, written alongside the join
+  // request itself. Membership takes two writes by two accounts, and this is
+  // the only durable record of which group the second one belongs to.
+  pendingGroupId?: string | null;
   role?: FamilyRole | null;
   avatar?: string | null;
   createdAt: number;

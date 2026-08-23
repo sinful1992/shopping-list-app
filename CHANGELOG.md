@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.0] - 2026-08-23
+
+### Added
+- **A join request now survives the app closing.** Making someone a member takes two writes that no single account can perform: the approver writes `memberIds/{uid}`, and only the requester may write their own `/users/{uid}/familyGroupId`. The requester's half ran exclusively from a listener registered at the moment the request was submitted, so if that app was not sitting on the waiting screen when approval landed — closed, restarted, reinstalled — the membership never completed. Reproduced on device on 2026-08-23: the approved account signed back in to "Join or Create Family Group", and re-entering the invitation code was refused with "You are already a member of this family group", because it *was* in `memberIds`. There was no way back from inside the app. `submitJoinRequest` now writes `/users/{uid}/pendingGroupId` in the same update as the request itself — the request alone records no group the account can find afterwards — and a sign-in that sees a pointer with no `familyGroupId` checks `memberIds` (self-readable by rule) and finishes the join. The waiting screen is likewise restored from the pointer rather than from component state, so a restart mid-wait shows the request rather than an empty form, and cancelling clears request and pointer together.
+
 ## [1.38.13] - 2026-08-23
 
 ### Fixed
