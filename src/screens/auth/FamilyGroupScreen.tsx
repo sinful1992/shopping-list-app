@@ -70,6 +70,9 @@ const FamilyGroupScreen = () => {
     (async () => {
       const user = await AuthenticationModule.getCurrentUser();
       if (cancelled || !user?.pendingGroupId || user.familyGroupId) return;
+      // A request submitted while this read was in flight already owns the
+      // listener; overwriting the ref would orphan it, not replace it.
+      if (approvalUnsubscribeRef.current) return;
 
       setMode('join');
       setPendingGroupId(user.pendingGroupId);

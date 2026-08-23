@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.2] - 2026-08-23
+
+### Fixed
+- **A failed reconciliation attempt disabled reconciliation for the rest of the session.** The once-per-sign-in guard added in 1.39.0 was set before the attempt rather than after it, so a single failed read — and a stranded account is exactly the one likely to be offline — left the account on "Join or Create Family Group" until the app was restarted, which is the situation the reconciliation exists to end. The guard is now released when the attempt fails, so the next profile update retries.
+- **The restored waiting screen could orphan an approval listener.** If a request was submitted while the mount-time `getCurrentUser()` read was still in flight, the restore overwrote the listener reference instead of replacing the listener, leaving the first one live and able to complete the join a second time.
+
 ## [1.39.1] - 2026-08-23
 
 ### Fixed

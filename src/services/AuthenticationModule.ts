@@ -478,12 +478,16 @@ class AuthenticationModule {
             // then delivers, so the app moves on without further prompting.
             if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
               reconcileAttempted = true;
-              this.reconcilePendingMembership(userData).catch(err =>
+              this.reconcilePendingMembership(userData).catch(err => {
+                // Released on failure: a stranded account is exactly the one
+                // likely to be offline, and holding the flag would leave it
+                // stranded for the rest of the session over one failed read.
+                reconcileAttempted = false;
                 CrashReporting.recordError(
                   err as Error,
                   'AuthenticationModule reconcilePendingMembership',
-                ),
-              );
+                );
+              });
             }
           }
         };
