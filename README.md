@@ -46,36 +46,18 @@ app stays fully usable with no network.
 Most of the behaviour lives in `src/services/`. `SyncEngine`,
 `LocalStorageManager` and `ShoppingListManager` are the three to read first.
 
-## 📦 Setup
-
-Prerequisites: Node.js >= 18, a React Native Android environment (Android
-Studio + JDK), and a Firebase project.
-
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-2. **Configure Firebase**
-   - Enable Authentication (Email/Password provider)
-   - Create a Realtime Database and deploy `database.rules.json` from this
-     repository rather than hand-writing rules in the console — CI does not
-     deploy them
-   - Enable Cloud Storage
-   - Download `google-services.json` into `android/app/`
-
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Then fill in the Firebase, Supabase, and RevenueCat credentials.
-
-4. **Run the app**
-   ```bash
-   npm run android
-   ```
-
 ## 🛠 Development
+
+```bash
+npm install
+npm run android
+```
+
+A fresh clone will not build: `.env` and `android/app/google-services.json` are
+gitignored, so they have to be copied in from a machine that already has them
+(`.env.example` lists the keys). Everything else — the Firebase project, its
+Auth/RTDB/Storage setup, the signing keystore — already exists and is not
+something anyone sets up again.
 
 Scripts live in `package.json` (`test`, `lint`, `typecheck`, `knip`). Two things
 that are not obvious from there:
