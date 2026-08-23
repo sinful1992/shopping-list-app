@@ -800,21 +800,26 @@ class AuthenticationModule {
         // the group, pointing at an account that no longer exists.
         const pendingGroupId = userData.pendingGroupId;
 
-        // memberIds first. Dying between the two leaves an orphaned request,
-        // which a member can still reject; the other order leaves a memberIds
-        // entry for an account about to stop existing, and once /users/{uid}
-        // is gone no one is permitted to remove it.
-        await this.removeSelfFromGroup(userId, pendingGroupId).catch(() => {
-          // Denial is the expected case here, as in clearFamilyGroupReference:
-          // an unapproved request has no entry, and the rule requires one to
-          // exist. Recording it would report the common path as a fault.
-        });
-
+        // The request first, because it is what authorises an approval: both
+        // the .write and the .validate on memberIds/{uid} require it to exist.
+        // While it is still there a member can approve between these two
+        // removals and write the entry back, and once the profile goes at step
+        // 6 nothing is permitted to remove it — the same unremovable phantom
+        // member 1.39.5 hardened the rules against. Removing the request first
+        // closes that window; the only cost is that dying between the two can
+        // leave a memberIds entry, and that one the account can still remove
+        // itself on the next attempt, because it is still alive to do so.
         await remove(ref(db, `/familyGroups/${pendingGroupId}/joinRequests/${userId}`))
           .catch(err => CrashReporting.recordError(
             err as Error,
             'AuthenticationModule deleteUserAccount pending request cleanup',
           ));
+
+        await this.removeSelfFromGroup(userId, pendingGroupId).catch(() => {
+          // Denial is the expected case here, as in clearFamilyGroupReference:
+          // an unapproved request has no entry, and the rule requires one to
+          // exist. Recording it would report the common path as a fault.
+        });
       }
 
       // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)

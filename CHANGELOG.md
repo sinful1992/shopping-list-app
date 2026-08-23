@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.9] - 2026-08-23
+
+### Fixed
+- **A member approving at the wrong moment could still mint an unremovable phantom.** Raised by automated review of 1.39.6 and confirmed against the rules. That release split the pending-deletion cleanup into two writes, `memberIds` first, on the reasoning that dying between them should leave the recoverable leftover. But the join request is what *authorises* an approval — both the `.write` and the `.validate` on `memberIds/{uid}` require it to exist — so leaving it in place while the entry is removed keeps the approval window open across the gap. A member approving there writes the entry back, step 6 then removes the profile, and the entry becomes exactly the phantom member 1.39.5 hardened the rules against: its removal rule admits only the account itself, which no longer exists.
+
+  The two removals are now the other way round. Taking the request down first shuts the window, since an approval with no request is denied outright. The cost is the case the original order was avoiding — dying in between can leave a `memberIds` entry — but that one is recoverable rather than permanent: the account is still alive at that point, so it can remove its own entry on the next attempt. A concurrent approval is not a rarity here, since it is precisely what a member staring at a stale pending request does.
+
 ## [1.39.8] - 2026-08-23
 
 ### Fixed

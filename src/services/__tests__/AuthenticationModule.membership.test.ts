@@ -306,17 +306,18 @@ describe('deleteUserAccount', () => {
     expect(pathsWritten()).toContain(`remove /users/${BOB}`);
   });
 
-  // Order matters when the app dies between the two: an orphaned request can
-  // still be rejected by a member, whereas a memberIds entry left behind by a
-  // deleted account is one nothing is permitted to remove.
-  it('removes the memberIds entry before the request', async () => {
+  // The request is what authorises an approval: both the .write and the
+  // .validate on memberIds/{uid} require it to exist. Left in place while the
+  // entry is removed, a member approving in between writes the entry back, and
+  // once the profile goes nothing is permitted to remove it.
+  it('removes the request before the memberIds entry', async () => {
     mockTree[`/users/${BOB}`] = bob({ pendingGroupId: GROUP });
 
     await AuthenticationModule.deleteUserAccount(PASSWORD);
 
     const written = pathsWritten();
-    expect(written.indexOf(`remove /familyGroups/${GROUP}/memberIds/${BOB}`)).toBeLessThan(
-      written.indexOf(`remove /familyGroups/${GROUP}/joinRequests/${BOB}`),
+    expect(written.indexOf(`remove /familyGroups/${GROUP}/joinRequests/${BOB}`)).toBeLessThan(
+      written.indexOf(`remove /familyGroups/${GROUP}/memberIds/${BOB}`),
     );
   });
 
