@@ -59,7 +59,8 @@
                root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists() &&
                newData.val() === true)
             )",
-            ".validate": "newData.isBoolean() && newData.val() === true && (
+            ".validate": "newData.isBoolean() && newData.val() === true &&
+              root.child('users').child($userId).exists() && (
               $userId === auth.uid ||
               root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists()
             )"

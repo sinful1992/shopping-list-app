@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.5] - 2026-08-23
+
+### Fixed
+- **A join request could outlive the account that filed it, and approving it minted a member nothing could remove.** An account can be deleted while its request is still on file — see 1.39.6 for the path that made this the common case rather than a rarity — and nothing stopped a member from approving it afterwards. That wrote a `memberIds` entry for a uid whose profile no longer exists: a permanent phantom member, because the rule permitting that entry's removal requires you to *be* that account, and it is gone. `memberIds/{uid}` now validates that the account still has a profile. The guard reads the pre-write state, so the two writes that legitimately create an entry are unaffected — group creation and approval both act on profiles that already exist — and both were verified to still pass, along with a new denial for the deleted-account case, which was confirmed to succeed without the guard.
+
 ## [1.39.4] - 2026-08-23
 
 ### Changed
