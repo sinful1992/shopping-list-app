@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.38.13] - 2026-08-23
+
+### Fixed
+- **Approving a join request emptied the Family Members list for the whole group.** Found on a device run, not in the repository: after approving, Settings showed "Share your invitation code above to shop together" and all three real members were gone. Two writes are needed to make someone a member and no single account can perform both — the approver writes `memberIds/{uid}`, and only the requester may write their own `/users/{uid}/familyGroupId`. Between the two, the group holds a member whose profile still reads `familyGroupId: null`, and the read rule on `/users/{uid}` asked for the two profiles' `familyGroupId` to be *equal*, so that one profile was unreadable. `loadFamilyMembers` fetched every member with `Promise.all`, so the single denied read rejected the whole call, propagated out of `loadSettingsData` and left the member list at its initial empty value — with the outer `catch` swallowing the error, nothing pointed at the cause. Three changes, each of which would have prevented the blank list on its own: read access to a profile now also derives from `memberIds`, which is the authoritative membership record everywhere else in these rules; the member load uses `allSettled`, so an unreadable member costs one row rather than the list, and the rejection is recorded; and the join-request listener is registered *before* the member load, having previously been unreachable once the load threw. The rule change is added as a third disjunct rather than replacing the equality check — keying only on `memberIds` would newly deny a user who has `familyGroupId` set but no `memberIds` entry, the stranded case tracked since 1.38.10.
+- **Correction to 1.38.9.** That entry justified leaving the join-request `displayName` unbound on the grounds that it "is null on both account-creation paths". It is not: `EmailSignUpScreen` requires a name and passes it to `signUp()`. The conclusion still holds — an unverified string should not be the identity line — but the reason given was wrong, and the two-line approval row is the common case rather than the edge one.
+
 ## [1.38.12] - 2026-08-22
 
 ### Fixed
