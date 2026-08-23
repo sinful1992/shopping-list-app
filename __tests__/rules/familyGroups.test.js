@@ -397,3 +397,35 @@ describe('join requests', () => {
     await assertFails(get(ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}`)));
   });
 });
+
+// The two writes that make someone a member are performed by different
+// principals: the approver writes `memberIds/$uid`, and only the requester can
+// write `/users/$uid/familyGroupId`. Between the two the group holds a member
+// whose profile still reads `familyGroupId: null` — the state reproduced on
+// device on 2026-08-23, where it blanked every member's Family Members list.
+describe('approved-but-not-yet-joined member', () => {
+  /** memberIds contains Bob, but Bob's own profile has not caught up yet. */
+  async function seedApprovedNotJoined() {
+    await seedGroup();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.database();
+      await set(ref(db, `/familyGroups/${GROUP}/memberIds/${BOB}`), true);
+      await set(
+        ref(db, `/familyGroups/${GROUP}/joinRequests/${BOB}`),
+        makeJoinRequest(BOB, GROUP, BOB_EMAIL, 'Bob', 'approved'),
+      );
+    });
+  }
+
+  it('lets a member read the profile of a uid in memberIds', async () => {
+    await seedApprovedNotJoined();
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(get(ref(db, `/users/${BOB}`)));
+  });
+
+  it('still denies an outsider reading that profile', async () => {
+    await seedApprovedNotJoined();
+    const db = asUser(testEnv, 'carol-uid', 'carol@example.com');
+    await assertFails(get(ref(db, `/users/${BOB}`)));
+  });
+});

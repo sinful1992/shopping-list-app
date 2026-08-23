@@ -5,7 +5,15 @@
 
     "users": {
       "$uid": {
-        ".read": "auth != null && (auth.uid == $uid || (root.child('users').child(auth.uid).child('familyGroupId').val() != null && root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()))",
+        ".read": "auth != null && (
+          auth.uid == $uid ||
+          (root.child('users').child(auth.uid).child('familyGroupId').val() != null &&
+           root.child('users').child(auth.uid).child('familyGroupId').val() == root.child('users').child($uid).child('familyGroupId').val()) ||
+          (root.child('users').child(auth.uid).child('familyGroupId').val() != null &&
+           root.child('familyGroups')
+               .child(root.child('users').child(auth.uid).child('familyGroupId').val())
+               .child('memberIds').hasChild($uid))
+        )",
         ".write": "auth != null && auth.uid == $uid && (
           !newData.exists() ||
           (
