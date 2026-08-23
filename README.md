@@ -1,9 +1,49 @@
-# Family Shopping List App
+# Family Shopping List
 
-An Android React Native app for collaborative family shopping lists: real-time
-sync, offline-first storage, receipt capture with OCR, and expenditure tracking.
+A shared shopping list for a family, on the phones they already carry — plus a
+record of what everything cost last time.
 
-## 🚦 Release Status
+## 🧾 Why it exists
+
+Two things kept going wrong at home.
+
+The first was the paper. We would write the week's list out by hand, and then
+either walk round the shop reading a scrunched-up bit of paper, or realise it
+was still on the kitchen table. A list you left at home is no list at all. Phones
+are the one thing everybody has on them, so the list belongs there: anyone in the
+family can add to it during the week, and whoever ends up passing a shop already
+knows exactly what is needed at home.
+
+The second was prices. I could never remember what something had cost a while
+back — whether this week's price was normal or whether it had quietly gone up.
+So the app keeps the receipts: photograph one at the till, and the shop, date,
+total and line items are read off it and filed against that trip. The answer to
+"what did we pay for this last time" stops being a guess.
+
+## 📱 What it does
+
+**The list**
+- Anyone in the family group adds to the same list from their own phone, and it
+  shows up on everybody else's straight away
+- Check items off as you go round the shop
+- Works with no signal — the list lives on the phone and syncs when a connection
+  comes back
+- Flag something as urgent and the rest of the family gets a notification — for
+  when you need it on today's trip, not next week's
+- Join a family group with an invitation code
+
+**The money**
+- Photograph a receipt and it is read automatically: merchant, date, total, and
+  the individual lines
+- Shopping history keeps every completed trip together with its receipt
+- Spending totals and budget analysis over whatever date range you pick
+
+No feature is locked behind a subscription. The free tier is ad-supported —
+scanning a receipt or raising an urgent item costs an ad first — and the premium
+and family subscriptions remove the ads, family doing so for everyone in the
+group.
+
+## 🚦 Release status
 
 **On Google Play, in closed testing.** The app is published to the Play Console
 on a **closed testing track** — it is not publicly listed, does not appear in
@@ -15,36 +55,6 @@ Store link is of no use to anyone outside the tester list.
 - **Track**: closed testing (invite-only)
 - **Platform**: Android only — there is no `ios/` project in this repository
 - **Builds**: signed AAB/APK produced by GitHub Actions; see [.github/workflows](./.github/workflows)
-
-## 📱 Features
-
-- **User Authentication** — email/password sign up and login via Firebase
-- **Family Groups** — create or join a group with an invitation code
-- **Shopping Lists** — create, view, and manage lists
-- **Real-Time Items** — add, edit, check off, and delete items
-- **Real-Time Sync** — multi-user collaboration over Firebase Realtime Database
-- **Offline Support** — full functionality offline, with automatic sync
-- **Receipt Capture** — photograph receipts
-- **Receipt OCR** — extract merchant, date, total, and line items via a self-hosted PaddleOCR server
-- **Expenditure Tracking** — spending with date-range filtering
-- **Shopping History** — completed shopping trips with their receipts
-- **Budget Analysis** — spending patterns over time
-- **Subscription Management** — RevenueCat, with free/premium/family tiers
-- **Legal** — in-app Privacy Policy and Terms, with a versioned acceptance flow
-
-## 🏗 Architecture
-
-Offline-first: every write lands in WatermelonDB on the device, then syncs. The
-app stays fully usable with no network.
-
-- **Frontend**: React Native with TypeScript
-- **Backend**: Firebase (Authentication, Realtime Database, Cloud Storage) and Supabase edge functions
-- **Local Database**: WatermelonDB
-- **OCR**: self-hosted PaddleOCR server (no per-request cloud cost)
-- **State Management**: React Context API + local storage
-
-Most of the behaviour lives in `src/services/`. `SyncEngine`,
-`LocalStorageManager` and `ShoppingListManager` are the three to read first.
 
 ## 🛠 Development
 
@@ -58,6 +68,9 @@ gitignored, so they have to be copied in from a machine that already has them
 (`.env.example` lists the keys). Everything else — the Firebase project, its
 Auth/RTDB/Storage setup, the signing keystore — already exists and is not
 something anyone sets up again.
+
+Most of the behaviour lives in `src/services/`. `SyncEngine`,
+`LocalStorageManager` and `ShoppingListManager` are the three to read first.
 
 Scripts live in `package.json` (`test`, `lint`, `typecheck`, `knip`). Two things
 that are not obvious from there:
