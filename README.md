@@ -1,137 +1,91 @@
 # Family Shopping List App
 
-A React Native mobile application for collaborative family shopping list management with real-time synchronization, offline support, receipt capture, OCR, and expenditure tracking.
+An Android React Native app for collaborative family shopping lists: real-time
+sync, offline-first storage, receipt capture with OCR, and expenditure tracking.
 
 ## 🚦 Release Status
 
-**On Google Play, in closed testing.** The Android app is published to the Play Console and distributed on a **closed testing track** — it is not publicly listed, does not appear in Play Store search, and can only be installed by testers who have been invited and have accepted the opt-in. There is no open testing or production release, so a Play Store link is of no use to anyone outside the tester list.
+**On Google Play, in closed testing.** The app is published to the Play Console
+on a **closed testing track** — it is not publicly listed, does not appear in
+Play Store search, and can only be installed by invited testers who have
+accepted the opt-in. There is no open testing or production release, so a Play
+Store link is of no use to anyone outside the tester list.
 
 - **Package**: `com.familyshoppinglist.app`
 - **Track**: closed testing (invite-only)
-- **iOS**: not released — the codebase builds for iOS, but nothing has been submitted to App Store Connect
+- **Platform**: Android only — there is no `ios/` project in this repository
 - **Builds**: signed AAB/APK produced by GitHub Actions; see [.github/workflows](./.github/workflows)
-
-Treat everything below about installing and running the app as developer instructions, not as a way for the public to get it.
 
 ## 📱 Features
 
-### ✅ Implemented
-- **User Authentication** - Email/password sign up and login via Firebase
-- **Family Groups** - Create or join family groups with invitation codes
-- **Shopping Lists** - Create, view, and manage shopping lists
-- **Real-Time Items** - Add, edit, check off, and delete items
-- **Real-Time Sync** - Multi-user collaboration with Firebase Realtime Database
-- **Offline Support** - Full functionality when offline with automatic sync
-- **Cross-Platform** - iOS and Android support
-- **CI/CD Pipeline** - Automated Android builds via GitHub Actions
-- **In-App Legal Viewer** - Privacy Policy and Terms of Service rendered in-app with markdown
-- **Terms Acceptance** - Versioned terms acceptance flow with decline/logout option
-- **Subscription Management** - RevenueCat integration with free/premium/family tiers
-- **Receipt Capture** - Photo capture of receipts
-- **Receipt OCR** - Extract merchant, date, total, and line items via a self-hosted PaddleOCR server
-- **Expenditure Tracking** - Track spending with date-range filtering
-- **Shopping History** - View completed shopping trips with receipts
-- **Budget Analysis** - Analyze spending patterns over time
+- **User Authentication** — email/password sign up and login via Firebase
+- **Family Groups** — create or join a group with an invitation code
+- **Shopping Lists** — create, view, and manage lists
+- **Real-Time Items** — add, edit, check off, and delete items
+- **Real-Time Sync** — multi-user collaboration over Firebase Realtime Database
+- **Offline Support** — full functionality offline, with automatic sync
+- **Receipt Capture** — photograph receipts
+- **Receipt OCR** — extract merchant, date, total, and line items via a self-hosted PaddleOCR server
+- **Expenditure Tracking** — spending with date-range filtering
+- **Shopping History** — completed shopping trips with their receipts
+- **Budget Analysis** — spending patterns over time
+- **Subscription Management** — RevenueCat, with free/premium/family tiers
+- **Legal** — in-app Privacy Policy and Terms, with a versioned acceptance flow
 
 ## 🏗 Architecture
 
-Offline-first: every write lands in WatermelonDB on the device, then syncs. The app stays fully usable with no network.
+Offline-first: every write lands in WatermelonDB on the device, then syncs. The
+app stays fully usable with no network.
 
 - **Frontend**: React Native with TypeScript
-- **Backend**: Firebase (Authentication, Realtime Database, Cloud Storage)
-- **Local Database**: WatermelonDB for offline-first architecture
-- **OCR**: Self-hosted PaddleOCR server (no per-request cloud cost)
+- **Backend**: Firebase (Authentication, Realtime Database, Cloud Storage) and Supabase edge functions
+- **Local Database**: WatermelonDB
+- **OCR**: self-hosted PaddleOCR server (no per-request cloud cost)
 - **State Management**: React Context API + local storage
 
-### Core Services
+Most of the behaviour lives in `src/services/`. `SyncEngine`,
+`LocalStorageManager` and `ShoppingListManager` are the three to read first.
 
-1. **AuthenticationModule** - User auth and family group management
-2. **LocalStorageManager** - Offline data persistence with WatermelonDB
-3. **SyncEngine** - Real-time synchronization with conflict resolution
-4. **ShoppingListManager** - Shopping list CRUD operations
-5. **ItemManager** - Item management with real-time updates
+## 📦 Setup
 
-## 📦 Installation
+Prerequisites: Node.js >= 18, a React Native Android environment (Android
+Studio + JDK), and a Firebase project.
 
-### Prerequisites
-
-- Node.js >= 18
-- React Native development environment setup
-  - **iOS**: Xcode, CocoaPods
-  - **Android**: Android Studio, Java JDK
-- Firebase project
-
-### Setup Steps
-
-1. **Clone the repository**
-   ```bash
-   cd shoping
-   ```
-
-2. **Install dependencies**
+1. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **iOS specific setup**
-   ```bash
-   cd ios && pod install && cd ..
-   ```
+2. **Configure Firebase**
+   - Enable Authentication (Email/Password provider)
+   - Create a Realtime Database and deploy `database.rules.json` from this
+     repository rather than hand-writing rules in the console — CI does not
+     deploy them
+   - Enable Cloud Storage
+   - Download `google-services.json` into `android/app/`
 
-4. **Configure Firebase**
-
-   a. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-
-   b. Enable Authentication (Email/Password provider)
-
-   c. Create a Realtime Database and deploy the security rules from this
-      repository rather than hand-writing them. Rules are deployed through the
-      Firebase console, not by CI.
-
-   d. Enable Firebase Cloud Storage
-
-   e. Download configuration files:
-      - iOS: `GoogleService-Info.plist` → Place in `ios/` folder
-      - Android: `google-services.json` → Place in `android/app/` folder
-
-5. **Configure environment variables**
+3. **Configure environment variables**
    ```bash
    cp .env.example .env
    ```
+   Then fill in the Firebase, Supabase, and RevenueCat credentials.
 
-   Edit `.env` and add your Firebase, Supabase, and RevenueCat credentials
-
-6. **Run the app**
+4. **Run the app**
    ```bash
-   # iOS
-   npm run ios
-
-   # Android
    npm run android
    ```
 
-## 📂 Project Structure
+## 🛠 Development
 
-```
-src/
-├── components/   shared UI (modals, cards, bottom sheets)
-├── contexts/     User, Theme, Alert, AdMob, RevenueCat providers
-├── database/     WatermelonDB schema, models, migrations
-├── hooks/        screen-level hooks extracted from the big screens
-├── legal/        Privacy Policy, Terms, CURRENT_TERMS_VERSION
-├── models/       shared TypeScript types
-├── screens/      auth, lists, budget, history, settings, receipts
-├── services/     the bulk of the logic — auth, sync, storage, OCR, analytics
-├── styles/       theme tokens and the contrast tests
-└── utils/        sanitisation, grouping, formatting
+Scripts live in `package.json` (`test`, `lint`, `typecheck`, `knip`). Two things
+that are not obvious from there:
 
-android/  ios/                native projects
-supabase/functions/           edge functions (auto-deployed from master)
-docs/                         design audit, data safety, store layouts
-```
-
-`services/` is where most of the behaviour lives. `SyncEngine`, `LocalStorageManager`
-and `ShoppingListManager` are the three to read first.
+- `npm run test:rules` runs the Realtime Database rules tests against the
+  Firebase emulator, and needs **JDK 21+**.
+- Git hooks enforce the gates: **pre-commit** runs the encoding check and the
+  full jest suite, and refuses a `src/` change that has not bumped the version
+  in `package.json`; **pre-push** runs knip, `tsc` and eslint — the same gates
+  CI runs.
 
 ## 🔐 Security
 
@@ -142,61 +96,21 @@ and `ShoppingListManager` are the three to read first.
 
 ## 📋 Documentation
 
-- **[CHANGELOG.md](./CHANGELOG.md)** - Recent fixes and changes
-- **[LICENSE](./LICENSE)** - Proprietary licence terms
-- **[docs/DESIGN_AUDIT.md](./docs/DESIGN_AUDIT.md)** - Design system audit and its follow-up
-- **[docs/DATA_SAFETY.md](./docs/DATA_SAFETY.md)** - Play Console data-safety declarations
-- **[docs/store-layouts.md](./docs/store-layouts.md)** - Per-store category order capture
-
-## 🧪 Testing
-
-```bash
-# Run unit tests
-npm test
-
-# Run with coverage
-npm test -- --coverage
-
-# Run linting
-npm run lint
-
-# Type check
-npm run typecheck
-
-# Dead code and unused dependencies
-npm run knip
-```
-
-A pre-commit hook runs the encoding check and the full jest suite, and refuses a
-`src/` change that has not bumped the version in `package.json`. A pre-push hook
-runs knip, `tsc` and eslint — the same gates CI runs.
-
-## 🚀 Deployment
-
-### iOS App Store
-
-1. Configure app identifier in Xcode
-2. Create App Store Connect listing
-3. Build release: Product → Archive in Xcode
-4. Upload via Xcode or Transporter
-5. Submit for review
-
-### Android Play Store
-
-1. Generate upload key and keystore
-2. Configure signing in `android/app/build.gradle`
-3. Build release: `cd android && ./gradlew bundleRelease`
-4. Upload to Play Console
-5. Roll out to the **closed testing** track (current release channel) — production rollout has not been opened
+- **[RUNBOOK.md](./RUNBOOK.md)** — deployment, backups, restores, key rotation, release testing
+- **[CHANGELOG.md](./CHANGELOG.md)** — recent fixes and changes
+- **[LICENSE](./LICENSE)** — proprietary licence terms
+- **[docs/DESIGN_AUDIT.md](./docs/DESIGN_AUDIT.md)** — design system audit and its follow-up
+- **[docs/DATA_SAFETY.md](./docs/DATA_SAFETY.md)** — Play Console data-safety declarations
+- **[docs/store-layouts.md](./docs/store-layouts.md)** — per-store category order capture
 
 ## 📝 License
 
-**Proprietary — all rights reserved.** See [LICENSE](./LICENSE). This is not open source: being able to read the code grants no right to use, copy, modify or distribute it. Third-party dependencies keep their own licences, and people who install the published app are covered by the in-app Terms of Service in [`src/legal/`](./src/legal), not by this repository licence.
+**Proprietary — all rights reserved.** See [LICENSE](./LICENSE). This is not open
+source: being able to read the code grants no right to use, copy, modify or
+distribute it. Third-party dependencies keep their own licences, and people who
+install the published app are covered by the in-app Terms of Service in
+[`src/legal/`](./src/legal), not by this repository licence.
 
 ## 📞 Support
 
 Open an issue in the repository.
-
----
-
-**Last Updated**: August 2026
