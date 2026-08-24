@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.11] - 2026-08-23
+
+### Fixed
+- **A live session with no profile behind it was permanent.** Sign-up creates the Firebase Auth account first and writes `/users/{uid}` second, so an interruption between the two leaves credentials that work and a profile that is not there — and a deletion interrupted after step 6 leaves exactly the same thing. Neither entry point could get out of it: `signIn` threw `User data not found` on every attempt for ever, and the app's own listener only ever reported a profile that *exists*, so the splash screen stayed up indefinitely with the auth listener firing normally against a valid user. No logout, no retry, no way to delete the account either, since deletion starts by reading the profile that is gone.
+
+  A missing profile is now repaired rather than reported. `ensureUserProfile` writes the same record sign-up would have, as a **transaction** rather than a `set`, because it runs alongside the sign-up paths that write the profile themselves and the fuller record they write has to win — the updater aborts on any existing value. `signIn` repairs instead of throwing, `signInWithGoogle`'s new-user path now shares the same helper instead of a third copy of the literal, and the profile listener repairs once per sign-in and falls back to reporting no user, which at least lands the app on the sign-in screen, if the repair itself fails.
+
+  The repair is suppressed while `deleteUserAccount` is running. Step 6 removes the profile deliberately, and recreating it there would strand a `/users` entry behind an account about to stop existing — the inverse of the bug.
+
+## [1.39.10] - 2026-08-23
+
+### Fixed
+- **The same approval window was open on the joined branch, which 1.39.9 did not touch.** Approving a request only flips its `status` to `approved`, and completing the join never removes it, so the request that admitted an account is still on file for as long as the account exists — and it is still what authorises writing `memberIds/{uid}`. Deleting a joined account therefore had the identical race 1.39.9 closed for pending ones: the `memberIds` entry goes, a member acting on the stale request writes it back, step 6 removes the profile, and the entry is unremovable. The request is now removed first here too. Removing one that was never there is permitted for the account itself, so an account that created its group rather than joining one is unaffected.
+
+- **The Google credential was revoked before the step that needed it.** Revoking the OAuth grant ran as step 9, immediately before the deletion — and the deletion's retry re-presents the credential minted during the preflight. Revoking first invalidates it, so every Google account would have skipped past the retry to the sign-out fallback the moment the retry was needed at all. The revoke now runs after the account is gone, which is where it belongs: it is a Google-side call and needs no Firebase session.
+
+## [1.39.9] - 2026-08-23
+
+### Fixed
+- **A member approving at the wrong moment could still mint an unremovable phantom.** Raised by automated review of 1.39.6 and confirmed against the rules. That release split the pending-deletion cleanup into two writes, `memberIds` first, on the reasoning that dying between them should leave the recoverable leftover. But the join request is what *authorises* an approval — both the `.write` and the `.validate` on `memberIds/{uid}` require it to exist — so leaving it in place while the entry is removed keeps the approval window open across the gap. A member approving there writes the entry back, step 6 then removes the profile, and the entry becomes exactly the phantom member 1.39.5 hardened the rules against: its removal rule admits only the account itself, which no longer exists.
+
+  The two removals are now the other way round. Taking the request down first shuts the window, since an approval with no request is denied outright. The cost is the case the original order was avoiding — dying in between can leave a `memberIds` entry — but that one is recoverable rather than permanent: the account is still alive at that point, so it can remove its own entry on the next attempt. A concurrent approval is not a rarity here, since it is precisely what a member staring at a stale pending request does.
+
+## [1.39.8] - 2026-08-23
+
+### Fixed
+- **Deleting an account destroyed its data and then failed, leaving an account that could not load, log out or retry.** Firebase only accepts `user.delete()` shortly after a sign-in, and that call was the tenth of ten steps. Any deletion more than a few minutes after signing in — the common path, not an edge case — ran the nine destructive steps and was then refused with `auth/requires-recent-login`. The RTDB profile was gone, the auth account survived, and on relaunch the app sat on "Loading…" indefinitely: the profile listener only reports a profile that exists, there is no logout on a splash screen, and retrying is impossible because step 1 reads the `/users/{uid}` that step 6 already removed. Reproduced against production while verifying 1.39.7, with the exception in logcat.
+
+  The preflight is now unconditional rather than guessed from `metadata.lastSignInTime`, whose window is undocumented — a wrong guess would reintroduce exactly this bug. Before anything is touched, `deleteUserAccount` reauthenticates: a Google account through the Google prompt, a password account through a new confirm-password modal in Settings. `getReauthMethod()` tells the screen which one to collect *before* the call, so the requirement is never discovered by throwing an error through two lossy layers — the `Failed to delete account:` wrapper and `sanitizeError`'s allowlist, which is what turned the original failure into "Something went wrong. Please try again." Google wins when both providers are linked, since it needs nothing typed. A prompt returning a different Google account is refused up front rather than after the data is gone, and backing out of it deletes nothing and reports no success.
+
+  The tenth step keeps a bounded retry for the case the preflight cannot cover — the cleanup between them is many round-trips — presenting the credential it already holds rather than asking twice. If that still fails, the account is signed out before the error is raised, so the profile-less-but-authenticated state that hangs on "Loading…" is not reachable from here at all. Twelve tests cover the preflight, the two providers, cancellation, the wrong password, the retry and the sign-out fallback; the five existing deletion tests now pass a password, which is what the module requires of every caller.
+
 ## [1.39.7] - 2026-08-23
 
 ### Added

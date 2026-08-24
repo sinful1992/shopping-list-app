@@ -7,7 +7,10 @@ import {
   onAuthStateChanged as onFirebaseAuthStateChanged,
   getIdToken,
   updateProfile,
+  reauthenticateWithCredential,
   GoogleAuthProvider,
+  EmailAuthProvider,
+  type AuthCredential,
   type User as FirebaseUser,
 } from '@react-native-firebase/auth';
 import { getDatabase, ref, get, set, update, remove, runTransaction, push, query, orderByChild, equalTo, onValue } from '@react-native-firebase/database';
@@ -28,6 +31,9 @@ import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
 import CrashReporting from './CrashReporting';
 
+/** How an already signed-in account proves it is still present. */
+export type ReauthMethod = 'google' | 'password';
+
 /**
  * AuthenticationModule
  * Manages user registration, login, logout, and family group membership
@@ -36,6 +42,12 @@ import CrashReporting from './CrashReporting';
 class AuthenticationModule {
   private readonly AUTH_TOKEN_KEY = '@auth_token';
   private readonly USER_KEY = '@user';
+
+  /**
+   * Set while deleteUserAccount is removing things, so the profile listener
+   * does not treat the profile it deletes as a session to repair.
+   */
+  private deletionInProgress = false;
 
   /**
    * Sign up new user with email and password
@@ -78,6 +90,37 @@ class AuthenticationModule {
   }
 
   /**
+   * The profile every authenticated session needs, created only if it is
+   * missing. A transaction rather than a set: this runs alongside the sign-up
+   * paths that write the profile themselves, and the fuller record they write
+   * must win rather than be overwritten by these defaults.
+   */
+  private async ensureUserProfile(firebaseUser: FirebaseUser): Promise<User> {
+    const result = await runTransaction(
+      ref(getDatabase(), `/users/${firebaseUser.uid}`),
+      (current: User | null) => {
+        if (current !== null) return; // abort — a real profile is already there
+        const now = Date.now();
+        return {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || firebaseUser.email || null,
+          familyGroupId: null,
+          createdAt: now,
+          usageCounters: {
+            listsCreated: 0,
+            ocrProcessed: 0,
+            urgentItemsCreated: 0,
+            lastResetDate: now,
+          },
+        };
+      },
+    );
+
+    return result.snapshot.val();
+  }
+
+  /**
    * Sign in existing user with email and password
    * Implements Req 1.2
    */
@@ -88,11 +131,11 @@ class AuthenticationModule {
 
       // Fetch user data from database
       const userSnapshot = await get(ref(getDatabase(), `/users/${userCredential.user.uid}`));
-      const user: User = userSnapshot.val();
-
-      if (!user) {
-        throw new Error('User data not found');
-      }
+      // A sign-up interrupted between creating the account and writing its
+      // profile leaves credentials that work and a profile that is not there.
+      // This used to be "User data not found" on every attempt for ever, with
+      // no way to recover and no way to delete the account either.
+      const user: User = userSnapshot.val() ?? await this.ensureUserProfile(userCredential.user);
 
       await this.storeAuthData(user, token);
 
@@ -160,22 +203,8 @@ class AuthenticationModule {
         return { user: existingUser, token };
       }
 
-      // New Google user — create RTDB record (same pattern as signUp)
-      const user: User = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        displayName: firebaseUser.displayName || firebaseUser.email || null,
-        familyGroupId: null,
-        createdAt: Date.now(),
-        usageCounters: {
-          listsCreated: 0,
-          ocrProcessed: 0,
-          urgentItemsCreated: 0,
-          lastResetDate: Date.now(),
-        },
-      };
-
-      await set(ref(getDatabase(), `/users/${user.uid}`), user);
+      // New Google user — create the RTDB record
+      const user = await this.ensureUserProfile(firebaseUser);
       await this.storeAuthData(user, token);
 
       return { user, token };
@@ -439,6 +468,7 @@ class AuthenticationModule {
     let lastProcessedUid: string | null = null;
     let latestFirebaseUser: any = null;
     let reconcileAttempted = false;
+    let healAttempted = false;
 
     const authUnsubscribe = onFirebaseAuthStateChanged(getAuth(), async (firebaseUser) => {
       latestFirebaseUser = firebaseUser;
@@ -459,6 +489,7 @@ class AuthenticationModule {
       }
       lastClaimsUpdatedAt = null;
       reconcileAttempted = false;
+      healAttempted = false;
 
       if (firebaseUser) {
         const db = getDatabase();
@@ -468,27 +499,52 @@ class AuthenticationModule {
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
           const userData = snapshot.val() as User | null;
-          if (userData) {
-            EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
-            callback(userData);
+          if (!userData) {
+            // A live session with no profile behind it. The callback only ever
+            // reported a profile that exists, so this state rendered as the
+            // splash screen for ever — no logout, no retry, nothing.
+            //
+            // Not during a deletion: step 6 removes the profile on purpose and
+            // recreating it would strand a /users entry behind an auth account
+            // about to stop existing.
+            if (this.deletionInProgress) return;
 
-            // Once per sign-in: an approval that landed while this account was
-            // not watching leaves it in memberIds with no group of its own.
-            // Completing it writes familyGroupId, which this same listener
-            // then delivers, so the app moves on without further prompting.
-            if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
-              reconcileAttempted = true;
-              this.reconcilePendingMembership(userData).catch(err => {
-                // Released on failure: a stranded account is exactly the one
-                // likely to be offline, and holding the flag would leave it
-                // stranded for the rest of the session over one failed read.
-                reconcileAttempted = false;
-                CrashReporting.recordError(
-                  err as Error,
-                  'AuthenticationModule reconcilePendingMembership',
-                );
-              });
+            if (healAttempted) {
+              // Already tried. Reporting no user drops the app at the sign-in
+              // screen, which is at least somewhere the account can act from.
+              callback(null);
+              return;
             }
+            healAttempted = true;
+            this.ensureUserProfile(latestFirebaseUser).catch(err => {
+              CrashReporting.recordError(
+                err as Error,
+                'AuthenticationModule ensureUserProfile',
+              );
+              callback(null);
+            });
+            return;
+          }
+
+          EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+          callback(userData);
+
+          // Once per sign-in: an approval that landed while this account was
+          // not watching leaves it in memberIds with no group of its own.
+          // Completing it writes familyGroupId, which this same listener
+          // then delivers, so the app moves on without further prompting.
+          if (!reconcileAttempted && !userData.familyGroupId && userData.pendingGroupId) {
+            reconcileAttempted = true;
+            this.reconcilePendingMembership(userData).catch(err => {
+              // Released on failure: a stranded account is exactly the one
+              // likely to be offline, and holding the flag would leave it
+              // stranded for the rest of the session over one failed read.
+              reconcileAttempted = false;
+              CrashReporting.recordError(
+                err as Error,
+                'AuthenticationModule reconcilePendingMembership',
+              );
+            });
           }
         };
 
@@ -532,17 +588,171 @@ class AuthenticationModule {
   }
 
   /**
+   * How the signed-in account can prove it is present, which deleting it
+   * requires. Callers use this to collect a password before starting, since a
+   * Google account needs nothing collected in advance.
+   */
+  getReauthMethod(): ReauthMethod | null {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      return null;
+    }
+
+    const providerIds = currentUser.providerData.map(provider => provider.providerId);
+    // Google first when both are linked: it needs no password typed in.
+    if (providerIds.includes('google.com')) {
+      return 'google';
+    }
+    if (providerIds.includes('password')) {
+      return 'password';
+    }
+    return null;
+  }
+
+  /**
+   * Prove the account is present, resetting Firebase's recent-login window.
+   * Returns the credential used, so a later step can present it again without
+   * asking a second time, or null if the user backed out.
+   */
+  private async reauthenticate(
+    currentUser: FirebaseUser,
+    password?: string,
+  ): Promise<AuthCredential | null> {
+    const method = this.getReauthMethod();
+
+    if (method === 'google') {
+      this.ensureGoogleConfigured();
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+      const response = await GoogleSignin.signIn();
+      if (isCancelledResponse(response)) {
+        return null;
+      }
+      if (!isSuccessResponse(response)) {
+        throw new Error('Re-authentication failed. Please try again.');
+      }
+
+      const idToken = response.data?.idToken;
+      if (!idToken) {
+        throw new Error('Re-authentication failed: no ID token returned');
+      }
+
+      // A device with several Google accounts can hand back a different one,
+      // and reauthenticating with it would fail anyway — say so plainly first.
+      const linkedEmail = currentUser.providerData
+        .find(provider => provider.providerId === 'google.com')?.email;
+      const signedInEmail = response.data?.user?.email;
+      if (linkedEmail && signedInEmail && linkedEmail.toLowerCase() !== signedInEmail.toLowerCase()) {
+        throw new Error('Re-authentication requires the same Google account this app is signed in with.');
+      }
+
+      const { accessToken } = await GoogleSignin.getTokens();
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+      await reauthenticateWithCredential(currentUser, credential);
+      return credential;
+    }
+
+    if (method === 'password') {
+      if (!currentUser.email) {
+        throw new Error('Re-authentication failed: this account has no email address.');
+      }
+      if (!password) {
+        throw new Error('Password is required to delete your account.');
+      }
+
+      const credential = EmailAuthProvider.credential(currentUser.email, password);
+      try {
+        await reauthenticateWithCredential(currentUser, credential);
+      } catch (error: unknown) {
+        const code = (error as { code?: string }).code;
+        if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+          throw new Error('Incorrect password. Please try again.');
+        }
+        throw error;
+      }
+      return credential;
+    }
+
+    throw new Error('Re-authentication is not available for this sign-in method.');
+  }
+
+  /**
+   * Step 10 of deletion, kept apart because it is the one step with nothing
+   * behind it: by the time it runs the profile is gone, so a failure here
+   * leaves an account that cannot load, cannot log out and cannot retry.
+   */
+  private async deleteAuthAccount(
+    currentUser: FirebaseUser,
+    credential: AuthCredential,
+  ): Promise<void> {
+    try {
+      await currentUser.delete();
+      return;
+    } catch (error: unknown) {
+      // The preflight reset the window seconds ago, but the cleanup in between
+      // is many round-trips. Present the same credential once more rather than
+      // asking the user to prove themselves twice.
+      if ((error as { code?: string }).code === 'auth/requires-recent-login') {
+        try {
+          await reauthenticateWithCredential(currentUser, credential);
+          await currentUser.delete();
+          return;
+        } catch (retryError: unknown) {
+          CrashReporting.recordError(
+            retryError as Error,
+            'AuthenticationModule deleteAuthAccount retry',
+          );
+        }
+      } else {
+        CrashReporting.recordError(
+          error as Error,
+          'AuthenticationModule deleteAuthAccount',
+        );
+      }
+    }
+
+    // Signing out is all that is left. Staying signed in means an authenticated
+    // session with no profile to load, which the app has no screen for.
+    await firebaseSignOut(getAuth()).catch(err => CrashReporting.recordError(
+      err as Error,
+      'AuthenticationModule deleteAuthAccount sign-out',
+    ));
+
+    throw new Error(
+      'Your data was deleted, but the sign-in account could not be removed. You have been signed out.'
+    );
+  }
+
+  /**
    * Delete user account and ALL associated data
    * WARNING: This is irreversible!
    * Deletes from: Firebase Auth, Realtime Database, Cloud Storage, Local WatermelonDB
+   *
+   * Returns false if the user backed out of re-authentication, in which case
+   * nothing was deleted.
    */
-  async deleteUserAccount(): Promise<void> {
-    try {
-      const currentUser = getAuth().currentUser;
-      if (!currentUser) {
-        throw new Error('No user is currently signed in');
-      }
+  async deleteUserAccount(password?: string): Promise<boolean> {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      throw new Error('No user is currently signed in');
+    }
 
+    // Before anything is destroyed. Firebase only accepts a deletion shortly
+    // after a sign-in, and the deletion is the last of ten steps — without this
+    // the first nine run, then the tenth is refused with
+    // auth/requires-recent-login, and the account is left with no data and no
+    // way back. Proving presence up front costs one prompt and moves the only
+    // step that can refuse to before the destructive ones.
+    const credential = await this.reauthenticate(currentUser, password);
+    if (!credential) {
+      return false;
+    }
+
+    // From here the profile is expected to disappear. The listener repairs a
+    // session that has lost its profile, which here would recreate the very
+    // record step 6 removes, behind an account about to stop existing.
+    this.deletionInProgress = true;
+    try {
       const userId = currentUser.uid;
 
       const db = getDatabase();
@@ -618,7 +828,23 @@ class AuthenticationModule {
           await Promise.all(urgentDeletePromises);
         }
 
-        // Step 4: Remove user from family group members list
+        // Step 4: Remove user from family group members list.
+        //
+        // The request that admitted this account is still on file: approving
+        // one only flips its status to 'approved', and completing the join
+        // never removes it. It is also what authorises writing memberIds, so
+        // leaving it there keeps the approval window open across the removal
+        // below — a member acting on it writes the entry back, step 6 then
+        // takes the profile, and the entry becomes the unremovable phantom
+        // 1.39.5 hardened the rules against. Removing an entry that is not
+        // there is permitted for the account itself, so this is safe for a
+        // group this account created rather than joined.
+        await remove(ref(db, `/familyGroups/${familyGroupId}/joinRequests/${userId}`))
+          .catch(err => CrashReporting.recordError(
+            err as Error,
+            'AuthenticationModule deleteUserAccount joined request cleanup',
+          ));
+
         const familyGroupSnapshot = await get(ref(db, `/familyGroups/${familyGroupId}`));
         const familyGroup: FamilyGroup | null = familyGroupSnapshot.val();
 
@@ -644,21 +870,26 @@ class AuthenticationModule {
         // the group, pointing at an account that no longer exists.
         const pendingGroupId = userData.pendingGroupId;
 
-        // memberIds first. Dying between the two leaves an orphaned request,
-        // which a member can still reject; the other order leaves a memberIds
-        // entry for an account about to stop existing, and once /users/{uid}
-        // is gone no one is permitted to remove it.
-        await this.removeSelfFromGroup(userId, pendingGroupId).catch(() => {
-          // Denial is the expected case here, as in clearFamilyGroupReference:
-          // an unapproved request has no entry, and the rule requires one to
-          // exist. Recording it would report the common path as a fault.
-        });
-
+        // The request first, because it is what authorises an approval: both
+        // the .write and the .validate on memberIds/{uid} require it to exist.
+        // While it is still there a member can approve between these two
+        // removals and write the entry back, and once the profile goes at step
+        // 6 nothing is permitted to remove it — the same unremovable phantom
+        // member 1.39.5 hardened the rules against. Removing the request first
+        // closes that window; the only cost is that dying between the two can
+        // leave a memberIds entry, and that one the account can still remove
+        // itself on the next attempt, because it is still alive to do so.
         await remove(ref(db, `/familyGroups/${pendingGroupId}/joinRequests/${userId}`))
           .catch(err => CrashReporting.recordError(
             err as Error,
             'AuthenticationModule deleteUserAccount pending request cleanup',
           ));
+
+        await this.removeSelfFromGroup(userId, pendingGroupId).catch(() => {
+          // Denial is the expected case here, as in clearFamilyGroupReference:
+          // an unapproved request has no entry, and the rule requires one to
+          // exist. Recording it would report the common path as a fault.
+        });
       }
 
       // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)
@@ -676,21 +907,32 @@ class AuthenticationModule {
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
 
-      // Step 9: Revoke Google access if signed in with Google
-      try {
-        this.ensureGoogleConfigured();
-        await GoogleSignin.revokeAccess();
-        await GoogleSignin.signOut();
-      } catch {
-        // Not a Google user — ignore
-      }
-
-      // Step 10: Delete user from Firebase Authentication (must be last)
-      await currentUser.delete();
-
     } catch (error: unknown) {
       throw new Error(`Failed to delete account: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      // Released before step 9 either way: from here on the account is either
+      // deleted, in which case there is no session to repair, or signed out.
+      this.deletionInProgress = false;
     }
+
+    // Step 9: Delete user from Firebase Authentication (must be last). Outside
+    // the wrapper above so its message survives to the UI: this is the failure
+    // the user has to be told about precisely.
+    await this.deleteAuthAccount(currentUser, credential);
+
+    // Step 10: Revoke Google access if signed in with Google. After the
+    // deletion, not before: revoking the grant invalidates the very credential
+    // deleteAuthAccount re-presents on its retry, which would send every Google
+    // account past the retry and straight to the sign-out fallback.
+    try {
+      this.ensureGoogleConfigured();
+      await GoogleSignin.revokeAccess();
+      await GoogleSignin.signOut();
+    } catch {
+      // Not a Google user — ignore
+    }
+
+    return true;
   }
 
   /**

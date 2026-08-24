@@ -59,6 +59,7 @@ const SettingsScreen = () => {
     rejectJoinRequest,
     logout,
     deleteAccount,
+    getReauthMethod,
     retryLoadInvitationCode,
   } = useSettings();
 
@@ -71,6 +72,9 @@ const SettingsScreen = () => {
   const [selectedRole, setSelectedRole] = useState<FamilyRole | null>(null);
   const [showOcrUrlModal, setShowOcrUrlModal] = useState(false);
   const [newOcrUrl, setNewOcrUrl] = useState('');
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleToggleHapticFeedback = async (value: boolean) => {
     try {
@@ -201,6 +205,29 @@ const SettingsScreen = () => {
     );
   };
 
+  const runDeleteAccount = async (password?: string) => {
+    setDeletingAccount(true);
+    try {
+      const deleted = await deleteAccount(password);
+      // Backing out of the Google prompt is not a failure, and nothing was
+      // deleted — say nothing rather than claiming success.
+      if (deleted) {
+        showAlert('Success', 'Account deleted successfully', undefined, { icon: 'success' });
+      }
+    } catch (error: unknown) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const handleConfirmReauth = () => {
+    const password = reauthPassword;
+    setShowReauthModal(false);
+    setReauthPassword('');
+    runDeleteAccount(password);
+  };
+
   const handleDeleteAccount = () => {
     showAlert(
       'Delete Account',
@@ -220,13 +247,19 @@ const SettingsScreen = () => {
                 {
                   text: 'I Understand, Delete',
                   style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await deleteAccount();
-                      showAlert('Success', 'Account deleted successfully', undefined, { icon: 'success' });
-                    } catch (error: any) {
-                      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+                  onPress: () => {
+                    // Firebase only accepts a deletion shortly after a
+                    // sign-in, and deleting the account is the last step of
+                    // ten. Proving presence first is what keeps the nine
+                    // destructive ones from running against a step that will
+                    // be refused. A password account has to type it here; a
+                    // Google account is prompted by the Google flow itself.
+                    if (getReauthMethod() === 'password') {
+                      setReauthPassword('');
+                      setShowReauthModal(true);
+                      return;
                     }
+                    runDeleteAccount();
                   },
                 },
               ],
@@ -552,9 +585,19 @@ const SettingsScreen = () => {
         <Text style={styles.dangerWarning}>
           Permanently delete your account and all associated data. This action cannot be undone.
         </Text>
-        <TouchableOpacity style={styles.deleteAccountButton} onPress={handleDeleteAccount}>
-          <Icon name="trash-outline" size={24} color="#ffffff" />
-          <Text style={styles.deleteAccountButtonText}>Delete Account</Text>
+        <TouchableOpacity
+          style={styles.deleteAccountButton}
+          onPress={handleDeleteAccount}
+          disabled={deletingAccount}
+        >
+          {deletingAccount ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Icon name="trash-outline" size={24} color="#ffffff" />
+          )}
+          <Text style={styles.deleteAccountButtonText}>
+            {deletingAccount ? 'Deleting…' : 'Delete Account'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -643,6 +686,55 @@ const SettingsScreen = () => {
                 onPress={handleSaveOcrUrl}
               >
                 <Text style={styles.modalButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Confirm Password Modal — re-authentication before account deletion */}
+      <Modal
+        visible={showReauthModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReauthModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Confirm Your Password</Text>
+            <Text style={[styles.settingDescription, styles.settingDescriptionSpaced]}>
+              For your security, enter your password to confirm you want to delete this account.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Password"
+              placeholderTextColor={theme.text.tertiary}
+              value={reauthPassword}
+              onChangeText={setReauthPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => {
+                  setShowReauthModal(false);
+                  setReauthPassword('');
+                }}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleConfirmReauth}
+                disabled={!reauthPassword}
+              >
+                <Text style={styles.modalButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
