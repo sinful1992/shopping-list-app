@@ -39,6 +39,8 @@ export interface CategorySpending {
   percentage: number;
 }
 
+export type TrendBucket = 'week' | 'month';
+
 export interface AnalyticsSummary {
   totalSpent: number;
   totalTrips: number;
@@ -47,8 +49,12 @@ export interface AnalyticsSummary {
   mostFrequentStore: string | null;
   topItems: TopItem[];
   spendingByStore: SpendingByStore[];
-  monthlyTrend: SpendingTrend[];
+  spendingTrend: SpendingTrend[];
+  /** Which unit spendingTrend is bucketed into, so the UI can label it. */
+  trendBucket: TrendBucket;
   categoryBreakdown: CategorySpending[];
+  /** Trip counts indexed by JS weekday, Sunday first. */
+  tripsByWeekday: number[];
   /** Spend that reached a priced, bought item — what categoryBreakdown sums to. */
   itemisedTotal: number;
   /** Receipt spend with no item behind it. Never negative. */
@@ -57,9 +63,36 @@ export interface AnalyticsSummary {
 
 export interface AggregationOptions {
   topItemsLimit?: number;
+  trendBucket?: TrendBucket;
 }
 
 const DEFAULT_TOP_ITEMS = 10;
+
+/**
+ * Calendar months are too coarse for a 30-day window.
+ *
+ * A month-bucketed 30-day period straddles two calendar months, so the trend
+ * was a two-point line comparing a few days against a full month — a cliff or
+ * a spike that is an artefact of today's date, not of spending. And when every
+ * trip happened to fall inside one calendar month the chart had a single point
+ * and vanished behind "not enough data". Weeks give 4–5 comparable buckets.
+ */
+export function bucketFor(daysBack: number): TrendBucket {
+  return daysBack <= 31 ? 'week' : 'month';
+}
+
+/** Midnight on the Monday of this date's week, local time. */
+function startOfWeek(date: Date): number {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  // getDay() is Sunday-first; shift so Monday starts the week.
+  const daysSinceMonday = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - daysSinceMonday);
+  return start.getTime();
+}
+
+function startOfMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+}
 
 /** Divide without ever handing NaN or Infinity to a chart. */
 export function safeDiv(numerator: number, denominator: number): number {
@@ -103,13 +136,15 @@ export function buildAnalyticsSummary(
   options: AggregationOptions = {},
 ): AnalyticsSummary {
   const topItemsLimit = options.topItemsLimit ?? DEFAULT_TOP_ITEMS;
+  const trendBucket = options.trendBucket ?? 'month';
 
   let totalSpent = 0;
   let itemisedTotal = 0;
   let itemsPurchased = 0;
   const storeData: { [store: string]: { total: number; count: number } } = {};
   const categoryData: { [category: string]: { total: number; count: number } } = {};
-  const trendData: { [bucket: string]: { amount: number; count: number } } = {};
+  const trendData = new Map<number, { amount: number; count: number }>();
+  const tripsByWeekday = [0, 0, 0, 0, 0, 0, 0];
 
   // Keyed on itemGroupKey so "avocado" and "avocados" are one row, matching
   // the Prices tab. The key is a lookup value and must never be rendered
@@ -134,10 +169,16 @@ export function buildAnalyticsSummary(
     storeData[store].count += 1;
 
     const date = new Date(list.completedAt || list.createdAt);
-    const bucketKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    if (!trendData[bucketKey]) trendData[bucketKey] = { amount: 0, count: 0 };
-    trendData[bucketKey].amount += listTotal;
-    trendData[bucketKey].count += 1;
+    tripsByWeekday[date.getDay()] += 1;
+
+    const bucketStart = trendBucket === 'week' ? startOfWeek(date) : startOfMonth(date);
+    const bucket = trendData.get(bucketStart);
+    if (bucket) {
+      bucket.amount += listTotal;
+      bucket.count += 1;
+    } else {
+      trendData.set(bucketStart, { amount: listTotal, count: 1 });
+    }
 
     for (const item of items) {
       if (!wasBought(item)) continue;
@@ -189,15 +230,8 @@ export function buildAnalyticsSummary(
     .sort((a, b) => b.purchaseCount - a.purchaseCount)
     .slice(0, topItemsLimit);
 
-  const monthlyTrend: SpendingTrend[] = Object.entries(trendData)
-    .map(([bucket, data]) => {
-      const [year, monthNum] = bucket.split('-');
-      return {
-        date: new Date(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1).getTime(),
-        amount: data.amount,
-        tripCount: data.count,
-      };
-    })
+  const spendingTrend: SpendingTrend[] = Array.from(trendData.entries())
+    .map(([date, data]) => ({ date, amount: data.amount, tripCount: data.count }))
     .sort((a, b) => a.date - b.date);
 
   // Against the itemised total, not the receipt total: the two are different
@@ -220,8 +254,10 @@ export function buildAnalyticsSummary(
     mostFrequentStore,
     topItems,
     spendingByStore,
-    monthlyTrend,
+    spendingTrend,
+    trendBucket,
     categoryBreakdown,
+    tripsByWeekday,
     itemisedTotal,
     // Clamped: till discounts and overshooting predicted prices both put the
     // itemised sum above the receipt, and a negative slice renders as garbage.

@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.0] - 2026-08-26
+
+### Added
+- **Pull to refresh, and a refresh when the tab regains focus.** Analytics is a bottom-tab screen, so it stays mounted and only ever reloaded when the period changed. Finishing a shop and tapping Analytics showed the figures from before the trip until the app was restarted.
+
+- **A "When You Shop" card on Overview**, trips by day of the week. The day-of-week counts came out of `getShoppingPatterns`, which had no callers; they are now part of the summary the screen already loads, so the card costs no extra query and the dead method is gone.
+
+### Changed
+- **The spending trend is bucketed by week over 30 days, by month beyond it.** Calendar months are the wrong unit for a 30-day window: it straddles two of them, so the chart was a two-point line pitting a handful of days against a full month — a cliff or a spike that moved with today's date rather than with spending. Worse, when every trip in the window happened to fall inside one calendar month there was a single point and the chart disappeared behind "not enough data". On the default tab, at the default period. Four or five weekly buckets are comparable to each other, and the subtitle now says which unit is on screen.
+
+- **Opened tabs stay mounted.** Each tab was unmounted on the way out, so a trip from Prices to Overview and back cleared the selected item in the comparison card and refetched all three of its datasets. Tabs are still mounted lazily — an unopened Prices tab still costs nothing.
+
+- **The period filter and the TOTAL SPENT block are hidden on the Prices tab**, which reads neither: the comparison card carries its own range chips, and two live period controls on one screen only ever disagree with each other.
+
+- **The category pie adds up to the figure in the middle of it.** The centre printed the period total while the slices summed to something else — categories past the sixth were dropped from the ring, and a receipt carries spend that no item on the list accounts for. A single "Other" slice absorbs both, so the ring and the number inside it are the same quantity.
+
+- **Most Purchased shows what an item costs.** Rows carry the per-unit average and, where a row covers more than one unit, the unit count — `averagePrice` was computed and never rendered. Names are shown as the user typed them rather than lowercased.
+
+- **The store "Best avg" badge is now "Smallest trips".** It marks the lowest average spend per trip, which is the shop you nip into for milk, not the cheapest one — and on a tie every matching store used to be badged at once. Only one is now.
+
+### Fixed
+- **Frequently Bought could never offer more than ten items.** It sliced twenty off a list the summary had already capped at ten, then re-sorted it by the field it was already sorted on. It asks for twenty now.
+
+### Performance
+- Analytics chart data is memoised. It was rebuilt on every render — date formatting, per-store label truncation and all — and the store list recomputed a min and a max across every store inside the per-store loop, for each row.
+
 ## [1.39.13] - 2026-08-26
 
 ### Fixed

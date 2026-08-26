@@ -4,15 +4,16 @@ import PriceHistoryService from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC } from '../../styles/theme';
+import { capitalize } from '../../utils/itemGrouping';
 
 interface Props {
   familyGroupId: string;
+  /** Bumped by the screen on reload, so a pull-to-refresh reaches this card. */
+  reloadKey?: number;
   trackedItems: { itemName: string; itemNameNormalized: string }[];
 }
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
+const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems, reloadKey }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [suggestions, setSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
@@ -34,7 +35,7 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
       }
     })();
     return () => { cancelled = true; };
-  }, [familyGroupId, trackedItems]);
+  }, [familyGroupId, trackedItems, reloadKey]);
 
   const entries = Array.from(suggestions.entries());
   const totalSavings = entries.reduce((sum, [, v]) => sum + v.savings, 0);

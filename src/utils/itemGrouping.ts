@@ -10,3 +10,12 @@ import { tokenize } from './receiptMatcher';
 export function itemGroupKey(name: string): string {
   return tokenize(name).join(' ');
 }
+
+/**
+ * Title-cases a stored item name for display. Item names are stored as typed
+ * and matched lowercased, so the same item reads "Milk" in one place and
+ * "milk" in another without this.
+ */
+export function capitalize(name: string): string {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}

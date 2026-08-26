@@ -1,6 +1,7 @@
 import LocalStorageManager from './LocalStorageManager';
 import { Item } from '../models/types';
 import {
+  bucketFor,
   buildAnalyticsSummary,
   type AggregationOptions,
   type AnalyticsSummary,
@@ -12,6 +13,7 @@ export type {
   SpendingByStore,
   SpendingTrend,
   TopItem,
+  TrendBucket,
 } from './analyticsAggregation';
 
 /**
@@ -54,45 +56,10 @@ class AnalyticsService {
       else itemsByList.set(item.listId, [item]);
     }
 
-    return buildAnalyticsSummary(recentLists, itemsByList, options);
-  }
-
-  /**
-   * Get shopping patterns (day of week, time of day)
-   */
-  async getShoppingPatterns(
-    familyGroupId: string,
-    daysBack: number = 90
-  ): Promise<{ dayOfWeek: { [day: string]: number }; timeOfDay: { [hour: string]: number } }> {
-    try {
-      const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
-
-      const dayOfWeek: { [day: string]: number } = {
-        Sunday: 0,
-        Monday: 0,
-        Tuesday: 0,
-        Wednesday: 0,
-        Thursday: 0,
-        Friday: 0,
-        Saturday: 0,
-      };
-
-      const timeOfDay: { [hour: string]: number } = {};
-
-      recentLists.forEach(list => {
-        const date = new Date(list.completedAt || list.createdAt);
-        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-        const hour = date.getHours();
-
-        dayOfWeek[dayName] = (dayOfWeek[dayName] || 0) + 1;
-        timeOfDay[hour] = (timeOfDay[hour] || 0) + 1;
-      });
-
-      return { dayOfWeek, timeOfDay };
-    } catch {
-      return { dayOfWeek: {}, timeOfDay: {} };
-    }
+    return buildAnalyticsSummary(recentLists, itemsByList, {
+      trendBucket: bucketFor(daysBack),
+      ...options,
+    });
   }
 }
 

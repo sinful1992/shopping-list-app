@@ -1,4 +1,4 @@
-import { buildAnalyticsSummary } from '../analyticsAggregation';
+import { bucketFor, buildAnalyticsSummary } from '../analyticsAggregation';
 import { Item, ShoppingList } from '../../models/types';
 
 let idCounter = 0;
@@ -259,6 +259,94 @@ describe('buildAnalyticsSummary', () => {
 
       expect(buildAnalyticsSummary([list], index([list, []])).spendingByStore[0].storeName)
         .toBe('Unknown');
+    });
+  });
+
+  describe('spending trend', () => {
+    it('buckets a short period into weeks and a long one into months', () => {
+      expect(bucketFor(30)).toBe('week');
+      expect(bucketFor(90)).toBe('month');
+      expect(bucketFor(365)).toBe('month');
+    });
+
+    it('gives a month-straddling 30 days comparable weekly buckets', () => {
+      // A trip a week from late July into August. Month buckets collapse this
+      // to a 2-point line pitting five days of July against three weeks of
+      // August — a cliff that is an artefact of today's date.
+      const weekly = [
+        new Date(2026, 6, 28, 12),
+        new Date(2026, 7, 4, 12),
+        new Date(2026, 7, 11, 12),
+        new Date(2026, 7, 18, 12),
+      ];
+      const lists = weekly.map(d => makeList({ completedAt: d.getTime(), totalAmount: 10 }));
+      const items = new Map(lists.map(l => [l.id, [] as Item[]]));
+
+      const byWeek = buildAnalyticsSummary(lists, items, { trendBucket: 'week' });
+      const byMonth = buildAnalyticsSummary(lists, items, { trendBucket: 'month' });
+
+      expect(byWeek.trendBucket).toBe('week');
+      expect(byWeek.spendingTrend.map(p => p.amount)).toEqual([10, 10, 10, 10]);
+      expect(byMonth.spendingTrend.map(p => p.amount)).toEqual([10, 30]);
+    });
+
+    it('puts trips in the same Monday-to-Sunday week in one bucket', () => {
+      // Monday 3rd and the Sunday that closes that week, 9th August 2026.
+      const monday = makeList({ completedAt: new Date(2026, 7, 3, 9).getTime(), totalAmount: 10 });
+      const sunday = makeList({ completedAt: new Date(2026, 7, 9, 18).getTime(), totalAmount: 5 });
+
+      const summary = buildAnalyticsSummary(
+        [monday, sunday],
+        index([monday, []], [sunday, []]),
+        { trendBucket: 'week' },
+      );
+
+      expect(summary.spendingTrend).toEqual([
+        { date: new Date(2026, 7, 3).getTime(), amount: 15, tripCount: 2 },
+      ]);
+    });
+
+    it('starts a new bucket on the following Monday', () => {
+      const sunday = makeList({ completedAt: new Date(2026, 7, 9, 18).getTime(), totalAmount: 5 });
+      const monday = makeList({ completedAt: new Date(2026, 7, 10, 9).getTime(), totalAmount: 7 });
+
+      const summary = buildAnalyticsSummary(
+        [monday, sunday],
+        index([monday, []], [sunday, []]),
+        { trendBucket: 'week' },
+      );
+
+      expect(summary.spendingTrend.map(p => p.amount)).toEqual([5, 7]);
+    });
+
+    it('buckets by calendar month when asked, oldest first', () => {
+      const june = makeList({ completedAt: new Date(2026, 5, 20).getTime(), totalAmount: 10 });
+      const july = makeList({ completedAt: new Date(2026, 6, 2).getTime(), totalAmount: 20 });
+
+      const summary = buildAnalyticsSummary(
+        [july, june],
+        index([june, []], [july, []]),
+        { trendBucket: 'month' },
+      );
+
+      expect(summary.spendingTrend).toEqual([
+        { date: new Date(2026, 5, 1).getTime(), amount: 10, tripCount: 1 },
+        { date: new Date(2026, 6, 1).getTime(), amount: 20, tripCount: 1 },
+      ]);
+    });
+
+    it('counts trips per weekday, Sunday first', () => {
+      // 9 Aug 2026 is a Sunday, 10 Aug a Monday.
+      const sunday = makeList({ completedAt: new Date(2026, 7, 9, 12).getTime(), totalAmount: 1 });
+      const monday = makeList({ completedAt: new Date(2026, 7, 10, 12).getTime(), totalAmount: 1 });
+      const monday2 = makeList({ completedAt: new Date(2026, 7, 17, 12).getTime(), totalAmount: 1 });
+
+      const summary = buildAnalyticsSummary(
+        [sunday, monday, monday2],
+        index([sunday, []], [monday, []], [monday2, []]),
+      );
+
+      expect(summary.tripsByWeekday).toEqual([1, 2, 0, 0, 0, 0, 0]);
     });
   });
 

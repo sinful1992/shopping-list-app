@@ -4,16 +4,17 @@ import { BarChart } from 'react-native-gifted-charts';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
+import { capitalize } from '../../utils/itemGrouping';
 
 const screenWidth = Dimensions.get('window').width;
 
 interface Props {
   familyGroupId: string;
+  /** Bumped by the screen on reload, so a pull-to-refresh reaches this card. */
+  reloadKey?: number;
 }
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
+const VolatileItemsChart: React.FC<Props> = ({ familyGroupId, reloadKey }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [data, setData] = useState<Array<{ itemName: string; volatility: number; priceRange: number }>>([]);
@@ -32,7 +33,7 @@ const VolatileItemsChart: React.FC<Props> = ({ familyGroupId }) => {
       }
     })();
     return () => { cancelled = true; };
-  }, [familyGroupId]);
+  }, [familyGroupId, reloadKey]);
 
   const chartWidth = screenWidth - 62 - 40;
   // Tokens, not a hand-rolled isDark ternary: these are the same axis and
