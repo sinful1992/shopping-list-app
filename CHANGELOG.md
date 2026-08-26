@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.12] - 2026-08-26
+
+### Changed
+- **The Analytics summary ran a database query per completed list, twice.** `getAnalyticsSummary` fetched each list's items in its main loop and then `calculateMonthlyTrend` fetched them all over again to compute the same list totals a second time. On a year of history that is hundreds of sequential round-trips for one screen. Both passes now share a single `getItemsForLists` call — the batch query that already existed and that `PricePredictionService` was already using.
+
+  The arithmetic moves out of the service into `analyticsAggregation.buildAnalyticsSummary`, a pure function over the lists and their items, so it can be tested without standing up a database. The service keeps the I/O and nothing else. No numbers change in this release.
+
+- `getBudgetPerformance` had no callers and covered ground the Budget tab already owns; removed.
+
 ## [1.39.11] - 2026-08-23
 
 ### Fixed

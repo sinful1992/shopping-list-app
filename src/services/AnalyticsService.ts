@@ -1,52 +1,24 @@
 import LocalStorageManager from './LocalStorageManager';
-import ItemManager from './ItemManager';
-import { ShoppingList } from '../models/types';
+import { Item } from '../models/types';
+import {
+  buildAnalyticsSummary,
+  type AggregationOptions,
+  type AnalyticsSummary,
+} from './analyticsAggregation';
+
+export type {
+  AnalyticsSummary,
+  CategorySpending,
+  SpendingByStore,
+  SpendingTrend,
+  TopItem,
+} from './analyticsAggregation';
 
 /**
  * AnalyticsService
- * Provides insights and analytics on shopping behavior
- * Implements Sprint 7: Analytics dashboard
+ * Loads the completed lists behind the Analytics tab and hands them to the
+ * pure aggregation in ./analyticsAggregation.
  */
-
-export interface SpendingByStore {
-  storeName: string;
-  totalSpent: number;
-  tripCount: number;
-  averagePerTrip: number;
-}
-
-export interface SpendingTrend {
-  date: number;
-  amount: number;
-  tripCount: number;
-}
-
-export interface TopItem {
-  name: string;
-  purchaseCount: number;
-  totalSpent: number;
-  averagePrice: number;
-}
-
-export interface CategorySpending {
-  category: string;
-  totalSpent: number;
-  itemCount: number;
-  percentage: number;
-}
-
-export interface AnalyticsSummary {
-  totalSpent: number;
-  totalTrips: number;
-  averagePerTrip: number;
-  itemsPurchased: number;
-  mostFrequentStore: string | null;
-  topItems: TopItem[];
-  spendingByStore: SpendingByStore[];
-  monthlyTrend: SpendingTrend[];
-  categoryBreakdown: CategorySpending[];
-}
-
 class AnalyticsService {
   private static instance: AnalyticsService;
 
@@ -65,186 +37,24 @@ class AnalyticsService {
    */
   async getAnalyticsSummary(
     familyGroupId: string,
-    daysBack: number = 30
+    daysBack: number = 30,
+    options: AggregationOptions = {},
   ): Promise<AnalyticsSummary> {
-    try {
-      const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
+    const cutoffDate = Date.now() - daysBack * 24 * 60 * 60 * 1000;
+    const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
 
-      // Calculate total spending and trips
-      let totalSpent = 0;
-      let itemsPurchased = 0;
-      const storeData: { [store: string]: { total: number; count: number } } = {};
-      const itemData: { [itemName: string]: { count: number; totalSpent: number; prices: number[] } } = {};
-      const categoryData: { [category: string]: { total: number; count: number } } = {};
-
-      for (const list of recentLists) {
-        const items = await ItemManager.getItemsForList(list.id);
-
-        // Use receipt total when available (ground truth), fall back to summing item prices
-        const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-        const listTotal = list.totalAmount ?? itemPriceSum;
-        totalSpent += listTotal;
-        itemsPurchased += items.filter(item => item.price !== null).length;
-
-        // Track by store
-        const store = list.storeName || 'Unknown';
-        if (!storeData[store]) {
-          storeData[store] = { total: 0, count: 0 };
-        }
-        storeData[store].total += listTotal;
-        storeData[store].count += 1;
-
-        // Track items
-        items.forEach(item => {
-          if (item.price !== null) {
-            const itemName = item.name.toLowerCase();
-            if (!itemData[itemName]) {
-              itemData[itemName] = { count: 0, totalSpent: 0, prices: [] };
-            }
-            itemData[itemName].count += 1;
-            itemData[itemName].totalSpent += item.price;
-            itemData[itemName].prices.push(item.price);
-
-            // Track by category
-            const category = item.category || 'Other';
-            if (!categoryData[category]) {
-              categoryData[category] = { total: 0, count: 0 };
-            }
-            categoryData[category].total += item.price;
-            categoryData[category].count += 1;
-          }
-        });
-      }
-
-      // Calculate spending by store
-      const spendingByStore: SpendingByStore[] = Object.entries(storeData)
-        .map(([storeName, data]) => ({
-          storeName,
-          totalSpent: data.total,
-          tripCount: data.count,
-          averagePerTrip: data.total / data.count,
-        }))
-        .sort((a, b) => b.totalSpent - a.totalSpent);
-
-      // Find most frequent store
-      const mostFrequentStore = spendingByStore.length > 0
-        ? spendingByStore.reduce((max, store) =>
-            store.tripCount > max.tripCount ? store : max
-          ).storeName
-        : null;
-
-      // Top items
-      const topItems: TopItem[] = Object.entries(itemData)
-        .map(([name, data]) => ({
-          name,
-          purchaseCount: data.count,
-          totalSpent: data.totalSpent,
-          averagePrice: data.totalSpent / data.count,
-        }))
-        .sort((a, b) => b.purchaseCount - a.purchaseCount)
-        .slice(0, 10);
-
-      // Monthly trend (group by month)
-      const monthlyTrend = await this.calculateMonthlyTrend(recentLists);
-
-      // Category breakdown
-      const categoryBreakdown: CategorySpending[] = Object.entries(categoryData)
-        .map(([category, data]) => ({
-          category,
-          totalSpent: data.total,
-          itemCount: data.count,
-          percentage: (data.total / totalSpent) * 100,
-        }))
-        .sort((a, b) => b.totalSpent - a.totalSpent);
-
-      return {
-        totalSpent,
-        totalTrips: recentLists.length,
-        averagePerTrip: recentLists.length > 0 ? totalSpent / recentLists.length : 0,
-        itemsPurchased,
-        mostFrequentStore,
-        topItems,
-        spendingByStore,
-        monthlyTrend,
-        categoryBreakdown,
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Calculate monthly spending trend
-   */
-  private async calculateMonthlyTrend(lists: ShoppingList[]): Promise<SpendingTrend[]> {
-    const monthlyData: { [month: string]: { amount: number; count: number } } = {};
-
-    for (const list of lists) {
-      const items = await ItemManager.getItemsForList(list.id);
-      const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-      const listTotal = list.totalAmount ?? itemPriceSum;
-
-      const date = new Date(list.completedAt || list.createdAt);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { amount: 0, count: 0 };
-      }
-      monthlyData[monthKey].amount += listTotal;
-      monthlyData[monthKey].count += 1;
+    // One query for every list's items. Per-list fetches ran a query per list,
+    // twice over (once here, once for the trend), which is hundreds of
+    // round-trips on a year of history.
+    const items = await LocalStorageManager.getItemsForLists(recentLists.map(l => l.id));
+    const itemsByList = new Map<string, Item[]>();
+    for (const item of items) {
+      const bucket = itemsByList.get(item.listId);
+      if (bucket) bucket.push(item);
+      else itemsByList.set(item.listId, [item]);
     }
 
-    // Convert to array and sort by date
-    return Object.entries(monthlyData)
-      .map(([month, data]) => {
-        const [year, monthNum] = month.split('-');
-        const date = new Date(parseInt(year, 10), parseInt(monthNum, 10) - 1, 1).getTime();
-        return {
-          date,
-          amount: data.amount,
-          tripCount: data.count,
-        };
-      })
-      .sort((a, b) => a.date - b.date);
-  }
-
-  /**
-   * Get budget performance
-   * Compares actual spending vs budgets
-   */
-  async getBudgetPerformance(
-    familyGroupId: string,
-    daysBack: number = 30
-  ): Promise<{ withinBudget: number; overBudget: number; noBudget: number }> {
-    try {
-      const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
-
-      let withinBudget = 0;
-      let overBudget = 0;
-      let noBudget = 0;
-
-      for (const list of recentLists) {
-        if (list.budget) {
-          const items = await ItemManager.getItemsForList(list.id);
-          const itemPriceSum = items.reduce((sum, item) => sum + (item.price ?? 0), 0);
-          const total = list.totalAmount ?? itemPriceSum;
-
-          if (total <= list.budget) {
-            withinBudget++;
-          } else {
-            overBudget++;
-          }
-        } else {
-          noBudget++;
-        }
-      }
-
-      return { withinBudget, overBudget, noBudget };
-    } catch {
-      return { withinBudget: 0, overBudget: 0, noBudget: 0 };
-    }
+    return buildAnalyticsSummary(recentLists, itemsByList, options);
   }
 
   /**
