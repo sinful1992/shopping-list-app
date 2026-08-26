@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.39.13] - 2026-08-26
+
+### Fixed
+- **Analytics counted a six-pack as one item at one unit's price.** `Item.price` is per-unit app-wide — `ReceiptMatchScreen` divides a receipt line down to get it, and both the shopping running total and the History totals multiply it back up — but the analytics aggregation summed the bare price. Six eggs at £2.50 landed as £2.50. Category spend, top-item spend and the no-receipt-total fallback were all short by the quantity. Lists carrying a receipt total were unaffected in the headline figure, since that number comes off the receipt.
+
+- **Things you decided not to buy were counted as bought.** Completing a trip leaves unchecked items on the list; `completeShoppingFast` only records how many there were. Those items keep whatever price was predicted or typed for them, and the aggregation's only filter was `price !== null` — so an item you walked past fed category spend, the top-item counts and the item tally. This is the same trap `shoppingStats` documents for the running total in v1.30.2, which analytics never got. Only checked, priced items count now.
+
+- **The category percentages did not add up to 100.** They divided category spend, which is a sum of item prices, by the period total, which prefers receipt totals. The two are different numbers — a receipt carries spend no item on the list accounts for. Percentages are now taken against the itemised total, and that shortfall is reported separately as `unitemisedTotal`, clamped at zero because a till discount can put the items above the receipt.
+
+- **A group with trips but no prices produced `NaN`.** The empty state only checks the trip count, so that input renders, and the divisions behind `averagePerTrip` and the store bar widths had no zero guard — a `NaN%` width reaches the layout. Every division in the aggregation goes through a guarded helper now.
+
+### Changed
+- Top items fold spellings together on `itemGroupKey`, so "avocado" and "avocados" are one row as they already are on the Prices tab. The row is labelled with the spelling used most — never the group key, which is a lookup value that would put "hummu" in a shopping list when added from Frequently Bought. `purchaseCount` still counts lists appeared on; a new `unitsPurchased` counts units, and `averagePrice` is now per unit.
+
 ## [1.39.12] - 2026-08-26
 
 ### Changed
