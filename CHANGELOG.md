@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.1] - 2026-08-27
+
+### Fixed
+- **Analytics showed no items at all on a device that did not run the shop.** The summary reads the local items table, and items only land there for a trip completed on this device or synced while it was listening. On a fresh install, or for any member who joined the group after the fact, the lists sync but their items do not — so spend, stores and the trend rendered normally while the category pie said "No category data available", Most Purchased was a heading over nothing, and the item count read zero. `HistoryDetailScreen` has fetched the missing items from Firebase per list since it hit the same wall; Analytics now does the same for the window it is showing.
+
+  Kept away from the round-trip storm removed in 1.39.12: only lists with no local items are ever asked for, each list is asked at most once ever — the attempt is persisted, so changing period or pulling to refresh does not ask again — a single run is capped at forty lists, and a fetch that fails is not recorded as attempted, so going offline does not blank the item half permanently.
+
 ## [1.40.0] - 2026-08-26
 
 ### Added

@@ -1,4 +1,5 @@
 import LocalStorageManager from './LocalStorageManager';
+import { backfillMissingItems } from './analyticsItemBackfill';
 import { Item } from '../models/types';
 import {
   bucketFor,
@@ -54,6 +55,20 @@ class AnalyticsService {
       const bucket = itemsByList.get(item.listId);
       if (bucket) bucket.push(item);
       else itemsByList.set(item.listId, [item]);
+    }
+
+    // A list with no local items is not a list with nothing on it — it is
+    // usually a trip completed on another device. Pull those from Firebase
+    // once, or the item half of this screen stays blank forever while the
+    // spend half renders. See analyticsItemBackfill for the fencing.
+    const missing = recentLists.filter(l => !itemsByList.has(l.id)).map(l => l.id);
+    if (missing.length > 0) {
+      const fetched = await backfillMissingItems(familyGroupId, missing);
+      for (const item of fetched) {
+        const bucket = itemsByList.get(item.listId);
+        if (bucket) bucket.push(item);
+        else itemsByList.set(item.listId, [item]);
+      }
     }
 
     return buildAnalyticsSummary(recentLists, itemsByList, {
