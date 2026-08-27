@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.8] - 2026-08-27
+
+### Fixed
+- **Trips whose receipt total was never hoisted counted as £0 spend.** Schema v15 (2026-04-30) moved receipt totals out of the `receiptData` JSON into first-class columns and shipped a one-time repair for rows written before it — but the repair matched only rows whose `total_amount` was `NULL`, and the completion path it existed to repair stored `0` when the running total was not yet known. Every one of those rows was skipped, so the total stayed in the JSON where nothing reads it and the trip counted as costing nothing in Analytics, History and Budget alike. That is not a free shop: a trip with items checked off and priced was paid for. On the development account it was 13 completed trips holding £650.21 of receipts, against a headline that read £444.72 for the year.
+
+  The repair now treats both `NULL` and `0` as "no total on the column yet", and runs under a new flag so it reaches devices where the v15 pass already recorded itself done. A total already present on the column is never rewritten. The same rows never got their merchant or currency hoisted either, and now do.
+
+### Added
+- Tests for the hoist, which shipped without any: a zero column and a null column are both repaired, a column that already holds a total is left alone, and the pass does not run twice.
+
 ## [1.40.7] - 2026-08-27
 
 ### Fixed
