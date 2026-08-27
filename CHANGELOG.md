@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.4] - 2026-08-27
+
+### Fixed
+- **The Items tab was a heading over nothing when there was nothing to show.** Every other pane on the screen says so — the pie has "No category data available", Volatile Prices has "Not enough price data yet" — but Most Purchased just rendered its title and subtitle above empty space, so an account with no priced items looked like a rendering failure.
+
 ## [1.40.3] - 2026-08-27
 
 ### Fixed

@@ -438,6 +438,12 @@ const AnalyticsScreen = () => {
     <View>
       <Text style={styles.cardTitle}>Most Purchased</Text>
       <Text style={styles.cardSub}>Your top items by frequency</Text>
+      {/* The pie says "No category data available" and Volatile Prices says
+          "Not enough price data yet" for the same input; this pane rendered
+          a heading over nothing. */}
+      {analytics.topItems.length === 0 ? (
+        <Text style={styles.noData}>No item data available</Text>
+      ) : (
       <View style={styles.itemsContainer}>
         {analytics.topItems.slice(0, 8).map((item, index) => {
           const rankColor = rankColors[index] ?? theme.text.secondary;
@@ -472,6 +478,7 @@ const AnalyticsScreen = () => {
           );
         })}
       </View>
+      )}
     </View>
   );
 
