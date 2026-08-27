@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.7] - 2026-08-27
+
+### Fixed
+- **The item backfill added in 1.40.1 could hold up the whole Analytics screen.** It was awaited before the summary returned, so on a slow connection a screenful of figures that were already in hand sat behind the loading spinner waiting on items that were not. It gets three seconds now; fetches still in flight keep going and still save what they find, so running out of time costs a load, not the data.
+
+### Added
+- Tests for the backfill's fencing: a list that comes back empty is recorded as asked, a list whose fetch failed is not, and a single run is capped with the remainder picked up next time.
+
 ## [1.40.6] - 2026-08-27
 
 ### Fixed

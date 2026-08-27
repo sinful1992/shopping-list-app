@@ -17,6 +17,18 @@ export type {
   TrendBucket,
 } from './analyticsAggregation';
 
+/** How long a first paint will wait on items that are not local yet. */
+const BACKFILL_BUDGET_MS = 3000;
+
+/** Resolve to `[]` rather than keep the caller waiting past its budget. */
+function withTimeout(work: Promise<Item[]>, ms: number): Promise<Item[]> {
+  let timer: ReturnType<typeof setTimeout>;
+  const budget = new Promise<Item[]>(resolve => {
+    timer = setTimeout(() => resolve([]), ms);
+  });
+  return Promise.race([work, budget]).finally(() => clearTimeout(timer));
+}
+
 /**
  * AnalyticsService
  * Loads the completed lists behind the Analytics tab and hands them to the
@@ -63,7 +75,11 @@ class AnalyticsService {
     // spend half renders. See analyticsItemBackfill for the fencing.
     const missing = recentLists.filter(l => !itemsByList.has(l.id)).map(l => l.id);
     if (missing.length > 0) {
-      const fetched = await backfillMissingItems(familyGroupId, missing);
+      // Bounded, because this sits inside the screen's loading spinner: a
+      // slow connection would otherwise hold back figures that are already in
+      // hand. Fetches still in flight keep going and still save what they
+      // find, so a timeout costs a load, not the data.
+      const fetched = await withTimeout(backfillMissingItems(familyGroupId, missing), BACKFILL_BUDGET_MS);
       for (const item of fetched) {
         const bucket = itemsByList.get(item.listId);
         if (bucket) bucket.push(item);
