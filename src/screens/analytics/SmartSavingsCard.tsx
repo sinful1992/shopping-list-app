@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import PriceHistoryService from '../../services/PriceHistoryService';
+import PriceHistoryService, { SUGGESTION_WINDOW_DAYS } from '../../services/PriceHistoryService';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC } from '../../styles/theme';
@@ -25,7 +25,8 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems, reload
       try {
         const result = await PriceHistoryService.getSmartSuggestions(
           familyGroupId,
-          trackedItems.map(i => i.itemNameNormalized)
+          trackedItems.map(i => i.itemNameNormalized),
+          SUGGESTION_WINDOW_DAYS
         );
         if (!cancelled) setSuggestions(result);
       } catch {
@@ -48,11 +49,18 @@ const SmartSavingsCard: React.FC<Props> = ({ familyGroupId, trackedItems, reload
   return (
     <View>
       <Text style={styles.title}>Smart Savings</Text>
+      {/* The range is on screen because the figures are only as current as the
+          prices behind them, and the comparison chart above applies its own
+          window — two adjacent panels reading different periods with neither
+          saying so is how they came to disagree. */}
+      <Text style={styles.subtitle}>Where the same item was cheapest, last {SUGGESTION_WINDOW_DAYS} days</Text>
 
       {loading && <ActivityIndicator color={theme.accent.blue} style={styles.activityIndicator} />}
 
       {!loading && entries.length === 0 && (
-        <Text style={styles.emptyText}>Buy from multiple stores to see savings tips</Text>
+        <Text style={styles.emptyText}>
+          Nothing to compare in the last {SUGGESTION_WINDOW_DAYS} days — savings need the same item bought at more than one store
+        </Text>
       )}
 
       {!loading && entries.length > 0 && (
@@ -88,6 +96,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: theme.text.primary,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: theme.text.secondary,
+    marginTop: 2,
     marginBottom: 12,
   },
   emptyText: {

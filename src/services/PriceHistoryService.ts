@@ -31,6 +31,14 @@ export interface PriceStats {
   percentageChange: number; // Last vs average
 }
 
+/**
+ * How far back Smart Savings is allowed to look.
+ *
+ * Exported because the card states the range: advice built from prices six
+ * months old, presented with no date on it, is worse than no advice.
+ */
+export const SUGGESTION_WINDOW_DAYS = 90;
+
 // Module-level cache — avoids repeated AsyncStorage reads on every getPriceHistory() call.
 // Map key is familyGroupId so multi-user scenarios on one device are handled correctly.
 const _backfillDoneCache = new Map<string, boolean>();
@@ -62,7 +70,13 @@ class PriceHistoryService {
    */
   clearSuggestionsCache(familyGroupId?: string): void {
     if (familyGroupId) {
-      this.suggestionsCache.delete(familyGroupId);
+      // Entries are keyed group:window, so one group has an entry per window
+      // it has been asked for. Deleting the bare id would clear none of them.
+      for (const key of Array.from(this.suggestionsCache.keys())) {
+        if (key === familyGroupId || key.startsWith(`${familyGroupId}:`)) {
+          this.suggestionsCache.delete(key);
+        }
+      }
     } else {
       this.suggestionsCache.clear();
     }
@@ -168,21 +182,27 @@ class PriceHistoryService {
    * Get price history for a specific item name.
    * Uses the dedicated price_history table if available; falls back to
    * legacy completed-list reconstruction until backfill flag is set.
+   *
+   * @param sinceDate Drop points older than this. Optional and filtered after
+   *   the fetch, so every existing caller keeps the all-time series it reads.
    */
   async getPriceHistory(
     familyGroupId: string,
-    itemName: string
+    itemName: string,
+    sinceDate?: number
   ): Promise<PricePoint[]> {
     const normalized = itemName.toLowerCase().trim();
+    const since = (points: PricePoint[]) =>
+      sinceDate === undefined ? points : points.filter(p => p.date >= sinceDate);
 
     const records = await LocalStorageManager.getPriceHistoryForItem(familyGroupId, normalized);
     if (records.length > 0) {
-      return records.map(r => ({
+      return since(records.map(r => ({
         price: r.price,
         date: r.recordedAt,
         storeName: r.storeName,
         listId: r.listId ?? '',
-      }));
+      })));
     }
 
     if (await isBackfillDone(familyGroupId)) {
@@ -194,7 +214,9 @@ class PriceHistoryService {
     // visible in Crashlytics — delete the legacy branch once it reads zero
     // over a full release cycle.
     CrashReporting.log('PriceHistoryService legacy path hit: getFromCompletedListsLegacy');
-    return this.getFromCompletedListsLegacy(familyGroupId, itemName);
+    // Filtered here too: it is a second way out of this method, and a window
+    // that silently does not apply on pre-backfill devices is worse than none.
+    return since(await this.getFromCompletedListsLegacy(familyGroupId, itemName));
   }
 
   /**
@@ -292,10 +314,11 @@ class PriceHistoryService {
    */
   async getPriceByStore(
     familyGroupId: string,
-    itemName: string
+    itemName: string,
+    sinceDate?: number
   ): Promise<{ [storeName: string]: { average: number; lowest: number; highest: number; count: number } }> {
     try {
-      const priceHistory = await this.getPriceHistory(familyGroupId, itemName);
+      const priceHistory = await this.getPriceHistory(familyGroupId, itemName, sinceDate);
 
       const storeData: { [storeName: string]: number[] } = {};
 
@@ -433,16 +456,30 @@ class PriceHistoryService {
    * Get smart shopping suggestions for a list of items
    * Returns the cheapest store for each item based on historical prices
    * Results are cached for 5 minutes
+   *
+   * @param daysBack How far back prices are allowed to count. Optional, and
+   *   all-time when omitted, so the two live-shopping callers keep the series
+   *   they have always read. The Analytics card passes
+   *   SUGGESTION_WINDOW_DAYS: unwindowed, a shop that was cheapest last
+   *   winter was presented as where to go today, directly under a comparison
+   *   chart that does apply a window and so disagreed with it on screen.
    */
   async getSmartSuggestions(
     familyGroupId: string,
-    itemNames: string[]
+    itemNames: string[],
+    daysBack?: number
   ): Promise<Map<string, { bestStore: string; bestPrice: number; savings: number }>> {
     try {
-      const cached = this.suggestionsCache.get(familyGroupId);
+      // The window is part of the key: caching on the group alone would serve
+      // the first window's answer to every later one.
+      const cacheKey = `${familyGroupId}:${daysBack ?? 'all'}`;
+      const cached = this.suggestionsCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
         return cached.data;
       }
+      const sinceDate = daysBack === undefined
+        ? undefined
+        : Date.now() - daysBack * 24 * 60 * 60 * 1000;
 
       const suggestions = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
 
@@ -453,7 +490,7 @@ class PriceHistoryService {
       }
 
       for (const itemName of validItemNames) {
-        const storeData = await this.getPriceByStore(familyGroupId, itemName);
+        const storeData = await this.getPriceByStore(familyGroupId, itemName, sinceDate);
         const stores = Object.entries(storeData);
 
         if (stores.length > 1) {
@@ -482,7 +519,7 @@ class PriceHistoryService {
         }
       }
 
-      this.suggestionsCache.set(familyGroupId, {
+      this.suggestionsCache.set(cacheKey, {
         data: suggestions,
         timestamp: Date.now(),
       });

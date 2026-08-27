@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.5] - 2026-08-27
+
+### Fixed
+- **Smart Savings gave advice from prices of any age, and said nothing about it.** `getSmartSuggestions` passed no date to `getPriceHistory` at all, so "Potential savings per shop" and "Best at Lidl" were an unweighted all-time comparison — a store that was cheapest last winter presented as where to go for this week's shop. It sat directly beneath the item comparison chart, which does apply a window, so on an account whose prices are a few months old the two adjacent panels contradicted each other: one said "No purchases in this period" while the other quoted a saving from the same rows. The card now reads the last 90 days and says so under its title, and its empty state says the window rather than telling you to shop around when you already do.
+
+  The window is opt-in — `getPriceHistory`, `getPriceByStore` and `getSmartSuggestions` all take an optional date and filter after the fetch — so the price stats, the volatility chart and the two live-shopping callers keep the all-time series they read today. The suggestions cache is keyed on the window as well as the family group; keyed on the group alone it would have served the first window's answer to every later one, and `clearSuggestionsCache` now clears every window a group has.
+
 ## [1.40.4] - 2026-08-27
 
 ### Fixed
