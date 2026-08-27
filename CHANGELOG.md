@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.9] - 2026-08-27
+
+### Fixed
+- **The category pie could show two slices both labelled "Other".** The ring appends an "Other" slice for spend it cannot place — categories past the sixth, plus what a receipt carries that no item accounts for — but "Other" is also a real category, the one an uncategorised item lands in, and on this account it is the largest. When both existed the legend listed "Other" twice and React was handed two children with the same key. The remainder now joins the slice already there. Only reachable once the receipt total exceeds the itemised sum, which is why repairing the unhoisted totals in 1.40.8 surfaced it.
+
 ## [1.40.8] - 2026-08-27
 
 ### Fixed

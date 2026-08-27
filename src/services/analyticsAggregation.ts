@@ -87,6 +87,14 @@ const DEFAULT_TOP_ITEMS = 10;
 export const UNKNOWN_STORE = 'Unknown';
 
 /**
+ * The bucket for items with no category set — and a category the user can
+ * genuinely be shown, unlike UNKNOWN_STORE. Exported because the pie appends
+ * a slice of the same name for spend it could not place, and the two must be
+ * one slice rather than two rows both labelled "Other".
+ */
+export const OTHER_CATEGORY = 'Other';
+
+/**
  * Calendar months are too coarse for a 30-day window.
  *
  * A month-bucketed 30-day period straddles two calendar months, so the trend
@@ -271,7 +279,7 @@ export function buildAnalyticsSummary(
       group.totalSpent += spent;
       group.spellings.set(item.name, (group.spellings.get(item.name) ?? 0) + 1);
 
-      const category = item.category || 'Other';
+      const category = item.category || OTHER_CATEGORY;
       if (!categoryData[category]) categoryData[category] = { total: 0, count: 0 };
       categoryData[category].total += spent;
       categoryData[category].count += 1;

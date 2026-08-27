@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
-import { safeDiv, UNKNOWN_STORE } from '../../services/analyticsAggregation';
+import { OTHER_CATEGORY, safeDiv, UNKNOWN_STORE } from '../../services/analyticsAggregation';
 import { capitalize } from '../../utils/itemGrouping';
 import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
@@ -238,7 +238,13 @@ const AnalyticsScreen = () => {
     const remainder = total - shownSum;
     // Below a penny it is float noise, not a category.
     if (remainder >= 0.01) {
-      data.push({ value: remainder, text: 'Other', color: theme.text.tertiary });
+      // "Other" is also a real category — it is where an uncategorised item
+      // lands — so appending a second slice by that name gave the ring two
+      // identical legend rows and React two children with the same key. The
+      // remainder joins the slice that is already there.
+      const existing = data.find(slice => slice.text === OTHER_CATEGORY);
+      if (existing) existing.value += remainder;
+      else data.push({ value: remainder, text: OTHER_CATEGORY, color: theme.text.tertiary });
     }
     return { categoryPieData: data, pieTotal: total };
   }, [analytics?.categoryBreakdown, analytics?.totalSpent, theme]);
