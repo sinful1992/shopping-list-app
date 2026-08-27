@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.6] - 2026-08-27
+
+### Fixed
+- **Sunday was drawn off the edge of the "When You Shop" chart.** With `adjustToWidth`, gifted-charts sizes the bars from `parentWidth`, which defaults to the width of the whole screen rather than the width the chart was actually given — so it laid out a full screen's worth of bars inside a box 86dp narrower and the last one fell outside it. Seven bars made it obvious; the store chart was losing the right edge of its last bar to the same arithmetic. Both charts now say what width they are.
+
+- **The trend's first and last x-axis labels were cut in half.** A label is centred on its point and `adjustToWidth` puts the first and last points exactly on the plot edges, so half of each label sat outside the box and was clipped: "27 Jul" rendered as "Jul" and "10 Aug" as "10 A". The trend sets its own spacing against a padded width, leaving room at both ends.
+
+- **The "When You Shop" y-axis went up to 10 whatever the data.** With no `maxValue`, the axis came from the section count alone: ticks of 0/3/6/10 over trip counts of one and two, which left the bars in the bottom fifth of the chart. The scale is taken from the actual peak, with the step chosen first so every tick is a whole number of trips.
+
+- **The pull-to-refresh spinner came to rest on top of the period filter.** Android settles it 64dp down less its own diameter, which put it over the 30/90/1Y row and covered the label saying which period was on screen — at the one moment the figures underneath were being replaced. It now tucks up against the tab bar and clears the filter.
+
 ## [1.40.5] - 2026-08-27
 
 ### Fixed

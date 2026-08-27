@@ -264,6 +264,18 @@ const AnalyticsScreen = () => {
     };
   }, [analytics?.spendingByStore]);
 
+  // gifted-charts derives the y-axis from noOfSections alone unless it is
+  // given a maxValue, and its default of 10 put trip counts of one and two in
+  // the bottom fifth of the chart under ticks of 0/3/6/10. The step is chosen
+  // first so every tick is a whole number of trips — half a trip is not a
+  // reading.
+  const weekdayAxis = useMemo(() => {
+    const peak = Math.max(1, ...(analytics?.tripsByWeekday ?? [0]));
+    const step = Math.ceil(peak / 4);
+    const sections = Math.ceil(peak / step);
+    return { maxValue: step * sections, noOfSections: sections };
+  }, [analytics?.tripsByWeekday]);
+
   const weekdayChartData = useMemo(() => {
     const trips = analytics?.tripsByWeekday;
     if (!Array.isArray(trips) || trips.every(count => count === 0)) return [];
@@ -312,6 +324,22 @@ const AnalyticsScreen = () => {
   }
 
   const CHART_W = screenWidth - 62;
+  // What the charts are actually drawn into. gifted-charts sizes bars from
+  // `parentWidth`, which defaults to the whole screen and not to the width it
+  // was given, so with adjustToWidth it laid out (screenWidth - yAxisLabelWidth)
+  // of bars inside a box this wide and the last one fell off the right edge —
+  // Sunday, on a seven-bar week.
+  const CHART_PLOT_W = CHART_W - 24;
+
+  // An x-axis label is centred on its point, so a point sitting exactly on the
+  // plot edge has half its label outside the box and clipped: "27 Jul" showed
+  // as "Jul", "10 Aug" as "10 A". adjustToWidth leaves no room at either end,
+  // so the spacing is set here instead, against a padded width.
+  const TREND_EDGE_PAD = 22;
+  const trendSpacing = Math.max(
+    1,
+    (CHART_PLOT_W - TREND_EDGE_PAD * 2) / Math.max(trendChartData.length - 1, 1),
+  );
 
   // ── Tab content renderers ─────────────────────────────────────────────────
 
@@ -327,11 +355,11 @@ const AnalyticsScreen = () => {
           <View style={styles.chartWrapper}>
             <LineChart
               data={trendChartData}
-              width={CHART_W - 24}
+              width={CHART_PLOT_W}
               height={180}
-              adjustToWidth
-              initialSpacing={0}
-              endSpacing={0}
+              initialSpacing={TREND_EDGE_PAD}
+              endSpacing={TREND_EDGE_PAD}
+              spacing={trendSpacing}
               color={theme.accent.blue}
               thickness={3}
               startFillColor={theme.accent.blue}
@@ -414,7 +442,8 @@ const AnalyticsScreen = () => {
           <View style={styles.chartWrapper}>
             <BarChart
               data={weekdayChartData}
-              width={CHART_W - 24}
+              width={CHART_PLOT_W}
+              parentWidth={CHART_PLOT_W}
               height={140}
               adjustToWidth
               initialSpacing={0}
@@ -426,7 +455,8 @@ const AnalyticsScreen = () => {
               yAxisColor="transparent"
               yAxisTextStyle={styles.chartAxisStyle}
               yAxisLabelWidth={24}
-              noOfSections={3}
+              maxValue={weekdayAxis.maxValue}
+              noOfSections={weekdayAxis.noOfSections}
             />
           </View>
         </View>
@@ -492,7 +522,8 @@ const AnalyticsScreen = () => {
           <View style={styles.chartWrapper}>
             <BarChart
               data={storeChartData}
-              width={CHART_W - 24}
+              width={CHART_PLOT_W}
+              parentWidth={CHART_PLOT_W}
               height={180}
               adjustToWidth
               initialSpacing={0}
@@ -612,6 +643,12 @@ const AnalyticsScreen = () => {
             onRefresh={onRefresh}
             tintColor={theme.accent.blue}
             colors={[theme.accent.blue]}
+            // Android rests the spinner 64dp down, less its own 40dp diameter,
+            // so it settled on top of the period filter and covered the label
+            // saying which period you were looking at — while the numbers
+            // underneath were being replaced. Pulled up so it tucks against
+            // the tab bar and clears the filter text.
+            progressViewOffset={-40}
           />
         }
       >
