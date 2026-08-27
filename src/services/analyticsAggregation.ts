@@ -77,6 +77,16 @@ export interface AggregationOptions {
 const DEFAULT_TOP_ITEMS = 10;
 
 /**
+ * The bucket for trips with no store on them.
+ *
+ * It has to stay in spendingByStore or the breakdown stops adding up to the
+ * period total, the same way category percentages did before 1.39.13. But it
+ * is not a shop: it never wins a superlative, and it sorts last however much
+ * spend it holds. The UI gives it a label that does not read like a name.
+ */
+export const UNKNOWN_STORE = 'Unknown';
+
+/**
  * Calendar months are too coarse for a 30-day window.
  *
  * A month-bucketed 30-day period straddles two calendar months, so the trend
@@ -225,7 +235,7 @@ export function buildAnalyticsSummary(
 
     totalSpent += listTotal;
 
-    const store = list.storeName || 'Unknown';
+    const store = list.storeName || UNKNOWN_STORE;
     if (!storeData[store]) storeData[store] = { total: 0, count: 0 };
     storeData[store].total += listTotal;
     storeData[store].count += 1;
@@ -275,10 +285,15 @@ export function buildAnalyticsSummary(
       tripCount: data.count,
       averagePerTrip: safeDiv(data.total, data.count),
     }))
-    .sort((a, b) => b.totalSpent - a.totalSpent);
+    .sort((a, b) => {
+      if (a.storeName === UNKNOWN_STORE) return 1;
+      if (b.storeName === UNKNOWN_STORE) return -1;
+      return b.totalSpent - a.totalSpent;
+    });
 
-  const mostFrequentStore = spendingByStore.length > 0
-    ? spendingByStore.reduce((max, store) => (store.tripCount > max.tripCount ? store : max)).storeName
+  const namedStores = spendingByStore.filter(store => store.storeName !== UNKNOWN_STORE);
+  const mostFrequentStore = namedStores.length > 0
+    ? namedStores.reduce((max, store) => (store.tripCount > max.tripCount ? store : max)).storeName
     : null;
 
   const topItems: TopItem[] = Array.from(itemData.values())

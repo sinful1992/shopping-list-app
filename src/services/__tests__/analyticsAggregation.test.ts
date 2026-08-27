@@ -1,4 +1,4 @@
-import { bucketFor, buildAnalyticsSummary } from '../analyticsAggregation';
+import { bucketFor, buildAnalyticsSummary, UNKNOWN_STORE } from '../analyticsAggregation';
 import { Item, ShoppingList } from '../../models/types';
 
 let idCounter = 0;
@@ -258,7 +258,43 @@ describe('buildAnalyticsSummary', () => {
       const list = makeList({ storeName: null, totalAmount: 5 });
 
       expect(buildAnalyticsSummary([list], index([list, []])).spendingByStore[0].storeName)
-        .toBe('Unknown');
+        .toBe(UNKNOWN_STORE);
+    });
+
+    it('sorts the no-store bucket last however much it holds', () => {
+      // It has to stay in the list or the breakdown stops summing to the
+      // period total, but it is not the headline shop.
+      const nameless = makeList({ storeName: null, totalAmount: 100 });
+      const tesco = makeList({ storeName: 'Tesco', totalAmount: 10 });
+
+      const summary = buildAnalyticsSummary(
+        [nameless, tesco],
+        index([nameless, []], [tesco, []]),
+      );
+
+      expect(summary.spendingByStore.map(s => s.storeName)).toEqual(['Tesco', UNKNOWN_STORE]);
+      expect(summary.spendingByStore.reduce((sum, s) => sum + s.totalSpent, 0))
+        .toBe(summary.totalSpent);
+    });
+
+    it('never makes the no-store bucket the most frequent store', () => {
+      const nameless1 = makeList({ storeName: null, totalAmount: 5 });
+      const nameless2 = makeList({ storeName: null, totalAmount: 5 });
+      const tesco = makeList({ storeName: 'Tesco', totalAmount: 5 });
+
+      const summary = buildAnalyticsSummary(
+        [nameless1, nameless2, tesco],
+        index([nameless1, []], [nameless2, []], [tesco, []]),
+      );
+
+      expect(summary.mostFrequentStore).toBe('Tesco');
+    });
+
+    it('has no most frequent store when nothing has a name', () => {
+      const nameless = makeList({ storeName: null, totalAmount: 5 });
+
+      expect(buildAnalyticsSummary([nameless], index([nameless, []])).mostFrequentStore)
+        .toBeNull();
     });
   });
 

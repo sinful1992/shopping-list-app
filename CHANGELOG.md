@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.3] - 2026-08-27
+
+### Fixed
+- **"Unknown" was the headline shop.** Trips completed without a store recorded are pooled under one bucket, and that bucket sorted by spend like any other — so on an account where most trips carry no store it led Store Breakdown, took a bar in Spend by Store, and wore the "Most visited" badge, reading like a shop called Unknown. The bucket has to stay in the breakdown or it stops adding up to the period total, so it stays: it is labelled "No store recorded", sorts last however much it holds, is out of the store bar chart, and can no longer win "Most visited" or be the summary's most frequent store.
+
+- **"Smallest trips" was awarded to a store with no recorded spend.** The badge is a minimum over average spend per trip, so a shop visited once with nothing priced on the list won it at £0.00 — praise for the cheapest basket, given to the one with no basket. Stores with no spend are out of the running, and both badges need at least two candidates of their own now that each excludes a different set.
+
+- **"1 trips".** Store Breakdown, and the trip and item counts under TOTAL SPENT, printed a plural regardless of the count.
+
 ## [1.40.2] - 2026-08-27
 
 ### Fixed

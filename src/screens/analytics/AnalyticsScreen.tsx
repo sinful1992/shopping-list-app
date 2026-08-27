@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
-import { safeDiv } from '../../services/analyticsAggregation';
+import { safeDiv, UNKNOWN_STORE } from '../../services/analyticsAggregation';
 import { capitalize } from '../../utils/itemGrouping';
 import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
@@ -149,6 +149,11 @@ const AnalyticsScreen = () => {
   }, [user?.familyGroupId]);
 
   const fmt = (n: number) => `£${n.toFixed(2)}`;
+  const plural = (count: number, word: string) => (count === 1 ? word : `${word}s`);
+  // The bucket is keyed 'Unknown' so the breakdown still sums to the period
+  // total, but it sat at the top of the list reading like a shop called
+  // Unknown. Only the label changes; the row stays.
+  const storeLabel = (name: string) => (name === UNKNOWN_STORE ? 'No store recorded' : name);
 
   // ── Chart data ─────────────────────────────────────────────────────────────
   // Memoised: these were rebuilt on every render, date formatting and all.
@@ -177,17 +182,22 @@ const AnalyticsScreen = () => {
   const storeChartData = useMemo(() => {
     const stores = analytics?.spendingByStore;
     if (!Array.isArray(stores)) return [];
-    return stores.slice(0, 5).map(store => ({
-      value: store.totalSpent,
-      label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
-      labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
-      // showValuesAsTopLabel prints the raw float, and a total is a sum of
-      // 2dp prices — enough to surface as 112.09000000000002.
-      topLabelComponent: () => (
-        <Text style={styles.chartTopLabel}>{store.totalSpent.toFixed(2)}</Text>
-      ),
-      frontColor: theme.accent.blue,
-    }));
+    // A bar for trips with no store recorded is not a location, and it was
+    // taking one of the five slots from a shop that is.
+    return stores
+      .filter(store => store.storeName !== UNKNOWN_STORE)
+      .slice(0, 5)
+      .map(store => ({
+        value: store.totalSpent,
+        label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
+        labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+        // showValuesAsTopLabel prints the raw float, and a total is a sum of
+        // 2dp prices — enough to surface as 112.09000000000002.
+        topLabelComponent: () => (
+          <Text style={styles.chartTopLabel}>{store.totalSpent.toFixed(2)}</Text>
+        ),
+        frontColor: theme.accent.blue,
+      }));
   }, [analytics?.spendingByStore, theme, styles]);
 
   const { categoryPieData, pieTotal } = useMemo(() => {
@@ -238,10 +248,19 @@ const AnalyticsScreen = () => {
   // badged when several share the lowest average.
   const { smallestTripsStore, mostVisitedStore } = useMemo(() => {
     const stores = analytics?.spendingByStore ?? [];
-    if (stores.length < 2) return { smallestTripsStore: null, mostVisitedStore: null };
+    // Neither badge is about the no-store bucket, and "Smallest trips" is
+    // praise: a shop with a trip but no recorded spend wins a min on average
+    // per trip at £0.00 and reads as the frugal one. Both are comparisons, so
+    // both need at least two candidates of their own.
+    const named = stores.filter(store => store.storeName !== UNKNOWN_STORE);
+    const withSpend = named.filter(store => store.totalSpent > 0);
     return {
-      smallestTripsStore: stores.reduce((a, b) => (b.averagePerTrip < a.averagePerTrip ? b : a)).storeName,
-      mostVisitedStore: stores.reduce((a, b) => (b.tripCount > a.tripCount ? b : a)).storeName,
+      smallestTripsStore: withSpend.length >= 2
+        ? withSpend.reduce((a, b) => (b.averagePerTrip < a.averagePerTrip ? b : a)).storeName
+        : null,
+      mostVisitedStore: named.length >= 2
+        ? named.reduce((a, b) => (b.tripCount > a.tripCount ? b : a)).storeName
+        : null,
     };
   }, [analytics?.spendingByStore]);
 
@@ -504,7 +523,7 @@ const AnalyticsScreen = () => {
               <View key={store.storeName} style={styles.storeRow}>
                 <View style={styles.storeFlexLeft}>
                   <View style={styles.storeNameRow}>
-                    <Text style={styles.storeName}>{store.storeName}</Text>
+                    <Text style={styles.storeName}>{storeLabel(store.storeName)}</Text>
                     {/* "Best avg" read as "cheapest", but the lowest average
                         per trip is where you nip in for milk. */}
                     {isSmallest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextGreen]}>Smallest trips</Text></View>}
@@ -517,7 +536,7 @@ const AnalyticsScreen = () => {
                 </View>
                 <View style={styles.storeStatsColumn}>
                   <Text style={styles.storeTotal}>{fmt(store.totalSpent)}</Text>
-                  <Text style={styles.storeMeta}>{store.tripCount} trips · avg {fmt(store.averagePerTrip)}</Text>
+                  <Text style={styles.storeMeta}>{store.tripCount} {plural(store.tripCount, 'trip')} · avg {fmt(store.averagePerTrip)}</Text>
                 </View>
               </View>
             );
@@ -624,11 +643,11 @@ const AnalyticsScreen = () => {
           </View>
           <View style={styles.rule} />
           <Text style={styles.totalMeta}>
-            <Text style={styles.totalMetaStrong}>{analytics.totalTrips}</Text> trips
+            <Text style={styles.totalMetaStrong}>{analytics.totalTrips}</Text> {plural(analytics.totalTrips, 'trip')}
             {'   ·   '}
             <Text style={styles.totalMetaStrong}>{fmt(analytics.averagePerTrip)}</Text> avg
             {'   ·   '}
-            <Text style={styles.totalMetaStrong}>{analytics.itemsPurchased}</Text> items
+            <Text style={styles.totalMetaStrong}>{analytics.itemsPurchased}</Text> {plural(analytics.itemsPurchased, 'item')}
           </Text>
         </View>
         )}
