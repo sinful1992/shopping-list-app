@@ -160,9 +160,16 @@ const AnalyticsScreen = () => {
     const format: Intl.DateTimeFormatOptions = analytics?.trendBucket === 'week'
       ? { day: 'numeric', month: 'short' }
       : { month: 'short' };
-    return trend.map(point => ({
+    // Now that quiet periods get a bucket the series is as long as the
+    // window, and a year is thirteen monthly labels across ~300dp — they
+    // collide. Label every other bucket past eight, counted back from the end
+    // so the most recent one is always the labelled one.
+    const stride = trend.length > 8 ? 2 : 1;
+    return trend.map((point, i) => ({
       value: point.amount,
-      label: new Date(point.date).toLocaleDateString('en-GB', format),
+      label: (trend.length - 1 - i) % stride === 0
+        ? new Date(point.date).toLocaleDateString('en-GB', format)
+        : '',
       labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
     }));
   }, [analytics?.spendingTrend, analytics?.trendBucket, theme]);

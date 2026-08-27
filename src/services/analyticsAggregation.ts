@@ -64,6 +64,14 @@ export interface AnalyticsSummary {
 export interface AggregationOptions {
   topItemsLimit?: number;
   trendBucket?: TrendBucket;
+  /**
+   * The period the caller asked for, so the trend can span it whether or not
+   * a trip fell in each bucket. Without them the series only covers the
+   * buckets that happen to contain a trip, so it cannot show a quiet stretch
+   * at either end of the window.
+   */
+  windowStart?: number;
+  windowEnd?: number;
 }
 
 const DEFAULT_TOP_ITEMS = 10;
@@ -92,6 +100,60 @@ function startOfWeek(date: Date): number {
 
 function startOfMonth(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), 1).getTime();
+}
+
+function startOfBucket(timestamp: number, bucket: TrendBucket): number {
+  const date = new Date(timestamp);
+  return bucket === 'week' ? startOfWeek(date) : startOfMonth(date);
+}
+
+/**
+ * Local-calendar arithmetic, not `+ 7 * 86400000`: a week that crosses a
+ * clock change is 23 or 25 hours longer, and the offset would slide the
+ * bucket start off midnight and eventually into the previous day.
+ */
+function nextBucketStart(bucketStart: number, bucket: TrendBucket): number {
+  const date = new Date(bucketStart);
+  if (bucket === 'week') date.setDate(date.getDate() + 7);
+  else date.setMonth(date.getMonth() + 1);
+  return date.getTime();
+}
+
+/**
+ * A quiet week is data, not an absence of it.
+ *
+ * The series only ever held buckets that contained a trip, so three weeks
+ * without a shop simply did not exist and the line joined the bucket either
+ * side of them: a steady decline drawn over what was actually one big shop
+ * and then nothing. The x-axis was ordinal when it reads as temporal. Weekly
+ * bucketing made this far likelier than the monthly bucketing it replaced,
+ * since a gap only has to be days long to drop a bucket.
+ *
+ * The span covers the requested window where the caller gave one, widened to
+ * hold any trip outside it, so a period ending in a quiet fortnight shows the
+ * fortnight.
+ */
+function fillEmptyBuckets(
+  trendData: Map<number, { amount: number; count: number }>,
+  bucket: TrendBucket,
+  windowStart: number | undefined,
+  windowEnd: number | undefined,
+): void {
+  const observed = Array.from(trendData.keys());
+  const bounds = [...observed];
+  if (windowStart !== undefined) bounds.push(startOfBucket(windowStart, bucket));
+  if (windowEnd !== undefined) bounds.push(startOfBucket(windowEnd, bucket));
+  if (bounds.length === 0) return;
+
+  const last = Math.max(...bounds);
+  let cursor = Math.min(...bounds);
+  // A guard, not a limit: 365 days is 13 monthly buckets and 30 days is 5.
+  // It only catches a nonsense window, where the alternative is a hang.
+  let remaining = 400;
+  while (cursor <= last && remaining-- > 0) {
+    if (!trendData.has(cursor)) trendData.set(cursor, { amount: 0, count: 0 });
+    cursor = nextBucketStart(cursor, bucket);
+  }
 }
 
 /** Divide without ever handing NaN or Infinity to a chart. */
@@ -229,6 +291,8 @@ export function buildAnalyticsSummary(
     }))
     .sort((a, b) => b.purchaseCount - a.purchaseCount)
     .slice(0, topItemsLimit);
+
+  fillEmptyBuckets(trendData, trendBucket, options.windowStart, options.windowEnd);
 
   const spendingTrend: SpendingTrend[] = Array.from(trendData.entries())
     .map(([date, data]) => ({ date, amount: data.amount, tripCount: data.count }))

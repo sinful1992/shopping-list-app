@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.40.2] - 2026-08-27
+
+### Fixed
+- **The spending trend drew a straight line across weeks you did not shop.** The series only ever held buckets that contained a trip, so three quiet weeks simply did not exist and the line joined the buckets either side of them: a steady decline drawn over what was actually one big shop followed by nothing. The x-axis was ordinal while it read as temporal. Weekly bucketing in 1.40.0 made it far likelier — a gap now only has to be days long to drop a bucket — and, because the series stopped at the last trip rather than at today, a period that ended quietly never showed the quiet part at all. Every bucket in the selected period is now on the chart, at zero where there was no trip, widened past the period if a trip falls outside it.
+
+### Changed
+- The trend labels every other bucket once there are more than eight, counting back from the most recent, so a year of monthly buckets does not stack thirteen labels on top of each other.
+
 ## [1.40.1] - 2026-08-27
 
 ### Fixed

@@ -335,6 +335,99 @@ describe('buildAnalyticsSummary', () => {
       ]);
     });
 
+    it('keeps a bucket for a week with no trip in it', () => {
+      // One big shop, then nothing for a fortnight. Without the empty weeks
+      // the line joins 27 July straight to 17 August and reads as a decline.
+      const july = makeList({ completedAt: new Date(2026, 6, 28, 12).getTime(), totalAmount: 40 });
+      const august = makeList({ completedAt: new Date(2026, 7, 18, 12).getTime(), totalAmount: 2 });
+
+      const summary = buildAnalyticsSummary(
+        [july, august],
+        index([july, []], [august, []]),
+        { trendBucket: 'week' },
+      );
+
+      expect(summary.spendingTrend).toEqual([
+        { date: new Date(2026, 6, 27).getTime(), amount: 40, tripCount: 1 },
+        { date: new Date(2026, 7, 3).getTime(), amount: 0, tripCount: 0 },
+        { date: new Date(2026, 7, 10).getTime(), amount: 0, tripCount: 0 },
+        { date: new Date(2026, 7, 17).getTime(), amount: 2, tripCount: 1 },
+      ]);
+    });
+
+    it('covers the whole requested window, not just the buckets with trips', () => {
+      // The gap that matters most is the one at the end: weeks after the last
+      // trip are inside the window but outside the observed buckets.
+      const trip = makeList({ completedAt: new Date(2026, 7, 4, 12).getTime(), totalAmount: 12 });
+
+      const summary = buildAnalyticsSummary(
+        [trip],
+        index([trip, []]),
+        {
+          trendBucket: 'week',
+          windowStart: new Date(2026, 6, 27, 9).getTime(),
+          windowEnd: new Date(2026, 7, 24, 9).getTime(),
+        },
+      );
+
+      expect(summary.spendingTrend.map(p => p.date)).toEqual([
+        new Date(2026, 6, 27).getTime(),
+        new Date(2026, 7, 3).getTime(),
+        new Date(2026, 7, 10).getTime(),
+        new Date(2026, 7, 17).getTime(),
+        new Date(2026, 7, 24).getTime(),
+      ]);
+      expect(summary.spendingTrend.map(p => p.amount)).toEqual([0, 12, 0, 0, 0]);
+    });
+
+    it('widens past the window rather than dropping a trip outside it', () => {
+      const older = makeList({ completedAt: new Date(2026, 5, 15, 12).getTime(), totalAmount: 5 });
+
+      const summary = buildAnalyticsSummary(
+        [older],
+        index([older, []]),
+        {
+          trendBucket: 'month',
+          windowStart: new Date(2026, 7, 1).getTime(),
+          windowEnd: new Date(2026, 7, 27).getTime(),
+        },
+      );
+
+      expect(summary.spendingTrend.map(p => p.amount)).toEqual([5, 0, 0]);
+    });
+
+    it('fills empty months across a monthly window', () => {
+      const may = makeList({ completedAt: new Date(2026, 4, 10).getTime(), totalAmount: 30 });
+      const august = makeList({ completedAt: new Date(2026, 7, 10).getTime(), totalAmount: 10 });
+
+      const summary = buildAnalyticsSummary(
+        [may, august],
+        index([may, []], [august, []]),
+        { trendBucket: 'month' },
+      );
+
+      expect(summary.spendingTrend).toEqual([
+        { date: new Date(2026, 4, 1).getTime(), amount: 30, tripCount: 1 },
+        { date: new Date(2026, 5, 1).getTime(), amount: 0, tripCount: 0 },
+        { date: new Date(2026, 6, 1).getTime(), amount: 0, tripCount: 0 },
+        { date: new Date(2026, 7, 1).getTime(), amount: 10, tripCount: 1 },
+      ]);
+    });
+
+    it('leaves totals and trip counts untouched by the filled buckets', () => {
+      const trip = makeList({ completedAt: new Date(2026, 7, 4, 12).getTime(), totalAmount: 12 });
+
+      const summary = buildAnalyticsSummary([trip], index([trip, []]), {
+        trendBucket: 'week',
+        windowStart: new Date(2026, 6, 27).getTime(),
+        windowEnd: new Date(2026, 7, 24).getTime(),
+      });
+
+      expect(summary.totalSpent).toBe(12);
+      expect(summary.totalTrips).toBe(1);
+      expect(summary.spendingTrend.reduce((sum, p) => sum + p.tripCount, 0)).toBe(1);
+    });
+
     it('counts trips per weekday, Sunday first', () => {
       // 9 Aug 2026 is a Sunday, 10 Aug a Monday.
       const sunday = makeList({ completedAt: new Date(2026, 7, 9, 12).getTime(), totalAmount: 1 });

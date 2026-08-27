@@ -73,6 +73,10 @@ class AnalyticsService {
 
     return buildAnalyticsSummary(recentLists, itemsByList, {
       trendBucket: bucketFor(daysBack),
+      // The window the lists were selected with, so the trend covers the whole
+      // period the user picked rather than only the buckets containing a trip.
+      windowStart: cutoffDate,
+      windowEnd: Date.now(),
       ...options,
     });
   }
