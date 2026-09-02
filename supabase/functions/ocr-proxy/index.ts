@@ -107,13 +107,8 @@ serve(async (req: Request) => {
     return json({ error: 'Server misconfigured: OCR_SERVER_URL unset' }, 500)
   }
 
-  try {
-    await verifyFirebaseIdToken(req.headers.get('X-Firebase-Token'))
-  } catch (err) {
-    return json({ error: (err as Error).message }, 401)
-  }
-
   let file: File
+  let formToken: string | null = null
   try {
     const form = await req.formData()
     const candidate = form.get('file')
@@ -121,8 +116,21 @@ serve(async (req: Request) => {
       return json({ error: 'Missing "file" part in multipart body' }, 400)
     }
     file = candidate
+    const tokenPart = form.get('idToken')
+    if (typeof tokenPart === 'string') formToken = tokenPart
   } catch {
     return json({ error: 'Malformed multipart body' }, 400)
+  }
+
+  // The token is read from the body first: Supabase's gateway has been
+  // observed stripping non-standard request headers before the function
+  // runs, so X-Firebase-Token alone is not dependable. The header is kept
+  // as a fallback for callers that set it. Parsing the body before
+  // authenticating costs little — the platform bounds the body size anyway.
+  try {
+    await verifyFirebaseIdToken(formToken ?? req.headers.get('X-Firebase-Token'))
+  } catch (err) {
+    return json({ error: (err as Error).message }, 401)
   }
 
   if (file.size === 0) {

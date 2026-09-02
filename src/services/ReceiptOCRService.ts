@@ -191,6 +191,7 @@ class ReceiptOCRService {
     const overrideUrl = await this.getStoredServerUrl();
 
     let requestUrl: string;
+    let proxyIdToken: string | null = null;
     const headers: Record<string, string> = { 'Accept': 'application/json' };
 
     if (overrideUrl) {
@@ -208,7 +209,11 @@ class ReceiptOCRService {
       }
       requestUrl = OCR_PROXY_URL;
       headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY || ''}`;
+      // Sent in the body as well as the header: Supabase's gateway strips
+      // some non-standard headers before the function sees them, and the
+      // multipart part always survives. The function reads the part first.
       headers['X-Firebase-Token'] = idToken;
+      proxyIdToken = idToken;
     }
 
     // Compose the caller's AbortSignal with a local timeout so a stuck
@@ -226,6 +231,9 @@ class ReceiptOCRService {
         type: 'image/jpeg',
         name: 'receipt.jpg',
       } as any);
+      if (proxyIdToken) {
+        formData.append('idToken', proxyIdToken);
+      }
 
       const response = await fetch(requestUrl, {
         method: 'POST',

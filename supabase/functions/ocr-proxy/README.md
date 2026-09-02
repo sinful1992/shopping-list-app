@@ -25,38 +25,54 @@ app — it never carried the key, so it needs no proxy.
 
 ## Rotation runbook
 
-The order matters. Steps 1–2 are safe at any time; step 3 is the cutover, and
-scanning is down for older builds from that moment until they update.
+Deploy against the **current** key first and prove the whole path works, then
+rotate. Doing it the other way round means the first end-to-end test of a
+never-deployed function happens at the same moment older builds start failing,
+with nothing known-good to fall back to.
 
-1. **Set the function's secrets** to the *new* key value:
+1. **Set the function's secrets to the key that is live right now:**
    ```
    supabase secrets set OCR_SERVER_URL=https://sinful1-receipt-ocr.hf.space
-   supabase secrets set OCR_SHARED_SECRET=<new-key>
+   supabase secrets set OCR_SHARED_SECRET=<current-key>
    ```
-2. **Deploy the function:**
+2. **Deploy:**
    ```
    supabase functions deploy ocr-proxy
    ```
-   Verify it before cutting over — with the Space still on the old key this
-   should return 401 from upstream, which proves auth and forwarding both work:
+3. **Prove it end to end — a real 200, not a plumbing check.** Nothing has
+   changed for users yet, so this is free to retry:
    ```
    curl -X POST "$SUPABASE_URL/functions/v1/ocr-proxy" \
      -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-     -H "X-Firebase-Token: <a real ID token>" \
+     -F "idToken=<a real Firebase ID token>" \
      -F "file=@receipt.jpg"
    ```
-3. **Rotate the Space secret** — set `OCR_SHARED_SECRET` to `<new-key>` in the
-   Space's settings. It restarts (a few minutes; model reload included). From
-   here the old key is dead and pre-1.41.0 builds get a 401 on scan.
-4. **Ship the app update.** Until it clears review and users take it, scanning
+   Expect the parsed receipt JSON. A 401 mentioning a token means auth; a 502
+   means the Space is unreachable; a gateway 401 with no JSON body from this
+   function means the anon key was rejected before the code ran.
+4. **Rotate both sides.** Set the Space's `OCR_SHARED_SECRET` to `<new-key>`
+   (it restarts — a few minutes, model reload included), then
+   `supabase secrets set OCR_SHARED_SECRET=<new-key>`. Re-run the step 3 curl;
+   it should still return 200. From here the old key is dead and pre-1.41.0
+   builds get a 401 on scan.
+5. **Ship the app update.** Until it clears review and users take it, scanning
    is unavailable on older installs. That is the accepted cost of an immediate
-   cutover; a staged alternative is to delay step 3 until the update is out.
+   cutover; the staged alternative is to delay step 4 until the update is out.
 
 ## Notes
 
 - The old key is in this repo's git history and cannot be recalled from forks
   or caches. Rotation is what retires it; history rewriting is not attempted.
-- Request bodies are capped at 9MB here, under the platform's ~10MB limit and
-  below the Space's 15MB. The app caps captures at 4096px to stay clear.
+- The ID token is read from the `idToken` multipart field, with the
+  `X-Firebase-Token` header as a fallback. Supabase's gateway has been
+  observed stripping non-standard headers before the function runs, so the
+  header alone is not dependable; a body field always survives.
+- Request bodies are capped at 9MB here. Supabase does not document the
+  platform's own request limit — 9MB is chosen against a community-reported
+  ~10MB and Supabase's own example, not a published number. The app caps
+  captures at 4096px to stay well clear.
+- The client's OCR timeout is 120s, inside the 150s free-plan function wall
+  clock. If either moves, keep the client under the platform ceiling so a slow
+  scan surfaces as the app's own error rather than a platform timeout.
 - `verify_jwt` is left at its default, so callers also need the Supabase anon
-  key in `Authorization` — the app sends both headers.
+  key in `Authorization`.

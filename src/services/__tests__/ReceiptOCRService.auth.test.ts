@@ -39,6 +39,20 @@ function lastCall(fn: jest.Mock): { url: string; headers: Record<string, string>
   return { url: String(url), headers: (init?.headers ?? {}) as Record<string, string> };
 }
 
+/**
+ * Read a field out of the request body. React Native's FormData polyfill
+ * exposes `_parts`; the spec object jest may supply instead has `get`.
+ */
+function bodyField(body: unknown, name: string): unknown {
+  const anyBody = body as any;
+  if (anyBody && typeof anyBody.get === 'function') {
+    return anyBody.get(name) ?? undefined;
+  }
+  const parts = anyBody?._parts as Array<[string, unknown]> | undefined;
+  if (!parts) throw new Error('Request body exposed neither get() nor _parts');
+  return parts.find(([key]) => key === name)?.[1];
+}
+
 describe('ReceiptOCRService request auth', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -55,6 +69,25 @@ describe('ReceiptOCRService request auth', () => {
     expect(url).toContain('/functions/v1/ocr-proxy');
     expect(headers['X-Firebase-Token']).toBe('test-id-token');
     expect(headers['Authorization']).toMatch(/^Bearer /);
+  });
+
+  it('also carries the token in the body, which the gateway cannot strip', async () => {
+    const fetchMock = mockFetch();
+
+    await ReceiptOCRService.extractReceipt('/tmp/receipt.jpg');
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(bodyField(init?.body, 'idToken')).toBe('test-id-token');
+  });
+
+  it('does not put the token in the body on the direct dev-server path', async () => {
+    const fetchMock = mockFetch();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('http://192.168.1.50:8000');
+
+    await ReceiptOCRService.extractReceipt('/tmp/receipt.jpg');
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(bodyField(init?.body, 'idToken')).toBeUndefined();
   });
 
   it('never sends the retired shared secret on any path', async () => {

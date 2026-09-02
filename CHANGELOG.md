@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.41.1] - 2026-09-02
+
+### Fixed
+- **The proxy would have authenticated on a header Supabase can drop.** 1.41.0 sent the Firebase ID token to `ocr-proxy` as `X-Firebase-Token`, and the functions gateway is documented by users as stripping non-standard headers before the function runs. The unit tests could not have caught it: they mock `fetch`, so they assert what the client sends, never what survives the gateway. With an immediate cutover the first real exercise of that path would have been the moment older builds stopped working, so it is not a thing to find in production. The token now travels as an `idToken` multipart field, which cannot be stripped, and the header is kept only as a fallback.
+
+### Changed
+- The rotation runbook deploys against the currently live key and requires a real 200 through the proxy before anything is rotated. As written in 1.41.0 it set the new key first, which put the function's first end-to-end test at the same moment as the cutover, with no known-good state to fall back to.
+- The 9MB body cap is now documented as a judgement against a community-reported limit rather than a published one — Supabase does not document the request size limit for edge functions.
+
 ## [1.41.0] - 2026-09-02
 
 ### Security
