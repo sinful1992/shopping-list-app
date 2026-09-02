@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.41.0] - 2026-09-02
+
+### Security
+- **The OCR server's shared secret was compiled into the app, and this repo is public.** `ReceiptOCRService` held the key as a string constant and sent it as `X-OCR-Key` on every scan, so the value was readable three ways: by decompiling the APK, by reading the source on GitHub, or — easiest of all — by reading the 1.34.0 changelog entry that printed it in full. The header was only ever abuse deterrence rather than authentication, which the comment beside it said plainly, but a secret in a public repository does not deter anything.
+
+  What it guarded is worth stating exactly, because it bounds the damage: `/ocr` takes an image and returns parsed JSON, touching no database and storing nothing. Anyone holding the key could spend the Space's compute, not read a receipt or reach an account. The realistic cost was scans queueing behind someone else's traffic.
+
+  Scans now go through a new `ocr-proxy` edge function, which holds `OCR_SHARED_SECRET` in its own environment and admits a request on a verified Firebase ID token — the same inlined verification the notification functions use. Nothing secret ships in the bundle any more: pulling the APK apart yields no access that signing in does not already give. The key printed in the old changelog entry has been rotated and is dead; it stays redacted rather than purged, since rewriting a public repository's history does not recall a value that forks and caches already have.
+
+  This is a coordinated change. The Space's secret is rotated at the same time, so a build older than this one gets a 401 on scan until it updates.
+
+### Changed
+- Gallery picks are capped at 4096px on the long edge. That is the same `MAX_LONG_EDGE` the OCR server downscales to before reading, so it costs no accuracy, and it keeps an uncropped phone photo inside the edge function's request-body limit, which is lower than the Space's own 15MB cap. The scanner path crops to the receipt and was already well under.
+- A server URL set by hand in Settings still goes straight to that server, unproxied. That is the local-dev path, where the server runs without a secret and is not reachable from a deployed function anyway.
+
+### Added
+- Tests covering the request path: scans carry a Firebase token to the proxy, the retired key is never sent on any path, a stored URL override still reaches the dev server directly, and a signed-out scan fails with a readable message instead of a 401 from the network.
+- Modular-API named exports (`getAuth`, `getIdToken`, `getIdTokenResult`) on the shared Firebase test mock, which only covered the legacy callable pattern and returned `undefined` for every modular import.
+
 ## [1.40.9] - 2026-08-27
 
 ### Fixed
@@ -708,7 +727,7 @@ All notable changes to this project will be documented in this file.
 - **OCR server health check could hang forever.** RN's `fetch` has no default timeout, so a dead/unreachable OCR server left the settings-screen health probe spinning indefinitely. Now aborts after 10s.
 
 ### Changed
-- OCR requests send an `X-OCR-Key` header. The server (receipt-ocr repo) enforces it only when its `OCR_SHARED_SECRET` env var is set to the matching value — set `OCR_SHARED_SECRET=fsl-ocr-7f3d9a2e8b514c06` as a secret on the HF Space to close the public `/ocr` endpoint to drive-by use. Until then the header is ignored and nothing changes.
+- OCR requests send an `X-OCR-Key` header. The server (receipt-ocr repo) enforces it only when its `OCR_SHARED_SECRET` env var is set to the matching value — set that secret on the HF Space to close the public `/ocr` endpoint to drive-by use. Until then the header is ignored and nothing changes. (The key this entry originally printed in full was rotated and retired in 1.41.0, which moved the secret server-side; it is left redacted here rather than rewritten out of history.)
 - `currency` default extracted to a named `DEFAULT_CURRENCY` constant.
 
 ## [1.27.2] - 2026-07-02

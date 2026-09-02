@@ -18,3 +18,16 @@ const stub = () => ({
 
 module.exports = stub;
 module.exports.default = stub;
+
+// Modular-API named exports (Firebase v24). The callable default above covers
+// the legacy auth()/database() pattern; these cover `import { getAuth } from
+// '@react-native-firebase/auth'`, which resolves to undefined without them.
+module.exports.getAuth = jest.fn(() => ({
+  currentUser: { uid: 'test-uid', email: 'test@example.com' },
+}));
+module.exports.getIdToken = jest.fn().mockResolvedValue('test-id-token');
+module.exports.getIdTokenResult = jest.fn().mockResolvedValue({
+  token: 'test-id-token',
+  claims: {},
+});
+module.exports.getDatabase = stub;
