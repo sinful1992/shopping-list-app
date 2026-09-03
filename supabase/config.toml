@@ -33,3 +33,8 @@ verify_jwt = false
 
 [functions.revenuecat-webhook]
 verify_jwt = false
+
+# Gateway JWT check stays on: callers send the anon key, and the function
+# additionally verifies a Firebase ID token before forwarding.
+[functions.ocr-proxy]
+verify_jwt = true

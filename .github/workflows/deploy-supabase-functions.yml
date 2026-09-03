@@ -38,6 +38,9 @@ jobs:
           supabase functions deploy notify-receipt-scanned --no-verify-jwt
           supabase functions deploy upsert-urgent-item --no-verify-jwt
           supabase functions deploy health --no-verify-jwt
+          # No --no-verify-jwt: ocr-proxy is reachable only with the anon
+          # key in Authorization, on top of its own Firebase ID token check.
+          supabase functions deploy ocr-proxy
 
       - name: Set Edge Function Secrets
         env:

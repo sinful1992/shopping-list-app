@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.41.2] - 2026-09-03
+
+### Fixed
+- **Nothing was deploying `ocr-proxy`.** The function was written and committed in 1.41.0 but never added to `deploy-supabase-functions.yml`, so the workflow shipped the other eight functions and left the one the app now depends on absent from the project. A rotation done against that state would have taken scanning down with no proxy to fall back to. It deploys from CI now, deliberately without `--no-verify-jwt` — every other function in that file carries the flag, and copying it here would have made the proxy reachable with no gateway auth at all, contradicting its own README. `supabase/config.toml` records the same `verify_jwt = true` so a deploy run by hand behaves identically.
+
 ## [1.41.1] - 2026-09-02
 
 ### Fixed
