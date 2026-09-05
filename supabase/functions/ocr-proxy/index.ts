@@ -74,12 +74,23 @@ async function verifyFirebaseIdToken(idToken: unknown): Promise<string> {
   if (!_authProjectId) throw new Error('Server misconfigured: project ID unavailable')
   const parts = idToken.split('.')
   if (parts.length !== 3) throw new Error('Malformed ID token')
-  const header = JSON.parse(_authB64urlToString(parts[0]))
-  const payload = JSON.parse(_authB64urlToString(parts[1]))
+  // Decoding is its own failure mode: a three-segment string is not
+  // necessarily base64url, and neither atob nor JSON.parse produces an error
+  // worth returning to a caller. Both collapse to one honest message.
+  let header: { alg?: string; kid?: string }
+  let payload: { exp?: unknown; iat?: unknown; aud?: unknown; iss?: unknown; sub?: unknown }
+  let signature: Uint8Array
+  try {
+    header = JSON.parse(_authB64urlToString(parts[0]))
+    payload = JSON.parse(_authB64urlToString(parts[1]))
+    signature = _authB64urlToBytes(parts[2])
+  } catch {
+    throw new Error('Malformed ID token')
+  }
   if (header.alg !== 'RS256' || !header.kid) throw new Error('Unexpected token header')
   const key = await _authGetKey(header.kid)
   const ok = await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5', key, _authB64urlToBytes(parts[2]),
+    'RSASSA-PKCS1-v1_5', key, signature,
     new TextEncoder().encode(`${parts[0]}.${parts[1]}`)
   )
   if (!ok) throw new Error('Invalid token signature')

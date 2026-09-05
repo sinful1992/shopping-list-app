@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.41.3] - 2026-09-05
+
+### Fixed
+- **A malformed ID token answered with the decoder's own error text.** Probing the deployed proxy with `not.a.token` came back with a raw `Unexpected token ... is not valid JSON`, replacement characters and all: a three-segment string clears the shape check, then `atob` or `JSON.parse` throws and that message goes straight back as the 401 body. The status was always right and nothing sensitive escaped, so this is legibility rather than a hole. All three segments now decode inside one guard that answers `Malformed ID token`. The signature segment sat in the same position and is covered too. Every edge function carries this verification inlined — the Supabase bundler will not resolve a shared import — so the same defect was copy-pasted across all six, and all six are fixed.
+
 ## [1.41.2] - 2026-09-03
 
 ### Fixed
