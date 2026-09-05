@@ -11,6 +11,9 @@ import { CaptureResult } from '../models/types';
  */
 const CAPTURE_JPEG_QUALITY = 92;
 
+/** Longest edge kept for gallery picks — mirrors MAX_LONG_EDGE server-side. */
+const MAX_CAPTURE_LONG_EDGE = 4096;
+
 class ReceiptCaptureModule {
   async requestCameraPermission(): Promise<boolean> {
     try {
@@ -118,6 +121,12 @@ class ReceiptCaptureModule {
         // react-native-image-picker quantises quality to 0.1 steps.
         // 0.9 is the closest match to the scanner's JPEG quality (92).
         quality: 0.9,
+        // Matches MAX_LONG_EDGE in the OCR server's utils/image_prep.py — it
+        // downscales anything larger before reading, so capping here costs no
+        // accuracy and keeps an uncropped gallery photo inside the ocr-proxy
+        // body limit. The scanner path crops to the receipt and stays small.
+        maxWidth: MAX_CAPTURE_LONG_EDGE,
+        maxHeight: MAX_CAPTURE_LONG_EDGE,
         includeBase64: false,
       });
 

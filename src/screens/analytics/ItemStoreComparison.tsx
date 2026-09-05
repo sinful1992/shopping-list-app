@@ -14,7 +14,7 @@ import PriceHistoryService, { PricePoint } from '../../services/PriceHistoryServ
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC } from '../../styles/theme';
-import { itemGroupKey } from '../../utils/itemGrouping';
+import { capitalize, itemGroupKey } from '../../utils/itemGrouping';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -35,8 +35,6 @@ interface StoreStats {
 
 type DateRange = 30 | 90 | 365;
 type ViewMode = 'avg' | 'latest';
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const ItemStoreComparison: React.FC<Props> = ({ familyGroupId, trackedItems }) => {
   const [selectedItem, setSelectedItem] = useState<{ itemName: string; itemNameNormalized: string } | null>(null);

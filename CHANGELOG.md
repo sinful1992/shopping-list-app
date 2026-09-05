@@ -4,6 +4,163 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.41.3] - 2026-09-05
+
+### Fixed
+- **A malformed ID token answered with the decoder's own error text.** Probing the deployed proxy with `not.a.token` came back with a raw `Unexpected token ... is not valid JSON`, replacement characters and all: a three-segment string clears the shape check, then `atob` or `JSON.parse` throws and that message goes straight back as the 401 body. The status was always right and nothing sensitive escaped, so this is legibility rather than a hole. All three segments now decode inside one guard that answers `Malformed ID token`. The signature segment sat in the same position and is covered too. Every edge function carries this verification inlined — the Supabase bundler will not resolve a shared import — so the same defect was copy-pasted across all six, and all six are fixed.
+
+## [1.41.2] - 2026-09-03
+
+### Fixed
+- **Nothing was deploying `ocr-proxy`.** The function was written and committed in 1.41.0 but never added to `deploy-supabase-functions.yml`, so the workflow shipped the other eight functions and left the one the app now depends on absent from the project. A rotation done against that state would have taken scanning down with no proxy to fall back to. It deploys from CI now, deliberately without `--no-verify-jwt` — every other function in that file carries the flag, and copying it here would have made the proxy reachable with no gateway auth at all, contradicting its own README. `supabase/config.toml` records the same `verify_jwt = true` so a deploy run by hand behaves identically.
+
+## [1.41.1] - 2026-09-02
+
+### Fixed
+- **The proxy would have authenticated on a header Supabase can drop.** 1.41.0 sent the Firebase ID token to `ocr-proxy` as `X-Firebase-Token`, and the functions gateway is documented by users as stripping non-standard headers before the function runs. The unit tests could not have caught it: they mock `fetch`, so they assert what the client sends, never what survives the gateway. With an immediate cutover the first real exercise of that path would have been the moment older builds stopped working, so it is not a thing to find in production. The token now travels as an `idToken` multipart field, which cannot be stripped, and the header is kept only as a fallback.
+
+### Changed
+- The rotation runbook deploys against the currently live key and requires a real 200 through the proxy before anything is rotated. As written in 1.41.0 it set the new key first, which put the function's first end-to-end test at the same moment as the cutover, with no known-good state to fall back to.
+- The 9MB body cap is now documented as a judgement against a community-reported limit rather than a published one — Supabase does not document the request size limit for edge functions.
+
+## [1.41.0] - 2026-09-02
+
+### Security
+- **The OCR server's shared secret was compiled into the app, and this repo is public.** `ReceiptOCRService` held the key as a string constant and sent it as `X-OCR-Key` on every scan, so the value was readable three ways: by decompiling the APK, by reading the source on GitHub, or — easiest of all — by reading the 1.34.0 changelog entry that printed it in full. The header was only ever abuse deterrence rather than authentication, which the comment beside it said plainly, but a secret in a public repository does not deter anything.
+
+  What it guarded is worth stating exactly, because it bounds the damage: `/ocr` takes an image and returns parsed JSON, touching no database and storing nothing. Anyone holding the key could spend the Space's compute, not read a receipt or reach an account. The realistic cost was scans queueing behind someone else's traffic.
+
+  Scans now go through a new `ocr-proxy` edge function, which holds `OCR_SHARED_SECRET` in its own environment and admits a request on a verified Firebase ID token — the same inlined verification the notification functions use. Nothing secret ships in the bundle any more: pulling the APK apart yields no access that signing in does not already give. The key printed in the old changelog entry has been rotated and is dead; it stays redacted rather than purged, since rewriting a public repository's history does not recall a value that forks and caches already have.
+
+  This is a coordinated change. The Space's secret is rotated at the same time, so a build older than this one gets a 401 on scan until it updates.
+
+### Changed
+- Gallery picks are capped at 4096px on the long edge. That is the same `MAX_LONG_EDGE` the OCR server downscales to before reading, so it costs no accuracy, and it keeps an uncropped phone photo inside the edge function's request-body limit, which is lower than the Space's own 15MB cap. The scanner path crops to the receipt and was already well under.
+- A server URL set by hand in Settings still goes straight to that server, unproxied. That is the local-dev path, where the server runs without a secret and is not reachable from a deployed function anyway.
+
+### Added
+- Tests covering the request path: scans carry a Firebase token to the proxy, the retired key is never sent on any path, a stored URL override still reaches the dev server directly, and a signed-out scan fails with a readable message instead of a 401 from the network.
+- Modular-API named exports (`getAuth`, `getIdToken`, `getIdTokenResult`) on the shared Firebase test mock, which only covered the legacy callable pattern and returned `undefined` for every modular import.
+
+## [1.40.9] - 2026-08-27
+
+### Fixed
+- **The category pie could show two slices both labelled "Other".** The ring appends an "Other" slice for spend it cannot place — categories past the sixth, plus what a receipt carries that no item accounts for — but "Other" is also a real category, the one an uncategorised item lands in, and on this account it is the largest. When both existed the legend listed "Other" twice and React was handed two children with the same key. The remainder now joins the slice already there. Only reachable once the receipt total exceeds the itemised sum, which is why repairing the unhoisted totals in 1.40.8 surfaced it.
+
+## [1.40.8] - 2026-08-27
+
+### Fixed
+- **Trips whose receipt total was never hoisted counted as £0 spend.** Schema v15 (2026-04-30) moved receipt totals out of the `receiptData` JSON into first-class columns and shipped a one-time repair for rows written before it — but the repair matched only rows whose `total_amount` was `NULL`, and the completion path it existed to repair stored `0` when the running total was not yet known. Every one of those rows was skipped, so the total stayed in the JSON where nothing reads it and the trip counted as costing nothing in Analytics, History and Budget alike. That is not a free shop: a trip with items checked off and priced was paid for. On the development account it was 13 completed trips holding £650.21 of receipts, against a headline that read £444.72 for the year.
+
+  The repair now treats both `NULL` and `0` as "no total on the column yet", and runs under a new flag so it reaches devices where the v15 pass already recorded itself done. A total already present on the column is never rewritten. The same rows never got their merchant or currency hoisted either, and now do.
+
+### Added
+- Tests for the hoist, which shipped without any: a zero column and a null column are both repaired, a column that already holds a total is left alone, and the pass does not run twice.
+
+## [1.40.7] - 2026-08-27
+
+### Fixed
+- **The item backfill added in 1.40.1 could hold up the whole Analytics screen.** It was awaited before the summary returned, so on a slow connection a screenful of figures that were already in hand sat behind the loading spinner waiting on items that were not. It gets three seconds now; fetches still in flight keep going and still save what they find, so running out of time costs a load, not the data.
+
+### Added
+- Tests for the backfill's fencing: a list that comes back empty is recorded as asked, a list whose fetch failed is not, and a single run is capped with the remainder picked up next time.
+
+## [1.40.6] - 2026-08-27
+
+### Fixed
+- **Sunday was drawn off the edge of the "When You Shop" chart.** With `adjustToWidth`, gifted-charts sizes the bars from `parentWidth`, which defaults to the width of the whole screen rather than the width the chart was actually given — so it laid out a full screen's worth of bars inside a box 86dp narrower and the last one fell outside it. Seven bars made it obvious; the store chart was losing the right edge of its last bar to the same arithmetic. Both charts now say what width they are.
+
+- **The trend's first and last x-axis labels were cut in half.** A label is centred on its point and `adjustToWidth` puts the first and last points exactly on the plot edges, so half of each label sat outside the box and was clipped: "27 Jul" rendered as "Jul" and "10 Aug" as "10 A". The trend sets its own spacing against a padded width, leaving room at both ends.
+
+- **The "When You Shop" y-axis went up to 10 whatever the data.** With no `maxValue`, the axis came from the section count alone: ticks of 0/3/6/10 over trip counts of one and two, which left the bars in the bottom fifth of the chart. The scale is taken from the actual peak, with the step chosen first so every tick is a whole number of trips.
+
+- **The pull-to-refresh spinner came to rest on top of the period filter.** Android settles it 64dp down less its own diameter, which put it over the 30/90/1Y row and covered the label saying which period was on screen — at the one moment the figures underneath were being replaced. It now tucks up against the tab bar and clears the filter.
+
+## [1.40.5] - 2026-08-27
+
+### Fixed
+- **Smart Savings gave advice from prices of any age, and said nothing about it.** `getSmartSuggestions` passed no date to `getPriceHistory` at all, so "Potential savings per shop" and "Best at Lidl" were an unweighted all-time comparison — a store that was cheapest last winter presented as where to go for this week's shop. It sat directly beneath the item comparison chart, which does apply a window, so on an account whose prices are a few months old the two adjacent panels contradicted each other: one said "No purchases in this period" while the other quoted a saving from the same rows. The card now reads the last 90 days and says so under its title, and its empty state says the window rather than telling you to shop around when you already do.
+
+  The window is opt-in — `getPriceHistory`, `getPriceByStore` and `getSmartSuggestions` all take an optional date and filter after the fetch — so the price stats, the volatility chart and the two live-shopping callers keep the all-time series they read today. The suggestions cache is keyed on the window as well as the family group; keyed on the group alone it would have served the first window's answer to every later one, and `clearSuggestionsCache` now clears every window a group has.
+
+## [1.40.4] - 2026-08-27
+
+### Fixed
+- **The Items tab was a heading over nothing when there was nothing to show.** Every other pane on the screen says so — the pie has "No category data available", Volatile Prices has "Not enough price data yet" — but Most Purchased just rendered its title and subtitle above empty space, so an account with no priced items looked like a rendering failure.
+
+## [1.40.3] - 2026-08-27
+
+### Fixed
+- **"Unknown" was the headline shop.** Trips completed without a store recorded are pooled under one bucket, and that bucket sorted by spend like any other — so on an account where most trips carry no store it led Store Breakdown, took a bar in Spend by Store, and wore the "Most visited" badge, reading like a shop called Unknown. The bucket has to stay in the breakdown or it stops adding up to the period total, so it stays: it is labelled "No store recorded", sorts last however much it holds, is out of the store bar chart, and can no longer win "Most visited" or be the summary's most frequent store.
+
+- **"Smallest trips" was awarded to a store with no recorded spend.** The badge is a minimum over average spend per trip, so a shop visited once with nothing priced on the list won it at £0.00 — praise for the cheapest basket, given to the one with no basket. Stores with no spend are out of the running, and both badges need at least two candidates of their own now that each excludes a different set.
+
+- **"1 trips".** Store Breakdown, and the trip and item counts under TOTAL SPENT, printed a plural regardless of the count.
+
+## [1.40.2] - 2026-08-27
+
+### Fixed
+- **The spending trend drew a straight line across weeks you did not shop.** The series only ever held buckets that contained a trip, so three quiet weeks simply did not exist and the line joined the buckets either side of them: a steady decline drawn over what was actually one big shop followed by nothing. The x-axis was ordinal while it read as temporal. Weekly bucketing in 1.40.0 made it far likelier — a gap now only has to be days long to drop a bucket — and, because the series stopped at the last trip rather than at today, a period that ended quietly never showed the quiet part at all. Every bucket in the selected period is now on the chart, at zero where there was no trip, widened past the period if a trip falls outside it.
+
+### Changed
+- The trend labels every other bucket once there are more than eight, counting back from the most recent, so a year of monthly buckets does not stack thirteen labels on top of each other.
+
+## [1.40.1] - 2026-08-27
+
+### Fixed
+- **Analytics showed no items at all on a device that did not run the shop.** The summary reads the local items table, and items only land there for a trip completed on this device or synced while it was listening. On a fresh install, or for any member who joined the group after the fact, the lists sync but their items do not — so spend, stores and the trend rendered normally while the category pie said "No category data available", Most Purchased was a heading over nothing, and the item count read zero. `HistoryDetailScreen` has fetched the missing items from Firebase per list since it hit the same wall; Analytics now does the same for the window it is showing.
+
+  Kept away from the round-trip storm removed in 1.39.12: only lists with no local items are ever asked for, each list is asked at most once ever — the attempt is persisted, so changing period or pulling to refresh does not ask again — a single run is capped at forty lists, and a fetch that fails is not recorded as attempted, so going offline does not blank the item half permanently.
+
+## [1.40.0] - 2026-08-26
+
+### Added
+- **Pull to refresh, and a refresh when the tab regains focus.** Analytics is a bottom-tab screen, so it stays mounted and only ever reloaded when the period changed. Finishing a shop and tapping Analytics showed the figures from before the trip until the app was restarted.
+
+- **A "When You Shop" card on Overview**, trips by day of the week. The day-of-week counts came out of `getShoppingPatterns`, which had no callers; they are now part of the summary the screen already loads, so the card costs no extra query and the dead method is gone.
+
+### Changed
+- **The spending trend is bucketed by week over 30 days, by month beyond it.** Calendar months are the wrong unit for a 30-day window: it straddles two of them, so the chart was a two-point line pitting a handful of days against a full month — a cliff or a spike that moved with today's date rather than with spending. Worse, when every trip in the window happened to fall inside one calendar month there was a single point and the chart disappeared behind "not enough data". On the default tab, at the default period. Four or five weekly buckets are comparable to each other, and the subtitle now says which unit is on screen.
+
+- **Opened tabs stay mounted.** Each tab was unmounted on the way out, so a trip from Prices to Overview and back cleared the selected item in the comparison card and refetched all three of its datasets. Tabs are still mounted lazily — an unopened Prices tab still costs nothing.
+
+- **The period filter and the TOTAL SPENT block are hidden on the Prices tab**, which reads neither: the comparison card carries its own range chips, and two live period controls on one screen only ever disagree with each other.
+
+- **The category pie adds up to the figure in the middle of it.** The centre printed the period total while the slices summed to something else — categories past the sixth were dropped from the ring, and a receipt carries spend that no item on the list accounts for. A single "Other" slice absorbs both, so the ring and the number inside it are the same quantity.
+
+- **Most Purchased shows what an item costs.** Rows carry the per-unit average and, where a row covers more than one unit, the unit count — `averagePrice` was computed and never rendered. Names are shown as the user typed them rather than lowercased.
+
+- **The store "Best avg" badge is now "Smallest trips".** It marks the lowest average spend per trip, which is the shop you nip into for milk, not the cheapest one — and on a tie every matching store used to be badged at once. Only one is now.
+
+### Fixed
+- **Frequently Bought could never offer more than ten items.** It sliced twenty off a list the summary had already capped at ten, then re-sorted it by the field it was already sorted on. It asks for twenty now.
+
+### Performance
+- Analytics chart data is memoised. It was rebuilt on every render — date formatting, per-store label truncation and all — and the store list recomputed a min and a max across every store inside the per-store loop, for each row.
+
+## [1.39.13] - 2026-08-26
+
+### Fixed
+- **Analytics counted a six-pack as one item at one unit's price.** `Item.price` is per-unit app-wide — `ReceiptMatchScreen` divides a receipt line down to get it, and both the shopping running total and the History totals multiply it back up — but the analytics aggregation summed the bare price. Six eggs at £2.50 landed as £2.50. Category spend, top-item spend and the no-receipt-total fallback were all short by the quantity. Lists carrying a receipt total were unaffected in the headline figure, since that number comes off the receipt.
+
+- **Things you decided not to buy were counted as bought.** Completing a trip leaves unchecked items on the list; `completeShoppingFast` only records how many there were. Those items keep whatever price was predicted or typed for them, and the aggregation's only filter was `price !== null` — so an item you walked past fed category spend, the top-item counts and the item tally. This is the same trap `shoppingStats` documents for the running total in v1.30.2, which analytics never got. Only checked, priced items count now.
+
+- **The category percentages did not add up to 100.** They divided category spend, which is a sum of item prices, by the period total, which prefers receipt totals. The two are different numbers — a receipt carries spend no item on the list accounts for. Percentages are now taken against the itemised total, and that shortfall is reported separately as `unitemisedTotal`, clamped at zero because a till discount can put the items above the receipt.
+
+- **A group with trips but no prices produced `NaN`.** The empty state only checks the trip count, so that input renders, and the divisions behind `averagePerTrip` and the store bar widths had no zero guard — a `NaN%` width reaches the layout. Every division in the aggregation goes through a guarded helper now.
+
+### Changed
+- Top items fold spellings together on `itemGroupKey`, so "avocado" and "avocados" are one row as they already are on the Prices tab. The row is labelled with the spelling used most — never the group key, which is a lookup value that would put "hummu" in a shopping list when added from Frequently Bought. `purchaseCount` still counts lists appeared on; a new `unitsPurchased` counts units, and `averagePrice` is now per unit.
+
+## [1.39.12] - 2026-08-26
+
+### Changed
+- **The Analytics summary ran a database query per completed list, twice.** `getAnalyticsSummary` fetched each list's items in its main loop and then `calculateMonthlyTrend` fetched them all over again to compute the same list totals a second time. On a year of history that is hundreds of sequential round-trips for one screen. Both passes now share a single `getItemsForLists` call — the batch query that already existed and that `PricePredictionService` was already using.
+
+  The arithmetic moves out of the service into `analyticsAggregation.buildAnalyticsSummary`, a pure function over the lists and their items, so it can be tested without standing up a database. The service keeps the I/O and nothing else. No numbers change in this release.
+
+- `getBudgetPerformance` had no callers and covered ground the Budget tab already owns; removed.
+
 ## [1.39.11] - 2026-08-23
 
 ### Fixed
@@ -589,7 +746,7 @@ All notable changes to this project will be documented in this file.
 - **OCR server health check could hang forever.** RN's `fetch` has no default timeout, so a dead/unreachable OCR server left the settings-screen health probe spinning indefinitely. Now aborts after 10s.
 
 ### Changed
-- OCR requests send an `X-OCR-Key` header. The server (receipt-ocr repo) enforces it only when its `OCR_SHARED_SECRET` env var is set to the matching value — set `OCR_SHARED_SECRET=fsl-ocr-7f3d9a2e8b514c06` as a secret on the HF Space to close the public `/ocr` endpoint to drive-by use. Until then the header is ignored and nothing changes.
+- OCR requests send an `X-OCR-Key` header. The server (receipt-ocr repo) enforces it only when its `OCR_SHARED_SECRET` env var is set to the matching value — set that secret on the HF Space to close the public `/ocr` endpoint to drive-by use. Until then the header is ignored and nothing changes. (The key this entry originally printed in full was rotated and retired in 1.41.0, which moved the secret server-side; it is left redacted here rather than rewritten out of history.)
 - `currency` default extracted to a named `DEFAULT_CURRENCY` constant.
 
 ## [1.27.2] - 2026-07-02

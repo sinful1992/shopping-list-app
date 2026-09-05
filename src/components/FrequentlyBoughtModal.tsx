@@ -52,16 +52,16 @@ const FrequentlyBoughtModal: React.FC<FrequentlyBoughtModalProps> = ({
         return;
       }
 
+      // The limit has to be asked for: the summary caps topItems at 10, so
+      // slicing 20 off the result here only ever returned 10. It arrives
+      // sorted by purchaseCount already.
       const analytics = await AnalyticsService.getAnalyticsSummary(
         user.familyGroupId,
-        90
+        90,
+        { topItemsLimit: 20 }
       );
 
-      const sortedItems = [...analytics.topItems]
-        .sort((a, b) => b.purchaseCount - a.purchaseCount)
-        .slice(0, 20);
-
-      setFrequentItems(sortedItems);
+      setFrequentItems(analytics.topItems);
     } catch {
       setFrequentItems([]);
     } finally {

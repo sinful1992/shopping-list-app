@@ -5,7 +5,18 @@ import LocalStorageManager from './LocalStorageManager';
 import { ShoppingListModel } from '../database/models/ShoppingList';
 import { safeJsonParse } from '../utils/safeJsonParse';
 
-const BACKFILL_FLAG = '@hoist_v15_backfill';
+/**
+ * Bumped from @hoist_v15_backfill.
+ *
+ * The v15 repair matched only rows whose total_amount was NULL, but the
+ * completion path it was written to repair stored 0 for a trip whose running
+ * total was not known yet — so every one of those rows was skipped and the
+ * total stayed in the receiptData JSON where nothing reads it. Those lists
+ * then counted as £0 spend in Analytics, History and Budget alike, which is
+ * not a free shop: it is a shop whose total was never hoisted. v15 is 'done'
+ * on every affected device, so re-running needs a new key.
+ */
+const BACKFILL_FLAG = '@hoist_v16_backfill';
 const MAX_ATTEMPTS = 3;
 
 export async function runHoistedFieldsBackfill(): Promise<void> {
@@ -28,12 +39,15 @@ export async function runHoistedFieldsBackfill(): Promise<void> {
 
         const database = LocalStorageManager.getDatabase();
         // @ts-ignore TS6 stricter generic constraint on Database.get — runtime works correctly
-        const rows = await database.get<ShoppingListModel>('shopping_lists')
-          .query(
-            Q.where('receipt_data', Q.notEq(null)),
-            Q.where('total_amount', Q.eq(null)),
-          )
+        const candidates = await database.get<ShoppingListModel>('shopping_lists')
+          .query(Q.where('receipt_data', Q.notEq(null)))
           .fetch();
+
+        // Filtered here rather than in the query: "no total on the column yet"
+        // is both NULL and 0, and the two adapters do not agree on how a
+        // null/0 comparison behaves. Only rows carrying receipt data reach
+        // this, so the list is short and the JS pass is unambiguous.
+        const rows = candidates.filter(row => row.totalAmount == null || row.totalAmount === 0);
 
         if (rows.length === 0) {
           await AsyncStorage.setItem(BACKFILL_FLAG, 'done');

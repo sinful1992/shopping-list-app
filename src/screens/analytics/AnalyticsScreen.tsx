@@ -7,12 +7,16 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Dimensions,
+  RefreshControl,
   type ViewStyle,
   type TextStyle,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAlert } from '../../contexts/AlertContext';
 import { LineChart, BarChart, PieChart } from 'react-native-gifted-charts';
 import AnalyticsService, { AnalyticsSummary } from '../../services/AnalyticsService';
+import { OTHER_CATEGORY, safeDiv, UNKNOWN_STORE } from '../../services/analyticsAggregation';
+import { capitalize } from '../../utils/itemGrouping';
 import { useUser } from '../../contexts/UserContext';
 import PriceHistoryService from '../../services/PriceHistoryService';
 import CrashReporting from '../../services/CrashReporting';
@@ -65,12 +69,21 @@ const AnalyticsScreen = () => {
     [theme],
   );
   const [loading, setLoading]         = useState(true);
+  const [refreshing, setRefreshing]   = useState(false);
   const [analytics, setAnalytics]     = useState<AnalyticsSummary | null>(null);
   const [timePeriod, setTimePeriod]   = useState<30 | 90 | 365>(30);
   const [error, setError]             = useState<string | null>(null);
   const [familyGroupId, setFamilyGroupId] = useState<string | null>(null);
   const [trackedItems, setTrackedItems]   = useState<{ itemName: string; itemNameNormalized: string }[]>([]);
   const [activeTab, setActiveTab]     = useState<Tab>('overview');
+  // Bumped on every reload; the Prices tab's children key their fetches off it
+  // so a pull-to-refresh reaches them too, now that they stay mounted.
+  const [reloadKey, setReloadKey]     = useState(0);
+
+  // Tabs stay mounted once opened, so the Prices tab keeps its selected item
+  // and its three loaded datasets across a trip to Overview and back. Mounting
+  // is still lazy — an unopened Prices tab costs nothing.
+  const [openedTabs, setOpenedTabs] = useState<Tab[]>(['overview']);
 
   // The summary and the period filter scroll with the content now, so
   // switching tabs while scrolled down would drop you into the middle of the
@@ -78,16 +91,49 @@ const AnalyticsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
   const selectTab = useCallback((tab: Tab) => {
     setActiveTab(tab);
+    setOpenedTabs(prev => (prev.includes(tab) ? prev : [...prev, tab]));
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, []);
 
-  useEffect(() => {
-    try { loadAnalytics(); } catch (err: any) {
-      setError(err?.message || 'Failed to initialize');
+  const loadAnalytics = useCallback(async (mode: 'full' | 'refresh' = 'full') => {
+    if (mode === 'refresh') setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      if (!user?.familyGroupId) { setError('No family group found'); return; }
+      const data = await AnalyticsService.getAnalyticsSummary(user.familyGroupId, timePeriod);
+      setAnalytics(data);
+      setReloadKey(k => k + 1);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load analytics');
+      if (mode === 'full') {
+        showAlert('Error', err?.message || 'Failed to load analytics', undefined, { icon: 'error' });
+      }
+    } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timePeriod, user?.familyGroupId]);
+  }, [user?.familyGroupId, timePeriod, showAlert]);
+
+  useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
+
+  // This is a bottom-tab screen, so it stays mounted: without this, finishing
+  // a shop and tapping Analytics showed the figures from before the trip until
+  // the app was restarted.
+  //
+  // The callback has to be dependency-free, as HistoryScreen's does. It is not
+  // an ordinary effect — useFocusEffect re-runs whenever the callback's
+  // identity changes, so depending on loadAnalytics (which changes with the
+  // period) fired a second, concurrent load on every period tap.
+  const loadAnalyticsRef = useRef(loadAnalytics);
+  useEffect(() => { loadAnalyticsRef.current = loadAnalytics; }, [loadAnalytics]);
+  const initialLoadDone = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (initialLoadDone.current) loadAnalyticsRef.current('refresh');
+    else initialLoadDone.current = true;
+  }, []));
+
+  const onRefresh = useCallback(() => { loadAnalytics('refresh'); }, [loadAnalytics]);
 
   useEffect(() => {
     (async () => {
@@ -102,22 +148,152 @@ const AnalyticsScreen = () => {
     })();
   }, [user?.familyGroupId]);
 
-  const loadAnalytics = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (!user?.familyGroupId) { setError('No family group found'); setLoading(false); return; }
-      const data = await AnalyticsService.getAnalyticsSummary(user.familyGroupId, timePeriod);
-      setAnalytics(data);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load analytics');
-      showAlert('Error', err?.message || 'Failed to load analytics', undefined, { icon: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fmt = (n: number) => `£${n.toFixed(2)}`;
+  const plural = (count: number, word: string) => (count === 1 ? word : `${word}s`);
+  // The bucket is keyed 'Unknown' so the breakdown still sums to the period
+  // total, but it sat at the top of the list reading like a shop called
+  // Unknown. Only the label changes; the row stays.
+  const storeLabel = (name: string) => (name === UNKNOWN_STORE ? 'No store recorded' : name);
+
+  // ── Chart data ─────────────────────────────────────────────────────────────
+  // Memoised: these were rebuilt on every render, date formatting and all.
+
+  const trendChartData = useMemo(() => {
+    const trend = analytics?.spendingTrend;
+    if (!Array.isArray(trend)) return [];
+    // A week is labelled by the date it starts, a month by its name.
+    const format: Intl.DateTimeFormatOptions = analytics?.trendBucket === 'week'
+      ? { day: 'numeric', month: 'short' }
+      : { month: 'short' };
+    // Now that quiet periods get a bucket the series is as long as the
+    // window, and a year is thirteen monthly labels across ~300dp — they
+    // collide. Label every other bucket past eight, counted back from the end
+    // so the most recent one is always the labelled one.
+    const stride = trend.length > 8 ? 2 : 1;
+    return trend.map((point, i) => ({
+      value: point.amount,
+      label: (trend.length - 1 - i) % stride === 0
+        ? new Date(point.date).toLocaleDateString('en-GB', format)
+        : '',
+      labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+    }));
+  }, [analytics?.spendingTrend, analytics?.trendBucket, theme]);
+
+  const storeChartData = useMemo(() => {
+    const stores = analytics?.spendingByStore;
+    if (!Array.isArray(stores)) return [];
+    // A bar for trips with no store recorded is not a location, and it was
+    // taking one of the five slots from a shop that is.
+    return stores
+      .filter(store => store.storeName !== UNKNOWN_STORE)
+      .slice(0, 5)
+      .map(store => ({
+        value: store.totalSpent,
+        label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
+        labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+        // showValuesAsTopLabel prints the raw float, and a total is a sum of
+        // 2dp prices — enough to surface as 112.09000000000002.
+        topLabelComponent: () => (
+          <Text style={styles.chartTopLabel}>{store.totalSpent.toFixed(2)}</Text>
+        ),
+        frontColor: theme.accent.blue,
+      }));
+  }, [analytics?.spendingByStore, theme, styles]);
+
+  const { categoryPieData, pieTotal } = useMemo(() => {
+    const categories = analytics?.categoryBreakdown;
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return { categoryPieData: [] as { value: number; text: string; color: string }[], pieTotal: 0 };
+    }
+    // All from the theme (two were pinned dark-theme hexes, so in light
+    // mode the pie came out three muted colours and two neon ones), ordered
+    // so red and green are never adjacent slices.
+    //
+    // Six, not five: splitting Pantry and Beverages spread spend that used to
+    // land in one slice across several, and a top-five cut started hiding most
+    // of the basket. Six is every accent the theme has — going wider means new
+    // tokens in both palettes, which belongs with the palette work in
+    // docs/DESIGN_AUDIT.md, not here.
+    const PIE_COLORS = [
+      theme.accent.blue,
+      theme.accent.orange,
+      theme.accent.green,
+      theme.accent.purple,
+      theme.accent.red,
+      theme.accent.yellow,
+    ];
+    const shown = categories.slice(0, PIE_COLORS.length);
+    const data = shown.map((cat, i) => ({
+      value: cat.totalSpent,
+      text: cat.category,
+      color: PIE_COLORS[i] || theme.text.tertiary,
+    }));
+
+    // The centre used to print the period total while the slices summed to
+    // something else entirely — categories past the sixth were dropped, and
+    // receipts carry spend no item accounts for. One "Other" slice absorbs
+    // both, so the ring and the figure inside it are the same number.
+    const shownSum = shown.reduce((sum, cat) => sum + cat.totalSpent, 0);
+    const total = Math.max(analytics?.totalSpent ?? 0, shownSum);
+    const remainder = total - shownSum;
+    // Below a penny it is float noise, not a category.
+    if (remainder >= 0.01) {
+      // "Other" is also a real category — it is where an uncategorised item
+      // lands — so appending a second slice by that name gave the ring two
+      // identical legend rows and React two children with the same key. The
+      // remainder joins the slice that is already there.
+      const existing = data.find(slice => slice.text === OTHER_CATEGORY);
+      if (existing) existing.value += remainder;
+      else data.push({ value: remainder, text: OTHER_CATEGORY, color: theme.text.tertiary });
+    }
+    return { categoryPieData: data, pieTotal: total };
+  }, [analytics?.categoryBreakdown, analytics?.totalSpent, theme]);
+
+  // Hoisted out of the per-store map, which recomputed both across every store
+  // for every row. reduce keeps the first on a tie, so only one store is
+  // badged when several share the lowest average.
+  const { smallestTripsStore, mostVisitedStore } = useMemo(() => {
+    const stores = analytics?.spendingByStore ?? [];
+    // Neither badge is about the no-store bucket, and "Smallest trips" is
+    // praise: a shop with a trip but no recorded spend wins a min on average
+    // per trip at £0.00 and reads as the frugal one. Both are comparisons, so
+    // both need at least two candidates of their own.
+    const named = stores.filter(store => store.storeName !== UNKNOWN_STORE);
+    const withSpend = named.filter(store => store.totalSpent > 0);
+    return {
+      smallestTripsStore: withSpend.length >= 2
+        ? withSpend.reduce((a, b) => (b.averagePerTrip < a.averagePerTrip ? b : a)).storeName
+        : null,
+      mostVisitedStore: named.length >= 2
+        ? named.reduce((a, b) => (b.tripCount > a.tripCount ? b : a)).storeName
+        : null,
+    };
+  }, [analytics?.spendingByStore]);
+
+  // gifted-charts derives the y-axis from noOfSections alone unless it is
+  // given a maxValue, and its default of 10 put trip counts of one and two in
+  // the bottom fifth of the chart under ticks of 0/3/6/10. The step is chosen
+  // first so every tick is a whole number of trips — half a trip is not a
+  // reading.
+  const weekdayAxis = useMemo(() => {
+    const peak = Math.max(1, ...(analytics?.tripsByWeekday ?? [0]));
+    const step = Math.ceil(peak / 4);
+    const sections = Math.ceil(peak / step);
+    return { maxValue: step * sections, noOfSections: sections };
+  }, [analytics?.tripsByWeekday]);
+
+  const weekdayChartData = useMemo(() => {
+    const trips = analytics?.tripsByWeekday;
+    if (!Array.isArray(trips) || trips.every(count => count === 0)) return [];
+    // Rotated to start on Monday, matching the weekly trend buckets.
+    const LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return LABELS.map((label, i) => ({
+      value: trips[(i + 1) % 7] ?? 0,
+      label,
+      labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
+      frontColor: theme.accent.purple,
+    }));
+  }, [analytics?.tripsByWeekday, theme]);
 
   // ── Loading / Error / Empty ────────────────────────────────────────────────
 
@@ -136,7 +312,7 @@ const AnalyticsScreen = () => {
         <Icon name="alert-circle-outline" size={52} color={theme.accent.red} style={styles.stateIcon} />
         <Text style={styles.errorTitle}>Error loading analytics</Text>
         <Text style={styles.errorSub}>{error}</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={loadAnalytics}>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => loadAnalytics()}>
           <Text style={styles.retryBtnText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -153,80 +329,43 @@ const AnalyticsScreen = () => {
     );
   }
 
-  // ── Chart data ─────────────────────────────────────────────────────────────
-
-  let monthlyChartData: any[] = [];
-  let storeChartData:   any[] = [];
-  let categoryPieData:  any[] = [];
-
-  try {
-    if (Array.isArray(analytics.monthlyTrend)) {
-      monthlyChartData = analytics.monthlyTrend.map(trend => ({
-        value: trend.amount,
-        label: new Date(trend.date).toLocaleDateString('en-GB', { month: 'short' }),
-        labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
-      }));
-    }
-    if (Array.isArray(analytics.spendingByStore)) {
-      storeChartData = analytics.spendingByStore.slice(0, 5).map(store => ({
-        value: store.totalSpent,
-        label: store.storeName.length > 8 ? store.storeName.slice(0, 8) + '…' : store.storeName,
-        labelTextStyle: { color: theme.text.secondary, fontSize: 10 },
-        // showValuesAsTopLabel prints the raw float, and a total is a sum of
-        // 2dp prices — enough to surface as 112.09000000000002.
-        topLabelComponent: () => (
-          <Text style={styles.chartTopLabel}>{store.totalSpent.toFixed(2)}</Text>
-        ),
-        frontColor: theme.accent.blue,
-      }));
-    }
-    if (Array.isArray(analytics.categoryBreakdown)) {
-      // All from the theme (two were pinned dark-theme hexes, so in light
-      // mode the pie came out three muted colours and two neon ones), ordered
-      // so red and green are never adjacent slices.
-      //
-      // Six, not five: splitting Pantry and Beverages spread spend that used to
-      // land in one slice across several, and a top-five cut started hiding most
-      // of the basket. Six is every accent the theme has — going wider means new
-      // tokens in both palettes, which belongs with the palette work in
-      // docs/DESIGN_AUDIT.md, not here.
-      const PIE_COLORS = [
-        theme.accent.blue,
-        theme.accent.orange,
-        theme.accent.green,
-        theme.accent.purple,
-        theme.accent.red,
-        theme.accent.yellow,
-      ];
-      categoryPieData = analytics.categoryBreakdown.slice(0, PIE_COLORS.length).map((cat, i) => ({
-        value: cat.totalSpent,
-        text: cat.category,
-        color: PIE_COLORS[i] || theme.text.tertiary,
-      }));
-    }
-  } catch (e) {
-    CrashReporting.recordError(e as Error, 'AnalyticsScreen chart data mapping');
-  }
-
   const CHART_W = screenWidth - 62;
+  // What the charts are actually drawn into. gifted-charts sizes bars from
+  // `parentWidth`, which defaults to the whole screen and not to the width it
+  // was given, so with adjustToWidth it laid out (screenWidth - yAxisLabelWidth)
+  // of bars inside a box this wide and the last one fell off the right edge —
+  // Sunday, on a seven-bar week.
+  const CHART_PLOT_W = CHART_W - 24;
+
+  // An x-axis label is centred on its point, so a point sitting exactly on the
+  // plot edge has half its label outside the box and clipped: "27 Jul" showed
+  // as "Jul", "10 Aug" as "10 A". adjustToWidth leaves no room at either end,
+  // so the spacing is set here instead, against a padded width.
+  const TREND_EDGE_PAD = 22;
+  const trendSpacing = Math.max(
+    1,
+    (CHART_PLOT_W - TREND_EDGE_PAD * 2) / Math.max(trendChartData.length - 1, 1),
+  );
 
   // ── Tab content renderers ─────────────────────────────────────────────────
 
   const renderOverviewTab = () => (
     <>
-      {/* Monthly trend */}
+      {/* Spending trend */}
       <View>
         <Text style={styles.cardTitle}>Spending Trend</Text>
-        <Text style={styles.cardSub}>Monthly spend over the selected period</Text>
-        {analytics.monthlyTrend.length > 1 && monthlyChartData.length > 0 ? (
+        <Text style={styles.cardSub}>
+          {analytics.trendBucket === 'week' ? 'Weekly' : 'Monthly'} spend over the selected period
+        </Text>
+        {trendChartData.length > 1 ? (
           <View style={styles.chartWrapper}>
             <LineChart
-              data={monthlyChartData}
-              width={CHART_W - 24}
+              data={trendChartData}
+              width={CHART_PLOT_W}
               height={180}
-              adjustToWidth
-              initialSpacing={0}
-              endSpacing={0}
+              initialSpacing={TREND_EDGE_PAD}
+              endSpacing={TREND_EDGE_PAD}
+              spacing={trendSpacing}
               color={theme.accent.blue}
               thickness={3}
               startFillColor={theme.accent.blue}
@@ -269,7 +408,7 @@ const AnalyticsScreen = () => {
               innerCircleColor={theme.background.primary}
               centerLabelComponent={() => (
                 <PieCenterLabel
-                  totalSpent={analytics.totalSpent}
+                  totalSpent={pieTotal}
                   containerStyle={styles.pieCenterContainer}
                   totalStyle={styles.pieCenterTotal}
                   labelStyle={styles.pieCenterLabel}
@@ -280,7 +419,7 @@ const AnalyticsScreen = () => {
             />
             {/* Legend */}
             <View style={styles.legendContainer}>
-              {categoryPieData.map((item: any) => {
+              {categoryPieData.map(item => {
                 const dotColorStyle = { backgroundColor: item.color };
                 return (
                   <View key={item.text} style={styles.legendItem}>
@@ -300,6 +439,34 @@ const AnalyticsScreen = () => {
           <Text style={styles.noData}>No category data available</Text>
         )}
       </View>
+
+      {/* When you shop */}
+      {weekdayChartData.length > 0 && (
+        <View>
+          <Text style={styles.cardTitle}>When You Shop</Text>
+          <Text style={styles.cardSub}>Trips by day of the week</Text>
+          <View style={styles.chartWrapper}>
+            <BarChart
+              data={weekdayChartData}
+              width={CHART_PLOT_W}
+              parentWidth={CHART_PLOT_W}
+              height={140}
+              adjustToWidth
+              initialSpacing={0}
+              barBorderRadius={6}
+              isAnimated
+              animationDuration={600}
+              rulesColor={theme.border.strong}
+              xAxisColor="transparent"
+              yAxisColor="transparent"
+              yAxisTextStyle={styles.chartAxisStyle}
+              yAxisLabelWidth={24}
+              maxValue={weekdayAxis.maxValue}
+              noOfSections={weekdayAxis.noOfSections}
+            />
+          </View>
+        </View>
+      )}
     </>
   );
 
@@ -307,11 +474,26 @@ const AnalyticsScreen = () => {
     <View>
       <Text style={styles.cardTitle}>Most Purchased</Text>
       <Text style={styles.cardSub}>Your top items by frequency</Text>
+      {/* The pie says "No category data available" and Volatile Prices says
+          "Not enough price data yet" for the same input; this pane rendered
+          a heading over nothing. */}
+      {analytics.topItems.length === 0 ? (
+        <Text style={styles.noData}>No item data available</Text>
+      ) : (
       <View style={styles.itemsContainer}>
         {analytics.topItems.slice(0, 8).map((item, index) => {
           const rankColor = rankColors[index] ?? theme.text.secondary;
           const rankBorderStyle = { borderColor: rankColor + '60' };
           const rankColorStyle = { color: rankColor };
+          // Units only when they say something the trip count does not — a
+          // basket of singles would just read "3 units · 3× bought". And
+          // nothing at all for a one-off, where "£2.50 each" merely repeats
+          // the total sitting next to it.
+          const meta = item.unitsPurchased > item.purchaseCount
+            ? `${item.unitsPurchased} units · ${fmt(item.averagePrice)} each`
+            : item.purchaseCount > 1
+              ? `${fmt(item.averagePrice)} each`
+              : null;
           return (
             <View key={item.name} style={styles.itemRow}>
               {/* Rank badge */}
@@ -319,16 +501,20 @@ const AnalyticsScreen = () => {
                 <Text style={[styles.rankText, rankColorStyle]}>{index + 1}</Text>
               </View>
               {/* Name */}
-              <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+              <View style={styles.itemNameColumn}>
+                <Text style={styles.itemName} numberOfLines={1}>{capitalize(item.name)}</Text>
+                {meta && <Text style={styles.itemMeta} numberOfLines={1}>{meta}</Text>}
+              </View>
               {/* Stats */}
               <View style={styles.itemStatsColumn}>
-                <Text style={styles.itemCount}>{item.purchaseCount}× bought</Text>
                 <Text style={styles.itemSpend}>{fmt(item.totalSpent)}</Text>
+                <Text style={styles.itemCount}>{item.purchaseCount}× bought</Text>
               </View>
             </View>
           );
         })}
       </View>
+      )}
     </View>
   );
 
@@ -342,7 +528,8 @@ const AnalyticsScreen = () => {
           <View style={styles.chartWrapper}>
             <BarChart
               data={storeChartData}
-              width={CHART_W - 24}
+              width={CHART_PLOT_W}
+              parentWidth={CHART_PLOT_W}
               height={180}
               adjustToWidth
               initialSpacing={0}
@@ -367,22 +554,24 @@ const AnalyticsScreen = () => {
         <Text style={styles.cardSub}>Trips, totals, and averages</Text>
         <View style={styles.storeListContainer}>
           {analytics.spendingByStore.map((store) => {
-            const lowestAvg = Math.min(...analytics.spendingByStore.map(s => s.averagePerTrip));
-            const mostVisited = Math.max(...analytics.spendingByStore.map(s => s.tripCount));
-            const isBest    = store.averagePerTrip === lowestAvg && analytics.spendingByStore.length > 1;
-            const isMost    = store.tripCount === mostVisited && analytics.spendingByStore.length > 1;
+            const isSmallest = store.storeName === smallestTripsStore;
+            const isMost     = store.storeName === mostVisitedStore;
             const progressFillStyle = {
-              width: `${(store.totalSpent / analytics.totalSpent) * 100}%` as any,
-              backgroundColor: isBest ? theme.accent.green : theme.accent.blue,
+              // safeDiv, not a bare divide: a group with trips but no prices
+              // has a zero total, and NaN% is not a width.
+              width: `${safeDiv(store.totalSpent, analytics.totalSpent) * 100}%` as any,
+              backgroundColor: isSmallest ? theme.accent.green : theme.accent.blue,
             };
 
             return (
               <View key={store.storeName} style={styles.storeRow}>
                 <View style={styles.storeFlexLeft}>
                   <View style={styles.storeNameRow}>
-                    <Text style={styles.storeName}>{store.storeName}</Text>
-                    {isBest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextGreen]}>Best avg</Text></View>}
-                    {isMost && !isBest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextBlue]}>Most visited</Text></View>}
+                    <Text style={styles.storeName}>{storeLabel(store.storeName)}</Text>
+                    {/* "Best avg" read as "cheapest", but the lowest average
+                        per trip is where you nip in for milk. */}
+                    {isSmallest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextGreen]}>Smallest trips</Text></View>}
+                    {isMost && !isSmallest && <View style={styles.pill}><Text style={[styles.pillText, styles.pillTextBlue]}>Most visited</Text></View>}
                   </View>
                   {/* Progress bar: proportion of total spend */}
                   <View style={styles.progressBg}>
@@ -391,7 +580,7 @@ const AnalyticsScreen = () => {
                 </View>
                 <View style={styles.storeStatsColumn}>
                   <Text style={styles.storeTotal}>{fmt(store.totalSpent)}</Text>
-                  <Text style={styles.storeMeta}>{store.tripCount} trips · avg {fmt(store.averagePerTrip)}</Text>
+                  <Text style={styles.storeMeta}>{store.tripCount} {plural(store.tripCount, 'trip')} · avg {fmt(store.averagePerTrip)}</Text>
                 </View>
               </View>
             );
@@ -406,8 +595,8 @@ const AnalyticsScreen = () => {
       {familyGroupId ? (
         <>
           <ItemStoreComparison familyGroupId={familyGroupId} trackedItems={trackedItems} />
-          <VolatileItemsChart familyGroupId={familyGroupId} />
-          <SmartSavingsCard familyGroupId={familyGroupId} trackedItems={trackedItems} />
+          <VolatileItemsChart familyGroupId={familyGroupId} reloadKey={reloadKey} />
+          <SmartSavingsCard familyGroupId={familyGroupId} trackedItems={trackedItems} reloadKey={reloadKey} />
         </>
       ) : (
         <View>
@@ -454,8 +643,25 @@ const AnalyticsScreen = () => {
         style={styles.scrollFlex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.accent.blue}
+            colors={[theme.accent.blue]}
+            // Android rests the spinner 64dp down, less its own 40dp diameter,
+            // so it settled on top of the period filter and covered the label
+            // saying which period you were looking at — while the numbers
+            // underneath were being replaced. Pulled up so it tucks against
+            // the tab bar and clears the filter text.
+            progressViewOffset={-40}
+          />
+        }
       >
-        {/* Period filter */}
+        {/* Period filter. Hidden on Prices, which reads none of it — the
+            comparison card carries its own range chips, and two live period
+            controls on one screen only ever disagree. */}
+        {activeTab !== 'prices' && (
         <View style={styles.segmented}>
           {([30, 90, 365] as const).map(p => {
             const active = timePeriod === p;
@@ -474,8 +680,11 @@ const AnalyticsScreen = () => {
             );
           })}
         </View>
+        )}
 
-        {/* Period total, set as a till-roll total line */}
+        {/* Period total, set as a till-roll total line. Also period-scoped, so
+            it goes with the filter. */}
+        {activeTab !== 'prices' && (
         <View style={styles.totalBlock}>
           <View style={styles.rule} />
           <View style={styles.totalRow}>
@@ -484,18 +693,30 @@ const AnalyticsScreen = () => {
           </View>
           <View style={styles.rule} />
           <Text style={styles.totalMeta}>
-            <Text style={styles.totalMetaStrong}>{analytics.totalTrips}</Text> trips
+            <Text style={styles.totalMetaStrong}>{analytics.totalTrips}</Text> {plural(analytics.totalTrips, 'trip')}
             {'   ·   '}
             <Text style={styles.totalMetaStrong}>{fmt(analytics.averagePerTrip)}</Text> avg
             {'   ·   '}
-            <Text style={styles.totalMetaStrong}>{analytics.itemsPurchased}</Text> items
+            <Text style={styles.totalMetaStrong}>{analytics.itemsPurchased}</Text> {plural(analytics.itemsPurchased, 'item')}
           </Text>
         </View>
+        )}
 
-        {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'items'    && renderItemsTab()}
-        {activeTab === 'stores'   && renderStoresTab()}
-        {activeTab === 'prices'   && renderPricesTab()}
+        {/* Opened tabs stay mounted and are hidden rather than unmounted, so
+            the Prices tab keeps its selection and its loaded data. display:
+            'none' takes the pane out of layout, so the container gap does not
+            leave a hole where a hidden tab sits. */}
+        {openedTabs.map(tab => (
+          <View
+            key={tab}
+            style={[styles.tabPane, activeTab !== tab && styles.tabPaneHidden]}
+          >
+            {tab === 'overview' && renderOverviewTab()}
+            {tab === 'items'    && renderItemsTab()}
+            {tab === 'stores'   && renderStoresTab()}
+            {tab === 'prices'   && renderPricesTab()}
+          </View>
+        ))}
         <View style={styles.spacer32} />
       </ScrollView>
     </View>
@@ -652,9 +873,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
   },
   rankText:  { fontSize: 12, fontWeight: '700' },
-  itemName:  { flex: 1, fontSize: 14, color: theme.text.primary, fontWeight: '500' },
-  itemCount: { fontSize: 12, color: theme.text.secondary },
-  itemSpend: { fontSize: 14, fontWeight: '700', color: theme.accent.green, marginTop: 1 },
+  itemNameColumn: { flex: 1 },
+  itemName:  { fontSize: 14, color: theme.text.primary, fontWeight: '500' },
+  itemMeta:  { fontSize: 12, color: theme.text.secondary, marginTop: 2 },
+  itemCount: { fontSize: 12, color: theme.text.secondary, marginTop: 1 },
+  itemSpend: { ...NUMERIC, fontSize: 14, fontWeight: '700', color: theme.accent.green },
 
   // ── Stores tab ────────────────────────────────────────────────────────────
   storeRow: {
@@ -719,6 +942,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // ── Layout ────────────────────────────────────────────────────────────────
   scrollFlex: { flex: 1 },
   spacer32: { height: 32 },
+  // Each pane repeats the scroll container's gap: the panes are now the
+  // container's direct children, so without this the sections inside a pane
+  // would sit flush against each other.
+  tabPane: { gap: SPACING.xxl },
+  tabPaneHidden: { display: 'none' },
 });
 
 // ─── Export ───────────────────────────────────────────────────────────────────

@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth, getIdToken } from '@react-native-firebase/auth';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
 import { ReceiptData, ReceiptLineItem, ReceiptStoreSlug, OCRResult } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
@@ -9,10 +11,11 @@ import { toFileUri } from '../utils/uri';
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 
-// Sent as X-OCR-Key on every OCR request. The server only enforces it when
-// its OCR_SHARED_SECRET env var is set to the same value — abuse deterrence
-// for the public Space URL, not real auth (the key ships in the app).
-const OCR_SHARED_KEY = 'fsl-ocr-7f3d9a2e8b514c06';
+// Scans go through the ocr-proxy edge function, which holds the Space's
+// shared secret server-side and admits the request on a Firebase ID token.
+// Nothing secret ships in the bundle: a decompiled APK yields no more access
+// than being signed in already does.
+const OCR_PROXY_URL = `${(SUPABASE_URL || '').replace(/\/+$/, '')}/functions/v1/ocr-proxy`;
 
 const DEFAULT_CURRENCY = 'GBP';
 
@@ -161,12 +164,57 @@ class ReceiptOCRService {
     }
   }
 
+  /** Empty OCRResult carrying an error message. */
+  private failure(error: string): OCRResult {
+    return {
+      success: false,
+      receiptData: null,
+      totalAmount: null,
+      merchantName: null,
+      purchaseDate: null,
+      currency: null,
+      confidence: 0,
+      error,
+      apiUsageCount: 0,
+    };
+  }
+
   /**
    * Extract receipt data from an image without persisting.
    * Forwards AbortSignal to fetch for cancellation support.
    */
   async extractReceipt(localFilePath: string, signal?: AbortSignal): Promise<OCRResult> {
-    const serverUrl = await this.getServerUrl();
+    // A user-set server URL is the local-dev path: talk to that server
+    // directly, since a dev instance runs without OCR_SHARED_SECRET and is
+    // not reachable from the deployed proxy anyway. Otherwise go through
+    // ocr-proxy, which supplies the shared secret server-side.
+    const overrideUrl = await this.getStoredServerUrl();
+
+    let requestUrl: string;
+    let proxyIdToken: string | null = null;
+    const headers: Record<string, string> = { 'Accept': 'application/json' };
+
+    if (overrideUrl) {
+      requestUrl = `${overrideUrl}/ocr`;
+    } else {
+      const currentUser = getAuth().currentUser;
+      if (!currentUser) {
+        return this.failure('Sign in to scan receipts.');
+      }
+      let idToken: string;
+      try {
+        idToken = await getIdToken(currentUser);
+      } catch (err: any) {
+        return this.failure(`Could not authenticate scan request: ${err?.message ?? 'unknown error'}`);
+      }
+      requestUrl = OCR_PROXY_URL;
+      headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY || ''}`;
+      // Sent in the body as well as the header: Supabase's gateway strips
+      // some non-standard headers before the function sees them, and the
+      // multipart part always survives. The function reads the part first.
+      headers['X-Firebase-Token'] = idToken;
+      proxyIdToken = idToken;
+    }
 
     // Compose the caller's AbortSignal with a local timeout so a stuck
     // server round-trip surfaces as an actionable error instead of an
@@ -183,14 +231,14 @@ class ReceiptOCRService {
         type: 'image/jpeg',
         name: 'receipt.jpg',
       } as any);
+      if (proxyIdToken) {
+        formData.append('idToken', proxyIdToken);
+      }
 
-      const response = await fetch(`${serverUrl}/ocr`, {
+      const response = await fetch(requestUrl, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Accept': 'application/json',
-          'X-OCR-Key': OCR_SHARED_KEY,
-        },
+        headers,
         signal: timeoutController.signal,
       });
 
