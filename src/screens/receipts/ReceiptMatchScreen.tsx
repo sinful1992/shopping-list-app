@@ -385,7 +385,9 @@ const ReceiptMatchScreen = () => {
             {shoppingList?.purchaseDate || 'Date not read'}
           </Text>
           <Text style={styles.receiptMeta}>
-            {acceptedCount > 0
+            {/* Counted off allMatches, not acceptedCount: ignoring every
+                match should not read as the scan having found none. */}
+            {allMatches.length > 0
               ? `${acceptedCount} of ${lineItems.length} lines matched to your list`
               : `${lineItems.length} line${lineItems.length === 1 ? '' : 's'} · none matched yet`}
           </Text>
@@ -414,6 +416,8 @@ const ReceiptMatchScreen = () => {
               onToggleAdd={() => toggleToAdd(index, item.description)}
               onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
               onAssign={canPickFor ? () => setPickerReceiptIndex(index) : undefined}
+              styles={styles}
+              theme={theme}
             />
           ))}
 
@@ -510,6 +514,12 @@ interface ReconciledLineProps {
   onToggleAdd: () => void;
   onNameChange: (name: string) => void;
   onAssign?: () => void;
+  // Handed down rather than rebuilt per row, the way EmptyState already takes
+  // them: this component renders once per printed line, and the corpus has a
+  // 36-line receipt. Calling useTheme + StyleSheet.create in here would mean
+  // 36 stylesheets per render for one screen.
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
 }
 
 /**
@@ -525,9 +535,8 @@ interface ReconciledLineProps {
 const ReconciledLine: React.FC<ReconciledLineProps> = ({
   item, currency, match, rejected, isUnmatched, inToAdd,
   editedName, onToggleMatch, onToggleAdd, onNameChange, onAssign,
+  styles, theme,
 }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
   const price = item.price ?? item.unitPrice;
 
   // matchReceiptToList only considers lines that have both a price and a
@@ -582,7 +591,13 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
             {price == null ? 'No price read on this line' : 'No name read on this line'}
           </Text>
         ) : onAssign ? (
-          <Text style={styles.noteAction} numberOfLines={1} onPress={onAssign}>
+          <Text
+            style={styles.noteAction}
+            numberOfLines={1}
+            onPress={onAssign}
+            accessibilityRole="button"
+            accessibilityLabel={`Match "${item.description}" to an item on your list`}
+          >
             Match to a list item
           </Text>
         ) : (

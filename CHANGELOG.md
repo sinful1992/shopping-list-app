@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.42.2] - 2026-09-05
+
+### Fixed
+- **Ignoring every match made the receipt claim it had found none.** The match screen'''s summary line branched on the accepted count, so rejecting all of them flipped it from "2 of 3 lines matched" to "3 lines · none matched yet" — which describes a failed scan rather than a scan the user overrode. It counts off the matches found, not the ones still accepted.
+- **The per-line "Match to a list item" action was invisible to screen readers.** It is a `Text` with an `onPress`, which carries no role of its own; it now declares the button role and names the receipt line it would act on.
+
+### Changed
+- `ReconciledLine` takes its stylesheet and theme from the screen instead of calling `useTheme` and `StyleSheet.create` itself. It renders once per printed line and the eval corpus has a 36-line receipt, so building a stylesheet inside it meant 36 of them per render. `EmptyState` in the same file was already written this way.
+
 ## [1.42.1] - 2026-09-05
 
 ### Fixed
