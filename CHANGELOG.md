@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.42.1] - 2026-09-05
+
+### Fixed
+- **The tie glyph under each receipt line would have drawn a tofu box on Android.** The annotation row opened with U+21B3 set in `RECEIPT_FONT`, which resolves to plain `monospace` on Android — Droid Sans Mono, which has no such glyph. Every annotated line on the only platform this app ships to would have led with an empty box. Nothing in the toolchain can see this: tsc, eslint and the 270-test suite all passed on it. The glyph is gone; the annotation is tied to its line by an indent and a left rule, which cannot fail to render.
+
 ## [1.42.0] - 2026-09-05
 
 ### Changed

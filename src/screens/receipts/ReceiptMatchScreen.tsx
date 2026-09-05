@@ -558,8 +558,6 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
       </View>
 
       <View style={styles.lineNote}>
-        <Text style={styles.tie}>{'↳'}</Text>
-
         {inToAdd ? (
           <TextInput
             style={styles.nameInput}
@@ -748,19 +746,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   struck: {
     textDecorationLine: 'line-through',
   },
-  // The annotation under a line. Indented past the tie glyph so the eye reads
-  // it as belonging to the line above rather than as another product.
+  // The annotation under a line. Tied to the line above by an indent and a
+  // left rule rather than a glyph: RECEIPT_FONT is plain `monospace` on
+  // Android (Droid Sans Mono), which has no U+21B3 and would draw a tofu box
+  // on every row. A border cannot fail to render.
   lineNote: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
     marginTop: 4,
+    marginLeft: SPACING.sm,
     paddingLeft: SPACING.md,
-  },
-  tie: {
-    fontSize: 12,
-    color: theme.text.tertiary,
-    fontFamily: RECEIPT_FONT,
+    borderLeftWidth: 2,
+    borderLeftColor: theme.border.medium,
   },
   noteMatched: {
     flex: 1,
