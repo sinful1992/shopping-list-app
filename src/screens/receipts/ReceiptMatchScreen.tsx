@@ -20,9 +20,10 @@ import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
-import { SPACING, TYPOGRAPHY, RADIUS, NUMERIC } from '../../styles/theme';
+import { SPACING, TYPOGRAPHY, RADIUS, NUMERIC, RECEIPT_FONT } from '../../styles/theme';
 import type { Theme } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
+import ReceiptCard, { ReceiptRule } from '../../components/ReceiptCard';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
 import NotificationManager from '../../services/NotificationManager';
@@ -53,8 +54,6 @@ const ReceiptMatchScreen = () => {
   const [manualMatches, setManualMatches] = useState<MatchCandidate[]>([]);
   const [pickerReceiptIndex, setPickerReceiptIndex] = useState<number | null>(null);
   const [rejected, setRejected] = useState<Set<string>>(new Set());
-  const [unmatchedReceiptOpen, setUnmatchedReceiptOpen] = useState(false);
-  const [unmatchedListOpen, setUnmatchedListOpen] = useState(false);
   const [toAdd, setToAdd] = useState<Set<number>>(new Set());
   const [editingNames, setEditingNames] = useState<Record<number, string>>({});
   const user = useUser();
@@ -95,7 +94,6 @@ const ReceiptMatchScreen = () => {
             const names: Record<number, string> = {};
             result.unmatchedReceipt.forEach(e => { names[e.index] = e.item.description; });
             setEditingNames(names);
-            setUnmatchedReceiptOpen(true);
           }
         }
       } catch (error: any) {
@@ -356,7 +354,6 @@ const ReceiptMatchScreen = () => {
     );
   }
 
-  const matchCount = allMatches.length;
   const acceptedCount = acceptedMatches.length;
   const canPickFor = visibleUnmatchedList.length > 0;
   const canApply = acceptedCount > 0 || toAdd.size > 0;
@@ -368,81 +365,95 @@ const ReceiptMatchScreen = () => {
     return parts.length ? parts.join(' · ') : 'Apply';
   })();
 
+  // The receipt is the document being reconciled, so it is rendered in its own
+  // printed order rather than split into matched/unmatched buckets: a line's
+  // position on the paper is how the user finds it again while holding the
+  // real thing. Everything below is a lookup keyed by that line's index.
+  const lineItems = receiptData.lineItems ?? [];
+  const matchByReceiptIndex = new Map<number, MatchCandidate>();
+  allMatches.forEach(m => matchByReceiptIndex.set(m.receiptIndex, m));
+  const unmatchedIndices = new Set(visibleUnmatchedReceipt.map(e => e.index));
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.summary}>
-          {matchCount === 0
-            ? 'No matches found'
-            : `Found ${matchCount} match${matchCount === 1 ? '' : 'es'} · ${visibleUnmatchedList.length} unmatched`}
-        </Text>
+        <ReceiptCard>
+          <Text style={styles.merchant}>
+            {shoppingList?.merchantName || 'RECEIPT'}
+          </Text>
+          <Text style={styles.receiptMeta}>
+            {shoppingList?.purchaseDate || 'Date not read'}
+          </Text>
+          <Text style={styles.receiptMeta}>
+            {acceptedCount > 0
+              ? `${acceptedCount} of ${lineItems.length} lines matched to your list`
+              : `${lineItems.length} line${lineItems.length === 1 ? '' : 's'} · none matched yet`}
+          </Text>
 
-        {allMatches.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Matched</Text>
-            {allMatches.map(m => {
-              const isManual = m.method === 'manual';
-              return (
-                <MatchRow
-                  key={m.listItem.id}
-                  match={m}
-                  currency={currency}
-                  rejected={!isManual && rejected.has(m.listItem.id)}
-                  isManual={isManual}
-                  onToggleReject={() => (isManual ? removeManual(m.listItem.id) : toggleReject(m.listItem.id))}
-                />
-              );
-            })}
+          <ReceiptRule />
+
+          {lineItems.map((item, index) => (
+            <ReconciledLine
+              key={index}
+              item={item}
+              currency={currency}
+              match={matchByReceiptIndex.get(index) ?? null}
+              rejected={
+                matchByReceiptIndex.has(index) &&
+                rejected.has(matchByReceiptIndex.get(index)!.listItem.id)
+              }
+              isUnmatched={unmatchedIndices.has(index)}
+              inToAdd={toAdd.has(index)}
+              editedName={editingNames[index] ?? item.description}
+              onToggleMatch={() => {
+                const m = matchByReceiptIndex.get(index);
+                if (!m) return;
+                if (m.method === 'manual') removeManual(m.listItem.id);
+                else toggleReject(m.listItem.id);
+              }}
+              onToggleAdd={() => toggleToAdd(index, item.description)}
+              onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
+              onAssign={canPickFor ? () => setPickerReceiptIndex(index) : undefined}
+            />
+          ))}
+
+          <ReceiptRule />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>TOTAL</Text>
+            <Text style={styles.totalValue}>
+              {shoppingList?.totalAmount != null
+                ? `${currency}${shoppingList.totalAmount.toFixed(2)}`
+                : '—'}
+            </Text>
           </View>
-        )}
 
-        {visibleUnmatchedReceipt.length > 0 && (
-          <CollapsibleSection
-            title={`Unmatched receipt items (${visibleUnmatchedReceipt.length})`}
-            open={unmatchedReceiptOpen}
-            onToggle={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setUnmatchedReceiptOpen(v => !v);
-            }}
-          >
+          {visibleUnmatchedReceipt.length > 1 && (
             <TouchableOpacity style={styles.selectAllRow} onPress={toggleSelectAll} activeOpacity={0.7}>
               <Text style={styles.selectAllText}>
-                {allUnmatchedSelected ? 'Deselect all' : 'Select all'}
+                {allUnmatchedSelected
+                  ? 'Clear the new items'
+                  : `Add all ${visibleUnmatchedReceipt.length} unlisted lines`}
               </Text>
-              <Icon
-                name={allUnmatchedSelected ? 'checkmark-circle' : 'add-circle-outline'}
-                size={22}
-                color={allUnmatchedSelected ? theme.accent.green : theme.text.tertiary}
-              />
             </TouchableOpacity>
-            {visibleUnmatchedReceipt.map(({ item, index }) => (
-              <UnmatchedReceiptRow
-                key={index}
-                item={item}
-                currency={currency}
-                inToAdd={toAdd.has(index)}
-                editedName={editingNames[index] ?? item.description}
-                onToggleAdd={() => toggleToAdd(index, item.description)}
-                onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
-                onAssign={canPickFor ? () => setPickerReceiptIndex(index) : undefined}
-              />
-            ))}
-          </CollapsibleSection>
-        )}
+          )}
+        </ReceiptCard>
 
+        {/* A second slip: these are on the list but the till never printed
+            them, so they have no line to sit beside on the receipt above. */}
         {visibleUnmatchedList.length > 0 && (
-          <CollapsibleSection
-            title={`Unmatched list items (${visibleUnmatchedList.length})`}
-            open={unmatchedListOpen}
-            onToggle={() => {
-              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-              setUnmatchedListOpen(v => !v);
-            }}
-          >
+          <ReceiptCard>
+            <Text style={styles.slipTitle}>NOT ON THIS RECEIPT</Text>
+            <Text style={styles.slipHint}>
+              Still on your list. Match one to a line above, or leave it for next time.
+            </Text>
+            <ReceiptRule />
             {visibleUnmatchedList.map(item => (
-              <UnmatchedListRow key={item.id} item={item} />
+              <Text key={item.id} style={styles.slipItem} numberOfLines={2}>
+                {item.name}
+              </Text>
             ))}
-          </CollapsibleSection>
+          </ReceiptCard>
         )}
       </ScrollView>
 
@@ -487,96 +498,116 @@ const ReceiptMatchScreen = () => {
   );
 };
 
-interface MatchRowProps {
-  match: MatchCandidate;
-  currency: string;
-  rejected: boolean;
-  isManual: boolean;
-  onToggleReject: () => void;
-}
-
-const MatchRow: React.FC<MatchRowProps> = ({ match, currency, rejected, isManual, onToggleReject }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  const price = match.receiptItem.price ?? match.receiptItem.unitPrice;
-  const badge = badgeStyle(match, theme);
-  return (
-    <View style={[styles.matchCard, rejected && styles.matchCardRejected]}>
-      <View style={styles.matchTop}>
-        <Text style={[styles.listName, rejected && styles.strikethrough]} numberOfLines={2}>
-          {match.listItem.name}
-        </Text>
-        <Icon name="arrow-forward" size={16} color={theme.text.tertiary} style={styles.arrowIcon} />
-        <Text style={[styles.receiptDesc, rejected && styles.strikethrough]} numberOfLines={2}>
-          {match.receiptItem.description}
-        </Text>
-      </View>
-      <View style={styles.matchBottom}>
-        <View style={[styles.badge, { backgroundColor: badge.bg, borderColor: badge.border }]}>
-          <Text style={[styles.badgeText, { color: badge.fg }]}>
-            {isManual ? 'manual' : `${Math.round(match.score * 100)}% · ${match.method}`}
-          </Text>
-        </View>
-        <Text style={[styles.priceText, rejected && styles.strikethrough]}>
-          {price != null ? `${currency}${price.toFixed(2)}` : '—'}
-        </Text>
-        <TouchableOpacity onPress={onToggleReject} style={styles.rejectButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Icon
-            name={isManual ? 'close-circle-outline' : (rejected ? 'add-circle-outline' : 'close-circle-outline')}
-            size={22}
-            color={isManual ? theme.text.secondary : (rejected ? theme.accent.green : theme.accent.red)}
-          />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
-
-interface UnmatchedReceiptRowProps {
+interface ReconciledLineProps {
   item: ReceiptLineItem;
   currency: string;
+  match: MatchCandidate | null;
+  rejected: boolean;
+  isUnmatched: boolean;
   inToAdd: boolean;
   editedName: string;
+  onToggleMatch: () => void;
   onToggleAdd: () => void;
   onNameChange: (name: string) => void;
   onAssign?: () => void;
 }
 
-const UnmatchedReceiptRow: React.FC<UnmatchedReceiptRowProps> = ({
-  item, currency, inToAdd, editedName, onToggleAdd, onNameChange, onAssign,
+/**
+ * One printed receipt line, with what it resolved to written underneath it
+ * the way you would annotate a paper till roll.
+ *
+ * Only one control is visible per line — the trailing toggle — because a
+ * receipt with four icons on every row stops reading as a receipt. The
+ * second, rarer action (pairing a line with an item already on the list)
+ * lives on the annotation text itself, which is a tap target on unmatched
+ * lines and inert everywhere else.
+ */
+const ReconciledLine: React.FC<ReconciledLineProps> = ({
+  item, currency, match, rejected, isUnmatched, inToAdd,
+  editedName, onToggleMatch, onToggleAdd, onNameChange, onAssign,
 }) => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const price = item.price ?? item.unitPrice;
+
+  // matchReceiptToList only considers lines that have both a price and a
+  // description, so a line missing either is in neither bucket. It still
+  // belongs on the paper — it was printed — but nothing here can act on it,
+  // and handleApply would silently drop it. Show it without a control rather
+  // than offering a toggle that does nothing.
+  const actionable = match != null || isUnmatched;
+
+  const toggle = match ? onToggleMatch : onToggleAdd;
+  const active = match ? !rejected : inToAdd;
+  const toggleLabel = match
+    ? (rejected ? 'Use this match after all' : 'Ignore this match')
+    : (inToAdd ? 'Do not add this line' : 'Add this line to the list');
+
   return (
-    <View style={[styles.infoRow, inToAdd && styles.infoRowSelected]}>
-      {inToAdd ? (
-        <TextInput
-          style={styles.nameInput}
-          value={editedName}
-          onChangeText={onNameChange}
-          placeholder="Item name"
-          placeholderTextColor={theme.text.tertiary}
-          autoCorrect={false}
-        />
-      ) : (
-        <Text style={styles.infoText} numberOfLines={2}>{item.description}</Text>
-      )}
-      <Text style={styles.infoPrice}>
-        {item.price != null ? `${currency}${item.price.toFixed(2)}` : '—'}
-      </Text>
-      {onAssign && !inToAdd && (
-        <TouchableOpacity onPress={onAssign} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel="Assign to a list item">
-          <Icon name="link-outline" size={20} color={theme.accent.blue} style={styles.assignIcon} />
-        </TouchableOpacity>
-      )}
-      <TouchableOpacity onPress={onToggleAdd} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={inToAdd ? 'Remove from items to add' : 'Add to list'}>
-        <Icon
-          name={inToAdd ? 'checkmark-circle' : 'add-circle-outline'}
-          size={22}
-          color={inToAdd ? theme.accent.green : theme.text.tertiary}
-          style={styles.assignIcon}
-        />
-      </TouchableOpacity>
+    <View style={styles.line}>
+      <View style={styles.lineTop}>
+        <Text
+          style={[styles.lineDesc, rejected && styles.struck]}
+          numberOfLines={3}
+        >
+          {item.description || '(unreadable line)'}
+        </Text>
+        <Text style={[styles.linePrice, rejected && styles.struck]}>
+          {price != null ? `${currency}${price.toFixed(2)}` : '—'}
+        </Text>
+      </View>
+
+      <View style={styles.lineNote}>
+        <Text style={styles.tie}>{'↳'}</Text>
+
+        {inToAdd ? (
+          <TextInput
+            style={styles.nameInput}
+            value={editedName}
+            onChangeText={onNameChange}
+            placeholder="Name this item"
+            placeholderTextColor={theme.text.tertiary}
+            autoCorrect={false}
+          />
+        ) : match ? (
+          <Text
+            style={[styles.noteMatched, rejected && styles.noteIgnored, rejected && styles.struck]}
+            numberOfLines={2}
+          >
+            {match.listItem.name}
+            {match.method !== 'manual' && !rejected
+              ? `  ${Math.round(match.score * 100)}%`
+              : ''}
+          </Text>
+        ) : !actionable ? (
+          <Text style={styles.noteIdle} numberOfLines={1}>
+            {price == null ? 'No price read on this line' : 'No name read on this line'}
+          </Text>
+        ) : onAssign ? (
+          <Text style={styles.noteAction} numberOfLines={1} onPress={onAssign}>
+            Match to a list item
+          </Text>
+        ) : (
+          <Text style={styles.noteIdle} numberOfLines={1}>
+            Not on your list
+          </Text>
+        )}
+
+        {actionable && (
+          <TouchableOpacity
+            onPress={toggle}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel={toggleLabel}
+          >
+            <Icon
+              name={active ? 'checkmark-circle' : 'ellipse-outline'}
+              size={20}
+              color={active ? theme.accent.green : theme.text.tertiary}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -634,37 +665,6 @@ const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptI
   );
 };
 
-const UnmatchedListRow: React.FC<{ item: Item }> = ({ item }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.infoText} numberOfLines={2}>{item.name}</Text>
-    </View>
-  );
-};
-
-interface CollapsibleSectionProps {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}
-
-const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({ title, open, onToggle, children }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.section}>
-      <TouchableOpacity style={styles.collapseHeader} onPress={onToggle} activeOpacity={0.7}>
-        <Text style={styles.sectionLabel}>{title}</Text>
-        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={theme.text.secondary} />
-      </TouchableOpacity>
-      {open && <View>{children}</View>}
-    </View>
-  );
-};
-
 interface EmptyStateProps {
   icon: string;
   title: string;
@@ -685,19 +685,6 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, message, onSkip, s
   </View>
 );
 
-function badgeStyle(match: MatchCandidate, theme: Theme): { bg: string; border: string; fg: string } {
-  if (match.method === 'manual') {
-    return { bg: theme.accent.blueSubtle, border: theme.accent.blueDim, fg: theme.accent.blue };
-  }
-  if (match.score >= 0.9) {
-    return { bg: 'rgba(48, 209, 88, 0.18)', border: theme.accent.greenDim, fg: theme.accent.green };
-  }
-  if (match.score >= 0.7) {
-    return { bg: 'rgba(255, 179, 64, 0.18)', border: 'rgba(255, 179, 64, 0.35)', fg: theme.accent.orange };
-  }
-  return { bg: 'rgba(255, 214, 10, 0.18)', border: theme.accent.yellowDim, fg: theme.accent.yellow };
-}
-
 const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
@@ -714,142 +701,148 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     padding: SPACING.lg,
     paddingBottom: 120,
   },
-  summary: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: theme.text.secondary,
-    marginBottom: SPACING.lg,
-  },
-  section: {
-    marginBottom: SPACING.xl,
-  },
-  sectionLabel: {
-    fontSize: 12,
+  // --- the receipt itself -------------------------------------------------
+  // Sizes and the monospace face are deliberately the same as
+  // ReceiptViewScreen's: the two screens show the same document, and the user
+  // recognises the paper before they read a word of it.
+  merchant: {
+    fontSize: 18,
     fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 1.2,
-    color: theme.text.tertiary,
-    marginBottom: SPACING.md,
-  },
-  collapseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-  },
-  matchCard: {
-    backgroundColor: theme.background.secondary,
-    borderRadius: RADIUS.xlarge,
-    borderWidth: 1,
-    borderColor: theme.border.subtle,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
-    padding: SPACING.lg,
-    marginBottom: SPACING.md,
-  },
-  matchCardRejected: {
-    opacity: 0.45,
-  },
-  matchTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  listName: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+    letterSpacing: 1,
+    textAlign: 'center',
   },
-  arrowIcon: {
-    marginHorizontal: SPACING.xs,
-  },
-  receiptDesc: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.md,
+  receiptMeta: {
+    fontSize: 11,
     color: theme.text.secondary,
-    textAlign: 'right',
+    fontFamily: RECEIPT_FONT,
+    textAlign: 'center',
+    marginTop: 3,
   },
-  strikethrough: {
-    textDecorationLine: 'line-through',
-  },
-  matchBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING.md,
-    gap: SPACING.sm,
-  },
-  badge: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
-  },
-  badgeText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    letterSpacing: 0.5,
-  },
-  priceText: {
-    ...NUMERIC,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: theme.accent.green,
-    marginLeft: 'auto',
-  },
-  rejectButton: {
-    padding: SPACING.xs,
-  },
-  selectAllRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: SPACING.sm,
+  line: {
     paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-  },
-  selectAllText: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: theme.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.border.subtle,
+    borderBottomColor: theme.border.medium,
+  },
+  lineTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: SPACING.md,
   },
-  infoRowSelected: {
-    backgroundColor: theme.accent.greenSubtle,
-  },
-  infoText: {
+  lineDesc: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: theme.text.secondary,
+    fontSize: 12,
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+  },
+  linePrice: {
+    ...NUMERIC,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: theme.accent.green,
+    minWidth: 60,
+    textAlign: 'right',
+    fontFamily: RECEIPT_FONT,
+  },
+  struck: {
+    textDecorationLine: 'line-through',
+  },
+  // The annotation under a line. Indented past the tie glyph so the eye reads
+  // it as belonging to the line above rather than as another product.
+  lineNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginTop: 4,
+    paddingLeft: SPACING.md,
+  },
+  tie: {
+    fontSize: 12,
+    color: theme.text.tertiary,
+    fontFamily: RECEIPT_FONT,
+  },
+  noteMatched: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.accent.green,
+    fontFamily: RECEIPT_FONT,
+  },
+  noteIgnored: {
+    color: theme.text.tertiary,
+  },
+  noteAction: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.accent.blue,
+    fontFamily: RECEIPT_FONT,
+  },
+  noteIdle: {
+    flex: 1,
+    fontSize: 12,
+    color: theme.text.tertiary,
+    fontFamily: RECEIPT_FONT,
   },
   nameInput: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.md,
+    fontSize: 12,
     color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
     borderBottomWidth: 1,
     borderBottomColor: theme.accent.green,
     paddingVertical: 2,
     paddingHorizontal: 0,
   },
-  infoPrice: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: theme.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  assignIcon: {
-    marginLeft: SPACING.xs,
+  totalLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+    letterSpacing: 1,
+  },
+  totalValue: {
+    ...NUMERIC,
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: theme.accent.green,
+    fontFamily: RECEIPT_FONT,
+  },
+  selectAllRow: {
+    alignItems: 'center',
+    paddingTop: SPACING.md,
+  },
+  selectAllText: {
+    fontSize: 12,
+    color: theme.accent.blue,
+    fontFamily: RECEIPT_FONT,
+  },
+  // --- the second slip ----------------------------------------------------
+  slipTitle: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  slipHint: {
+    fontSize: 11,
+    color: theme.text.tertiary,
+    fontFamily: RECEIPT_FONT,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  slipItem: {
+    fontSize: 12,
+    color: theme.text.secondary,
+    fontFamily: RECEIPT_FONT,
+    paddingVertical: 5,
   },
   modalBackdrop: {
     flex: 1,

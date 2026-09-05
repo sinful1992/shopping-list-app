@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.41.3] - 2026-09-05
+## [1.42.0] - 2026-09-05
+
+### Changed
+- **The receipt match screen now shows the receipt.** It sorted the scan into three buckets — matched, unmatched receipt items, unmatched list items — two of them collapsed behind chevrons. That taxonomy is the app's, not the user's: someone holding the paper receipt finds a line by where it sits on the roll, and the buckets destroyed exactly that ordering. The screen now renders the receipt in printed order on the same `ReceiptCard` paper as Receipt Details, with what each line resolved to written underneath it as an annotation. List items the till never printed have no line to sit beside, so they get a second slip below the total. Only one control is visible per line: a receipt with four icons per row stops reading as a receipt, so the trailing toggle carries the common action and the rarer "match to a list item" lives on the annotation text.
+
+### Fixed
+- **A line the matcher had discarded still offered to add itself.** `matchReceiptToList` only considers lines carrying both a price and a description, so a line missing either appears in neither the matches nor the unmatched list. Rendering the receipt in full brought those lines back on screen, where the add toggle would have looked live and then been dropped by `handleApply`, which looks the index up in `unmatchedReceipt` and returns null when it is absent. Those lines now print with no control and say which half was not read.
 
 ### Fixed
 - **A malformed ID token answered with the decoder's own error text.** Probing the deployed proxy with `not.a.token` came back with a raw `Unexpected token ... is not valid JSON`, replacement characters and all: a three-segment string clears the shape check, then `atob` or `JSON.parse` throws and that message goes straight back as the 401 body. The status was always right and nothing sensitive escaped, so this is legibility rather than a hole. All three segments now decode inside one guard that answers `Malformed ID token`. The signature segment sat in the same position and is covered too. Every edge function carries this verification inlined — the Supabase bundler will not resolve a shared import — so the same defect was copy-pasted across all six, and all six are fixed.
