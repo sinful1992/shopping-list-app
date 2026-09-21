@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.43.0] - 2026-09-22
+
+### Added
+- **Receipt matches can be changed, not just ignored.** Tapping the annotation under any matched line opens the picker as "Change match", with the current item ticked and a **Remove match** action that turns the line back into an unlisted one (addable, or matchable again). Before this, ignoring a wrong auto-match left both the line and the item stuck: neither returned to the unmatched pools, so the right pairing could not be made.
+- **One item can take several receipt lines.** The picker now offers every list item, not only unmatched ones; an item already matched elsewhere says which line it is also on. The item's price is the lines' total spread over its units, so two separate "MILK £1.10" lines on a one-unit "Milk" record £2.20 paid. The annotation reads "2 lines" on each.
+- Ignoring a match releases its item back to the "Not on this receipt" slip.
+
+### Changed
+- The grouping and write-planning behind Apply moved out of the screen into `src/utils/receiptLinks.ts`, with tests.
+
 ## [1.42.3] - 2026-09-22
 
 ### Fixed

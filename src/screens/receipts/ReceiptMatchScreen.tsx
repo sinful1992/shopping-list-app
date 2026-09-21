@@ -29,15 +29,15 @@ import ItemManager from '../../services/ItemManager';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
 import { useUser } from '../../contexts/UserContext';
-import { matchReceiptToList, unitPriceFromLines, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
+import { matchReceiptToList } from '../../utils/receiptMatcher';
+import {
+  groupLinesByItem, planItemUpdates, priceFromLines, ReceiptLink as Link, ReceiptLinks,
+} from '../../utils/receiptLinks';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const receiptPriceFor = (m: MatchCandidate): number | null =>
-  sanitizePrice(unitPriceFromLines([m.receiptItem], m.listItem.unitQty ?? 1));
 
 const ReceiptMatchScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptMatch'>>();
@@ -53,10 +53,11 @@ const ReceiptMatchScreen = () => {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
   const [currency, setCurrency] = useState('£');
-  const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
-  const [manualMatches, setManualMatches] = useState<MatchCandidate[]>([]);
+  const [listItems, setListItems] = useState<Item[]>([]);
+  // Lines the matcher can act on: both a price and a description were read.
+  const [actionable, setActionable] = useState<Set<number>>(new Set());
+  const [links, setLinks] = useState<ReceiptLinks>({});
   const [pickerReceiptIndex, setPickerReceiptIndex] = useState<number | null>(null);
-  const [rejected, setRejected] = useState<Set<string>>(new Set());
   const [toAdd, setToAdd] = useState<Set<number>>(new Set());
   const [editingNames, setEditingNames] = useState<Record<number, string>>({});
   const user = useUser();
@@ -79,27 +80,38 @@ const ReceiptMatchScreen = () => {
         setReceiptData(list.receiptData);
         setShoppingList(list);
         setCurrency(list.currency || '£');
+        setListItems(items);
 
         if (list.receiptData?.lineItems?.length) {
           // Every item is a candidate, priced or not: an item priced while
           // shopping is still what that receipt line paid for, and leaving it
           // out made the line look unlisted and offered to add it twice.
           const result = matchReceiptToList(list.receiptData.lineItems, items);
-          setMatchResult(result);
 
-          // A fuzzy match that would overwrite a price the user already
-          // entered starts ignored, so the overwrite is a choice they make
-          // with the old price in view rather than something done for them.
-          const disputed = new Set<string>();
+          const initial: ReceiptLinks = {};
           result.matches.forEach(m => {
-            if (m.listItem.price == null || m.score >= 1) return;
-            if (receiptPriceFor(m) !== m.listItem.price) disputed.add(m.listItem.id);
+            // A fuzzy match that would overwrite a price the user already
+            // entered starts ignored, so the overwrite is a choice they make
+            // with the old price in view rather than something done for them.
+            const disputed =
+              m.listItem.price != null &&
+              m.score < 1 &&
+              priceFromLines([m.receiptItem], m.listItem) !== m.listItem.price;
+            initial[m.receiptIndex] = {
+              listItemId: m.listItem.id,
+              method: m.method,
+              score: m.score,
+              ignored: disputed,
+            };
           });
-          setRejected(disputed);
+          setLinks(initial);
+          setActionable(new Set([
+            ...result.matches.map(m => m.receiptIndex),
+            ...result.unmatchedReceipt.map(e => e.index),
+          ]));
 
           if (autoAddAll) {
-            const allIndices = new Set(result.unmatchedReceipt.map(e => e.index));
-            setToAdd(allIndices);
+            setToAdd(new Set(result.unmatchedReceipt.map(e => e.index)));
             const names: Record<number, string> = {};
             result.unmatchedReceipt.forEach(e => { names[e.index] = e.item.description; });
             setEditingNames(names);
@@ -114,96 +126,99 @@ const ReceiptMatchScreen = () => {
     return () => { mounted = false; };
   }, [listId, showAlert, autoAddAll]);
 
-  const allMatches = useMemo(() => {
-    if (!matchResult) return [] as MatchCandidate[];
-    return [...matchResult.matches, ...manualMatches];
-  }, [matchResult, manualMatches]);
+  const lineItems = useMemo(() => receiptData?.lineItems ?? [], [receiptData]);
 
-  const visibleUnmatchedReceipt = useMemo(() => {
-    if (!matchResult) return [];
-    const takenIndices = new Set(manualMatches.map(m => m.receiptIndex));
-    return matchResult.unmatchedReceipt.filter(e => !takenIndices.has(e.index));
-  }, [matchResult, manualMatches]);
+  const itemsById = useMemo(() => {
+    const map = new Map<string, Item>();
+    listItems.forEach(i => map.set(i.id, i));
+    return map;
+  }, [listItems]);
 
-  const visibleUnmatchedList = useMemo(() => {
-    if (!matchResult) return [] as Item[];
-    const takenIds = new Set(manualMatches.map(m => m.listItem.id));
-    return matchResult.unmatchedList.filter(i => !takenIds.has(i.id));
-  }, [matchResult, manualMatches]);
+  const linesByItem = useMemo(() => groupLinesByItem(links), [links]);
 
-  const acceptedMatches = useMemo(() => {
-    return allMatches.filter(m => !rejected.has(m.listItem.id));
-  }, [allMatches, rejected]);
+  const pendingPriceByItem = useMemo(() => {
+    const map = new Map<string, number | null>();
+    linesByItem.forEach((indices, itemId) => {
+      const item = itemsById.get(itemId);
+      if (!item) return;
+      map.set(itemId, priceFromLines(indices.map(i => lineItems[i]), item));
+    });
+    return map;
+  }, [linesByItem, itemsById, lineItems]);
 
-  const pickerReceiptItem = useMemo(() => {
-    if (pickerReceiptIndex == null || !matchResult) return null;
-    return matchResult.unmatchedReceipt.find(e => e.index === pickerReceiptIndex)?.item ?? null;
-  }, [pickerReceiptIndex, matchResult]);
+  const unlinkedLines = useMemo(
+    () => lineItems
+      .map((item, index) => ({ item, index }))
+      .filter(e => actionable.has(e.index) && links[e.index] == null),
+    [lineItems, actionable, links],
+  );
 
-  const toggleReject = (listItemId: string) => {
+  const itemsNotOnReceipt = useMemo(
+    () => listItems.filter(i => !linesByItem.has(i.id)),
+    [listItems, linesByItem],
+  );
+
+  const setLink = (index: number, link: Link | null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setRejected(prev => {
-      const next = new Set(prev);
-      if (next.has(listItemId)) next.delete(listItemId);
-      else next.add(listItemId);
+    setLinks(prev => {
+      const next = { ...prev };
+      if (link) next[index] = link;
+      else delete next[index];
       return next;
     });
+    if (link) {
+      setToAdd(prev => {
+        if (!prev.has(index)) return prev;
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+    }
+  };
+
+  const toggleIgnored = (index: number) => {
+    const link = links[index];
+    if (!link) return;
+    setLink(index, { ...link, ignored: !link.ignored });
   };
 
   const assignManual = (listItem: Item) => {
-    if (pickerReceiptIndex == null || !matchResult) return;
-    const entry = matchResult.unmatchedReceipt.find(e => e.index === pickerReceiptIndex);
-    if (!entry) return;
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setManualMatches(prev => [
-      ...prev,
-      {
-        listItem,
-        receiptItem: entry.item,
-        receiptIndex: entry.index,
-        score: 1,
-        method: 'manual',
-      },
-    ]);
+    if (pickerReceiptIndex == null) return;
+    setLink(pickerReceiptIndex, { listItemId: listItem.id, method: 'manual', score: 1, ignored: false });
     setPickerReceiptIndex(null);
   };
 
-  const removeManual = (listItemId: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setManualMatches(prev => prev.filter(m => m.listItem.id !== listItemId));
-    setRejected(prev => {
-      if (!prev.has(listItemId)) return prev;
-      const next = new Set(prev);
-      next.delete(listItemId);
-      return next;
-    });
+  const removeLink = () => {
+    if (pickerReceiptIndex == null) return;
+    setLink(pickerReceiptIndex, null);
+    setPickerReceiptIndex(null);
   };
 
-  const allUnmatchedSelected =
-    visibleUnmatchedReceipt.length > 0 && visibleUnmatchedReceipt.every(e => toAdd.has(e.index));
+  const allUnlinkedSelected =
+    unlinkedLines.length > 0 && unlinkedLines.every(e => toAdd.has(e.index));
 
   const toggleSelectAll = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    if (allUnmatchedSelected) {
+    if (allUnlinkedSelected) {
       setToAdd(prev => {
         const next = new Set(prev);
-        visibleUnmatchedReceipt.forEach(e => next.delete(e.index));
+        unlinkedLines.forEach(e => next.delete(e.index));
         return next;
       });
       setEditingNames(prev => {
         const next = { ...prev };
-        visibleUnmatchedReceipt.forEach(e => { delete next[e.index]; });
+        unlinkedLines.forEach(e => { delete next[e.index]; });
         return next;
       });
     } else {
       setToAdd(prev => {
         const next = new Set(prev);
-        visibleUnmatchedReceipt.forEach(e => next.add(e.index));
+        unlinkedLines.forEach(e => next.add(e.index));
         return next;
       });
       setEditingNames(prev => {
         const next = { ...prev };
-        visibleUnmatchedReceipt.forEach(e => {
+        unlinkedLines.forEach(e => {
           if (next[e.index] === undefined) next[e.index] = e.item.description;
         });
         return next;
@@ -229,28 +244,18 @@ const ReceiptMatchScreen = () => {
   const handleApply = async () => {
     if (applyingRef.current) return;
 
-    const updates = acceptedMatches
-      .map(m => {
-        const price = receiptPriceFor(m);
-        if (price == null) return null;
-        const patch: Partial<Item> = {};
-        if (price !== m.listItem.price) patch.price = price;
-        if (!m.listItem.checked) patch.checked = true;
-        if (Object.keys(patch).length === 0) return null;
-        return { id: m.listItem.id, updates: patch };
-      })
-      .filter((u): u is { id: string; updates: Partial<Item> } => u !== null);
+    const updates = planItemUpdates(linesByItem, lineItems, itemsById);
 
-    const newItems = matchResult
-      ? Array.from(toAdd).map(idx => {
-          const entry = matchResult.unmatchedReceipt.find(e => e.index === idx);
-          if (!entry) return null;
-          const name = (editingNames[idx] ?? entry.item.description).trim();
-          if (!name) return null;
-          const price = sanitizePrice(entry.item.price ?? entry.item.unitPrice);
-          return { name, price: price ?? undefined, checked: true };
-        }).filter((x): x is { name: string; price: number | undefined; checked: true } => x !== null)
-      : [];
+    const newItems = Array.from(toAdd)
+      .filter(idx => links[idx] == null && actionable.has(idx))
+      .map(idx => {
+        const line = lineItems[idx];
+        const name = (editingNames[idx] ?? line.description).trim();
+        if (!name) return null;
+        const price = sanitizePrice(line.price ?? line.unitPrice);
+        return { name, price: price ?? undefined, checked: true };
+      })
+      .filter((x): x is { name: string; price: number | undefined; checked: true } => x !== null);
 
     if (updates.length === 0 && newItems.length === 0) return;
 
@@ -291,7 +296,7 @@ const ReceiptMatchScreen = () => {
         }
       }
       const parts: string[] = [];
-      if (updates.length > 0) parts.push(`Updated ${updates.length} price${updates.length === 1 ? '' : 's'}`);
+      if (updates.length > 0) parts.push(`Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`);
       if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
       if (autoAddAll) parts.push('Shopping completed');
       showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
@@ -343,7 +348,7 @@ const ReceiptMatchScreen = () => {
     );
   }
 
-  if (!matchResult) {
+  if (lineItems.length === 0) {
     return (
       <EmptyState
         icon="alert-circle-outline"
@@ -356,26 +361,23 @@ const ReceiptMatchScreen = () => {
     );
   }
 
-  const acceptedCount = acceptedMatches.length;
-  const canPickFor = visibleUnmatchedList.length > 0;
-  const canApply = acceptedCount > 0 || toAdd.size > 0;
+  const linkCount = Object.keys(links).length;
+  const acceptedLineCount = Object.values(links).filter(l => !l.ignored).length;
+  const canApply = linesByItem.size > 0 || toAdd.size > 0;
 
   const applyLabel = (() => {
     const parts: string[] = [];
-    if (acceptedCount > 0) parts.push(`Apply ${acceptedCount} price${acceptedCount === 1 ? '' : 's'}`);
+    if (linesByItem.size > 0) parts.push(`Apply ${linesByItem.size} price${linesByItem.size === 1 ? '' : 's'}`);
     if (toAdd.size > 0) parts.push(`Add ${toAdd.size} item${toAdd.size === 1 ? '' : 's'}`);
     return parts.length ? parts.join(' · ') : 'Apply';
   })();
+
+  const pickerLink = pickerReceiptIndex != null ? links[pickerReceiptIndex] ?? null : null;
 
   // The receipt is the document being reconciled, so it is rendered in its own
   // printed order rather than split into matched/unmatched buckets: a line's
   // position on the paper is how the user finds it again while holding the
   // real thing. Everything below is a lookup keyed by that line's index.
-  const lineItems = receiptData.lineItems ?? [];
-  const matchByReceiptIndex = new Map<number, MatchCandidate>();
-  allMatches.forEach(m => matchByReceiptIndex.set(m.receiptIndex, m));
-  const unmatchedIndices = new Set(visibleUnmatchedReceipt.map(e => e.index));
-
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -387,41 +389,53 @@ const ReceiptMatchScreen = () => {
             {shoppingList?.purchaseDate || 'Date not read'}
           </Text>
           <Text style={styles.receiptMeta}>
-            {/* Counted off allMatches, not acceptedCount: ignoring every
+            {/* Counted off every link, not the accepted ones: ignoring every
                 match should not read as the scan having found none. */}
-            {allMatches.length > 0
-              ? `${acceptedCount} of ${lineItems.length} lines matched to your list`
+            {linkCount > 0
+              ? `${acceptedLineCount} of ${lineItems.length} lines matched to your list`
               : `${lineItems.length} line${lineItems.length === 1 ? '' : 's'} · none matched yet`}
           </Text>
 
           <ReceiptRule />
 
-          {lineItems.map((item, index) => (
-            <ReconciledLine
-              key={index}
-              item={item}
-              currency={currency}
-              match={matchByReceiptIndex.get(index) ?? null}
-              rejected={
-                matchByReceiptIndex.has(index) &&
-                rejected.has(matchByReceiptIndex.get(index)!.listItem.id)
-              }
-              isUnmatched={unmatchedIndices.has(index)}
-              inToAdd={toAdd.has(index)}
-              editedName={editingNames[index] ?? item.description}
-              onToggleMatch={() => {
-                const m = matchByReceiptIndex.get(index);
-                if (!m) return;
-                if (m.method === 'manual') removeManual(m.listItem.id);
-                else toggleReject(m.listItem.id);
-              }}
-              onToggleAdd={() => toggleToAdd(index, item.description)}
-              onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
-              onAssign={canPickFor ? () => setPickerReceiptIndex(index) : undefined}
-              styles={styles}
-              theme={theme}
-            />
-          ))}
+          {lineItems.map((item, index) => {
+            const link = links[index] ?? null;
+            const linkedItem = link ? itemsById.get(link.listItemId) ?? null : null;
+            const siblingCount = link && !link.ignored
+              ? linesByItem.get(link.listItemId)?.length ?? 1
+              : 1;
+            // Accepted: the price this item will get from all its lines.
+            // Ignored: what this line alone would have set it to.
+            const nextPrice = linkedItem
+              ? (link!.ignored
+                  ? priceFromLines([item], linkedItem)
+                  : pendingPriceByItem.get(linkedItem.id) ?? null)
+              : null;
+            const previousPrice =
+              linkedItem && linkedItem.price != null && nextPrice !== linkedItem.price
+                ? linkedItem.price
+                : null;
+            return (
+              <ReconciledLine
+                key={index}
+                item={item}
+                currency={currency}
+                link={link}
+                linkedItem={linkedItem}
+                siblingCount={siblingCount}
+                previousPrice={previousPrice}
+                isActionable={actionable.has(index)}
+                inToAdd={toAdd.has(index)}
+                editedName={editingNames[index] ?? item.description}
+                onToggleLink={() => toggleIgnored(index)}
+                onToggleAdd={() => toggleToAdd(index, item.description)}
+                onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
+                onPick={listItems.length > 0 ? () => setPickerReceiptIndex(index) : undefined}
+                styles={styles}
+                theme={theme}
+              />
+            );
+          })}
 
           <ReceiptRule />
 
@@ -434,12 +448,12 @@ const ReceiptMatchScreen = () => {
             </Text>
           </View>
 
-          {visibleUnmatchedReceipt.length > 1 && (
+          {unlinkedLines.length > 1 && (
             <TouchableOpacity style={styles.selectAllRow} onPress={toggleSelectAll} activeOpacity={0.7}>
               <Text style={styles.selectAllText}>
-                {allUnmatchedSelected
+                {allUnlinkedSelected
                   ? 'Clear the new items'
-                  : `Add all ${visibleUnmatchedReceipt.length} unlisted lines`}
+                  : `Add all ${unlinkedLines.length} unlisted lines`}
               </Text>
             </TouchableOpacity>
           )}
@@ -447,14 +461,14 @@ const ReceiptMatchScreen = () => {
 
         {/* A second slip: these are on the list but the till never printed
             them, so they have no line to sit beside on the receipt above. */}
-        {visibleUnmatchedList.length > 0 && (
+        {itemsNotOnReceipt.length > 0 && (
           <ReceiptCard>
             <Text style={styles.slipTitle}>NOT ON THIS RECEIPT</Text>
             <Text style={styles.slipHint}>
               Still on your list. Match one to a line above, or leave it for next time.
             </Text>
             <ReceiptRule />
-            {visibleUnmatchedList.map(item => (
+            {itemsNotOnReceipt.map(item => (
               <Text key={item.id} style={styles.slipItem} numberOfLines={2}>
                 {item.name}
               </Text>
@@ -465,11 +479,18 @@ const ReceiptMatchScreen = () => {
 
       <AssignPickerModal
         visible={pickerReceiptIndex != null}
-        receiptItem={pickerReceiptItem}
+        receiptItem={pickerReceiptIndex != null ? lineItems[pickerReceiptIndex] ?? null : null}
         currency={currency}
-        options={visibleUnmatchedList}
+        options={listItems}
+        currentItemId={pickerLink?.listItemId ?? null}
+        linesByItem={linesByItem}
+        lineItems={lineItems}
+        pickerIndex={pickerReceiptIndex}
         onPick={assignManual}
+        onRemove={pickerLink ? removeLink : undefined}
         onClose={() => setPickerReceiptIndex(null)}
+        styles={styles}
+        theme={theme}
       />
 
       <View style={styles.footer}>
@@ -507,15 +528,17 @@ const ReceiptMatchScreen = () => {
 interface ReconciledLineProps {
   item: ReceiptLineItem;
   currency: string;
-  match: MatchCandidate | null;
-  rejected: boolean;
-  isUnmatched: boolean;
+  link: Link | null;
+  linkedItem: Item | null;
+  siblingCount: number;
+  previousPrice: number | null;
+  isActionable: boolean;
   inToAdd: boolean;
   editedName: string;
-  onToggleMatch: () => void;
+  onToggleLink: () => void;
   onToggleAdd: () => void;
   onNameChange: (name: string) => void;
-  onAssign?: () => void;
+  onPick?: () => void;
   // Handed down rather than rebuilt per row, the way EmptyState already takes
   // them: this component renders once per printed line, and the corpus has a
   // 36-line receipt. Calling useTheme + StyleSheet.create in here would mean
@@ -529,53 +552,57 @@ interface ReconciledLineProps {
  * the way you would annotate a paper till roll.
  *
  * Only one control is visible per line — the trailing toggle — because a
- * receipt with four icons on every row stops reading as a receipt. The
- * second, rarer action (pairing a line with an item already on the list)
- * lives on the annotation text itself, which is a tap target on unmatched
- * lines and inert everywhere else.
+ * receipt with four icons on every row stops reading as a receipt. Choosing
+ * or changing which list item the line pays for lives on the annotation text
+ * itself, which opens the picker on every line that can be matched.
  */
 const ReconciledLine: React.FC<ReconciledLineProps> = ({
-  item, currency, match, rejected, isUnmatched, inToAdd,
-  editedName, onToggleMatch, onToggleAdd, onNameChange, onAssign,
+  item, currency, link, linkedItem, siblingCount, previousPrice, isActionable, inToAdd,
+  editedName, onToggleLink, onToggleAdd, onNameChange, onPick,
   styles, theme,
 }) => {
   const price = item.price ?? item.unitPrice;
-  // The price the item already carries, shown only when applying this line
-  // would change it — otherwise the overwrite happens out of sight.
-  const previousPrice =
-    match && match.listItem.price != null && receiptPriceFor(match) !== match.listItem.price
-      ? match.listItem.price
-      : null;
+  const ignored = link?.ignored ?? false;
+  const linked = link != null && linkedItem != null;
 
   // matchReceiptToList only considers lines that have both a price and a
-  // description, so a line missing either is in neither bucket. It still
-  // belongs on the paper — it was printed — but nothing here can act on it,
-  // and handleApply would silently drop it. Show it without a control rather
-  // than offering a toggle that does nothing.
-  const actionable = match != null || isUnmatched;
-
-  const toggle = match ? onToggleMatch : onToggleAdd;
-  const active = match ? !rejected : inToAdd;
-  const toggleLabel = match
-    ? (rejected ? 'Use this match after all' : 'Ignore this match')
+  // description. A line missing either still belongs on the paper — it was
+  // printed — but nothing here can act on it, so it shows without a control.
+  const toggle = linked ? onToggleLink : onToggleAdd;
+  const active = linked ? !ignored : inToAdd;
+  const toggleLabel = linked
+    ? (ignored ? 'Use this match after all' : 'Ignore this match')
     : (inToAdd ? 'Do not add this line' : 'Add this line to the list');
+
+  const linkedNote = linked
+    ? [
+        linkedItem!.name,
+        link!.method !== 'manual' && !ignored ? `${Math.round(link!.score * 100)}%` : '',
+        siblingCount > 1 ? `${siblingCount} lines` : '',
+        previousPrice != null ? `was ${currency}${previousPrice.toFixed(2)}` : '',
+      ].filter(Boolean).join('  ')
+    : '';
 
   return (
     <View style={styles.line}>
       <View style={styles.lineTop}>
         <Text
-          style={[styles.lineDesc, rejected && styles.struck]}
+          style={[styles.lineDesc, ignored && styles.struck]}
           numberOfLines={3}
         >
           {item.description || '(unreadable line)'}
         </Text>
-        <Text style={[styles.linePrice, rejected && styles.struck]}>
+        <Text style={[styles.linePrice, ignored && styles.struck]}>
           {price != null ? `${currency}${price.toFixed(2)}` : '—'}
         </Text>
       </View>
 
       <View style={styles.lineNote}>
-        {inToAdd ? (
+        {!isActionable ? (
+          <Text style={styles.noteIdle} numberOfLines={1}>
+            {price == null ? 'No price read on this line' : 'No name read on this line'}
+          </Text>
+        ) : inToAdd && !linked ? (
           <TextInput
             style={styles.nameInput}
             value={editedName}
@@ -584,26 +611,21 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
             placeholderTextColor={theme.text.tertiary}
             autoCorrect={false}
           />
-        ) : match ? (
+        ) : linked ? (
           <Text
-            style={[styles.noteMatched, rejected && styles.noteIgnored, rejected && styles.struck]}
+            style={[styles.noteMatched, ignored && styles.noteIgnored, ignored && styles.struck]}
             numberOfLines={2}
+            onPress={onPick}
+            accessibilityRole={onPick ? 'button' : undefined}
+            accessibilityLabel={onPick ? `Change the list item matched to "${item.description}"` : undefined}
           >
-            {match.listItem.name}
-            {match.method !== 'manual' && !rejected
-              ? `  ${Math.round(match.score * 100)}%`
-              : ''}
-            {previousPrice != null ? `  was ${currency}${previousPrice.toFixed(2)}` : ''}
+            {linkedNote}
           </Text>
-        ) : !actionable ? (
-          <Text style={styles.noteIdle} numberOfLines={1}>
-            {price == null ? 'No price read on this line' : 'No name read on this line'}
-          </Text>
-        ) : onAssign ? (
+        ) : onPick ? (
           <Text
             style={styles.noteAction}
             numberOfLines={1}
-            onPress={onAssign}
+            onPress={onPick}
             accessibilityRole="button"
             accessibilityLabel={`Match "${item.description}" to an item on your list`}
           >
@@ -615,7 +637,7 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
           </Text>
         )}
 
-        {actionable && (
+        {isActionable && (
           <TouchableOpacity
             onPress={toggle}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -639,20 +661,40 @@ interface AssignPickerModalProps {
   receiptItem: ReceiptLineItem | null;
   currency: string;
   options: Item[];
+  currentItemId: string | null;
+  linesByItem: Map<string, number[]>;
+  lineItems: ReceiptLineItem[];
+  pickerIndex: number | null;
   onPick: (item: Item) => void;
+  onRemove?: () => void;
   onClose: () => void;
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
 }
 
-const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptItem, currency, options, onPick, onClose }) => {
-  const { theme } = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+/**
+ * Every list item is offered, not only the unmatched ones: a wrong match is
+ * corrected by picking the right item here, and an item already matched
+ * elsewhere can take this line too (the same product rung up twice). Items
+ * with no line yet are listed first because they are the likely answer.
+ */
+const AssignPickerModal: React.FC<AssignPickerModalProps> = ({
+  visible, receiptItem, currency, options, currentItemId, linesByItem, lineItems, pickerIndex,
+  onPick, onRemove, onClose, styles, theme,
+}) => {
+  const sorted = useMemo(() => {
+    const free = options.filter(i => !linesByItem.has(i.id));
+    const taken = options.filter(i => linesByItem.has(i.id));
+    return [...free, ...taken];
+  }, [options, linesByItem]);
+
   return (
   <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
     <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
       <TouchableOpacity style={styles.modalCard} activeOpacity={1}>
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle} numberOfLines={2}>
-            Assign to list item
+            {currentItemId ? 'Change match' : 'Match to a list item'}
           </Text>
           {receiptItem && (
             <Text style={styles.modalSubtitle} numberOfLines={2}>
@@ -662,22 +704,44 @@ const AssignPickerModal: React.FC<AssignPickerModalProps> = ({ visible, receiptI
           )}
         </View>
         <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
-          {options.length === 0 ? (
-            <Text style={styles.modalEmpty}>No unmatched list items to pick from.</Text>
+          {sorted.length === 0 ? (
+            <Text style={styles.modalEmpty}>This list has no items to pick from.</Text>
           ) : (
-            options.map(item => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.modalOption}
-                onPress={() => onPick(item)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modalOptionText} numberOfLines={2}>{item.name}</Text>
-                <Icon name="chevron-forward" size={18} color={theme.text.tertiary} />
-              </TouchableOpacity>
-            ))
+            sorted.map(item => {
+              const isCurrent = item.id === currentItemId;
+              const otherLines = (linesByItem.get(item.id) ?? []).filter(i => i !== pickerIndex);
+              const note = otherLines.length > 0
+                ? `Also on: ${otherLines.map(i => lineItems[i]?.description || '(unreadable line)').join(', ')}`
+                : null;
+              return (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.modalOption}
+                  onPress={() => (isCurrent ? onClose() : onPick(item))}
+                  activeOpacity={0.7}
+                  accessibilityState={{ selected: isCurrent }}
+                >
+                  <View style={styles.modalOptionBody}>
+                    <Text style={styles.modalOptionText} numberOfLines={2}>{item.name}</Text>
+                    {note && (
+                      <Text style={styles.modalOptionNote} numberOfLines={1}>{note}</Text>
+                    )}
+                  </View>
+                  <Icon
+                    name={isCurrent ? 'checkmark' : 'chevron-forward'}
+                    size={18}
+                    color={isCurrent ? theme.accent.green : theme.text.tertiary}
+                  />
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
+        {onRemove && (
+          <TouchableOpacity style={styles.modalRemove} onPress={onRemove} activeOpacity={0.7}>
+            <Text style={styles.modalRemoveText}>Remove match</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.modalCancel} onPress={onClose} activeOpacity={0.7}>
           <Text style={styles.modalCancelText}>Cancel</Text>
         </TouchableOpacity>
@@ -920,11 +984,29 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderBottomColor: theme.border.subtle,
     gap: SPACING.md,
   },
-  modalOptionText: {
+  modalOptionBody: {
     flex: 1,
+  },
+  modalOptionText: {
     fontSize: TYPOGRAPHY.fontSize.md,
     color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  modalOptionNote: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: theme.text.tertiary,
+    marginTop: 2,
+  },
+  modalRemove: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: theme.border.subtle,
+  },
+  modalRemoveText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: theme.accent.red,
   },
   modalCancel: {
     paddingVertical: SPACING.md,
