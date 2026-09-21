@@ -1,5 +1,5 @@
 import type { Item, ReceiptLineItem } from '../../models/types';
-import { dice, matchReceiptToList, stem } from '../receiptMatcher';
+import { dice, matchReceiptToList, stem, unitPriceFromLines } from '../receiptMatcher';
 
 function makeItem(overrides: Partial<Item> & { id: string; name: string }): Item {
   return {
@@ -209,5 +209,59 @@ describe('matchReceiptToList', () => {
     const result = matchReceiptToList(receipt, list);
     expect(result.matches).toHaveLength(1);
     expect(result.matches[0].receiptIndex).toBe(1);
+  });
+});
+
+describe('unitPriceFromLines', () => {
+  test('no lines → null', () => {
+    expect(unitPriceFromLines([], 1)).toBeNull();
+  });
+
+  test('one line, one unit → the line price', () => {
+    expect(unitPriceFromLines([makeReceiptItem({ description: 'milk', price: 1.25 })], 1)).toBe(1.25);
+  });
+
+  test('one line, one unit, no line price → unit price', () => {
+    expect(unitPriceFromLines([makeReceiptItem({ description: 'milk', price: null, unitPrice: 0.9 })], 1)).toBe(0.9);
+  });
+
+  test('one line, several units → the printed unit price wins', () => {
+    const line = makeReceiptItem({ description: 'yoghurt', price: 3, unitPrice: 0.75, quantity: 4 });
+    expect(unitPriceFromLines([line], 4)).toBe(0.75);
+  });
+
+  test('one line, several units, no unit price → line price over the line quantity', () => {
+    const line = makeReceiptItem({ description: 'yoghurt', price: 3, quantity: 4 });
+    expect(unitPriceFromLines([line], 2)).toBe(0.75);
+  });
+
+  test('one line, several units, no quantity read → line price over the item units', () => {
+    const line = makeReceiptItem({ description: 'yoghurt', price: 3 });
+    expect(unitPriceFromLines([line], 3)).toBe(1);
+  });
+
+  test('several lines are summed and spread over the item units', () => {
+    const lines = [
+      makeReceiptItem({ description: 'milk', price: 1.1 }),
+      makeReceiptItem({ description: 'milk', price: 1.1 }),
+    ];
+    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(2.2);
+    expect(unitPriceFromLines(lines, 2)).toBeCloseTo(1.1);
+  });
+
+  test('several lines, one with only a unit price and quantity', () => {
+    const lines = [
+      makeReceiptItem({ description: 'milk', price: 1 }),
+      makeReceiptItem({ description: 'milk', price: null, unitPrice: 0.5, quantity: 2 }),
+    ];
+    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(2);
+  });
+
+  test('several lines, one without any price → null', () => {
+    const lines = [
+      makeReceiptItem({ description: 'milk', price: 1 }),
+      makeReceiptItem({ description: 'milk', price: null }),
+    ];
+    expect(unitPriceFromLines(lines, 1)).toBeNull();
   });
 });

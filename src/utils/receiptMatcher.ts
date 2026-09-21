@@ -152,6 +152,41 @@ function scorePair(listTokens: string[], receiptTokens: string[]): PairScore {
   return { score: bestDice(listTokens, receiptTokens), method: 'dice', matched: 0 };
 }
 
+function lineTotal(line: ReceiptLineItem): number | null {
+  if (line.price != null) return line.price;
+  if (line.unitPrice != null) return line.unitPrice * (line.quantity != null && line.quantity > 0 ? line.quantity : 1);
+  return null;
+}
+
+/**
+ * The per-unit price to store on a list item from the receipt lines linked to
+ * it. Item.price is per-unit app-wide (totals multiply by unitQty), while a
+ * receipt line's price is the line total.
+ *
+ * One line keeps the line's own unit price when the item counts more than one
+ * unit. Several lines (the same product rung up twice) are summed and spread
+ * over the item's units, so price x unitQty is what was actually paid.
+ */
+export function unitPriceFromLines(lines: ReceiptLineItem[], unitQty: number): number | null {
+  if (lines.length === 0) return null;
+  const qty = unitQty > 0 ? unitQty : 1;
+
+  if (lines.length === 1) {
+    const line = lines[0];
+    if (qty === 1) return line.price ?? line.unitPrice;
+    const lineQty = line.quantity != null && line.quantity > 0 ? line.quantity : qty;
+    return line.unitPrice ?? (line.price != null ? line.price / lineQty : null);
+  }
+
+  let total = 0;
+  for (const line of lines) {
+    const t = lineTotal(line);
+    if (t == null) return null;
+    total += t;
+  }
+  return total / qty;
+}
+
 export function matchReceiptToList(
   receiptItems: ReceiptLineItem[],
   listItems: Item[],

@@ -29,12 +29,15 @@ import ItemManager from '../../services/ItemManager';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
 import { useUser } from '../../contexts/UserContext';
-import { matchReceiptToList, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
+import { matchReceiptToList, unitPriceFromLines, MatchCandidate, MatchResult } from '../../utils/receiptMatcher';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const receiptPriceFor = (m: MatchCandidate): number | null =>
+  sanitizePrice(unitPriceFromLines([m.receiptItem], m.listItem.unitQty ?? 1));
 
 const ReceiptMatchScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptMatch'>>();
@@ -78,15 +81,21 @@ const ReceiptMatchScreen = () => {
         setCurrency(list.currency || '£');
 
         if (list.receiptData?.lineItems?.length) {
-          const eligible = items.filter(i => i.price == null);
-          const result: MatchResult = eligible.length > 0
-            ? matchReceiptToList(list.receiptData.lineItems, eligible)
-            : {
-                matches: [],
-                unmatchedReceipt: list.receiptData.lineItems.map((item, index) => ({ item, index })),
-                unmatchedList: [],
-              };
+          // Every item is a candidate, priced or not: an item priced while
+          // shopping is still what that receipt line paid for, and leaving it
+          // out made the line look unlisted and offered to add it twice.
+          const result = matchReceiptToList(list.receiptData.lineItems, items);
           setMatchResult(result);
+
+          // A fuzzy match that would overwrite a price the user already
+          // entered starts ignored, so the overwrite is a choice they make
+          // with the old price in view rather than something done for them.
+          const disputed = new Set<string>();
+          result.matches.forEach(m => {
+            if (m.listItem.price == null || m.score >= 1) return;
+            if (receiptPriceFor(m) !== m.listItem.price) disputed.add(m.listItem.id);
+          });
+          setRejected(disputed);
 
           if (autoAddAll) {
             const allIndices = new Set(result.unmatchedReceipt.map(e => e.index));
@@ -222,19 +231,12 @@ const ReceiptMatchScreen = () => {
 
     const updates = acceptedMatches
       .map(m => {
-        const line = m.receiptItem;
-        const unitQty = m.listItem.unitQty ?? 1;
-        // Item.price is per-unit app-wide (totals multiply by unitQty), but a
-        // receipt line's price is the line total — derive per-unit when qty > 1
-        let raw = line.price ?? line.unitPrice;
-        if (unitQty > 1) {
-          const lineQty = line.quantity != null && line.quantity > 0 ? line.quantity : unitQty;
-          raw = line.unitPrice ?? (line.price != null ? line.price / lineQty : null);
-        }
-        const price = sanitizePrice(raw);
+        const price = receiptPriceFor(m);
         if (price == null) return null;
-        const patch: Partial<Item> = { price };
+        const patch: Partial<Item> = {};
+        if (price !== m.listItem.price) patch.price = price;
         if (!m.listItem.checked) patch.checked = true;
+        if (Object.keys(patch).length === 0) return null;
         return { id: m.listItem.id, updates: patch };
       })
       .filter((u): u is { id: string; updates: Partial<Item> } => u !== null);
@@ -538,6 +540,12 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
   styles, theme,
 }) => {
   const price = item.price ?? item.unitPrice;
+  // The price the item already carries, shown only when applying this line
+  // would change it — otherwise the overwrite happens out of sight.
+  const previousPrice =
+    match && match.listItem.price != null && receiptPriceFor(match) !== match.listItem.price
+      ? match.listItem.price
+      : null;
 
   // matchReceiptToList only considers lines that have both a price and a
   // description, so a line missing either is in neither bucket. It still
@@ -585,6 +593,7 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
             {match.method !== 'manual' && !rejected
               ? `  ${Math.round(match.score * 100)}%`
               : ''}
+            {previousPrice != null ? `  was ${currency}${previousPrice.toFixed(2)}` : ''}
           </Text>
         ) : !actionable ? (
           <Text style={styles.noteIdle} numberOfLines={1}>

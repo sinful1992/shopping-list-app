@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.42.3] - 2026-09-22
+
+### Fixed
+- **An item that already had a price could not be matched to its receipt line.** The match screen only offered items with no price to the matcher, so anything priced while shopping — or carried over from an earlier list with its price — vanished from the screen entirely: never auto-matched, absent from the "Match to a list item" picker and from the "Not on this receipt" slip. When every item was priced the screen offered to add the whole shop to the list a second time. Every item is a candidate now. Where a match would change a price already on the item, the annotation shows `was £X`, and a fuzzy (under 100%) match of that kind starts ignored so the overwrite is the user's choice. Applying no longer writes an item whose price and checked state would not change.
+
 ## [1.42.2] - 2026-09-05
 
 ### Fixed
