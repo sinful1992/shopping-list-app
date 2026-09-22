@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.7] - 2026-09-22
+
+### Fixed
+- **Applying a receipt again counted each item's category again.** `ItemManager.recordPurchase` recorded category usage on every call, so each Apply or "Match again" on an item that was already checked added another use of its category, skewing the category the family is offered for that name. It now takes a `countCategory` flag, and the match screen passes false for items that were checked before Apply, so they only have their price record corrected.
+
 ## [1.47.6] - 2026-09-22
 
 ### Fixed

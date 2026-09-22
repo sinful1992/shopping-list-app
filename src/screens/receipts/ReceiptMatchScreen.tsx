@@ -372,7 +372,11 @@ const ReceiptMatchScreen = () => {
       }
       // The receipt is the most exact price source the app gets; without this
       // it never reached price history, only a check-off in the shop did.
-      written.filter(i => i.checked).forEach(i => ItemManager.recordPurchase(i));
+      // An item that was already checked had its category counted when it
+      // was, so a repeat Apply only corrects its price record.
+      written
+        .filter(i => i.checked)
+        .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
       if (shoppingList?.familyGroupId) {
         rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
           .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));

@@ -124,12 +124,16 @@ class ItemManager {
    * The price record is keyed by list and item, so one purchase is one data
    * point: re-checking an item, or a receipt correcting the price typed in
    * the shop, rewrites that record instead of counting the purchase twice.
+   *
+   * @param countCategory False when this purchase's category was already
+   *   counted (the item was checked before), so a price correction does not
+   *   count it again.
    */
-  recordPurchase(item: Item): void {
-    if (!item.category && item.price === null) return;
+  recordPurchase(item: Item, countCategory = true): void {
+    if (!(countCategory && item.category) && item.price === null) return;
     LocalStorageManager.getList(item.listId).then(list => {
       if (!list?.familyGroupId) return;
-      if (item.category) {
+      if (countCategory && item.category) {
         CategoryHistoryService.recordCategoryUsage(list.familyGroupId, item.name, item.category);
       }
       if (item.price !== null) {
