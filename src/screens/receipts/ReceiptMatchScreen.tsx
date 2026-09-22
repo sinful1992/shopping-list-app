@@ -143,7 +143,14 @@ const ReceiptMatchScreen = () => {
     return () => { mounted = false; };
   }, [listId, showAlert, autoAddAll]);
 
-  const lineItems = useMemo(() => receiptData?.lineItems ?? [], [receiptData]);
+  // Corrections typed on this screen for lines the scan read without a price
+  // or a name. Saved back into the receipt on Apply.
+  const [lineEdits, setLineEdits] = useState<Record<number, Partial<ReceiptLineItem>>>({});
+  const lineItems = useMemo(
+    () => (receiptData?.lineItems ?? []).map((line, i) =>
+      lineEdits[i] ? { ...line, ...lineEdits[i], needsReview: false } : line),
+    [receiptData, lineEdits],
+  );
   // Savings printed under a line are taken off it: an item is priced at what
   // was paid for it, which is also what adds up to the receipt total.
   const savingsByLine = useMemo(
@@ -202,6 +209,22 @@ const ReceiptMatchScreen = () => {
         return next;
       });
     }
+  };
+
+  /**
+   * Fill in what the scan missed on a line. Once the line has both a price
+   * and a name it can be matched or added like any other; it is offered to
+   * the matcher straight away against the items no line has claimed yet.
+   */
+  const correctLine = (index: number, patch: Partial<ReceiptLineItem>) => {
+    const fixed = { ...lineItems[index], ...patch, needsReview: false };
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setLineEdits(prev => ({ ...prev, [index]: { ...prev[index], ...patch } }));
+    if (fixed.price == null || !fixed.description.trim()) return;
+    setActionable(prev => new Set(prev).add(index));
+    const free = listItems.filter(i => !linesByItem.has(i.id));
+    const [m] = matchReceiptToList([fixed], free, aliases).matches;
+    if (m) setLink(index, { listItemId: m.listItem.id, method: m.method, score: m.score, ignored: false });
   };
 
   const toggleIgnored = (index: number) => {
@@ -286,11 +309,17 @@ const ReceiptMatchScreen = () => {
       })
       .filter((x): x is { index: number; name: string; price: number | undefined; checked: true } => x !== null);
 
-    if (updates.length === 0 && newItems.length === 0) return;
+    const hasCorrections = Object.keys(lineEdits).length > 0;
+    if (updates.length === 0 && newItems.length === 0 && !hasCorrections) return;
 
     applyingRef.current = true;
     setApplying(true);
     try {
+      // The fixed lines go back into the receipt, so Receipt Details, a
+      // later "Match again" and the rest of the family see them too.
+      if (hasCorrections && receiptData) {
+        await ShoppingListManager.updateList(listId, { receiptData: { ...receiptData, lineItems } });
+      }
       const written: Item[] = [];
       if (newItems.length > 0) {
         if (!userId) throw new Error('User not authenticated');
@@ -339,6 +368,7 @@ const ReceiptMatchScreen = () => {
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`);
       if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
+      if (hasCorrections && parts.length === 0) parts.push('Receipt corrected');
       if (autoAddAll) parts.push('Shopping completed');
       showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
       navigation.goBack();
@@ -435,12 +465,14 @@ const ReceiptMatchScreen = () => {
 
   const linkCount = Object.keys(links).length;
   const acceptedLineCount = Object.values(links).filter(l => !l.ignored).length;
-  const canApply = linesByItem.size > 0 || toAdd.size > 0;
+  const correctionCount = Object.keys(lineEdits).length;
+  const canApply = linesByItem.size > 0 || toAdd.size > 0 || correctionCount > 0;
 
   const applyLabel = (() => {
     const parts: string[] = [];
     if (linesByItem.size > 0) parts.push(`Apply ${linesByItem.size} price${linesByItem.size === 1 ? '' : 's'}`);
     if (toAdd.size > 0) parts.push(`Add ${toAdd.size} item${toAdd.size === 1 ? '' : 's'}`);
+    if (parts.length === 0 && correctionCount > 0) parts.push('Save corrections');
     return parts.length ? parts.join(' · ') : 'Apply';
   })();
 
@@ -511,6 +543,7 @@ const ReceiptMatchScreen = () => {
                 onToggleAdd={() => toggleToAdd(index, suggestedName(item))}
                 onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
                 onPick={listItems.length > 0 ? () => setPickerReceiptIndex(index) : undefined}
+                onCorrect={patch => correctLine(index, patch)}
                 styles={styles}
                 theme={theme}
               />
@@ -640,6 +673,7 @@ interface ReconciledLineProps {
   onToggleAdd: () => void;
   onNameChange: (name: string) => void;
   onPick?: () => void;
+  onCorrect: (patch: Partial<ReceiptLineItem>) => void;
   // Handed down rather than rebuilt per row, the way EmptyState already takes
   // them: this component renders once per printed line, and the corpus has a
   // 36-line receipt. Calling useTheme + StyleSheet.create in here would mean
@@ -659,16 +693,30 @@ interface ReconciledLineProps {
  */
 const ReconciledLine: React.FC<ReconciledLineProps> = ({
   item, currency, link, linkedItem, siblingCount, previousPrice, saving, isActionable, inToAdd,
-  editedName, onToggleLink, onToggleAdd, onNameChange, onPick,
+  editedName, onToggleLink, onToggleAdd, onNameChange, onPick, onCorrect,
   styles, theme,
 }) => {
+  const [draft, setDraft] = useState<string | null>(null);
+  const missing: 'price' | 'name' = (item.price ?? item.unitPrice) == null ? 'price' : 'name';
+  const submitDraft = () => {
+    const text = (draft ?? '').trim();
+    setDraft(null);
+    if (!text) return;
+    if (missing === 'price') {
+      const value = sanitizePrice(text.replace(/[^0-9.,]/g, '').replace(',', '.'));
+      if (value != null) onCorrect({ price: value });
+    } else {
+      onCorrect({ description: text });
+    }
+  };
+
   const price = item.price ?? item.unitPrice;
   const ignored = link?.ignored ?? false;
   const linked = link != null && linkedItem != null;
 
   // matchReceiptToList only considers lines that have both a price and a
   // description. A line missing either still belongs on the paper — it was
-  // printed — but nothing here can act on it, so it shows without a control.
+  // printed — so it shows without a toggle until the missing half is typed.
   const toggle = linked ? onToggleLink : onToggleAdd;
   const active = linked ? !ignored : inToAdd;
   const toggleLabel = linked
@@ -710,9 +758,29 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
       )}
 
       <View style={styles.lineNote}>
-        {!isActionable ? (
-          <Text style={styles.noteIdle} numberOfLines={1}>
-            {price == null ? 'No price read on this line' : 'No name read on this line'}
+        {!isActionable && draft != null ? (
+          <TextInput
+            style={styles.nameInput}
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={submitDraft}
+            onBlur={submitDraft}
+            autoFocus
+            placeholder={missing === 'price' ? 'Price, e.g. 1.25' : 'What was this?'}
+            placeholderTextColor={theme.text.tertiary}
+            keyboardType={missing === 'price' ? 'decimal-pad' : 'default'}
+            returnKeyType="done"
+            autoCorrect={false}
+            accessibilityLabel={missing === 'price' ? 'Enter the price for this line' : 'Enter a name for this line'}
+          />
+        ) : !isActionable ? (
+          <Text
+            style={styles.noteAction}
+            numberOfLines={1}
+            onPress={() => setDraft('')}
+            accessibilityRole="button"
+          >
+            {missing === 'price' ? 'No price read — tap to enter it' : 'No name read — tap to enter it'}
           </Text>
         ) : inToAdd && !linked ? (
           <TextInput

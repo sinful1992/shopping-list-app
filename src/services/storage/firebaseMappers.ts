@@ -167,3 +167,28 @@ export function mapFirebaseStoreLayout(
     syncStatus: 'synced',
   };
 }
+
+/**
+ * A JSON value in the shape RTDB hands back: RTDB drops null fields and empty
+ * arrays and returns keys in its own order, so a receipt written locally and
+ * the same receipt read back from Firebase differ as raw JSON. Comparing this
+ * form tells a real edit from a round trip.
+ */
+function canonicalJson(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.length === 0 ? undefined : value.map(canonicalJson);
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    Object.keys(value as Record<string, unknown>).sort().forEach(k => {
+      const v = canonicalJson((value as Record<string, unknown>)[k]);
+      if (v !== undefined) out[k] = v;
+    });
+    return Object.keys(out).length === 0 ? undefined : out;
+  }
+  return value === null ? undefined : value;
+}
+
+export function sameReceiptData(a: ReceiptData | null | undefined, b: ReceiptData | null | undefined): boolean {
+  return JSON.stringify(canonicalJson(a)) === JSON.stringify(canonicalJson(b));
+}

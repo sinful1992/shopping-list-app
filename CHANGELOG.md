@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.46.0] - 2026-09-22
+
+### Added
+- **A line the scan half-read can be fixed on the match screen.** A line with no price or no name used to say "No price read on this line" and offer nothing, so the item on it could not be priced, matched or added. The note is now a tap target that opens an inline field for the missing half (a decimal keypad for a price). Once the line has both, it becomes a normal line: it is offered to the matcher straight away against items no other line has claimed, and otherwise it can be matched by hand or added. The corrections are saved back into the receipt on Apply, so Receipt Details and the rest of the family see the fixed lines. If the only change is a correction, the button reads **Save corrections**.
+
+### Fixed
+- **An edit to a receipt's lines never reached the rest of the family.** `FirebaseSyncListener.hasListChanged` compared every list field except `receiptData`, so a change that touched only the lines was dropped on arrival. This already affected line edits made in Receipt Details. It now compares receipts through `sameReceiptData`, which ignores the differences a Firebase round trip introduces (dropped nulls and empty arrays, key order), so a real edit is applied and a round trip is not mistaken for one.
+
 ## [1.45.0] - 2026-09-22
 
 ### Added

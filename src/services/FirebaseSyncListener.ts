@@ -2,6 +2,7 @@ import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAd
 import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import {
   mapFirebaseList,
+  sameReceiptData,
   mapFirebaseItem,
   mapFirebaseUrgentItem,
   mapFirebaseStoreLayout,
@@ -249,7 +250,9 @@ class FirebaseSyncListener {
       local.totalAmount !== incoming.totalAmount ||
       local.merchantName !== incoming.merchantName ||
       local.purchaseDate !== incoming.purchaseDate ||
-      local.currency !== incoming.currency
+      local.currency !== incoming.currency ||
+      // A receipt corrected on another device changes only its lines.
+      !sameReceiptData(local.receiptData, incoming.receiptData)
     );
   }
 
