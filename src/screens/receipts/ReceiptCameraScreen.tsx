@@ -160,6 +160,7 @@ const ReceiptCameraScreen = () => {
 
       // Quick-scan arrives without a listId; the list is only created here,
       // once the user confirms the scan, so a cancelled scan leaves no list.
+      const existing = listId ? await ShoppingListManager.getListById(listId) : null;
       const targetListId = listId ?? (await ShoppingListManager.createListOptimistic(
         formatDateLong(new Date()),
         user.uid,
@@ -169,11 +170,7 @@ const ReceiptCameraScreen = () => {
 
       await ShoppingListManager.updateList(targetListId, {
         receiptUrl: capturedImage,
-        receiptData: ocrResult.receiptData,
-        totalAmount: ocrResult.totalAmount,
-        merchantName: ocrResult.merchantName,
-        purchaseDate: ocrResult.purchaseDate,
-        currency: ocrResult.currency,
+        ...await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
       });
 
       navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });

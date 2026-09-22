@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.43.2] - 2026-09-22
+
+### Fixed
+- **A scanned list never knew which store it came from.** The receipt flow saved the till's merchant text to `merchantName` but never set `storeName`, which is the field price history, store layouts, the History store filter and the per-store comparison all read. Quick-scan lists in particular always had none, so every price recorded from them was store-less. A scan now sets the store when the list has none — the user's own spelling for that retailer if they have entered it before ("Tesco Extra"), otherwise its canonical name ("Sainsbury's", "Co-op"). The raw till header ("TESCO STORES 3452") is never used: an unrecognised merchant is only taken when it matches a store the user already entered. A store chosen by hand is never overwritten. This applies both to the first scan and to an OCR retry from Receipt Details.
+
+### Changed
+- Retailer detection moved from `ReceiptOCRService` into `src/utils/storeNames.ts`, with tests, next to the new resolver. `ReceiptOCRService.listPatchFor` is now the one place that decides which list fields a scan writes.
+
 ## [1.43.1] - 2026-09-22
 
 ### Fixed
