@@ -8,6 +8,11 @@
  *     pass through unchanged so Image.onError fires instead of silently
  *     loading the wrong file
  */
+/** A receipt uploaded to Cloud Storage ("receipts/{group}/{list}/…"), not a file on this phone. */
+export function isReceiptStoragePath(path: string | null | undefined): path is string {
+  return typeof path === 'string' && path.startsWith('receipts/');
+}
+
 export function toFileUri(path: string): string {
   if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return path;
   if (path.startsWith('/')) return `file://${path}`;

@@ -15,7 +15,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC, RECEIPT_FONT } from '../../styles/theme';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
-import { toFileUri } from '../../utils/uri';
+import { isReceiptStoragePath, toFileUri } from '../../utils/uri';
 import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -93,7 +93,7 @@ const ReceiptViewScreen = () => {
 
       if (fetchedList.receiptUrl && fetchedList.receiptUrl === missingImageRef.current) {
         setReceiptUrl(null);
-      } else if (fetchedList.receiptUrl?.startsWith('receipts/')) {
+      } else if (isReceiptStoragePath(fetchedList.receiptUrl)) {
         // Uploaded: a Cloud Storage path, loaded over the network.
         setReceiptUrl(await ImageStorageManager.getReceiptDownloadUrl(fetchedList.receiptUrl).catch(() => null));
       } else if (fetchedList.receiptUrl) {

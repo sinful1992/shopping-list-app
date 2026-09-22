@@ -6,6 +6,8 @@ import SyncEngine from './SyncEngine';
 import UsageTracker from './UsageTracker';
 import { sanitizeListName, sanitizeStoreName } from '../utils/sanitize';
 import CrashReporting from './CrashReporting';
+import { getStorage, ref as storageRef, deleteObject } from '@react-native-firebase/storage';
+import { isReceiptStoragePath } from '../utils/uri';
 
 /**
  * ShoppingListManager
@@ -225,9 +227,19 @@ class ShoppingListManager {
    * "active" ghost. Keeping the tombstone lets every device reconcile on next load.
    */
   async deleteList(listId: string): Promise<void> {
-    await this.updateList(listId, {
+    const list = await this.updateList(listId, {
       status: 'deleted',
     });
+    // A deleted list is never restored, so its uploaded receipt image would
+    // only sit in the bucket. Straight to Storage rather than through
+    // ImageStorageManager, which imports this module.
+    if (isReceiptStoragePath(list?.receiptUrl)) {
+      deleteObject(storageRef(getStorage(), list.receiptUrl)).catch((err: any) => {
+        if (err?.code !== 'storage/object-not-found') {
+          CrashReporting.recordError(err as Error, 'ShoppingListManager.deleteList receipt image');
+        }
+      });
+    }
   }
 
   /**

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.10] - 2026-09-22
+
+### Fixed
+- **Uploaded receipt images outlived the lists that used them.** Since 1.47.1 receipts upload to Cloud Storage, but nothing ever removed one. Rescanning a list pointed it at the new capture and left the previous upload in the bucket, and deleting a list (which is permanent; archiving is separate) left its image there too. A rescan now deletes the image it replaces, and `ShoppingListManager.deleteList` deletes the list's image. A local path is never sent to Storage, and a missing object is not reported as an error.
+
+### Changed
+- The "is this a Cloud Storage path" check (`receipts/â€¦`) is one helper, `isReceiptStoragePath`, used by Receipt Details, OCR retry, account deletion, list deletion and rescans instead of four copies of `startsWith('receipts/')`.
+
 ## [1.47.9] - 2026-09-22
 
 ### Fixed

@@ -8,7 +8,7 @@ import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
 import ImageStorageManager from './ImageStorageManager';
 import { sanitizeText } from '../utils/sanitize';
-import { toFileUri } from '../utils/uri';
+import { isReceiptStoragePath, toFileUri } from '../utils/uri';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
@@ -345,7 +345,7 @@ class ReceiptOCRService {
     // ("receipts/{group}/{list}/...") instead of the local capture file —
     // fetch it back to cache before re-running OCR.
     let filePath = list.receiptUrl;
-    if (filePath.startsWith('receipts/')) {
+    if (isReceiptStoragePath(filePath)) {
       try {
         filePath = await ImageStorageManager.downloadReceiptToCache(filePath, listId);
       } catch (error: any) {

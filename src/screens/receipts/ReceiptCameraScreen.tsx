@@ -23,6 +23,7 @@ import { OCRResult } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateLong } from '../../utils/date';
+import { isReceiptStoragePath } from '../../utils/uri';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
@@ -181,6 +182,12 @@ const ReceiptCameraScreen = () => {
       ImageStorageManager.queueReceiptForUpload(capturedImage, targetListId)
         .then(() => ImageStorageManager.processUploadQueue())
         .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen receipt upload'));
+      // A rescan replaces the list's image; the one uploaded before is no
+      // longer referenced by anything.
+      if (isReceiptStoragePath(existing?.receiptUrl)) {
+        ImageStorageManager.deleteReceipt(existing.receiptUrl)
+          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen old receipt delete'));
+      }
 
       navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
     } catch (error: any) {
