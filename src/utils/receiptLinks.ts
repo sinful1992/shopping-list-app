@@ -59,6 +59,17 @@ export function planItemUpdates(
 }
 
 /**
+ * How a receipt line becomes a new list item: the units it counted (only a
+ * whole count above one — a weight such as 0.456 kg is one unit), and the
+ * per-unit price, since Item.price is per unit app-wide.
+ */
+export function newItemFromLine(line: ReceiptLineItem): { unitQty: number | null; price: number | null } {
+  const q = line.quantity;
+  const unitQty = q != null && Number.isInteger(q) && q > 1 ? q : null;
+  return { unitQty, price: sanitizePrice(unitPriceFromLines([line], unitQty ?? 1)) };
+}
+
+/**
  * Total saving per line index. A discount scanned before savings kept their
  * line falls back to the first line printed with the same description; one
  * that matches no line is left out, since there is nothing to net it from.

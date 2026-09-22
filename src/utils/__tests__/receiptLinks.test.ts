@@ -1,5 +1,7 @@
 import type { Item, ReceiptLineItem } from '../../models/types';
-import { discountsByLine, groupLinesByItem, netLines, planItemUpdates, ReceiptLinks } from '../receiptLinks';
+import {
+  discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, ReceiptLinks,
+} from '../receiptLinks';
 
 function makeItem(overrides: Partial<Item> & { id: string }): Item {
   return {
@@ -98,5 +100,21 @@ describe('discountsByLine / netLines', () => {
     const paid = netLines(lines, new Map([[1, -0.35]]));
     const items = new Map([['bread', makeItem({ id: 'bread' })]]);
     expect(planItemUpdates(new Map([['bread', [1]]]), paid, items)[0].updates.price).toBe(1.4);
+  });
+});
+
+describe('newItemFromLine', () => {
+  test('a single line becomes one unit at the line price', () => {
+    expect(newItemFromLine(line('BREAD', 1.75))).toEqual({ unitQty: null, price: 1.75 });
+  });
+
+  test('a counted line becomes that many units at the per-unit price', () => {
+    const counted = { ...line('YOGHURT', 3), quantity: 4 };
+    expect(newItemFromLine(counted)).toEqual({ unitQty: 4, price: 0.75 });
+  });
+
+  test('a weighed line stays one unit', () => {
+    const weighed = { ...line('BANANAS', 0.62), quantity: 0.456 };
+    expect(newItemFromLine(weighed)).toEqual({ unitQty: null, price: 0.62 });
   });
 });

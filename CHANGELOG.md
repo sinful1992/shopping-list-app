@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.46.1] - 2026-09-22
+
+### Changed
+- **Items added from a receipt arrive filed and counted.** A receipt line added as a new item used to land with no category — dropped at the bottom of the list and outside every category breakdown — and with the line total as its price even when the line counted several units.
+  - It now takes the category the family usually gives that name (`CategoryHistoryService.getSuggestedCategory`, as Frequently Bought already does).
+  - A line counting a whole number of units above one ("4 x YOGHURT £3.00") becomes that many units at the per-unit price (£0.75), so the unit price is right and the total is unchanged. A weighed line stays one unit.
+- `ItemManager.addItemsBatch` accepts `unitQty` and now sanitises `category` the way `addItem` does.
+
 ## [1.46.0] - 2026-09-22
 
 ### Added

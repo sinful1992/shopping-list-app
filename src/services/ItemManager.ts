@@ -172,7 +172,14 @@ class ItemManager {
    */
   async addItemsBatch(
     listId: string,
-    itemsData: Array<{ name: string; quantity?: string; price?: number; category?: string | null; checked?: boolean }>,
+    itemsData: Array<{
+      name: string;
+      quantity?: string;
+      price?: number;
+      category?: string | null;
+      checked?: boolean;
+      unitQty?: number | null;
+    }>,
     userId: string
   ): Promise<Item[]> {
     const items: Item[] = itemsData
@@ -190,7 +197,8 @@ class ItemManager {
           createdAt: Date.now(),
           updatedAt: Date.now(),
           syncStatus: 'pending' as SyncStatus,
-          category: itemData.category ?? null,
+          category: itemData.category != null ? sanitizeCategory(itemData.category) : null,
+          unitQty: itemData.unitQty ?? null,
         };
       })
       .filter(item => item !== null) as Item[];

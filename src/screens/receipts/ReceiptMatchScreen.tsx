@@ -28,11 +28,12 @@ import ShoppingListManager from '../../services/ShoppingListManager';
 import ItemManager from '../../services/ItemManager';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
+import CategoryHistoryService from '../../services/CategoryHistoryService';
 import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, receiptAliasKey } from '../../utils/receiptMatcher';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
-  discountsByLine, groupLinesByItem, netLines, planItemUpdates, priceFromLines,
+  discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines,
   ReceiptLink as Link, ReceiptLinks,
 } from '../../utils/receiptLinks';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
@@ -303,11 +304,12 @@ const ReceiptMatchScreen = () => {
         const line = lineItems[idx];
         const name = (editingNames[idx] ?? line.description).trim();
         if (!name) return null;
-        const paidLine = paidLines[idx];
-        const price = sanitizePrice(paidLine.price ?? paidLine.unitPrice);
-        return { index: idx, name, price: price ?? undefined, checked: true as const };
+        const { price, unitQty } = newItemFromLine(paidLines[idx]);
+        return { index: idx, name, price: price ?? undefined, unitQty, checked: true as const };
       })
-      .filter((x): x is { index: number; name: string; price: number | undefined; checked: true } => x !== null);
+      .filter((x): x is {
+        index: number; name: string; price: number | undefined; unitQty: number | null; checked: true;
+      } => x !== null);
 
     const hasCorrections = Object.keys(lineEdits).length > 0;
     if (updates.length === 0 && newItems.length === 0 && !hasCorrections) return;
@@ -323,9 +325,18 @@ const ReceiptMatchScreen = () => {
       const written: Item[] = [];
       if (newItems.length > 0) {
         if (!userId) throw new Error('User not authenticated');
+        // Filed under the category the family usually gives that name, the
+        // way an item added from Frequently Bought is.
+        const familyGroupId = shoppingList?.familyGroupId;
+        const categories = await Promise.all(newItems.map(n =>
+          familyGroupId
+            ? CategoryHistoryService.getSuggestedCategory(familyGroupId, n.name).catch(() => null)
+            : Promise.resolve(null)));
         written.push(...await ItemManager.addItemsBatch(
           listId,
-          newItems.map(({ name, price, checked }) => ({ name, price, checked })),
+          newItems.map(({ name, price, unitQty, checked }, i) => ({
+            name, price, unitQty, checked, category: categories[i],
+          })),
           userId,
         ));
       }
