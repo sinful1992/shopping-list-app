@@ -215,7 +215,7 @@ const HistoryDetailScreen = () => {
     );
   }
 
-  const { list, receiptUrl } = listDetails;
+  const { list } = listDetails;
 
   return (
     <View style={styles.container}>
@@ -346,7 +346,7 @@ const HistoryDetailScreen = () => {
       </View>
 
       {/* Receipt Photo Button */}
-      {receiptUrl && (
+      {!!list.receiptUrl && (
         <View style={styles.section}>
           <TouchableOpacity style={styles.receiptButton} onPress={handleViewReceipt}>
             <Icon name="camera-outline" size={20} color={theme.text.primary} style={styles.receiptButtonIcon} />

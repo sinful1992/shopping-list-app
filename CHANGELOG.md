@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.11] - 2026-09-22
+
+### Performance
+- **History details waited on a network call it never used.** `HistoryTracker.getListDetails` fetched a Cloud Storage download URL for the receipt and waited for it before the screen could show, but the screen only checked that the URL was set, to show the **View Receipt Photo** button, which opens Receipt Details. Since 1.47.1 uploads are real Storage paths, so every History detail open made that round trip, and a slow one offline. It is gone. The screen checks the list's own `receiptUrl`, and `ListDetails` no longer carries a separate `receiptUrl`.
+- **Receipt Details fetched the download URL on every focus.** Since 1.47.0 the screen reloads whenever it regains focus. An uploaded image's URL does not change, so it is now fetched once per Storage path and reused.
+
 ## [1.47.10] - 2026-09-22
 
 ### Fixed

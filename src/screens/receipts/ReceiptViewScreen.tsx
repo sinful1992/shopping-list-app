@@ -59,6 +59,9 @@ const ReceiptViewScreen = () => {
   // reloads on every focus, and without this it would retry the dead path
   // and raise the same alert each time the user came back to it.
   const missingImageRef = useRef<string | null>(null);
+  // Download URL per Storage path. The screen reloads on every focus, and an
+  // uploaded image's URL does not change, so it is fetched once.
+  const downloadUrlRef = useRef<{ path: string; url: string } | null>(null);
   const [list, setList] = useState<ShoppingList | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [editing, setEditing] = useState(false);
@@ -95,7 +98,12 @@ const ReceiptViewScreen = () => {
         setReceiptUrl(null);
       } else if (isReceiptStoragePath(fetchedList.receiptUrl)) {
         // Uploaded: a Cloud Storage path, loaded over the network.
-        setReceiptUrl(await ImageStorageManager.getReceiptDownloadUrl(fetchedList.receiptUrl).catch(() => null));
+        const path = fetchedList.receiptUrl;
+        if (downloadUrlRef.current?.path !== path) {
+          const url = await ImageStorageManager.getReceiptDownloadUrl(path).catch(() => null);
+          downloadUrlRef.current = url ? { path, url } : null;
+        }
+        setReceiptUrl(downloadUrlRef.current?.url ?? null);
       } else if (fetchedList.receiptUrl) {
         setReceiptUrl(toFileUri(fetchedList.receiptUrl));
       }

@@ -293,7 +293,6 @@ export interface ExpenditureBreakdownItem {
 export interface ListDetails {
   list: ShoppingList;
   items: Item[];
-  receiptUrl: string | null;
   receiptData: ReceiptData | null;
 }
 
