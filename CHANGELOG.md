@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.2] - 2026-09-22
+
+### Fixed
+- **A quick scan skipped while its receipt was uploading left the image in Storage.** Skip soft-deletes the list without clearing its `receiptUrl`, so an upload already in flight still matched it and attached the Storage path to the deleted list. The upload's own check now also treats a deleted list as unwanted and removes the object.
+
 ## [1.47.1] - 2026-09-22
 
 ### Fixed

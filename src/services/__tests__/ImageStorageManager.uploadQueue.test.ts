@@ -106,6 +106,20 @@ describe('receipt upload queue', () => {
     expect(mockLists.l1.receiptUrl).toBe('/cache/second.jpg');
   });
 
+  it('a quick scan skipped while its upload is in flight leaves no object behind', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/scan.jpg' };
+    mockPutFile.mockImplementation(() => {
+      mockLists.l1.status = 'deleted';
+      return Promise.resolve();
+    });
+    await ImageStorageManager.queueReceiptForUpload('/cache/scan.jpg', 'l1');
+
+    await ImageStorageManager.processUploadQueue();
+
+    expect(mockUpdateList).not.toHaveBeenCalled();
+    expect(mockDeleteObject).toHaveBeenCalledTimes(1);
+  });
+
   it('a second call during a pass joins it instead of uploading twice', async () => {
     mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/scan.jpg' };
     await ImageStorageManager.queueReceiptForUpload('/cache/scan.jpg', 'l1');

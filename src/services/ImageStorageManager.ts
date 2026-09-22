@@ -49,10 +49,10 @@ class ImageStorageManager {
       await task;
 
       // Point the list at the upload only if it still shows this capture: a
-      // rescan while the upload waited has replaced it, and the stale copy
-      // would otherwise sit in the bucket with nothing referring to it.
+      // rescan or a discarded quick scan while the upload was in flight means
+      // nothing wants it, and it would sit in the bucket unreferenced.
       const list = await LocalStorageManager.getList(listId);
-      if (!list || list.receiptUrl !== filePath) {
+      if (!list || list.status === 'deleted' || list.receiptUrl !== filePath) {
         await deleteObject(reference).catch(() => {});
         return storagePath;
       }
