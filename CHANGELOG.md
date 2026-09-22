@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.5] - 2026-09-22
+
+### Fixed
+- **The match screen gave no sign that Apply would change an item's count.** Since 1.47.4 a `2 x MILK` 3.10 line sets Milk to ×2 at 1.55, but the line only showed 3.10 and the item name. Where Apply will set a count, the note under the line now says so, e.g. `Milk  ×2 at £1.55`. The screen and Apply share one rule (`unitQtyFromLines`), so the preview is what gets written.
+
 ## [1.47.4] - 2026-09-22
 
 ### Fixed

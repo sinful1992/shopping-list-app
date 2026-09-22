@@ -33,7 +33,7 @@ import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, receiptAliasKey } from '../../utils/receiptMatcher';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
-  discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines,
+  discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
   ReceiptLink as Link, ReceiptLinks,
 } from '../../utils/receiptLinks';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
@@ -174,6 +174,17 @@ const ReceiptMatchScreen = () => {
       const item = itemsById.get(itemId);
       if (!item) return;
       map.set(itemId, priceFromLines(indices.map(i => paidLines[i]), item));
+    });
+    return map;
+  }, [linesByItem, itemsById, paidLines]);
+
+  // The count Apply will give an item, where it changes one.
+  const pendingUnitsByItem = useMemo(() => {
+    const map = new Map<string, number>();
+    linesByItem.forEach((indices, itemId) => {
+      const item = itemsById.get(itemId);
+      const units = item ? unitQtyFromLines(indices.map(i => paidLines[i]), item) : null;
+      if (units != null) map.set(itemId, units);
     });
     return map;
   }, [linesByItem, itemsById, paidLines]);
@@ -545,6 +556,10 @@ const ReceiptMatchScreen = () => {
                 link={link}
                 linkedItem={linkedItem}
                 siblingCount={siblingCount}
+                nextUnits={linkedItem && !link!.ignored
+                  ? pendingUnitsByItem.get(linkedItem.id) ?? null
+                  : null}
+                nextPrice={nextPrice}
                 previousPrice={previousPrice}
                 saving={savingsByLine.get(index) ?? null}
                 isActionable={actionable.has(index)}
@@ -675,6 +690,9 @@ interface ReconciledLineProps {
   link: Link | null;
   linkedItem: Item | null;
   siblingCount: number;
+  /** The count Apply sets on the item, when it changes it. */
+  nextUnits: number | null;
+  nextPrice: number | null;
   previousPrice: number | null;
   saving: number | null;
   isActionable: boolean;
@@ -703,7 +721,7 @@ interface ReconciledLineProps {
  * itself, which opens the picker on every line that can be matched.
  */
 const ReconciledLine: React.FC<ReconciledLineProps> = ({
-  item, currency, link, linkedItem, siblingCount, previousPrice, saving, isActionable, inToAdd,
+  item, currency, link, linkedItem, siblingCount, nextUnits, nextPrice, previousPrice, saving, isActionable, inToAdd,
   editedName, onToggleLink, onToggleAdd, onNameChange, onPick, onCorrect,
   styles, theme,
 }) => {
@@ -741,6 +759,9 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
           ? `${Math.round(link!.score * 100)}%`
           : '',
         siblingCount > 1 ? `${siblingCount} lines` : '',
+        nextUnits != null && nextPrice != null
+          ? `×${nextUnits} at ${currency}${nextPrice.toFixed(2)}`
+          : '',
         previousPrice != null ? `was ${currency}${previousPrice.toFixed(2)}` : '',
       ].filter(Boolean).join('  ')
     : '';

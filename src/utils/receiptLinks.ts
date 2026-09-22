@@ -35,10 +35,19 @@ export function groupLinesByItem(links: ReceiptLinks): Map<string, number[]> {
 }
 
 /**
+ * The count an item takes from its receipt lines, or null to leave it: only an
+ * item with no count of its own (empty or 1) takes the units the receipt
+ * shows, so a count the user typed is kept.
+ */
+export function unitQtyFromLines(lines: ReceiptLineItem[], item: Item): number | null {
+  const units = unitsFromLines(lines);
+  return units != null && units > 1 && (item.unitQty ?? 1) <= 1 ? units : null;
+}
+
+/**
  * The item writes that applying these links makes: the price from every line
- * linked to the item, and checked. An item with no count of its own takes the
- * units the receipt shows; a count the user typed is kept. An item whose price and checked state would
- * not change is left out rather than rewritten with the same values.
+ * linked to the item, its count (unitQtyFromLines), and checked. An item that
+ * would not change is left out rather than rewritten with the same values.
  */
 export function planItemUpdates(
   linesByItem: Map<string, number[]>,
@@ -54,8 +63,8 @@ export function planItemUpdates(
     if (price == null) return;
     const patch: Partial<Item> = {};
     if (price !== item.price) patch.price = price;
-    const units = unitsFromLines(lines);
-    if (units != null && units > 1 && (item.unitQty ?? 1) <= 1) patch.unitQty = units;
+    const unitQty = unitQtyFromLines(lines, item);
+    if (unitQty != null) patch.unitQty = unitQty;
     if (!item.checked) patch.checked = true;
     if (Object.keys(patch).length > 0) updates.push({ id: itemId, updates: patch });
   });
