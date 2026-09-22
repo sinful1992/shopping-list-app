@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.6] - 2026-09-22
+
+### Fixed
+- **Apply did nothing on a receipt the list already matched.** Running "Match to list items" again on a receipt that had already been applied left **Apply N prices** enabled, but Apply returned without a word: no alert, the screen stayed open, and matches changed by hand on that visit were never remembered. The button now counts what Apply will actually write (**Update N items**), reads **Done** when the linked lines change nothing, and Apply always saves the learned matches and closes, saying "Your list already matches this receipt" when there was nothing to write.
+
+### Changed
+- Receipt lines on the match screen are memoised with stable handlers, so typing an item name re-renders that line rather than the whole receipt. The per-item price and count previews come from one memo.
+
 ## [1.47.5] - 2026-09-22
 
 ### Fixed

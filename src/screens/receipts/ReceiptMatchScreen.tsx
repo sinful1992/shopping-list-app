@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,20 @@ import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/t
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+/** A line the family renamed before is offered under that name again. */
+const suggestedName = (aliases: ReadonlyMap<string, string>, line: ReceiptLineItem) =>
+  aliases.get(receiptAliasKey(line.description)) ?? line.description;
+
+/**
+ * A callback whose identity never changes but always runs the latest `fn`,
+ * so memoised rows are not re-rendered just because a handler was recreated.
+ */
+function useStableCallback<A extends unknown[], R>(fn: (...args: A) => R): (...args: A) => R {
+  const ref = useRef(fn);
+  ref.current = fn;
+  return useCallback((...args: A) => ref.current(...args), []);
 }
 
 const ReceiptMatchScreen = () => {
@@ -130,7 +144,7 @@ const ReceiptMatchScreen = () => {
             setToAdd(new Set(result.unmatchedReceipt.map(e => e.index)));
             const names: Record<number, string> = {};
             result.unmatchedReceipt.forEach(e => {
-              names[e.index] = known.get(receiptAliasKey(e.item.description)) ?? e.item.description;
+              names[e.index] = suggestedName(known, e.item);
             });
             setEditingNames(names);
           }
@@ -168,26 +182,31 @@ const ReceiptMatchScreen = () => {
 
   const linesByItem = useMemo(() => groupLinesByItem(links), [links]);
 
-  const pendingPriceByItem = useMemo(() => {
-    const map = new Map<string, number | null>();
+  // The price each linked item will get from all its lines, and the count
+  // Apply will give it where it changes one.
+  const pendingByItem = useMemo(() => {
+    const map = new Map<string, { price: number | null; units: number | null }>();
     linesByItem.forEach((indices, itemId) => {
       const item = itemsById.get(itemId);
       if (!item) return;
-      map.set(itemId, priceFromLines(indices.map(i => paidLines[i]), item));
+      const lines = indices.map(i => paidLines[i]);
+      map.set(itemId, { price: priceFromLines(lines, item), units: unitQtyFromLines(lines, item) });
     });
     return map;
   }, [linesByItem, itemsById, paidLines]);
 
-  // The count Apply will give an item, where it changes one.
-  const pendingUnitsByItem = useMemo(() => {
-    const map = new Map<string, number>();
-    linesByItem.forEach((indices, itemId) => {
-      const item = itemsById.get(itemId);
-      const units = item ? unitQtyFromLines(indices.map(i => paidLines[i]), item) : null;
-      if (units != null) map.set(itemId, units);
-    });
-    return map;
-  }, [linesByItem, itemsById, paidLines]);
+  // What Apply writes to existing items. Items the receipt would not change
+  // are left out, so this can be empty while lines are linked.
+  const itemUpdates = useMemo(
+    () => planItemUpdates(linesByItem, paidLines, itemsById),
+    [linesByItem, paidLines, itemsById],
+  );
+
+  // Lines ticked to add that are still unlinked and readable.
+  const addIndices = useMemo(
+    () => Array.from(toAdd).filter(idx => links[idx] == null && actionable.has(idx)),
+    [toAdd, links, actionable],
+  );
 
   const unlinkedLines = useMemo(
     () => lineItems
@@ -200,10 +219,6 @@ const ReceiptMatchScreen = () => {
     () => listItems.filter(i => !linesByItem.has(i.id)),
     [listItems, linesByItem],
   );
-
-  // A line the family renamed before is offered under that name again.
-  const suggestedName = (line: ReceiptLineItem) =>
-    aliases.get(receiptAliasKey(line.description)) ?? line.description;
 
   const setLink = (index: number, link: Link | null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -282,7 +297,7 @@ const ReceiptMatchScreen = () => {
       setEditingNames(prev => {
         const next = { ...prev };
         unlinkedLines.forEach(e => {
-          if (next[e.index] === undefined) next[e.index] = suggestedName(e.item);
+          if (next[e.index] === undefined) next[e.index] = suggestedName(aliases, e.item);
         });
         return next;
       });
@@ -307,10 +322,9 @@ const ReceiptMatchScreen = () => {
   const handleApply = async () => {
     if (applyingRef.current) return;
 
-    const updates = planItemUpdates(linesByItem, paidLines, itemsById);
+    const updates = itemUpdates;
 
-    const newItems = Array.from(toAdd)
-      .filter(idx => links[idx] == null && actionable.has(idx))
+    const newItems = addIndices
       .map(idx => {
         const line = lineItems[idx];
         const name = (editingNames[idx] ?? line.description).trim();
@@ -322,8 +336,10 @@ const ReceiptMatchScreen = () => {
         index: number; name: string; price: number | undefined; unitQty: number | null; checked: true;
       } => x !== null);
 
+    // Nothing to write is still a valid Apply: running a receipt again on a
+    // list that already matches it confirms the links, which are remembered
+    // below, and the screen closes as it would after any other Apply.
     const hasCorrections = Object.keys(lineEdits).length > 0;
-    if (updates.length === 0 && newItems.length === 0 && !hasCorrections) return;
 
     applyingRef.current = true;
     setApplying(true);
@@ -392,6 +408,7 @@ const ReceiptMatchScreen = () => {
       if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
       if (hasCorrections && parts.length === 0) parts.push('Receipt corrected');
       if (autoAddAll) parts.push('Shopping completed');
+      if (parts.length === 0) parts.push('Your list already matches this receipt');
       showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
       navigation.goBack();
     } catch (error: any) {
@@ -432,6 +449,15 @@ const ReceiptMatchScreen = () => {
       .map(([idx]) => receiptAliasKey(lineItems[Number(idx)].description));
     await LocalStorageManager.saveReceiptAliases(familyGroupId, entries, forget);
   };
+
+  // Row handlers keep one identity for the screen's life, so typing in one
+  // line's name field re-renders that line, not the whole receipt.
+  const onToggleLink = useStableCallback(toggleIgnored);
+  const onToggleAdd = useStableCallback((index: number) =>
+    toggleToAdd(index, suggestedName(aliases, lineItems[index])));
+  const onNameChange = useStableCallback((index: number, name: string) =>
+    setEditingNames(prev => ({ ...prev, [index]: name })));
+  const onCorrect = useStableCallback(correctLine);
 
   const handleSkip = async () => {
     if (applyingRef.current || skipping) return;
@@ -488,13 +514,17 @@ const ReceiptMatchScreen = () => {
   const linkCount = Object.keys(links).length;
   const acceptedLineCount = Object.values(links).filter(l => !l.ignored).length;
   const correctionCount = Object.keys(lineEdits).length;
-  const canApply = linesByItem.size > 0 || toAdd.size > 0 || correctionCount > 0;
+  const canApply = linesByItem.size > 0 || addIndices.length > 0 || correctionCount > 0;
 
+  // Counts what Apply will actually write, so "Apply 3 prices" never does
+  // nothing; linked lines that change nothing read as Done.
   const applyLabel = (() => {
     const parts: string[] = [];
-    if (linesByItem.size > 0) parts.push(`Apply ${linesByItem.size} price${linesByItem.size === 1 ? '' : 's'}`);
-    if (toAdd.size > 0) parts.push(`Add ${toAdd.size} item${toAdd.size === 1 ? '' : 's'}`);
+    const n = itemUpdates.length;
+    if (n > 0) parts.push(`Update ${n} item${n === 1 ? '' : 's'}`);
+    if (addIndices.length > 0) parts.push(`Add ${addIndices.length} item${addIndices.length === 1 ? '' : 's'}`);
     if (parts.length === 0 && correctionCount > 0) parts.push('Save corrections');
+    if (parts.length === 0 && linesByItem.size > 0) parts.push('Done');
     return parts.length ? parts.join(' · ') : 'Apply';
   })();
 
@@ -539,10 +569,11 @@ const ReceiptMatchScreen = () => {
               : 1;
             // Accepted: the price this item will get from all its lines.
             // Ignored: what this line alone would have set it to.
+            const pending = linkedItem && !link!.ignored ? pendingByItem.get(linkedItem.id) : undefined;
             const nextPrice = linkedItem
               ? (link!.ignored
                   ? priceFromLines([paidLines[index]], linkedItem)
-                  : pendingPriceByItem.get(linkedItem.id) ?? null)
+                  : pending?.price ?? null)
               : null;
             const previousPrice =
               linkedItem && linkedItem.price != null && nextPrice !== linkedItem.price
@@ -551,25 +582,24 @@ const ReceiptMatchScreen = () => {
             return (
               <ReconciledLine
                 key={index}
+                index={index}
                 item={item}
                 currency={currency}
                 link={link}
                 linkedItem={linkedItem}
                 siblingCount={siblingCount}
-                nextUnits={linkedItem && !link!.ignored
-                  ? pendingUnitsByItem.get(linkedItem.id) ?? null
-                  : null}
+                nextUnits={pending?.units ?? null}
                 nextPrice={nextPrice}
                 previousPrice={previousPrice}
                 saving={savingsByLine.get(index) ?? null}
                 isActionable={actionable.has(index)}
                 inToAdd={toAdd.has(index)}
                 editedName={editingNames[index] ?? item.description}
-                onToggleLink={() => toggleIgnored(index)}
-                onToggleAdd={() => toggleToAdd(index, suggestedName(item))}
-                onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
-                onPick={listItems.length > 0 ? () => setPickerReceiptIndex(index) : undefined}
-                onCorrect={patch => correctLine(index, patch)}
+                onToggleLink={onToggleLink}
+                onToggleAdd={onToggleAdd}
+                onNameChange={onNameChange}
+                onPick={listItems.length > 0 ? setPickerReceiptIndex : undefined}
+                onCorrect={onCorrect}
                 styles={styles}
                 theme={theme}
               />
@@ -685,6 +715,7 @@ const ReceiptMatchScreen = () => {
 };
 
 interface ReconciledLineProps {
+  index: number;
   item: ReceiptLineItem;
   currency: string;
   link: Link | null;
@@ -698,11 +729,11 @@ interface ReconciledLineProps {
   isActionable: boolean;
   inToAdd: boolean;
   editedName: string;
-  onToggleLink: () => void;
-  onToggleAdd: () => void;
-  onNameChange: (name: string) => void;
-  onPick?: () => void;
-  onCorrect: (patch: Partial<ReceiptLineItem>) => void;
+  onToggleLink: (index: number) => void;
+  onToggleAdd: (index: number) => void;
+  onNameChange: (index: number, name: string) => void;
+  onPick?: (index: number) => void;
+  onCorrect: (index: number, patch: Partial<ReceiptLineItem>) => void;
   // Handed down rather than rebuilt per row, the way EmptyState already takes
   // them: this component renders once per printed line, and the corpus has a
   // 36-line receipt. Calling useTheme + StyleSheet.create in here would mean
@@ -720,11 +751,11 @@ interface ReconciledLineProps {
  * or changing which list item the line pays for lives on the annotation text
  * itself, which opens the picker on every line that can be matched.
  */
-const ReconciledLine: React.FC<ReconciledLineProps> = ({
-  item, currency, link, linkedItem, siblingCount, nextUnits, nextPrice, previousPrice, saving, isActionable, inToAdd,
+const ReconciledLine = React.memo(({
+  index, item, currency, link, linkedItem, siblingCount, nextUnits, nextPrice, previousPrice, saving, isActionable, inToAdd,
   editedName, onToggleLink, onToggleAdd, onNameChange, onPick, onCorrect,
   styles, theme,
-}) => {
+}: ReconciledLineProps) => {
   const [draft, setDraft] = useState<string | null>(null);
   const missing: 'price' | 'name' = (item.price ?? item.unitPrice) == null ? 'price' : 'name';
   const submitDraft = () => {
@@ -733,11 +764,12 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
     if (!text) return;
     if (missing === 'price') {
       const value = sanitizePrice(text.replace(/[^0-9.,]/g, '').replace(',', '.'));
-      if (value != null) onCorrect({ price: value });
+      if (value != null) onCorrect(index, { price: value });
     } else {
-      onCorrect({ description: text });
+      onCorrect(index, { description: text });
     }
   };
+  const pick = onPick ? () => onPick(index) : undefined;
 
   const price = item.price ?? item.unitPrice;
   const ignored = link?.ignored ?? false;
@@ -746,7 +778,7 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
   // matchReceiptToList only considers lines that have both a price and a
   // description. A line missing either still belongs on the paper — it was
   // printed — so it shows without a toggle until the missing half is typed.
-  const toggle = linked ? onToggleLink : onToggleAdd;
+  const toggle = () => (linked ? onToggleLink(index) : onToggleAdd(index));
   const active = linked ? !ignored : inToAdd;
   const toggleLabel = linked
     ? (ignored ? 'Use this match after all' : 'Ignore this match')
@@ -818,7 +850,7 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
           <TextInput
             style={styles.nameInput}
             value={editedName}
-            onChangeText={onNameChange}
+            onChangeText={name => onNameChange(index, name)}
             placeholder="Name this item"
             placeholderTextColor={theme.text.tertiary}
             autoCorrect={false}
@@ -827,17 +859,17 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
           <Text
             style={[styles.noteMatched, ignored && styles.noteIgnored, ignored && styles.struck]}
             numberOfLines={2}
-            onPress={onPick}
-            accessibilityRole={onPick ? 'button' : undefined}
-            accessibilityLabel={onPick ? `Change the list item matched to "${item.description}"` : undefined}
+            onPress={pick}
+            accessibilityRole={pick ? 'button' : undefined}
+            accessibilityLabel={pick ? `Change the list item matched to "${item.description}"` : undefined}
           >
             {linkedNote}
           </Text>
-        ) : onPick ? (
+        ) : pick ? (
           <Text
             style={styles.noteAction}
             numberOfLines={1}
-            onPress={onPick}
+            onPress={pick}
             accessibilityRole="button"
             accessibilityLabel={`Match "${item.description}" to an item on your list`}
           >
@@ -866,7 +898,8 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
       </View>
     </View>
   );
-};
+});
+ReconciledLine.displayName = 'ReconciledLine';
 
 interface AssignPickerModalProps {
   visible: boolean;
