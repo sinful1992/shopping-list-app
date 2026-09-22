@@ -235,11 +235,22 @@ const ReceiptViewScreen = () => {
             resizeMode="contain"
             onError={() => {
               missingImageRef.current = list?.receiptUrl ?? null;
-              showAlert('Error', 'Receipt image not found. It may have been deleted.', undefined, { icon: 'error' });
+              // A path into a phone's cache that is not here is most often a
+              // receipt another family member scanned and has not uploaded
+              // yet, which is not an error worth an alert.
+              if (isReceiptStoragePath(list?.receiptUrl)) {
+                showAlert('Error', 'Receipt image not found. It may have been deleted.', undefined, { icon: 'error' });
+              }
               setReceiptUrl(null);
             }}
           />
         </View>
+      )}
+      {!receiptUrl && !!list?.receiptUrl && list.receiptUrl === missingImageRef.current
+        && !isReceiptStoragePath(list.receiptUrl) && (
+        <Text style={styles.imageNote}>
+          The photo of this receipt is not on this phone. It shows here once the phone that scanned it has uploaded it.
+        </Text>
       )}
 
       {/* OCR Data Section — styled as the till receipt it came from */}
@@ -525,6 +536,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   imageContainer: {
     backgroundColor: '#000',
     minHeight: 300,
+  },
+  imageNote: {
+    fontSize: 14,
+    color: theme.text.secondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   receiptImage: {
     width: '100%',

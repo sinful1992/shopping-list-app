@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.15] - 2026-09-22
+
+### Fixed
+- **Family members were told a receipt image "may have been deleted" when it just had not uploaded yet.** A scan stores the scanning phone's cache path on the list straight away, and that path syncs to the family before the upload replaces it with the Cloud Storage path. Opening Receipt Details on another phone in that gap, or for a scan made offline, raised an error alert. A missing local image now shows a short note under the header instead: the photo is not on this phone, and it shows once the phone that scanned it has uploaded it. An uploaded image that fails to load still raises the alert.
+
 ## [1.47.14] - 2026-09-22
 
 ### Fixed
