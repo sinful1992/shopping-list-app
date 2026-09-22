@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.1] - 2026-09-22
+
+### Fixed
+- **Receipt images never left the phone that scanned them.** `ImageStorageManager` had an upload, an offline queue and a queue processor, and nothing called any of them. `receiptUrl` kept a path into the scanning phone's cache, which synced to the rest of the family as a file they did not have, was lost on reinstall or a cache clear, and contradicted the privacy policy's statement that receipts are stored in Cloud Storage. A confirmed scan is now queued for upload and the queue runs straight away and again on each start (for scans made offline). When it lands, the list's `receiptUrl` becomes the Storage path through `ShoppingListManager`, so it syncs, and Receipt Details loads it from Storage on any device.
+  - Uploads go under the list's own family group, which the Storage rules check against the uploader's `familyGroupId` claim.
+  - A capture whose list was discarded (a skipped quick scan) or rescanned before it uploaded is dropped. An upload that finishes after a rescan is deleted rather than left orphaned.
+  - Failures retry on later runs, up to five times, and the list keeps its local path meanwhile, so nothing changes for the scanning phone until an upload succeeds.
+  - A second queue run while one is in progress joins it instead of uploading the same file twice.
+- Account deletion only passes Cloud Storage paths to Storage, not local file paths.
+
+### Deploy note
+- Uploads depend on `storage.rules` and the `setFamilyGroupClaim` function being deployed. CI deploys only the database rules. Until both are live, uploads fail harmlessly and receipts stay local as before.
+
 ## [1.47.0] - 2026-09-22
 
 ### Added

@@ -14,6 +14,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
+import ImageStorageManager from '../../services/ImageStorageManager';
+import CrashReporting from '../../services/CrashReporting';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import { useUser } from '../../contexts/UserContext';
 import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
@@ -172,6 +174,13 @@ const ReceiptCameraScreen = () => {
         receiptUrl: capturedImage,
         ...await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
       });
+
+      // The capture lives in this phone's cache; upload it so the rest of the
+      // family can see it and it survives a reinstall. Queued first, so an
+      // offline scan uploads on a later start.
+      ImageStorageManager.queueReceiptForUpload(capturedImage, targetListId)
+        .then(() => ImageStorageManager.processUploadQueue())
+        .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen receipt upload'));
 
       navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
     } catch (error: any) {

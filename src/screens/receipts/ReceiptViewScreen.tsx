@@ -21,6 +21,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
+import ImageStorageManager from '../../services/ImageStorageManager';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import { ReceiptData, ShoppingList } from '../../models/types';
@@ -86,7 +87,10 @@ const ReceiptViewScreen = () => {
 
       setList(fetchedList);
 
-      if (fetchedList.receiptUrl) {
+      if (fetchedList.receiptUrl?.startsWith('receipts/')) {
+        // Uploaded: a Cloud Storage path, loaded over the network.
+        setReceiptUrl(await ImageStorageManager.getReceiptDownloadUrl(fetchedList.receiptUrl).catch(() => null));
+      } else if (fetchedList.receiptUrl) {
         setReceiptUrl(toFileUri(fetchedList.receiptUrl));
       }
 

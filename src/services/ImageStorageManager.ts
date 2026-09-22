@@ -3,6 +3,7 @@ import { utils } from '@react-native-firebase/app';
 import { v4 as uuidv4 } from 'uuid';
 import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
+import ShoppingListManager from './ShoppingListManager';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import { safeJsonParse } from '../utils/safeJsonParse';
 
@@ -13,6 +14,7 @@ import { safeJsonParse } from '../utils/safeJsonParse';
  */
 class ImageStorageManager {
   private readonly UPLOAD_QUEUE_KEY = '@upload_queue';
+  private processing: Promise<UploadQueueResult> | null = null;
 
   /**
    * Upload receipt image to Firebase Cloud Storage
@@ -46,10 +48,17 @@ class ImageStorageManager {
       // Wait for upload to complete
       await task;
 
-      // Update list with receipt URL
-      await LocalStorageManager.updateList(listId, {
-        receiptUrl: storagePath,
-      });
+      // Point the list at the upload only if it still shows this capture: a
+      // rescan while the upload waited has replaced it, and the stale copy
+      // would otherwise sit in the bucket with nothing referring to it.
+      const list = await LocalStorageManager.getList(listId);
+      if (!list || list.receiptUrl !== filePath) {
+        await deleteObject(reference).catch(() => {});
+        return storagePath;
+      }
+      // Through ShoppingListManager, not local storage alone, so the path
+      // syncs and the rest of the family can load the image.
+      await ShoppingListManager.updateList(listId, { receiptUrl: storagePath });
 
       return storagePath;
     } catch (error: any) {
@@ -126,17 +135,36 @@ class ImageStorageManager {
   /**
    * Process all queued uploads
    * Implements Req 9.7
+   *
+   * A second call while a pass is running joins it instead of starting
+   * another, which would upload the same file twice.
    */
-  async processUploadQueue(familyGroupId: string): Promise<UploadQueueResult> {
+  processUploadQueue(): Promise<UploadQueueResult> {
+    if (!this.processing) {
+      this.processing = this.runUploadQueue().finally(() => { this.processing = null; });
+    }
+    return this.processing;
+  }
+
+  private async runUploadQueue(): Promise<UploadQueueResult> {
     const queue = await this.getUploadQueue();
     let processedCount = 0;
     let successCount = 0;
     const errors: UploadError[] = [];
 
     for (const upload of queue) {
+      // A list discarded (a skipped quick scan) or rescanned since the
+      // capture was queued no longer wants this file.
+      const list = await LocalStorageManager.getList(upload.listId);
+      if (!list || list.status === 'deleted' || list.receiptUrl !== upload.filePath) {
+        await this.removeFromQueue(upload.id);
+        continue;
+      }
       processedCount++;
       try {
-        await this.uploadReceipt(upload.filePath, upload.listId, familyGroupId);
+        // Stored under the list's own group, which the Storage rules check
+        // against the uploader's familyGroupId claim.
+        await this.uploadReceipt(upload.filePath, upload.listId, list.familyGroupId);
         successCount++;
 
         // Remove from queue on success

@@ -796,7 +796,7 @@ class AuthenticationModule {
 
           // Delete receipt image from Cloud Storage if exists
           const list = lists[listId];
-          if (list.receiptUrl) {
+          if (typeof list.receiptUrl === 'string' && list.receiptUrl.startsWith('receipts/')) {
             storageDeletePromises.push(
               deleteObject(storageRef(getStorage(), list.receiptUrl)).catch(() => {
                 // Ignore errors if receipt doesn't exist
