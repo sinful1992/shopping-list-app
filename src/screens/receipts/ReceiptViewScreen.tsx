@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import type { Theme } from '../../styles/theme';
 import { NUMERIC, RECEIPT_FONT } from '../../styles/theme';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
 import { toFileUri } from '../../utils/uri';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
@@ -64,10 +64,14 @@ const ReceiptViewScreen = () => {
     [receiptData],
   );
 
-  useEffect(() => {
-    loadReceiptData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Reloaded on every focus, not just mount: the match screen opened from
+  // here can save corrected lines back into this receipt.
+  useFocusEffect(
+    useCallback(() => {
+      loadReceiptData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   const loadReceiptData = async () => {
     try {
@@ -463,6 +467,18 @@ const ReceiptViewScreen = () => {
           </>
         )}
       </ReceiptCard>
+
+      {/* The match screen used to be reachable only straight after a scan;
+          a skipped or half-done match could never be picked up again. */}
+      {!editing && !!receiptData?.lineItems?.length && (
+        <TouchableOpacity
+          style={[styles.retryButton, styles.matchAgainButton]}
+          onPress={() => navigation.navigate('ReceiptMatch', { listId })}
+          accessibilityRole="button"
+        >
+          <Text style={styles.retryButtonText}>Match to list items</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };
@@ -662,6 +678,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 5,
+  },
+  matchAgainButton: {
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 32,
   },
   retryButtonText: {
     color: theme.text.onAccent,

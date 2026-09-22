@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.0] - 2026-09-22
+
+### Added
+- **A receipt can be matched again from Receipt Details.** The match screen was only reachable straight after a scan, so a match that was skipped, interrupted or half-done could never be picked up again, and a receipt corrected afterwards in Receipt Details could not be re-applied. Receipt Details now has a **Match to list items** button whenever the receipt has lines, from both the Lists and the History tabs (the match screen is now registered in the History stack too). Because items that already have a price are matched too (1.42.3), running it again on a list that was already matched links lines to the items they priced, rather than offering to add them a second time.
+- Receipt Details reloads when it regains focus, so corrections saved on the match screen show on return.
+
 ## [1.46.1] - 2026-09-22
 
 ### Changed
