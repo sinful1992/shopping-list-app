@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.8] - 2026-09-22
+
+### Fixed
+- **Matching an older receipt again counted its purchases twice in price history.** Since 1.42.x a purchase keeps one record id (`item_{list}_{item}`), so a receipt correcting a typed price rewrites that record. Purchases recorded before that have a random id (a check-off) or a `backfill_` id, so running "Match to list items" on an older list added an `item_` record beside the old one: two data points for one purchase, one still carrying the stale typed price. `recordPurchase` now looks up the family's records for the item and reuses the one already recorded for that list (`pickPurchaseRecordId`), so the old record is corrected in place and syncs to the family as a change.
+- The one-time price backfill now writes `item_` ids too, so on a new install its records and live check-offs for the same purchase share an id instead of duplicating each other.
+
 ## [1.47.7] - 2026-09-22
 
 ### Fixed

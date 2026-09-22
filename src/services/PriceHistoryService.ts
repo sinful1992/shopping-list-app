@@ -31,6 +31,29 @@ export interface PriceStats {
   percentageChange: number; // Last vs average
 }
 
+/** The record id one purchase — an item on a list — is kept under. */
+export const purchaseRecordId = (listId: string, itemId: string): string => `item_${listId}_${itemId}`;
+
+/**
+ * The id to write a purchase's price under, given the family's records for
+ * that item name. A purchase recorded before ids were stable (a random id
+ * from a check-off, or a `backfill_` id) already has a record for the list;
+ * that record is rewritten rather than a second one added beside it, which
+ * would count the purchase twice with the stale price as one of the points.
+ */
+export function pickPurchaseRecordId(
+  existing: PriceHistoryRecord[],
+  listId: string,
+  itemId: string,
+  itemNameNormalized: string,
+): string {
+  const own = purchaseRecordId(listId, itemId);
+  if (existing.some(r => r.id === own)) return own;
+  const legacy = existing.find(r =>
+    r.listId === listId && r.itemNameNormalized === itemNameNormalized && !r.id.startsWith('item_'));
+  return legacy?.id ?? own;
+}
+
 /**
  * How far back Smart Savings is allowed to look.
  *
@@ -151,7 +174,7 @@ class PriceHistoryService {
         for (const item of items) {
           if (item.checked && item.price !== null) {
             allRecords.push({
-              id: `backfill_${list.id}_${item.id}`,
+              id: purchaseRecordId(list.id, item.id),
               itemName: item.name,
               itemNameNormalized: item.name.toLowerCase().trim(),
               price: item.price,

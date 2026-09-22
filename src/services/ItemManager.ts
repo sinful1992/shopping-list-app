@@ -3,7 +3,7 @@ import { Item, Unsubscribe, SyncStatus } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
-import PriceHistoryService from './PriceHistoryService';
+import PriceHistoryService, { pickPurchaseRecordId } from './PriceHistoryService';
 import CrashReporting from './CrashReporting';
 import { sanitizeItemName, sanitizeQuantity, sanitizePrice, sanitizeCategory } from '../utils/sanitize';
 
@@ -131,19 +131,21 @@ class ItemManager {
    */
   recordPurchase(item: Item, countCategory = true): void {
     if (!(countCategory && item.category) && item.price === null) return;
-    LocalStorageManager.getList(item.listId).then(list => {
+    LocalStorageManager.getList(item.listId).then(async list => {
       if (!list?.familyGroupId) return;
       if (countCategory && item.category) {
         CategoryHistoryService.recordCategoryUsage(list.familyGroupId, item.name, item.category);
       }
       if (item.price !== null) {
+        const normalized = item.name.toLowerCase().trim();
+        const existing = await LocalStorageManager.getPriceHistoryForItem(list.familyGroupId, normalized);
         PriceHistoryService.recordPrice(
           list.familyGroupId,
           item.name,
           item.price,
           list.storeName ?? null,
           item.listId,
-          `item_${item.listId}_${item.id}`,
+          pickPurchaseRecordId(existing, item.listId, item.id, normalized),
         );
       }
     }).catch(error => {
