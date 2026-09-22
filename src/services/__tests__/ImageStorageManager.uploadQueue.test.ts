@@ -120,16 +120,40 @@ describe('receipt upload queue', () => {
     expect(mockDeleteObject).toHaveBeenCalledTimes(1);
   });
 
-  it('a second call during a pass joins it instead of uploading twice', async () => {
+  it('a second call during a pass never uploads the same file twice', async () => {
     mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/scan.jpg' };
     await ImageStorageManager.queueReceiptForUpload('/cache/scan.jpg', 'l1');
 
-    const [a, b] = await Promise.all([
+    await Promise.all([
+      ImageStorageManager.processUploadQueue(),
       ImageStorageManager.processUploadQueue(),
       ImageStorageManager.processUploadQueue(),
     ]);
 
-    expect(a).toBe(b);
     expect(mockPutFile).toHaveBeenCalledTimes(1);
+    expect(queued()).toEqual([]);
+  });
+
+  it('a capture queued during a pass is uploaded by the follow-up pass', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/a.jpg' };
+    mockLists.l2 = { id: 'l2', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/b.jpg' };
+    await ImageStorageManager.queueReceiptForUpload('/cache/a.jpg', 'l1');
+
+    let release!: () => void;
+    mockPutFile.mockImplementationOnce(() => new Promise<void>(r => { release = r; }));
+    const first = ImageStorageManager.processUploadQueue();
+    await new Promise(r => setImmediate(r));
+
+    // The scan screen queues its capture and asks for a pass mid-upload.
+    await ImageStorageManager.queueReceiptForUpload('/cache/b.jpg', 'l2');
+    const second = ImageStorageManager.processUploadQueue();
+    release();
+    await first;
+    const result = await second;
+
+    expect(result.successCount).toBe(1);
+    expect(mockPutFile).toHaveBeenCalledTimes(2);
+    expect(mockLists.l2.receiptUrl).toMatch(/^receipts\/fg-1\/l2\//);
+    expect(queued()).toEqual([]);
   });
 });

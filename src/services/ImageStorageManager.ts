@@ -15,6 +15,12 @@ import { safeJsonParse } from '../utils/safeJsonParse';
 class ImageStorageManager {
   private readonly UPLOAD_QUEUE_KEY = '@upload_queue';
   private processing: Promise<UploadQueueResult> | null = null;
+  // One pass queued behind the running one, for captures added after the
+  // running pass read the queue.
+  private followUp: Promise<UploadQueueResult> | null = null;
+  // Every read-modify-write of the stored queue runs through this chain, so
+  // a capture queued while a pass removes an entry is not overwritten.
+  private queueWrites: Promise<unknown> = Promise.resolve();
 
   /**
    * Upload receipt image to Firebase Cloud Storage
@@ -121,12 +127,7 @@ class ImageStorageManager {
         retryCount: 0,
       };
 
-      // Get existing queue
-      const queue = await this.getUploadQueue();
-      queue.push(queuedUpload);
-
-      // Save updated queue
-      await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(queue));
+      await this.mutateQueue(queue => [...queue, queuedUpload]);
     } catch (error: any) {
       throw new Error(`Failed to queue upload: ${error.message}`);
     }
@@ -136,14 +137,25 @@ class ImageStorageManager {
    * Process all queued uploads
    * Implements Req 9.7
    *
-   * A second call while a pass is running joins it instead of starting
-   * another, which would upload the same file twice.
+   * A call while a pass is running never starts a second concurrent pass,
+   * which would upload the same file twice. The running pass read the queue
+   * before whatever this caller just added, so the call gets one follow-up
+   * pass instead, shared by every caller that arrives meanwhile.
    */
   processUploadQueue(): Promise<UploadQueueResult> {
     if (!this.processing) {
       this.processing = this.runUploadQueue().finally(() => { this.processing = null; });
+      return this.processing;
     }
-    return this.processing;
+    if (!this.followUp) {
+      this.followUp = this.processing
+        .catch(() => undefined)
+        .then(() => {
+          this.followUp = null;
+          return this.processUploadQueue();
+        });
+    }
+    return this.followUp;
   }
 
   private async runUploadQueue(): Promise<UploadQueueResult> {
@@ -213,21 +225,24 @@ class ImageStorageManager {
    * Helper: Remove item from queue
    */
   private async removeFromQueue(uploadId: string): Promise<void> {
-    const queue = await this.getUploadQueue();
-    const updatedQueue = queue.filter((item) => item.id !== uploadId);
-    await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(updatedQueue));
+    await this.mutateQueue(queue => queue.filter((item) => item.id !== uploadId));
   }
 
   /**
    * Helper: Update queue item
    */
   private async updateQueueItem(upload: QueuedUpload): Promise<void> {
-    const queue = await this.getUploadQueue();
-    const index = queue.findIndex((item) => item.id === upload.id);
-    if (index !== -1) {
-      queue[index] = upload;
-      await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(queue));
-    }
+    await this.mutateQueue(queue => queue.map((item) => (item.id === upload.id ? upload : item)));
+  }
+
+  /** Read, change and write the stored queue, one change at a time. */
+  private mutateQueue(change: (queue: QueuedUpload[]) => QueuedUpload[]): Promise<void> {
+    const write = this.queueWrites.then(async () => {
+      const queue = await this.getUploadQueue();
+      await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(change(queue)));
+    });
+    this.queueWrites = write.catch(() => undefined);
+    return write;
   }
 }
 
