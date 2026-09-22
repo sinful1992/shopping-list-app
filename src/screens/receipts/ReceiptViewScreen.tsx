@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -55,6 +55,10 @@ const ReceiptViewScreen = () => {
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  // The list's stored image path that already failed to load. The screen
+  // reloads on every focus, and without this it would retry the dead path
+  // and raise the same alert each time the user came back to it.
+  const missingImageRef = useRef<string | null>(null);
   const [list, setList] = useState<ShoppingList | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [editing, setEditing] = useState(false);
@@ -87,7 +91,9 @@ const ReceiptViewScreen = () => {
 
       setList(fetchedList);
 
-      if (fetchedList.receiptUrl?.startsWith('receipts/')) {
+      if (fetchedList.receiptUrl && fetchedList.receiptUrl === missingImageRef.current) {
+        setReceiptUrl(null);
+      } else if (fetchedList.receiptUrl?.startsWith('receipts/')) {
         // Uploaded: a Cloud Storage path, loaded over the network.
         setReceiptUrl(await ImageStorageManager.getReceiptDownloadUrl(fetchedList.receiptUrl).catch(() => null));
       } else if (fetchedList.receiptUrl) {
@@ -220,6 +226,7 @@ const ReceiptViewScreen = () => {
             style={styles.receiptImage}
             resizeMode="contain"
             onError={() => {
+              missingImageRef.current = list?.receiptUrl ?? null;
               showAlert('Error', 'Receipt image not found. It may have been deleted.', undefined, { icon: 'error' });
               setReceiptUrl(null);
             }}

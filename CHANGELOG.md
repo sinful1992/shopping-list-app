@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.3] - 2026-09-22
+
+### Fixed
+- **Receipt Details repeated "Receipt image not found" every time it came back into view.** Since 1.47.0 the screen reloads on focus, so that corrections saved on the match screen show on return. For a receipt whose image is gone — any receipt scanned on another phone before uploads, whose path points into that phone's cache — each reload retried the dead path and raised the alert again. Found on the emulator going from Receipt Details to the match screen and back. The screen now remembers which stored path failed and does not retry it while it stays open.
+
 ## [1.47.2] - 2026-09-22
 
 ### Fixed
