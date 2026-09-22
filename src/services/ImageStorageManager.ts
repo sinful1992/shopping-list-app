@@ -30,7 +30,6 @@ class ImageStorageManager {
     filePath: string,
     listId: string,
     familyGroupId: string,
-    onProgress?: (progress: number) => void
   ): Promise<string> {
     try {
       // Generate storage path: /receipts/{familyGroupId}/{listId}/{timestamp}.jpg
@@ -40,19 +39,7 @@ class ImageStorageManager {
       // Create storage reference
       const reference = storageRef(getStorage(), storagePath);
 
-      // Upload file
-      const task = putFile(reference, filePath);
-
-      // Monitor progress
-      if (onProgress) {
-        task.on('state_changed', (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          onProgress(progress);
-        });
-      }
-
-      // Wait for upload to complete
-      await task;
+      await putFile(reference, filePath);
 
       // Point the list at the upload only if it still shows this capture: a
       // rescan or a discarded quick scan while the upload was in flight means
@@ -203,14 +190,6 @@ class ImageStorageManager {
       failedCount: processedCount - successCount,
       errors,
     };
-  }
-
-  /**
-   * Get count of queued uploads
-   */
-  async getQueuedUploadsCount(): Promise<number> {
-    const queue = await this.getUploadQueue();
-    return queue.length;
   }
 
   /**

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.13] - 2026-09-22
+
+### Removed
+- Dead code in `ImageStorageManager`: `getQueuedUploadsCount` and the `onProgress` callback of `uploadReceipt` had no callers. `deleteReceipt`, which also had none, is now used by rescans (1.47.10).
+
 ## [1.47.12] - 2026-09-22
 
 ### Performance
