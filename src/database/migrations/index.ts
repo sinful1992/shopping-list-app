@@ -155,5 +155,21 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 15 to 16: remember receipt line -> item matches
+    {
+      toVersion: 16,
+      steps: [
+        createTable({
+          name: 'receipt_aliases',
+          columns: [
+            { name: 'family_group_id', type: 'string', isIndexed: true },
+            { name: 'receipt_key', type: 'string', isIndexed: true },
+            { name: 'item_name', type: 'string' },
+            { name: 'use_count', type: 'number' },
+            { name: 'updated_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
   ],
 });

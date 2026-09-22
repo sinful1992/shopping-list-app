@@ -1,5 +1,5 @@
 import type { Item, ReceiptLineItem } from '../../models/types';
-import { dice, matchReceiptToList, stem, unitPriceFromLines } from '../receiptMatcher';
+import { dice, matchReceiptToList, receiptAliasKey, stem, unitPriceFromLines } from '../receiptMatcher';
 
 function makeItem(overrides: Partial<Item> & { id: string; name: string }): Item {
   return {
@@ -263,5 +263,54 @@ describe('unitPriceFromLines', () => {
       makeReceiptItem({ description: 'milk', price: null }),
     ];
     expect(unitPriceFromLines(lines, 1)).toBeNull();
+  });
+});
+
+describe('matchReceiptToList with remembered receipt text', () => {
+  test('a remembered line goes to its item even with no token in common', () => {
+    const list = [makeItem({ id: '1', name: 'Milk' }), makeItem({ id: '2', name: 'Bread' })];
+    const receipt = [makeReceiptItem({ description: 'SEMI SKM  2.272L', price: 1.45 })];
+    const aliases = new Map([[receiptAliasKey('semi skm 2.272l'), 'milk']]);
+    const result = matchReceiptToList(receipt, list, aliases);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0].listItem.id).toBe('1');
+    expect(result.matches[0].method).toBe('alias');
+    expect(result.matches[0].score).toBe(1);
+  });
+
+  test('a remembered name matches singular and plural spellings', () => {
+    const list = [makeItem({ id: '1', name: 'Bananas' })];
+    const receipt = [makeReceiptItem({ description: 'LOOSE BNN', price: 0.8 })];
+    const result = matchReceiptToList(receipt, list, new Map([['loose bnn', 'banana']]));
+    expect(result.matches[0]?.listItem.id).toBe('1');
+  });
+
+  test('two remembered lines can both go to one item', () => {
+    const list = [makeItem({ id: '1', name: 'Milk' })];
+    const receipt = [
+      makeReceiptItem({ description: 'SEMI SKM', price: 1.1 }),
+      makeReceiptItem({ description: 'SEMI SKM', price: 1.1 }),
+    ];
+    const result = matchReceiptToList(receipt, list, new Map([['semi skm', 'Milk']]));
+    expect(result.matches.map(m => m.receiptIndex)).toEqual([0, 1]);
+    expect(result.unmatchedReceipt).toEqual([]);
+  });
+
+  test('an alias to an item not on the list falls through to fuzzy matching', () => {
+    const list = [makeItem({ id: '1', name: 'coffee' })];
+    const receipt = [makeReceiptItem({ description: 'Coffee beans', price: 4 })];
+    const result = matchReceiptToList(receipt, list, new Map([['coffee beans', 'Tea']]));
+    expect(result.matches[0].method).toBe('token');
+  });
+
+  test('an item taken by an alias is not also given to a fuzzy line', () => {
+    const list = [makeItem({ id: '1', name: 'milk' })];
+    const receipt = [
+      makeReceiptItem({ description: 'SEMI SKM', price: 1.1 }),
+      makeReceiptItem({ description: 'Milk chocolate', price: 2 }),
+    ];
+    const result = matchReceiptToList(receipt, list, new Map([['semi skm', 'milk']]));
+    expect(result.matches).toHaveLength(1);
+    expect(result.unmatchedReceipt.map(e => e.index)).toEqual([1]);
   });
 });

@@ -7,6 +7,7 @@ import { SyncQueueStorage } from './storage/syncQueue';
 import { UrgentItemsStorage } from './storage/urgentItems';
 import { HistoryStorage } from './storage/history';
 import { StoreLayoutsStorage } from './storage/storeLayouts';
+import { ReceiptAliasesStorage } from './storage/receiptAliases';
 
 /**
  * LocalStorageManager
@@ -21,6 +22,7 @@ class LocalStorageManager {
   private urgentItems: UrgentItemsStorage;
   private history: HistoryStorage;
   private storeLayouts: StoreLayoutsStorage;
+  private receiptAliases: ReceiptAliasesStorage;
 
   constructor() {
     this.database = createDatabase();
@@ -30,6 +32,7 @@ class LocalStorageManager {
     this.urgentItems = new UrgentItemsStorage(this.database);
     this.history = new HistoryStorage(this.database);
     this.storeLayouts = new StoreLayoutsStorage(this.database);
+    this.receiptAliases = new ReceiptAliasesStorage(this.database);
   }
 
   /** Expose the database instance for direct access (e.g. backfill migrations). */
@@ -309,6 +312,20 @@ class LocalStorageManager {
     return this.storeLayouts.deleteStoreLayout(id);
   }
 
+  // ===== RECEIPT ALIAS METHODS (delegated to ReceiptAliasesStorage) =====
+
+  async getReceiptAliases(familyGroupId: string): Promise<Map<string, string>> {
+    return this.receiptAliases.getReceiptAliases(familyGroupId);
+  }
+
+  async saveReceiptAliases(
+    familyGroupId: string,
+    entries: Array<{ receiptKey: string; itemName: string }>,
+    forget?: string[],
+  ): Promise<void> {
+    return this.receiptAliases.saveReceiptAliases(familyGroupId, entries, forget);
+  }
+
   /**
    * Clear ALL local WatermelonDB data
    * WARNING: This is irreversible! Used for account deletion.
@@ -324,6 +341,7 @@ class LocalStorageManager {
         const categoryHistory = await this.database.collections.get('category_history').query().fetch();
         const storeLayouts = await this.database.collections.get('store_layouts').query().fetch();
         const itemPreferences = await this.database.collections.get('item_preferences').query().fetch();
+        const receiptAliases = await this.database.collections.get('receipt_aliases').query().fetch();
 
         const ops = [
           ...lists.map((r: any) => r.prepareMarkAsDeleted()),
@@ -334,6 +352,7 @@ class LocalStorageManager {
           ...categoryHistory.map((r: any) => r.prepareMarkAsDeleted()),
           ...storeLayouts.map((r: any) => r.prepareMarkAsDeleted()),
           ...itemPreferences.map((r: any) => r.prepareMarkAsDeleted()),
+          ...receiptAliases.map((r: any) => r.prepareMarkAsDeleted()),
         ];
         if (ops.length > 0) {
           await this.database.batch(ops);

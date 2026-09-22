@@ -11,6 +11,7 @@ import { CategoryHistoryModel } from '../../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../../database/models/PriceHistory';
 import StoreLayoutModel from '../../database/models/StoreLayout';
 import { ItemPreferenceModel } from '../../database/models/ItemPreference';
+import { ReceiptAliasModel } from '../../database/models/ReceiptAlias';
 
 /**
  * Constructs the single WatermelonDB instance shared by all storage domains.
@@ -30,6 +31,6 @@ export function createDatabase(): Database {
 
   return new Database({
     adapter,
-    modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel],
+    modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel, ReceiptAliasModel],
   });
 }

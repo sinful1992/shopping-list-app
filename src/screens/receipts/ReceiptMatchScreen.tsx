@@ -29,7 +29,8 @@ import ItemManager from '../../services/ItemManager';
 import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
 import { useUser } from '../../contexts/UserContext';
-import { matchReceiptToList } from '../../utils/receiptMatcher';
+import { matchReceiptToList, receiptAliasKey } from '../../utils/receiptMatcher';
+import LocalStorageManager from '../../services/LocalStorageManager';
 import {
   groupLinesByItem, planItemUpdates, priceFromLines, ReceiptLink as Link, ReceiptLinks,
 } from '../../utils/receiptLinks';
@@ -60,6 +61,10 @@ const ReceiptMatchScreen = () => {
   const [pickerReceiptIndex, setPickerReceiptIndex] = useState<number | null>(null);
   const [toAdd, setToAdd] = useState<Set<number>>(new Set());
   const [editingNames, setEditingNames] = useState<Record<number, string>>({});
+  // Receipt text the family has confirmed before, and the links the matcher
+  // started from, so a remembered match the user overrides can be forgotten.
+  const [aliases, setAliases] = useState<Map<string, string>>(new Map());
+  const initialLinksRef = useRef<ReceiptLinks>({});
   const user = useUser();
   const userId = user?.uid ?? null;
   const applyingRef = useRef(false);
@@ -86,7 +91,11 @@ const ReceiptMatchScreen = () => {
           // Every item is a candidate, priced or not: an item priced while
           // shopping is still what that receipt line paid for, and leaving it
           // out made the line look unlisted and offered to add it twice.
-          const result = matchReceiptToList(list.receiptData.lineItems, items);
+          const known = await LocalStorageManager.getReceiptAliases(list.familyGroupId)
+            .catch(() => new Map<string, string>());
+          if (!mounted) return;
+          setAliases(known);
+          const result = matchReceiptToList(list.receiptData.lineItems, items, known);
 
           const initial: ReceiptLinks = {};
           result.matches.forEach(m => {
@@ -105,6 +114,7 @@ const ReceiptMatchScreen = () => {
             };
           });
           setLinks(initial);
+          initialLinksRef.current = initial;
           setActionable(new Set([
             ...result.matches.map(m => m.receiptIndex),
             ...result.unmatchedReceipt.map(e => e.index),
@@ -113,7 +123,9 @@ const ReceiptMatchScreen = () => {
           if (autoAddAll) {
             setToAdd(new Set(result.unmatchedReceipt.map(e => e.index)));
             const names: Record<number, string> = {};
-            result.unmatchedReceipt.forEach(e => { names[e.index] = e.item.description; });
+            result.unmatchedReceipt.forEach(e => {
+              names[e.index] = known.get(receiptAliasKey(e.item.description)) ?? e.item.description;
+            });
             setEditingNames(names);
           }
         }
@@ -157,6 +169,10 @@ const ReceiptMatchScreen = () => {
     () => listItems.filter(i => !linesByItem.has(i.id)),
     [listItems, linesByItem],
   );
+
+  // A line the family renamed before is offered under that name again.
+  const suggestedName = (line: ReceiptLineItem) =>
+    aliases.get(receiptAliasKey(line.description)) ?? line.description;
 
   const setLink = (index: number, link: Link | null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -219,7 +235,7 @@ const ReceiptMatchScreen = () => {
       setEditingNames(prev => {
         const next = { ...prev };
         unlinkedLines.forEach(e => {
-          if (next[e.index] === undefined) next[e.index] = e.item.description;
+          if (next[e.index] === undefined) next[e.index] = suggestedName(e.item);
         });
         return next;
       });
@@ -253,9 +269,9 @@ const ReceiptMatchScreen = () => {
         const name = (editingNames[idx] ?? line.description).trim();
         if (!name) return null;
         const price = sanitizePrice(line.price ?? line.unitPrice);
-        return { name, price: price ?? undefined, checked: true };
+        return { index: idx, name, price: price ?? undefined, checked: true as const };
       })
-      .filter((x): x is { name: string; price: number | undefined; checked: true } => x !== null);
+      .filter((x): x is { index: number; name: string; price: number | undefined; checked: true } => x !== null);
 
     if (updates.length === 0 && newItems.length === 0) return;
 
@@ -265,7 +281,11 @@ const ReceiptMatchScreen = () => {
       const written: Item[] = [];
       if (newItems.length > 0) {
         if (!userId) throw new Error('User not authenticated');
-        written.push(...await ItemManager.addItemsBatch(listId, newItems, userId));
+        written.push(...await ItemManager.addItemsBatch(
+          listId,
+          newItems.map(({ name, price, checked }) => ({ name, price, checked })),
+          userId,
+        ));
       }
       if (updates.length > 0) {
         written.push(...await ItemManager.updateItemsBatch(updates));
@@ -273,6 +293,10 @@ const ReceiptMatchScreen = () => {
       // The receipt is the most exact price source the app gets; without this
       // it never reached price history, only a check-off in the shop did.
       written.filter(i => i.checked).forEach(i => ItemManager.recordPurchase(i));
+      if (shoppingList?.familyGroupId) {
+        rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
+          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
+      }
       // Quick-scan is a post-shop flow: everything applied from the receipt is
       // already bought, so finish the trip instead of leaving an active list.
       // The receipt total/merchant were attached to the list at confirm time.
@@ -311,6 +335,37 @@ const ReceiptMatchScreen = () => {
       applyingRef.current = false;
       setApplying(false);
     }
+  };
+
+  /**
+   * Teach the matcher what was confirmed: a line matched by hand or on a
+   * guess is remembered as that item, and a line added under a new name is
+   * remembered under that name. A remembered match the user took away is
+   * forgotten, so a wrong one does not come back on every receipt.
+   */
+  const rememberLinks = async (familyGroupId: string, addedIndices: number[]) => {
+    const entries: Array<{ receiptKey: string; itemName: string }> = [];
+    Object.entries(links).forEach(([idx, link]) => {
+      if (link.ignored || (link.method !== 'alias' && link.method !== 'manual' && link.score >= 1)) return;
+      const line = lineItems[Number(idx)];
+      const item = itemsById.get(link.listItemId);
+      if (line && item) entries.push({ receiptKey: receiptAliasKey(line.description), itemName: item.name });
+    });
+    addedIndices.forEach(idx => {
+      const line = lineItems[idx];
+      const name = (editingNames[idx] ?? '').trim();
+      if (line && name && name !== line.description.trim()) {
+        entries.push({ receiptKey: receiptAliasKey(line.description), itemName: name });
+      }
+    });
+    const forget = Object.entries(initialLinksRef.current)
+      .filter(([idx, start]) => {
+        if (start.method !== 'alias') return false;
+        const now = links[Number(idx)];
+        return !now || now.ignored || now.listItemId !== start.listItemId;
+      })
+      .map(([idx]) => receiptAliasKey(lineItems[Number(idx)].description));
+    await LocalStorageManager.saveReceiptAliases(familyGroupId, entries, forget);
   };
 
   const handleSkip = async () => {
@@ -432,7 +487,7 @@ const ReceiptMatchScreen = () => {
                 inToAdd={toAdd.has(index)}
                 editedName={editingNames[index] ?? item.description}
                 onToggleLink={() => toggleIgnored(index)}
-                onToggleAdd={() => toggleToAdd(index, item.description)}
+                onToggleAdd={() => toggleToAdd(index, suggestedName(item))}
                 onNameChange={name => setEditingNames(prev => ({ ...prev, [index]: name }))}
                 onPick={listItems.length > 0 ? () => setPickerReceiptIndex(index) : undefined}
                 styles={styles}
@@ -581,7 +636,9 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
   const linkedNote = linked
     ? [
         linkedItem!.name,
-        link!.method !== 'manual' && !ignored ? `${Math.round(link!.score * 100)}%` : '',
+        (link!.method === 'token' || link!.method === 'dice') && !ignored
+          ? `${Math.round(link!.score * 100)}%`
+          : '',
         siblingCount > 1 ? `${siblingCount} lines` : '',
         previousPrice != null ? `was ${currency}${previousPrice.toFixed(2)}` : '',
       ].filter(Boolean).join('  ')

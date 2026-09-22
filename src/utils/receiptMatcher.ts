@@ -5,7 +5,7 @@ export interface MatchCandidate {
   receiptItem: ReceiptLineItem;
   receiptIndex: number;
   score: number;
-  method: 'token' | 'dice' | 'manual';
+  method: 'token' | 'dice' | 'manual' | 'alias';
 }
 
 export interface UnmatchedReceiptEntry {
@@ -46,6 +46,14 @@ export function stem(token: string): string {
 
 function normalize(input: string): string {
   return input.normalize('NFKC').toLowerCase().trim();
+}
+
+/**
+ * The key a receipt line's text is remembered under. Tills print the same
+ * product the same way every time, so only case and spacing are folded.
+ */
+export function receiptAliasKey(description: string): string {
+  return normalize(description).replace(/\s+/g, ' ');
 }
 
 export function tokenize(input: string): string[] {
@@ -187,9 +195,16 @@ export function unitPriceFromLines(lines: ReceiptLineItem[], unitQty: number): n
   return total / qty;
 }
 
+/**
+ * @param aliases Receipt text the family already confirmed, keyed by
+ *   receiptAliasKey, mapped to an item name. A line whose text is remembered
+ *   goes to the list item of that name before any fuzzy scoring, and several
+ *   lines may go to the same item (the product rung up twice).
+ */
 export function matchReceiptToList(
   receiptItems: ReceiptLineItem[],
   listItems: Item[],
+  aliases?: ReadonlyMap<string, string>,
 ): MatchResult {
   const eligibleReceipt = receiptItems
     .map((item, index) => ({ item, index }))
@@ -202,11 +217,34 @@ export function matchReceiptToList(
     description: item.description,
   }));
 
-  const listPrep = listItems.map(item => ({
-    item,
-    tokens: tokenize(item.name),
-    name: item.name,
-  }));
+  const assignedListIds = new Set<string>();
+  const assignedReceiptIndices = new Set<number>();
+  const matches: MatchCandidate[] = [];
+
+  if (aliases && aliases.size > 0) {
+    const itemByName = new Map<string, Item>();
+    listItems.forEach(item => {
+      const key = tokenize(item.name).join(' ');
+      if (!itemByName.has(key)) itemByName.set(key, item);
+    });
+    for (const r of receiptPrep) {
+      const aliasName = aliases.get(receiptAliasKey(r.description));
+      if (aliasName == null) continue;
+      const item = itemByName.get(tokenize(aliasName).join(' '));
+      if (!item) continue;
+      matches.push({ listItem: item, receiptItem: r.item, receiptIndex: r.index, score: 1, method: 'alias' });
+      assignedListIds.add(item.id);
+      assignedReceiptIndices.add(r.index);
+    }
+  }
+
+  const listPrep = listItems
+    .filter(item => !assignedListIds.has(item.id))
+    .map(item => ({
+      item,
+      tokens: tokenize(item.name),
+      name: item.name,
+    }));
 
   interface ScoredCandidate extends MatchCandidate {
     matched: number;
@@ -216,6 +254,7 @@ export function matchReceiptToList(
   const candidates: ScoredCandidate[] = [];
   for (const l of listPrep) {
     for (const r of receiptPrep) {
+      if (assignedReceiptIndices.has(r.index)) continue;
       const { score, method, matched } = scorePair(l.tokens, r.tokens);
       const threshold = method === 'token' ? TOKEN_THRESHOLD : DICE_THRESHOLD;
       if (score >= threshold) {
@@ -239,9 +278,6 @@ export function matchReceiptToList(
     return b.listTokenCount - a.listTokenCount;
   });
 
-  const assignedListIds = new Set<string>();
-  const assignedReceiptIndices = new Set<number>();
-  const matches: MatchCandidate[] = [];
   for (const c of candidates) {
     if (assignedListIds.has(c.listItem.id)) continue;
     if (assignedReceiptIndices.has(c.receiptIndex)) continue;

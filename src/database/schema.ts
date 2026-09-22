@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 15,
+  version: 16,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -143,6 +143,18 @@ export const schema = appSchema({
         { name: 'list_id',              type: 'string', isOptional: true, isIndexed: true },
         { name: 'recorded_at',          type: 'number', isIndexed: true },
         { name: 'family_group_id',      type: 'string', isIndexed: true },
+      ],
+    }),
+
+    // Receipt Aliases Table: receipt line text -> the item it was confirmed as
+    tableSchema({
+      name: 'receipt_aliases',
+      columns: [
+        { name: 'family_group_id', type: 'string', isIndexed: true },
+        { name: 'receipt_key', type: 'string', isIndexed: true },
+        { name: 'item_name', type: 'string' },
+        { name: 'use_count', type: 'number' },
+        { name: 'updated_at', type: 'number' },
       ],
     }),
   ],

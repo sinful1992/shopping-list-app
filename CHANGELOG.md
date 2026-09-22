@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-09-22
+
+### Added
+- **The receipt matcher remembers.** Matching "TESCO SEMI SKM MLK 2.272L" to "Milk" by hand used to be forgotten the moment you pressed Apply, so the same abbreviation needed the same manual match on every receipt. Applying now remembers, per family group:
+  - A line matched by hand, or a fuzzy match you kept, is remembered as that item. On later receipts that line goes straight to the item before any fuzzy scoring, with no confidence percentage because it is not a guess. Two remembered lines may go to the same item.
+  - A line added as a new item under a name you typed is remembered under that name. When it appears again and is not on the list, the add field starts with that name instead of the till text.
+  - A remembered match you ignore, remove or change is forgotten, so a wrong one does not return on every receipt.
+- Receipt text is keyed with case and spacing folded only (`receiptAliasKey`); names are compared singular/plural-insensitively.
+
+### Changed
+- Schema v16 adds the local `receipt_aliases` table (migration 15 → 16). It is device-local and not synced, and it is cleared with the rest of the local data on account deletion.
+
 ## [1.43.3] - 2026-09-22
 
 ### Performance

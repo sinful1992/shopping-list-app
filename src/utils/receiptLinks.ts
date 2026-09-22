@@ -5,7 +5,7 @@ import { unitPriceFromLines } from './receiptMatcher';
 /** What one receipt line is linked to. Keyed by the line's printed index. */
 export interface ReceiptLink {
   listItemId: string;
-  method: 'token' | 'dice' | 'manual';
+  method: 'token' | 'dice' | 'manual' | 'alias';
   score: number;
   ignored: boolean;
 }
