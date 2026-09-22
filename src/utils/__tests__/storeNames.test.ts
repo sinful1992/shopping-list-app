@@ -18,6 +18,15 @@ describe('resolveReceiptStoreName', () => {
     expect(resolveReceiptStoreName('tesco', 'TESCO STORES 3452', ['Lidl', 'Tesco Extra'])).toBe('Tesco Extra');
   });
 
+  test('a typed store only counts when it names the retailer as a word', () => {
+    expect(resolveReceiptStoreName('spar', 'SPAR', ['Sparrows Farm Shop'])).toBe('Spar');
+    expect(resolveReceiptStoreName('spar', 'SPAR', ['Sparrows Farm Shop', 'Spar Kings Rd'])).toBe('Spar Kings Rd');
+    expect(resolveReceiptStoreName('sainsburys', 'SAINSBURYS', ['Sainsburys'])).toBe('Sainsburys');
+    expect(resolveReceiptStoreName('tesco', 'TESCO', ["Tesco's"])).toBe("Tesco's");
+    expect(resolveReceiptStoreName('coop', 'CO-OP', ['The Co-operative'])).toBe('The Co-operative');
+    expect(resolveReceiptStoreName('mands', 'M&S', ['M&S Food'])).toBe('M&S Food');
+  });
+
   test('a known retailer with no history gets its canonical name, never the raw till text', () => {
     expect(resolveReceiptStoreName('tesco', 'TESCO STORES 3452', [])).toBe('Tesco');
     expect(resolveReceiptStoreName('sainsburys', 'SAINSBURYS SUPERMARKETS LTD', [])).toBe("Sainsbury's");

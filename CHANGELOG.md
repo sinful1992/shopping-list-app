@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.14] - 2026-09-22
+
+### Fixed
+- **A typed store name that merely contained a retailer's name could be picked as that retailer.** Since 1.43.2 a receipt from a known retailer takes the spelling the user already uses for it, found with the same substring test that reads till headers, so a store entered as "Sparrows Farm Shop" counted as Spar and a Spar receipt would have been filed under it. Typed names now have to name the retailer as a word of its own. A possessive or plural ("Tesco's", "Sainsburys") and "Co-operative" still count. Till headers keep the looser test.
+
 ## [1.47.13] - 2026-09-22
 
 ### Removed

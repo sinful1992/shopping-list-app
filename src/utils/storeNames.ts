@@ -54,6 +54,21 @@ export function detectStoreSlug(merchantName: string | null | undefined): Receip
   return 'other';
 }
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Whether a store name the user typed names this retailer as a word of its
+ * own. Stricter than detectStoreSlug, which reads till headers: a typed
+ * "Sparrows Farm Shop" contains SPAR but is not a Spar. A possessive or
+ * plural ("Tesco's", "Sainsburys") and "Co-operative" still count.
+ */
+function namesRetailer(storeName: string, slug: ReceiptStoreSlug): boolean {
+  const name = storeName.toUpperCase();
+  return MERCHANT_TO_SLUG.some(([needle, s]) =>
+    s === slug &&
+    new RegExp(`(^|[^A-Z])${escapeRegExp(needle)}('?S|ERATIVE)?([^A-Z]|$)`).test(name));
+}
+
 /**
  * The store name to give a list from its receipt, or null to leave it unset.
  *
@@ -72,7 +87,7 @@ export function resolveReceiptStoreName(
   knownStores: string[],
 ): string | null {
   if (slug && slug !== 'other') {
-    const own = knownStores.find(s => detectStoreSlug(s) === slug);
+    const own = knownStores.find(s => namesRetailer(s, slug));
     return own ?? STORE_DISPLAY_NAMES[slug];
   }
   const merchant = merchantName?.trim().toLowerCase();
