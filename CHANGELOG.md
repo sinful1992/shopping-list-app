@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.12] - 2026-09-22
+
+### Performance
+- **History search did more work than it needed.** Since 1.43.3 `SearchService.searchCompletedLists` fetches items for all the lists it needs in one pass, but it repeated the name and store checks in two places and sorted every list's items by date only to ask whether any name matched. It now checks the name and store once, fetches the remaining lists' items unsorted in one pass, and keeps the ids of lists with a matching item in a set. Results are unchanged.
+
 ## [1.47.11] - 2026-09-22
 
 ### Performance

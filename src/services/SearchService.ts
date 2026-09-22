@@ -34,50 +34,21 @@ class SearchService {
     const normalizedQuery = query.toLowerCase().trim();
 
     try {
-      // Get all completed lists
       const allLists = await LocalStorageManager.getCompletedLists(familyGroupId);
+      const headerMatches = (list: ShoppingList) =>
+        list.name.toLowerCase().includes(normalizedQuery) ||
+        !!list.storeName?.toLowerCase().includes(normalizedQuery);
 
       // Items only matter for lists whose name and store did not match;
       // fetch those in one pass instead of a query per list per keystroke.
-      const needItems = allLists.filter(list =>
-        !list.name.toLowerCase().includes(normalizedQuery) &&
-        !(list.storeName && list.storeName.toLowerCase().includes(normalizedQuery))
+      const itemCandidates = allLists.filter(list => !headerMatches(list));
+      const items = await LocalStorageManager.getItemsForLists(itemCandidates.map(l => l.id));
+      const listsWithMatchingItem = new Set(
+        items.filter(item => item.name.toLowerCase().includes(normalizedQuery)).map(item => item.listId),
       );
-      const itemsByList = await LocalStorageManager.getItemsGroupedByList(needItems.map(l => l.id));
 
-      // Filter lists that match the query
-      const matchingLists: ShoppingList[] = [];
-
-      for (const list of allLists) {
-        let matches = false;
-
-        // 1. Check list name
-        if (list.name.toLowerCase().includes(normalizedQuery)) {
-          matches = true;
-        }
-
-        // 2. Check store name
-        if (!matches && list.storeName) {
-          if (list.storeName.toLowerCase().includes(normalizedQuery)) {
-            matches = true;
-          }
-        }
-
-        // 3. Check item names
-        if (!matches) {
-          const items = itemsByList.get(list.id) ?? [];
-          const hasMatchingItem = items.some(item =>
-            item.name.toLowerCase().includes(normalizedQuery)
-          );
-          if (hasMatchingItem) {
-            matches = true;
-          }
-        }
-
-        if (matches) {
-          matchingLists.push(list);
-        }
-      }
+      const matchingLists = allLists.filter(list =>
+        headerMatches(list) || listsWithMatchingItem.has(list.id));
 
       // Sort by completed date (most recent first)
       return matchingLists.sort((a, b) => {
