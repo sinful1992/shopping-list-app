@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.45.0] - 2026-09-22
+
+### Added
+- **Receipt savings are applied, shown and reconciled.** The OCR server prints each Clubcard or multi-buy saving against its line, and that line's price is the pre-saving figure. The app kept the savings but lost which line each belonged to, and no screen used them: items were priced at the shelf price, and the lines on the match screen did not add up to the TOTAL.
+  - Each saving now keeps its line (`ReceiptDiscount.lineIndex`) and prints under it on the match screen. Items are priced at what was paid for them — in the list, in price history and in the new-item price.
+  - A SAVINGS row sits under the TOTAL.
+  - When the lines less their savings do not come to the printed total, the receipt says so ("Lines come to £X, £Y over the total. Check the prices above against the paper.") before a misread price is applied.
+  - Receipts scanned before this change have savings without a line; they are placed on the first line printed with the same description.
+
 ## [1.44.0] - 2026-09-22
 
 ### Added

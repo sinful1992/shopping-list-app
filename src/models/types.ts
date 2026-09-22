@@ -119,6 +119,9 @@ export interface ReceiptDiscount {
   description: string;
   amount: number; // Always negative
   type: 'coupon' | 'promotion' | 'loyalty' | 'price_cut' | 'other';
+  // Index into ReceiptData.lineItems of the line the saving was printed
+  // under. Absent on receipts scanned before it was recorded.
+  lineIndex?: number | null;
 }
 
 export interface VATBreakdownItem {

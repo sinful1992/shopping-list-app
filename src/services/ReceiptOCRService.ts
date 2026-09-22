@@ -388,13 +388,17 @@ class ReceiptOCRService {
     const totalAmount = parseNumber(data.total);
     const subtotal = parseNumber(data.subtotal);
 
+    // The server prints each saving against its line; keep which one, since
+    // the line's total_price is before the saving and the item bought on it
+    // cost the net amount.
     const discounts = (data.line_items || [])
-      .map(item => ({ raw: parseNumber(item.discount), desc: item.description }))
-      .filter((d): d is { raw: number; desc: string | null } => d.raw !== null)
-      .map(({ raw, desc }) => ({
+      .map((item, index) => ({ raw: parseNumber(item.discount), desc: item.description, index }))
+      .filter((d): d is { raw: number; desc: string | null; index: number } => d.raw !== null)
+      .map(({ raw, desc, index }) => ({
         description: desc || 'Discount',
         amount: raw,
         type: 'loyalty' as const,
+        lineIndex: index,
       }));
 
     const totalDiscount = parseNumber(data.savings);

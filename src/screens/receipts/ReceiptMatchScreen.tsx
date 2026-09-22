@@ -32,7 +32,8 @@ import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, receiptAliasKey } from '../../utils/receiptMatcher';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
-  groupLinesByItem, planItemUpdates, priceFromLines, ReceiptLink as Link, ReceiptLinks,
+  discountsByLine, groupLinesByItem, netLines, planItemUpdates, priceFromLines,
+  ReceiptLink as Link, ReceiptLinks,
 } from '../../utils/receiptLinks';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
 
@@ -96,6 +97,10 @@ const ReceiptMatchScreen = () => {
           if (!mounted) return;
           setAliases(known);
           const result = matchReceiptToList(list.receiptData.lineItems, items, known);
+          const paid = netLines(
+            list.receiptData.lineItems,
+            discountsByLine(list.receiptData.lineItems, list.receiptData.discounts),
+          );
 
           const initial: ReceiptLinks = {};
           result.matches.forEach(m => {
@@ -105,7 +110,7 @@ const ReceiptMatchScreen = () => {
             const disputed =
               m.listItem.price != null &&
               m.score < 1 &&
-              priceFromLines([m.receiptItem], m.listItem) !== m.listItem.price;
+              priceFromLines([paid[m.receiptIndex]], m.listItem) !== m.listItem.price;
             initial[m.receiptIndex] = {
               listItemId: m.listItem.id,
               method: m.method,
@@ -139,6 +144,13 @@ const ReceiptMatchScreen = () => {
   }, [listId, showAlert, autoAddAll]);
 
   const lineItems = useMemo(() => receiptData?.lineItems ?? [], [receiptData]);
+  // Savings printed under a line are taken off it: an item is priced at what
+  // was paid for it, which is also what adds up to the receipt total.
+  const savingsByLine = useMemo(
+    () => discountsByLine(lineItems, receiptData?.discounts),
+    [lineItems, receiptData],
+  );
+  const paidLines = useMemo(() => netLines(lineItems, savingsByLine), [lineItems, savingsByLine]);
 
   const itemsById = useMemo(() => {
     const map = new Map<string, Item>();
@@ -153,10 +165,10 @@ const ReceiptMatchScreen = () => {
     linesByItem.forEach((indices, itemId) => {
       const item = itemsById.get(itemId);
       if (!item) return;
-      map.set(itemId, priceFromLines(indices.map(i => lineItems[i]), item));
+      map.set(itemId, priceFromLines(indices.map(i => paidLines[i]), item));
     });
     return map;
-  }, [linesByItem, itemsById, lineItems]);
+  }, [linesByItem, itemsById, paidLines]);
 
   const unlinkedLines = useMemo(
     () => lineItems
@@ -260,7 +272,7 @@ const ReceiptMatchScreen = () => {
   const handleApply = async () => {
     if (applyingRef.current) return;
 
-    const updates = planItemUpdates(linesByItem, lineItems, itemsById);
+    const updates = planItemUpdates(linesByItem, paidLines, itemsById);
 
     const newItems = Array.from(toAdd)
       .filter(idx => links[idx] == null && actionable.has(idx))
@@ -268,7 +280,8 @@ const ReceiptMatchScreen = () => {
         const line = lineItems[idx];
         const name = (editingNames[idx] ?? line.description).trim();
         if (!name) return null;
-        const price = sanitizePrice(line.price ?? line.unitPrice);
+        const paidLine = paidLines[idx];
+        const price = sanitizePrice(paidLine.price ?? paidLine.unitPrice);
         return { index: idx, name, price: price ?? undefined, checked: true as const };
       })
       .filter((x): x is { index: number; name: string; price: number | undefined; checked: true } => x !== null);
@@ -433,6 +446,13 @@ const ReceiptMatchScreen = () => {
 
   const pickerLink = pickerReceiptIndex != null ? links[pickerReceiptIndex] ?? null : null;
 
+  let totalSavings = 0;
+  savingsByLine.forEach(v => { totalSavings += v; });
+  const linesPaid = paidLines.reduce((sum, l) => sum + (l.price ?? 0), 0);
+  const total = shoppingList?.totalAmount ?? null;
+  const reconcileGap =
+    total != null && Math.abs(linesPaid - total) >= 0.01 ? linesPaid - total : null;
+
   // The receipt is the document being reconciled, so it is rendered in its own
   // printed order rather than split into matched/unmatched buckets: a line's
   // position on the paper is how the user finds it again while holding the
@@ -467,7 +487,7 @@ const ReceiptMatchScreen = () => {
             // Ignored: what this line alone would have set it to.
             const nextPrice = linkedItem
               ? (link!.ignored
-                  ? priceFromLines([item], linkedItem)
+                  ? priceFromLines([paidLines[index]], linkedItem)
                   : pendingPriceByItem.get(linkedItem.id) ?? null)
               : null;
             const previousPrice =
@@ -483,6 +503,7 @@ const ReceiptMatchScreen = () => {
                 linkedItem={linkedItem}
                 siblingCount={siblingCount}
                 previousPrice={previousPrice}
+                saving={savingsByLine.get(index) ?? null}
                 isActionable={actionable.has(index)}
                 inToAdd={toAdd.has(index)}
                 editedName={editingNames[index] ?? item.description}
@@ -506,6 +527,26 @@ const ReceiptMatchScreen = () => {
                 : '—'}
             </Text>
           </View>
+
+          {totalSavings < 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.savingsLabel}>SAVINGS</Text>
+              <Text style={styles.savingsValue}>
+                {`-${currency}${Math.abs(totalSavings).toFixed(2)}`}
+              </Text>
+            </View>
+          )}
+
+          {/* The lines less their savings should come to the printed total.
+              When they do not, a price was probably misread, and the prices
+              about to be applied carry that error. */}
+          {reconcileGap != null && (
+            <Text style={styles.reconcileWarning}>
+              {`Lines come to ${currency}${linesPaid.toFixed(2)}, ${currency}${Math.abs(reconcileGap).toFixed(2)} `}
+              {reconcileGap > 0 ? 'over' : 'under'}
+              {' the total. Check the prices above against the paper.'}
+            </Text>
+          )}
 
           {unlinkedLines.length > 1 && (
             <TouchableOpacity style={styles.selectAllRow} onPress={toggleSelectAll} activeOpacity={0.7}>
@@ -591,6 +632,7 @@ interface ReconciledLineProps {
   linkedItem: Item | null;
   siblingCount: number;
   previousPrice: number | null;
+  saving: number | null;
   isActionable: boolean;
   inToAdd: boolean;
   editedName: string;
@@ -616,7 +658,7 @@ interface ReconciledLineProps {
  * itself, which opens the picker on every line that can be matched.
  */
 const ReconciledLine: React.FC<ReconciledLineProps> = ({
-  item, currency, link, linkedItem, siblingCount, previousPrice, isActionable, inToAdd,
+  item, currency, link, linkedItem, siblingCount, previousPrice, saving, isActionable, inToAdd,
   editedName, onToggleLink, onToggleAdd, onNameChange, onPick,
   styles, theme,
 }) => {
@@ -657,6 +699,15 @@ const ReconciledLine: React.FC<ReconciledLineProps> = ({
           {price != null ? `${currency}${price.toFixed(2)}` : '—'}
         </Text>
       </View>
+
+      {saving != null && (
+        <View style={styles.lineTop}>
+          <Text style={[styles.lineDesc, styles.lineSaving, ignored && styles.struck]}>Saving</Text>
+          <Text style={[styles.linePrice, styles.lineSaving, ignored && styles.struck]}>
+            {`-${currency}${Math.abs(saving).toFixed(2)}`}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.lineNote}>
         {!isActionable ? (
@@ -959,6 +1010,30 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '700' as const,
     color: theme.accent.green,
     fontFamily: RECEIPT_FONT,
+  },
+  lineSaving: {
+    color: theme.accent.orange,
+  },
+  savingsLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: theme.accent.orange,
+    fontFamily: RECEIPT_FONT,
+    letterSpacing: 1,
+  },
+  savingsValue: {
+    ...NUMERIC,
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: theme.accent.orange,
+    fontFamily: RECEIPT_FONT,
+  },
+  reconcileWarning: {
+    fontSize: 11,
+    color: theme.accent.orange,
+    fontFamily: RECEIPT_FONT,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
   },
   selectAllRow: {
     alignItems: 'center',

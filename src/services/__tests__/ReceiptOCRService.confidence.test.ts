@@ -73,6 +73,11 @@ describe('ReceiptOCRService confidence — arithmetic consistency gate', () => {
     const result = await ReceiptOCRService.extractReceipt('/tmp/receipt.jpg');
 
     expect(result.confidence).toBe(100);
+    // The saving keeps the line it was printed under, so the match screen can
+    // price the bread at what was paid for it.
+    expect(result.receiptData?.discounts).toEqual([
+      { description: 'BREAD', amount: -0.35, type: 'loyalty', lineIndex: 1 },
+    ]);
   });
 
   it('caps confidence when an item price is unparseable (sum unverifiable)', async () => {

@@ -1,4 +1,4 @@
-import type { Item, ReceiptLineItem } from '../models/types';
+import type { Item, ReceiptDiscount, ReceiptLineItem } from '../models/types';
 import { sanitizePrice } from './sanitize';
 import { unitPriceFromLines } from './receiptMatcher';
 
@@ -56,4 +56,41 @@ export function planItemUpdates(
     if (Object.keys(patch).length > 0) updates.push({ id: itemId, updates: patch });
   });
   return updates;
+}
+
+/**
+ * Total saving per line index. A discount scanned before savings kept their
+ * line falls back to the first line printed with the same description; one
+ * that matches no line is left out, since there is nothing to net it from.
+ */
+export function discountsByLine(
+  lineItems: ReceiptLineItem[],
+  discounts: ReceiptDiscount[] | null | undefined,
+): Map<number, number> {
+  const byLine = new Map<number, number>();
+  for (const d of discounts ?? []) {
+    if (!Number.isFinite(d.amount) || d.amount === 0) continue;
+    let idx = d.lineIndex ?? null;
+    if (idx == null || idx < 0 || idx >= lineItems.length) {
+      const found = lineItems.findIndex(l => l.description === d.description);
+      idx = found >= 0 ? found : null;
+    }
+    if (idx == null) continue;
+    byLine.set(idx, (byLine.get(idx) ?? 0) + d.amount);
+  }
+  return byLine;
+}
+
+/**
+ * Receipt lines with their savings taken off, for pricing items at what was
+ * actually paid. A discounted line drops its printed unit price so the unit
+ * price is derived from the net total.
+ */
+export function netLines(lineItems: ReceiptLineItem[], byLine: Map<number, number>): ReceiptLineItem[] {
+  return lineItems.map((line, idx) => {
+    const saving = byLine.get(idx);
+    if (saving == null || line.price == null) return line;
+    const net = Math.max(0, Math.round((line.price + saving) * 100) / 100);
+    return { ...line, price: net, unitPrice: null };
+  });
 }
