@@ -654,7 +654,7 @@ class FirebaseSyncListener {
     }).catch(err => CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory batch'));
 
     const ongoingRef = query(baseRef, orderByChild('recordedAt'), startAt(sessionStart));
-    const unsubChildAdded = onChildAdded(ongoingRef, async (snapshot) => {
+    const saveSnapshot = (event: string) => async (snapshot: any) => {
       try {
         const data = snapshot.val();
         if (data) {
@@ -662,12 +662,17 @@ class FirebaseSyncListener {
           if (record) await LocalStorageManager.savePriceHistoryRecord(record);
         }
       } catch (err) {
-        CrashReporting.recordError(err as Error, 'FirebaseSyncListener priceHistory child_added');
+        CrashReporting.recordError(err as Error, `FirebaseSyncListener priceHistory ${event}`);
       }
-    });
+    };
+    const unsubChildAdded = onChildAdded(ongoingRef, saveSnapshot('child_added'));
+    // A purchase keeps one record id, so a corrected price (a receipt
+    // replacing what was typed in the shop) arrives as a change, not an add.
+    const unsubChildChanged = onChildChanged(ongoingRef, saveSnapshot('child_changed'));
 
     const unsubscribe = () => {
       unsubChildAdded();
+      unsubChildChanged();
       this.activeListeners.delete(key);
     };
     this.activeListeners.set(key, unsubscribe);

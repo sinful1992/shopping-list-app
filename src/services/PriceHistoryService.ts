@@ -83,8 +83,11 @@ class PriceHistoryService {
   }
 
   /**
-   * Record a price event when an item is checked off.
+   * Record a price event when an item is bought.
    * All errors are handled internally — caller fires and forgets safely.
+   *
+   * @param recordId A stable id makes the write a correction of that record
+   *   rather than a new data point. Omitted, every call adds a record.
    */
   async recordPrice(
     familyGroupId: string,
@@ -92,9 +95,10 @@ class PriceHistoryService {
     price: number,
     storeName: string | null,
     listId: string,
+    recordId?: string,
   ): Promise<void> {
     const record: PriceHistoryRecord = {
-      id: uuidv4(),
+      id: recordId ?? uuidv4(),
       itemName,
       itemNameNormalized: itemName.toLowerCase().trim(),
       price,

@@ -110,35 +110,41 @@ class ItemManager {
       checked: newCheckedState,
     });
 
-    // Fire-and-forget: category history and price history on check-off
-    const needsListContext = newCheckedState && (!!existingItem.category || existingItem.price !== null);
-
-    if (needsListContext) {
-      LocalStorageManager.getList(existingItem.listId).then(list => {
-        if (list?.familyGroupId) {
-          if (existingItem.category) {
-            CategoryHistoryService.recordCategoryUsage(
-              list.familyGroupId,
-              existingItem.name,
-              existingItem.category
-            );
-          }
-          if (existingItem.price !== null) {
-            PriceHistoryService.recordPrice(
-              list.familyGroupId,
-              existingItem.name,
-              existingItem.price,
-              list.storeName ?? null,
-              existingItem.listId,
-            );
-          }
-        }
-      }).catch(error => {
-        CrashReporting.recordError(error as Error, 'ItemManager.toggleItemChecked listContext');
-      });
+    if (newCheckedState) {
+      this.recordPurchase(existingItem);
     }
 
     return updatedItem;
+  }
+
+  /**
+   * Record a bought item in the family's category and price history.
+   * Fire-and-forget; errors are reported, never thrown.
+   *
+   * The price record is keyed by list and item, so one purchase is one data
+   * point: re-checking an item, or a receipt correcting the price typed in
+   * the shop, rewrites that record instead of counting the purchase twice.
+   */
+  recordPurchase(item: Item): void {
+    if (!item.category && item.price === null) return;
+    LocalStorageManager.getList(item.listId).then(list => {
+      if (!list?.familyGroupId) return;
+      if (item.category) {
+        CategoryHistoryService.recordCategoryUsage(list.familyGroupId, item.name, item.category);
+      }
+      if (item.price !== null) {
+        PriceHistoryService.recordPrice(
+          list.familyGroupId,
+          item.name,
+          item.price,
+          list.storeName ?? null,
+          item.listId,
+          `item_${item.listId}_${item.id}`,
+        );
+      }
+    }).catch(error => {
+      CrashReporting.recordError(error as Error, 'ItemManager.recordPurchase');
+    });
   }
 
   /**

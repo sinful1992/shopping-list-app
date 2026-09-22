@@ -262,13 +262,17 @@ const ReceiptMatchScreen = () => {
     applyingRef.current = true;
     setApplying(true);
     try {
+      const written: Item[] = [];
       if (newItems.length > 0) {
         if (!userId) throw new Error('User not authenticated');
-        await ItemManager.addItemsBatch(listId, newItems, userId);
+        written.push(...await ItemManager.addItemsBatch(listId, newItems, userId));
       }
       if (updates.length > 0) {
-        await ItemManager.updateItemsBatch(updates);
+        written.push(...await ItemManager.updateItemsBatch(updates));
       }
+      // The receipt is the most exact price source the app gets; without this
+      // it never reached price history, only a check-off in the shop did.
+      written.filter(i => i.checked).forEach(i => ItemManager.recordPurchase(i));
       // Quick-scan is a post-shop flow: everything applied from the receipt is
       // already bought, so finish the trip instead of leaving an active list.
       // The receipt total/merchant were attached to the list at confirm time.

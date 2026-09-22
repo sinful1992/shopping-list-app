@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.43.1] - 2026-09-22
+
+### Fixed
+- **Prices applied from a receipt never reached price history.** `PriceHistoryService.recordPrice` had one caller, the check-off toggle; the receipt match screen writes through the batch item methods, which skip it, and the one-shot backfill had long since run. So the most exact price source the app has — the till's own figures — never showed in Analytics, Smart Savings, store comparison or predictions. Applying a receipt now records each item it prices or ticks off.
+- **One purchase could count twice.** Every price record got a fresh id, so checking an item off at £1.00 and then scanning a receipt that said £1.10 — or un-ticking and re-ticking it — added a second data point for the same purchase and skewed every average. Purchase records are now keyed by list and item (`item_{listId}_{itemId}`); a second write for the same purchase is a correction. Local saves update an existing record instead of skipping it, and the price-history listener also takes `child_changed`, so other devices receive the correction.
+
+### Changed
+- `ItemManager.recordPurchase(item)` holds the category-and-price recording that was inlined in `toggleItemChecked`; both the toggle and the receipt screen use it.
+
 ## [1.43.0] - 2026-09-22
 
 ### Added
