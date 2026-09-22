@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.4] - 2026-09-22
+
+### Fixed
+- **An item paid for on several receipt lines was priced as one unit of the whole amount.** Linking `SEMI SKMD MLK` 1.65 and `FULL FT MILK` 1.45 to Milk set Milk to 3.10 per unit, and that 3.10 went into price history, because the lines were summed and divided by the item's own count (usually 1). A single `2 x MILK` 3.10 line did the same. The lines are now spread over the units the receipt shows — each line's printed count, or one unit per line (a weighed line is one unit) — so Milk records 1.55. An item with no count of its own (empty or 1) also takes that count, so the list total still matches what was paid; a count the user typed is kept.
+
 ## [1.47.3] - 2026-09-22
 
 ### Fixed

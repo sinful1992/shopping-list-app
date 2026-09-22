@@ -1,6 +1,6 @@
 import type { Item, ReceiptDiscount, ReceiptLineItem } from '../models/types';
 import { sanitizePrice } from './sanitize';
-import { unitPriceFromLines } from './receiptMatcher';
+import { unitPriceFromLines, unitsFromLines } from './receiptMatcher';
 
 /** What one receipt line is linked to. Keyed by the line's printed index. */
 export interface ReceiptLink {
@@ -36,7 +36,8 @@ export function groupLinesByItem(links: ReceiptLinks): Map<string, number[]> {
 
 /**
  * The item writes that applying these links makes: the price from every line
- * linked to the item, and checked. An item whose price and checked state would
+ * linked to the item, and checked. An item with no count of its own takes the
+ * units the receipt shows; a count the user typed is kept. An item whose price and checked state would
  * not change is left out rather than rewritten with the same values.
  */
 export function planItemUpdates(
@@ -48,10 +49,13 @@ export function planItemUpdates(
   linesByItem.forEach((indices, itemId) => {
     const item = itemsById.get(itemId);
     if (!item) return;
-    const price = priceFromLines(indices.map(i => lineItems[i]), item);
+    const lines = indices.map(i => lineItems[i]);
+    const price = priceFromLines(lines, item);
     if (price == null) return;
     const patch: Partial<Item> = {};
     if (price !== item.price) patch.price = price;
+    const units = unitsFromLines(lines);
+    if (units != null && units > 1 && (item.unitQty ?? 1) <= 1) patch.unitQty = units;
     if (!item.checked) patch.checked = true;
     if (Object.keys(patch).length > 0) updates.push({ id: itemId, updates: patch });
   });

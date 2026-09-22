@@ -1,5 +1,5 @@
 import type { Item, ReceiptLineItem } from '../../models/types';
-import { dice, matchReceiptToList, receiptAliasKey, stem, unitPriceFromLines } from '../receiptMatcher';
+import { dice, matchReceiptToList, receiptAliasKey, stem, unitPriceFromLines, unitsFromLines } from '../receiptMatcher';
 
 function makeItem(overrides: Partial<Item> & { id: string; name: string }): Item {
   return {
@@ -240,13 +240,24 @@ describe('unitPriceFromLines', () => {
     expect(unitPriceFromLines([line], 3)).toBe(1);
   });
 
-  test('several lines are summed and spread over the item units', () => {
+  test('one line counting several units → per unit, whatever the item counts', () => {
+    const line = makeReceiptItem({ description: '2 x milk', price: 3.1, quantity: 2 });
+    expect(unitPriceFromLines([line], 1)).toBeCloseTo(1.55);
+  });
+
+  test('one weighed line → the line price, not the price per kg', () => {
+    const line = makeReceiptItem({ description: 'bananas', price: 0.5, unitPrice: 1.1, quantity: 0.456 });
+    expect(unitPriceFromLines([line], 1)).toBe(0.5);
+    expect(unitPriceFromLines([line], 2)).toBe(0.25);
+  });
+
+  test('several lines are spread over the units the receipt shows, not the item count', () => {
     const lines = [
-      makeReceiptItem({ description: 'milk', price: 1.1 }),
-      makeReceiptItem({ description: 'milk', price: 1.1 }),
+      makeReceiptItem({ description: 'semi skmd mlk', price: 1.65 }),
+      makeReceiptItem({ description: 'full ft milk', price: 1.45 }),
     ];
-    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(2.2);
-    expect(unitPriceFromLines(lines, 2)).toBeCloseTo(1.1);
+    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(1.55);
+    expect(unitPriceFromLines(lines, 3)).toBeCloseTo(1.55);
   });
 
   test('several lines, one with only a unit price and quantity', () => {
@@ -254,7 +265,7 @@ describe('unitPriceFromLines', () => {
       makeReceiptItem({ description: 'milk', price: 1 }),
       makeReceiptItem({ description: 'milk', price: null, unitPrice: 0.5, quantity: 2 }),
     ];
-    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(2);
+    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(2 / 3);
   });
 
   test('several lines, one without any price → null', () => {
@@ -263,6 +274,25 @@ describe('unitPriceFromLines', () => {
       makeReceiptItem({ description: 'milk', price: null }),
     ];
     expect(unitPriceFromLines(lines, 1)).toBeNull();
+  });
+});
+
+describe('unitsFromLines', () => {
+  test('one line with no count printed → unknown', () => {
+    expect(unitsFromLines([makeReceiptItem({ description: 'milk' })])).toBeNull();
+  });
+
+  test('one line with a count → that count; a weight → one unit', () => {
+    expect(unitsFromLines([makeReceiptItem({ description: 'milk', quantity: 2 })])).toBe(2);
+    expect(unitsFromLines([makeReceiptItem({ description: 'bananas', quantity: 0.456 })])).toBe(1);
+  });
+
+  test('several lines → each line count, one unit where none is printed', () => {
+    expect(unitsFromLines([
+      makeReceiptItem({ description: 'milk' }),
+      makeReceiptItem({ description: 'milk', quantity: 2 }),
+      makeReceiptItem({ description: 'bananas', quantity: 0.456 }),
+    ])).toBe(4);
   });
 });
 

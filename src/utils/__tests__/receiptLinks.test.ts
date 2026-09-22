@@ -38,12 +38,34 @@ describe('groupLinesByItem', () => {
 describe('planItemUpdates', () => {
   const lines = [line('MILK', 1.1), line('BREAD', 1.5), line('MILK', 1.1)];
 
-  test('two lines on one item sum into its price and check it', () => {
+  test('two lines on one item count two units at the per-unit price, and check it', () => {
     const items = new Map([['milk', makeItem({ id: 'milk' })]]);
     const updates = planItemUpdates(new Map([['milk', [0, 2]]]), lines, items);
     expect(updates).toHaveLength(1);
-    expect(updates[0].updates.price).toBeCloseTo(2.2);
+    expect(updates[0].updates.price).toBeCloseTo(1.1);
+    expect(updates[0].updates.unitQty).toBe(2);
     expect(updates[0].updates.checked).toBe(true);
+  });
+
+  test('a counted line sets the units of an item with no count', () => {
+    const counted = [{ ...line('2 X MILK', 3.1), quantity: 2 }];
+    const items = new Map([['milk', makeItem({ id: 'milk', unitQty: 1 })]]);
+    const [u] = planItemUpdates(new Map([['milk', [0]]]), counted, items);
+    expect(u.updates.price).toBeCloseTo(1.55);
+    expect(u.updates.unitQty).toBe(2);
+  });
+
+  test('a count the user typed is kept', () => {
+    const items = new Map([['milk', makeItem({ id: 'milk', unitQty: 3 })]]);
+    const [u] = planItemUpdates(new Map([['milk', [0, 2]]]), lines, items);
+    expect(u.updates.price).toBeCloseTo(1.1);
+    expect(u.updates.unitQty).toBeUndefined();
+  });
+
+  test('one line with no count printed leaves the units alone', () => {
+    const items = new Map([['bread', makeItem({ id: 'bread' })]]);
+    const [u] = planItemUpdates(new Map([['bread', [1]]]), lines, items);
+    expect(u.updates.unitQty).toBeUndefined();
   });
 
   test('an already-priced item gets the receipt price', () => {
