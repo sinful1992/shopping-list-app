@@ -117,6 +117,22 @@ class LocalStorageManager {
     return this.items.getItemsForLists(listIds);
   }
 
+  /**
+   * Items for many lists grouped by list id, each list's items in created_at
+   * order like getItemsForList — for callers that walk lists one by one but
+   * should not query once per list.
+   */
+  async getItemsGroupedByList(listIds: string[]): Promise<Map<string, Item[]>> {
+    const byList = new Map<string, Item[]>();
+    for (const item of await this.items.getItemsForLists(listIds)) {
+      const arr = byList.get(item.listId) ?? [];
+      arr.push(item);
+      byList.set(item.listId, arr);
+    }
+    byList.forEach(arr => arr.sort((a, b) => a.createdAt - b.createdAt));
+    return byList;
+  }
+
   async updateItem(itemId: string, updates: Partial<Item>): Promise<Item> {
     return this.items.updateItem(itemId, updates);
   }

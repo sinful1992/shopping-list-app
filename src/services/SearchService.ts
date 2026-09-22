@@ -37,6 +37,14 @@ class SearchService {
       // Get all completed lists
       const allLists = await LocalStorageManager.getCompletedLists(familyGroupId);
 
+      // Items only matter for lists whose name and store did not match;
+      // fetch those in one pass instead of a query per list per keystroke.
+      const needItems = allLists.filter(list =>
+        !list.name.toLowerCase().includes(normalizedQuery) &&
+        !(list.storeName && list.storeName.toLowerCase().includes(normalizedQuery))
+      );
+      const itemsByList = await LocalStorageManager.getItemsGroupedByList(needItems.map(l => l.id));
+
       // Filter lists that match the query
       const matchingLists: ShoppingList[] = [];
 
@@ -57,7 +65,7 @@ class SearchService {
 
         // 3. Check item names
         if (!matches) {
-          const items = await ItemManager.getItemsForList(list.id);
+          const items = itemsByList.get(list.id) ?? [];
           const hasMatchingItem = items.some(item =>
             item.name.toLowerCase().includes(normalizedQuery)
           );

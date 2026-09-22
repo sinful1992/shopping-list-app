@@ -145,8 +145,9 @@ class PriceHistoryService {
 
     while (true) {
       const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+      const itemsByList = await LocalStorageManager.getItemsGroupedByList(page.map(l => l.id));
       for (const list of page) {
-        const items = await LocalStorageManager.getItemsForList(list.id);
+        const items = itemsByList.get(list.id) ?? [];
         for (const item of items) {
           if (item.checked && item.price !== null) {
             allRecords.push({
@@ -241,8 +242,9 @@ class PriceHistoryService {
 
       while (true) {
         const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        const itemsByList = await LocalStorageManager.getItemsGroupedByList(page.map(l => l.id));
         for (const list of page) {
-          const items = await LocalStorageManager.getItemsForList(list.id);
+          const items = itemsByList.get(list.id) ?? [];
           for (const item of items) {
             if (itemGroupKey(item.name) === groupKey && item.price) {
               pricePoints.push({
@@ -369,8 +371,9 @@ class PriceHistoryService {
 
       while (true) {
         const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        const itemsByList = await LocalStorageManager.getItemsGroupedByList(page.map(l => l.id));
         for (const list of page) {
-          const items = await LocalStorageManager.getItemsForList(list.id);
+          const items = itemsByList.get(list.id) ?? [];
           items.forEach(item => {
             if (item.price !== null) {
               const name = item.name.toLowerCase();
@@ -429,8 +432,9 @@ class PriceHistoryService {
 
       const allPricePoints: (PricePoint & { itemName: string })[] = [];
 
+      const itemsByList = await LocalStorageManager.getItemsGroupedByList(recentLists.map(l => l.id));
       for (const list of recentLists) {
-        const items = await LocalStorageManager.getItemsForList(list.id);
+        const items = itemsByList.get(list.id) ?? [];
 
         items.forEach(item => {
           if (item.price !== null) {

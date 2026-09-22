@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.43.3] - 2026-09-22
+
+### Performance
+- **Analytics and History search queried the database once per list.** Four walks in `PriceHistoryService` (the price-history backfill, the legacy per-item history, the volatility chart and recent price extremes) and History search's item match each fetched a list's items inside a loop over every completed list, so their cost grew one query per trip in the household's history — for search, on every keystroke. They now fetch through `LocalStorageManager.getItemsGroupedByList`, one query per 500 lists, which returns each list's items in the same order as before. Search also only fetches items for lists whose name and store did not already match.
+- `getItemsForLists` now chunks its ids at 500 to stay under SQLite's 999-variable limit. Price prediction and the Analytics service already passed it every completed list id in one call, which a long enough history would have pushed past that limit.
+
 ## [1.43.2] - 2026-09-22
 
 ### Fixed
