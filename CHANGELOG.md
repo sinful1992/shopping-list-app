@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.17] - 2026-09-22
+
+### Fixed
+- **An upload queued while offline could use up its retries and be dropped for good.** Each queue pass tried every entry and counted a failure against it, and an entry was dropped after five. Passes run on every start, on every scan and as the follow-up pass (1.47.9), so a phone that stayed offline for a while could exhaust a receipt's retries without ever having a connection, and the image then only ever existed on that phone.
+  - A pass started while offline now does nothing.
+  - If the connection drops during a pass, the failed upload keeps its retries and the pass stops there.
+  - The queue now runs as soon as the connection comes back, instead of waiting for the next app start.
+  - Retries are now used up only by real failures, such as Storage refusing the upload.
+
 ## [1.47.16] - 2026-09-22
 
 ### Fixed

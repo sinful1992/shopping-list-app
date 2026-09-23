@@ -1,6 +1,7 @@
 import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile, writeToFile } from '@react-native-firebase/storage';
 import { utils } from '@react-native-firebase/app';
 import { v4 as uuidv4 } from 'uuid';
+import NetInfo from '@react-native-community/netinfo';
 import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
@@ -21,6 +22,7 @@ class ImageStorageManager {
   // Every read-modify-write of the stored queue runs through this chain, so
   // a capture queued while a pass removes an entry is not overwritten.
   private queueWrites: Promise<unknown> = Promise.resolve();
+  private watchingConnection = false;
 
   /**
    * Upload receipt image to Firebase Cloud Storage
@@ -130,6 +132,7 @@ class ImageStorageManager {
    * pass instead, shared by every caller that arrives meanwhile.
    */
   processUploadQueue(): Promise<UploadQueueResult> {
+    this.watchConnection();
     if (!this.processing) {
       this.processing = this.runUploadQueue().finally(() => { this.processing = null; });
       return this.processing;
@@ -145,11 +148,39 @@ class ImageStorageManager {
     return this.followUp;
   }
 
+  /**
+   * Run the queue again when the connection comes back, rather than leaving
+   * an offline scan until the next app start. Registered on first use, not
+   * at import, so modules that only import this one never touch NetInfo.
+   */
+  private watchConnection(): void {
+    if (this.watchingConnection) return;
+    this.watchingConnection = true;
+    let wasOnline = true;
+    NetInfo.addEventListener(state => {
+      const online = state.isConnected !== false;
+      if (online && !wasOnline) {
+        this.processUploadQueue().catch(() => {});
+      }
+      wasOnline = online;
+    });
+  }
+
+  private async isOffline(): Promise<boolean> {
+    const state = await NetInfo.fetch().catch(() => null);
+    return state?.isConnected === false;
+  }
+
   private async runUploadQueue(): Promise<UploadQueueResult> {
-    const queue = await this.getUploadQueue();
     let processedCount = 0;
     let successCount = 0;
     const errors: UploadError[] = [];
+    // Offline, every upload would fail and use up one of its retries; the
+    // queue runs again when the connection returns.
+    if (await this.isOffline()) {
+      return { processedCount, successCount, failedCount: 0, errors };
+    }
+    const queue = await this.getUploadQueue();
 
     for (const upload of queue) {
       // A list discarded (a skipped quick scan) or rescanned since the
@@ -169,6 +200,12 @@ class ImageStorageManager {
         // Remove from queue on success
         await this.removeFromQueue(upload.id);
       } catch {
+        // The connection dropped mid-pass: not this upload's fault, so it
+        // keeps its retries, and the rest wait for the connection too.
+        if (await this.isOffline()) {
+          processedCount--;
+          break;
+        }
         if (upload.retryCount >= 5) {
           // Max retries reached, remove from queue
           errors.push({

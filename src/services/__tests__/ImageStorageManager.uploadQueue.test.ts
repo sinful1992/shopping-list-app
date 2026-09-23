@@ -14,6 +14,23 @@ jest.mock('react-native-encrypted-storage', () => ({
   },
 }));
 
+let mockConnected: boolean | null = true;
+const mockNetListeners: Array<(s: { isConnected: boolean | null }) => void> = [];
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    fetch: jest.fn(async () => ({ isConnected: mockConnected })),
+    addEventListener: jest.fn((cb: (s: { isConnected: boolean | null }) => void) => {
+      mockNetListeners.push(cb);
+      return jest.fn();
+    }),
+  },
+}));
+const setConnected = (connected: boolean) => {
+  mockConnected = connected;
+  mockNetListeners.forEach(cb => cb({ isConnected: connected }));
+};
+
 const mockPutFile = jest.fn();
 const mockDeleteObject = jest.fn().mockResolvedValue(undefined);
 // Every @react-native-firebase/* package maps to one stub file (jest.config
@@ -47,6 +64,7 @@ const queued = () => JSON.parse(mockStore[QUEUE_KEY] ?? '[]');
 beforeEach(() => {
   Object.keys(mockStore).forEach(k => delete mockStore[k]);
   Object.keys(mockLists).forEach(k => delete mockLists[k]);
+  mockConnected = true;
   mockPutFile.mockReset();
   mockPutFile.mockImplementation(() => Promise.resolve());
   mockUpdateList.mockClear();
@@ -154,6 +172,49 @@ describe('receipt upload queue', () => {
     expect(result.successCount).toBe(1);
     expect(mockPutFile).toHaveBeenCalledTimes(2);
     expect(mockLists.l2.receiptUrl).toMatch(/^receipts\/fg-1\/l2\//);
+    expect(queued()).toEqual([]);
+  });
+
+  it('does not try, or use up retries, while offline', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/scan.jpg' };
+    await ImageStorageManager.queueReceiptForUpload('/cache/scan.jpg', 'l1');
+    mockConnected = false;
+
+    const result = await ImageStorageManager.processUploadQueue();
+
+    expect(result.processedCount).toBe(0);
+    expect(mockPutFile).not.toHaveBeenCalled();
+    expect(queued()).toEqual([expect.objectContaining({ retryCount: 0 })]);
+  });
+
+  it('a failure caused by losing the connection keeps its retries', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/scan.jpg' };
+    await ImageStorageManager.queueReceiptForUpload('/cache/scan.jpg', 'l1');
+    mockPutFile.mockImplementation(() => {
+      mockConnected = false;
+      return Promise.reject(new Error('network'));
+    });
+
+    const result = await ImageStorageManager.processUploadQueue();
+
+    expect(result.failedCount).toBe(0);
+    expect(queued()).toEqual([expect.objectContaining({ retryCount: 0 })]);
+  });
+
+  it('runs the queue when the connection comes back', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/scan.jpg' };
+    await ImageStorageManager.queueReceiptForUpload('/cache/scan.jpg', 'l1');
+    mockConnected = false;
+    await ImageStorageManager.processUploadQueue();
+    setConnected(false);
+
+    // Nothing but the connection returning starts this pass.
+    setConnected(true);
+    for (let i = 0; i < 20 && queued().length > 0; i++) {
+      await new Promise(r => setImmediate(r));
+    }
+
+    expect(mockPutFile).toHaveBeenCalledTimes(1);
     expect(queued()).toEqual([]);
   });
 });
