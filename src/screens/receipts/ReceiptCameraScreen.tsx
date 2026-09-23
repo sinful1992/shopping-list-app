@@ -6,6 +6,7 @@ import {
   Image,
   Text,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -130,8 +131,29 @@ const ReceiptCameraScreen = () => {
     };
   }, [capturedImage, retryToken, adGatePassed]);
 
+  /**
+   * The receipt is read on the server, so with no connection a scan can only
+   * fail — after the photo, and for a free user after the ad too. Checked
+   * before either. An unknown connection state is let through.
+   */
+  const confirmOnline = async (): Promise<boolean> => {
+    const state = await NetInfo.fetch().catch(() => null);
+    if (state?.isConnected !== false) return true;
+    showAlert(
+      "You're offline",
+      'Scanning reads the receipt on our server, so it needs an internet connection. Connect and try again.',
+      undefined,
+      { icon: 'warning' },
+    );
+    return false;
+  };
+
   const handleCapture = async () => {
     try {
+      if (!(await confirmOnline())) {
+        navigation.goBack();
+        return;
+      }
       const result = await ReceiptCaptureModule.captureReceipt();
 
       if (result.cancelled) {
@@ -213,6 +235,7 @@ const ReceiptCameraScreen = () => {
 
   const handlePickGallery = async () => {
     try {
+      if (!(await confirmOnline())) return;
       const result = await ReceiptCaptureModule.pickFromGallery();
       if (result.cancelled) return;
 

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.16] - 2026-09-22
+
+### Fixed
+- **Scanning offline cost a photo, and for free users an ad, before it failed.** The receipt is read on the server, so a scan with no connection can only fail. It still opened the camera and ran the ad gate first, then showed a network error with a retry. The scan screen now checks the connection before the camera opens (and before a gallery pick), and says "You're offline. Scanning reads the receipt on our server, so it needs an internet connection. Connect and try again." instead. When the connection state is unknown, the scan goes ahead as before.
+
 ## [1.47.15] - 2026-09-22
 
 ### Fixed
