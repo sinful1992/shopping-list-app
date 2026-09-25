@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.47.18] - 2026-09-25
+
+### Fixed
+- **A receipt line ticked to add could not be matched to an item already on the list.** A ticked line shows only its name box, which hides "Match to a list item", and quick-scan and "Add all" tick every unlisted line. The "Not on this receipt" slip said "Match one to a line above", but its items could not be tapped. Tapping an item on the slip now opens the receipt lines to match it to. Unclaimed lines, including ticked ones, are listed first, and lines matched to another item are listed after them. A line matched this way is no longer added as a new item, and the match is remembered for the next receipt like any other manual match.
+
 ## [1.47.17] - 2026-09-22
 
 ### Fixed

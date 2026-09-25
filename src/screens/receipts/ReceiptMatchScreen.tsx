@@ -75,6 +75,8 @@ const ReceiptMatchScreen = () => {
   const [actionable, setActionable] = useState<Set<number>>(new Set());
   const [links, setLinks] = useState<ReceiptLinks>({});
   const [pickerReceiptIndex, setPickerReceiptIndex] = useState<number | null>(null);
+  // A list item from the "not on this receipt" slip, being matched to a line.
+  const [slipPickerItemId, setSlipPickerItemId] = useState<string | null>(null);
   const [toAdd, setToAdd] = useState<Set<number>>(new Set());
   const [editingNames, setEditingNames] = useState<Record<number, string>>({});
   // Receipt text the family has confirmed before, and the links the matcher
@@ -260,10 +262,19 @@ const ReceiptMatchScreen = () => {
     setLink(index, { ...link, ignored: !link.ignored });
   };
 
+  const linkManually = (index: number, listItem: Item) =>
+    setLink(index, { listItemId: listItem.id, method: 'manual', score: 1, ignored: false });
+
   const assignManual = (listItem: Item) => {
     if (pickerReceiptIndex == null) return;
-    setLink(pickerReceiptIndex, { listItemId: listItem.id, method: 'manual', score: 1, ignored: false });
+    linkManually(pickerReceiptIndex, listItem);
     setPickerReceiptIndex(null);
+  };
+
+  const assignFromSlip = (index: number) => {
+    const item = slipPickerItemId != null ? itemsById.get(slipPickerItemId) : undefined;
+    if (item) linkManually(index, item);
+    setSlipPickerItemId(null);
   };
 
   const removeLink = () => {
@@ -662,9 +673,17 @@ const ReceiptMatchScreen = () => {
             </Text>
             <ReceiptRule />
             {itemsNotOnReceipt.map(item => (
-              <Text key={item.id} style={styles.slipItem} numberOfLines={2}>
-                {item.name}
-              </Text>
+              <TouchableOpacity
+                key={item.id}
+                style={styles.slipRow}
+                onPress={() => setSlipPickerItemId(item.id)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Match "${item.name}" to a receipt line`}
+              >
+                <Text style={styles.slipItem} numberOfLines={2}>{item.name}</Text>
+                <Text style={styles.slipAction}>Match</Text>
+              </TouchableOpacity>
             ))}
           </ReceiptCard>
         )}
@@ -682,6 +701,19 @@ const ReceiptMatchScreen = () => {
         onPick={assignManual}
         onRemove={pickerLink ? removeLink : undefined}
         onClose={() => setPickerReceiptIndex(null)}
+        styles={styles}
+        theme={theme}
+      />
+
+      <LinePickerModal
+        item={slipPickerItemId != null ? itemsById.get(slipPickerItemId) ?? null : null}
+        currency={currency}
+        lineItems={lineItems}
+        actionable={actionable}
+        links={links}
+        itemsById={itemsById}
+        onPick={assignFromSlip}
+        onClose={() => setSlipPickerItemId(null)}
         styles={styles}
         theme={theme}
       />
@@ -1000,6 +1032,88 @@ const AssignPickerModal: React.FC<AssignPickerModalProps> = ({
   );
 };
 
+interface LinePickerModalProps {
+  item: Item | null;
+  currency: string;
+  lineItems: ReceiptLineItem[];
+  actionable: Set<number>;
+  links: ReceiptLinks;
+  itemsById: Map<string, Item>;
+  onPick: (index: number) => void;
+  onClose: () => void;
+  styles: ReturnType<typeof createStyles>;
+  theme: Theme;
+}
+
+/**
+ * The reverse of AssignPickerModal, opened from a list item on the "not on
+ * this receipt" slip. Lines no item has claimed are listed first, including
+ * ones ticked to add, since those are the lines the item is likely to be.
+ * A line already matched to another item can still be taken; that item then
+ * goes back on the slip.
+ */
+const LinePickerModal: React.FC<LinePickerModalProps> = ({
+  item, currency, lineItems, actionable, links, itemsById, onPick, onClose, styles, theme,
+}) => {
+  const sorted = useMemo(() => {
+    const indices = lineItems.map((_, i) => i).filter(i => actionable.has(i));
+    return [
+      ...indices.filter(i => links[i] == null),
+      ...indices.filter(i => links[i] != null),
+    ];
+  }, [lineItems, actionable, links]);
+
+  return (
+  <Modal visible={item != null} transparent animationType="fade" onRequestClose={onClose}>
+    <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
+      <TouchableOpacity style={styles.modalCard} activeOpacity={1}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Match to a receipt line</Text>
+          {item && (
+            <Text style={styles.modalSubtitle} numberOfLines={2}>{item.name}</Text>
+          )}
+        </View>
+        <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent}>
+          {sorted.length === 0 ? (
+            <Text style={styles.modalEmpty}>No receipt line has both a name and a price to match.</Text>
+          ) : (
+            sorted.map(index => {
+              const line = lineItems[index];
+              const price = line.price ?? line.unitPrice;
+              const owner = links[index] ? itemsById.get(links[index].listItemId) : undefined;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.modalOption}
+                  onPress={() => onPick(index)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.modalOptionBody}>
+                    <Text style={styles.modalOptionText} numberOfLines={2}>
+                      {line.description}
+                      {price != null ? `  ·  ${currency}${price.toFixed(2)}` : ''}
+                    </Text>
+                    {owner && (
+                      <Text style={styles.modalOptionNote} numberOfLines={1}>
+                        {`Matched to ${owner.name}`}
+                      </Text>
+                    )}
+                  </View>
+                  <Icon name="chevron-forward" size={18} color={theme.text.tertiary} />
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ScrollView>
+        <TouchableOpacity style={styles.modalCancel} onPress={onClose} activeOpacity={0.7}>
+          <Text style={styles.modalCancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  </Modal>
+  );
+};
+
 interface EmptyStateProps {
   icon: string;
   title: string;
@@ -1197,11 +1311,22 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
+  slipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
   slipItem: {
+    flex: 1,
     fontSize: 12,
     color: theme.text.secondary,
     fontFamily: RECEIPT_FONT,
-    paddingVertical: 5,
+  },
+  slipAction: {
+    fontSize: 12,
+    color: theme.accent.blue,
+    fontFamily: RECEIPT_FONT,
   },
   modalBackdrop: {
     flex: 1,
