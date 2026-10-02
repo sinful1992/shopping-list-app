@@ -344,3 +344,17 @@ describe('matchReceiptToList with remembered receipt text', () => {
     expect(result.unmatchedReceipt.map(e => e.index)).toEqual([1]);
   });
 });
+
+describe('matchReceiptToList with coupon lines', () => {
+  it('never matches a negative line, which would record a negative price', () => {
+    const result = matchReceiptToList(
+      [
+        makeReceiptItem({ description: 'BERTOLLI 1KG', price: 3.79 }),
+        makeReceiptItem({ description: 'IRC BERTOLLI 1KG', price: -1.0 }),
+      ],
+      [makeItem({ id: 'a', name: 'Bertolli' })],
+    );
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0].receiptItem.price).toBe(3.79);
+  });
+});

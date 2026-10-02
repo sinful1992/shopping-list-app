@@ -25,6 +25,7 @@ import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateLong } from '../../utils/date';
 import { isReceiptStoragePath } from '../../utils/uri';
+import { buildOcrHints } from '../../services/ocrHints';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
@@ -106,7 +107,9 @@ const ReceiptCameraScreen = () => {
     setOcrResult(null);
     setOcrError(null);
 
-    ReceiptOCRService.extractReceipt(capturedImage, controller.signal)
+    // Quick-scan has no list yet, so nothing to hint with.
+    (listId ? buildOcrHints(listId).catch(() => null) : Promise.resolve(null))
+      .then((hints) => ReceiptOCRService.extractReceipt(capturedImage, controller.signal, hints))
       .then((result) => {
         if (!mounted) return;
         if (result.success && result.receiptData) {
@@ -129,7 +132,7 @@ const ReceiptCameraScreen = () => {
       mounted = false;
       controller.abort();
     };
-  }, [capturedImage, retryToken, adGatePassed]);
+  }, [capturedImage, retryToken, adGatePassed, listId]);
 
   /**
    * The receipt is read on the server, so with no connection a scan can only

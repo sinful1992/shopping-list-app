@@ -165,7 +165,7 @@ const ReceiptMatchScreen = () => {
   const [lineEdits, setLineEdits] = useState<Record<number, Partial<ReceiptLineItem>>>({});
   const lineItems = useMemo(
     () => (receiptData?.lineItems ?? []).map((line, i) =>
-      lineEdits[i] ? { ...line, ...lineEdits[i], needsReview: false } : line),
+      lineEdits[i] ? { ...line, ...lineEdits[i], needsReview: false, needsCheck: false } : line),
     [receiptData, lineEdits],
   );
   // Savings printed under a line are taken off it: an item is priced at what
@@ -246,7 +246,7 @@ const ReceiptMatchScreen = () => {
    * the matcher straight away against the items no line has claimed yet.
    */
   const correctLine = (index: number, patch: Partial<ReceiptLineItem>) => {
-    const fixed = { ...lineItems[index], ...patch, needsReview: false };
+    const fixed = { ...lineItems[index], ...patch, needsReview: false, needsCheck: false };
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setLineEdits(prev => ({ ...prev, [index]: { ...prev[index], ...patch } }));
     if (fixed.price == null || !fixed.description.trim()) return;
@@ -848,6 +848,16 @@ const ReconciledLine = React.memo(({
         </Text>
       </View>
 
+      {item.needsCheck ? (
+        <Text style={styles.lineCheck} accessibilityRole="text">
+          Check this price on the paper: the receipt doesn't add up without it
+        </Text>
+      ) : item.correctedFrom != null && price != null ? (
+        <Text style={styles.lineCorrected} accessibilityRole="text">
+          {`Read as ${currency}${item.correctedFrom.toFixed(2)}, fixed by the receipt's total`}
+        </Text>
+      ) : null}
+
       {saving != null && (
         <View style={styles.lineTop}>
           <Text style={[styles.lineDesc, styles.lineSaving, ignored && styles.struck]}>Saving</Text>
@@ -1264,6 +1274,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   lineSaving: {
     color: theme.accent.orange,
+  },
+  // Under the printed line, like a pencil mark on the till roll: the sum
+  // check either corrected this price or could not tell it from another.
+  lineCheck: {
+    fontSize: 12,
+    color: theme.accent.yellow,
+    marginTop: 2,
+  },
+  lineCorrected: {
+    fontSize: 12,
+    color: theme.text.tertiary,
+    marginTop: 2,
   },
   savingsLabel: {
     fontSize: 12,

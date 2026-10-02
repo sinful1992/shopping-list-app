@@ -232,7 +232,9 @@ export function matchReceiptToList(
 ): MatchResult {
   const eligibleReceipt = receiptItems
     .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.price != null && item.description.trim().length > 0);
+    // A negative line is a coupon or refund, not something bought: matching it
+    // would record a negative price against the list item.
+    .filter(({ item }) => item.price != null && item.price >= 0 && item.description.trim().length > 0);
 
   const receiptPrep = eligibleReceipt.map(({ item, index }) => ({
     item,

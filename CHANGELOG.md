@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.0] - 2026-10-03
+
+### Added
+- **The scan carries the shopping list, so the reader can check itself against it.** When a receipt is scanned for a list, the list's item names and the last price paid for each (at this store if there is one) go with the photo. The OCR server (receipt-ocr 1.2.0) uses them only to break ties between readings the photo supports: it never rewrites a price on the list's word alone, since a different price may be a real rise. `ocr-proxy` now forwards this `hints` part. It used to forward only the image.
+- **The receipt's own sum flags or fixes a misread price.** The server checks the item prices against the printed subtotal. A price it corrected shows "Read as £X, fixed by the receipt's total" under the line. A price it can't tell apart from another shows "Check this price on the paper". Confidence now follows the server's check where the receipt prints a subtotal or savings, so Tesco receipts with a savings block are no longer capped at 50 %.
+
+### Fixed
+- **A coupon line is never matched to a list item.** Costco coupons now arrive as negative lines (`-£2.00`). Matching one would have recorded a negative price against the item.
+
 ## [1.47.18] - 2026-09-25
 
 ### Fixed
