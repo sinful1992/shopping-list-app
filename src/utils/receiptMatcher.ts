@@ -5,7 +5,7 @@ export interface MatchCandidate {
   receiptItem: ReceiptLineItem;
   receiptIndex: number;
   score: number;
-  method: 'token' | 'dice' | 'manual';
+  method: 'token' | 'dice' | 'manual' | 'alias';
 }
 
 export interface UnmatchedReceiptEntry {
@@ -46,6 +46,14 @@ export function stem(token: string): string {
 
 function normalize(input: string): string {
   return input.normalize('NFKC').toLowerCase().trim();
+}
+
+/**
+ * The key a receipt line's text is remembered under. Tills print the same
+ * product the same way every time, so only case and spacing are folded.
+ */
+export function receiptAliasKey(description: string): string {
+  return normalize(description).replace(/\s+/g, ' ');
 }
 
 export function tokenize(input: string): string[] {
@@ -152,9 +160,75 @@ function scorePair(listTokens: string[], receiptTokens: string[]): PairScore {
   return { score: bestDice(listTokens, receiptTokens), method: 'dice', matched: 0 };
 }
 
+function lineTotal(line: ReceiptLineItem): number | null {
+  if (line.price != null) return line.price;
+  if (line.unitPrice != null) return line.unitPrice * (line.quantity != null && line.quantity > 0 ? line.quantity : 1);
+  return null;
+}
+
+/** The units a line printed as a whole count ("2 x"); null for a weight or none. */
+function countedUnits(line: ReceiptLineItem): number | null {
+  const q = line.quantity;
+  return q != null && Number.isInteger(q) && q > 0 ? q : null;
+}
+
+/**
+ * How many units the receipt shows were bought across these lines: each line
+ * counts its printed count, or one unit (a weighed line is one unit). Null for
+ * a single line with no count printed, where the receipt does not say.
+ */
+export function unitsFromLines(lines: ReceiptLineItem[]): number | null {
+  if (lines.length === 0) return null;
+  if (lines.length === 1) {
+    const line = lines[0];
+    if (line.quantity != null && line.quantity > 0) return countedUnits(line) ?? 1;
+    return null;
+  }
+  return lines.reduce((sum, line) => sum + (countedUnits(line) ?? 1), 0);
+}
+
+/**
+ * The per-unit price to store on a list item from the receipt lines linked to
+ * it. Item.price is per-unit app-wide (totals multiply by unitQty), while a
+ * receipt line's price is the line total.
+ *
+ * The lines are spread over the units the receipt shows (unitsFromLines), so
+ * two milks on two lines are 1.55 each rather than 3.10 for one. Only a single
+ * line with no count printed falls back to the item's own units.
+ */
+export function unitPriceFromLines(lines: ReceiptLineItem[], unitQty: number): number | null {
+  if (lines.length === 0) return null;
+
+  if (lines.length === 1) {
+    const line = lines[0];
+    const counted = countedUnits(line);
+    if (counted != null && counted > 1) {
+      return line.unitPrice ?? (line.price != null ? line.price / counted : null);
+    }
+    const units = counted ?? (unitQty > 0 ? unitQty : 1);
+    if (units === 1) return line.price ?? line.unitPrice;
+    return line.price != null ? line.price / units : line.unitPrice;
+  }
+
+  let total = 0;
+  for (const line of lines) {
+    const t = lineTotal(line);
+    if (t == null) return null;
+    total += t;
+  }
+  return total / unitsFromLines(lines)!;
+}
+
+/**
+ * @param aliases Receipt text the family already confirmed, keyed by
+ *   receiptAliasKey, mapped to an item name. A line whose text is remembered
+ *   goes to the list item of that name before any fuzzy scoring, and several
+ *   lines may go to the same item (the product rung up twice).
+ */
 export function matchReceiptToList(
   receiptItems: ReceiptLineItem[],
   listItems: Item[],
+  aliases?: ReadonlyMap<string, string>,
 ): MatchResult {
   const eligibleReceipt = receiptItems
     .map((item, index) => ({ item, index }))
@@ -167,11 +241,34 @@ export function matchReceiptToList(
     description: item.description,
   }));
 
-  const listPrep = listItems.map(item => ({
-    item,
-    tokens: tokenize(item.name),
-    name: item.name,
-  }));
+  const assignedListIds = new Set<string>();
+  const assignedReceiptIndices = new Set<number>();
+  const matches: MatchCandidate[] = [];
+
+  if (aliases && aliases.size > 0) {
+    const itemByName = new Map<string, Item>();
+    listItems.forEach(item => {
+      const key = tokenize(item.name).join(' ');
+      if (!itemByName.has(key)) itemByName.set(key, item);
+    });
+    for (const r of receiptPrep) {
+      const aliasName = aliases.get(receiptAliasKey(r.description));
+      if (aliasName == null) continue;
+      const item = itemByName.get(tokenize(aliasName).join(' '));
+      if (!item) continue;
+      matches.push({ listItem: item, receiptItem: r.item, receiptIndex: r.index, score: 1, method: 'alias' });
+      assignedListIds.add(item.id);
+      assignedReceiptIndices.add(r.index);
+    }
+  }
+
+  const listPrep = listItems
+    .filter(item => !assignedListIds.has(item.id))
+    .map(item => ({
+      item,
+      tokens: tokenize(item.name),
+      name: item.name,
+    }));
 
   interface ScoredCandidate extends MatchCandidate {
     matched: number;
@@ -181,6 +278,7 @@ export function matchReceiptToList(
   const candidates: ScoredCandidate[] = [];
   for (const l of listPrep) {
     for (const r of receiptPrep) {
+      if (assignedReceiptIndices.has(r.index)) continue;
       const { score, method, matched } = scorePair(l.tokens, r.tokens);
       const threshold = method === 'token' ? TOKEN_THRESHOLD : DICE_THRESHOLD;
       if (score >= threshold) {
@@ -204,9 +302,6 @@ export function matchReceiptToList(
     return b.listTokenCount - a.listTokenCount;
   });
 
-  const assignedListIds = new Set<string>();
-  const assignedReceiptIndices = new Set<number>();
-  const matches: MatchCandidate[] = [];
   for (const c of candidates) {
     if (assignedListIds.has(c.listItem.id)) continue;
     if (assignedReceiptIndices.has(c.receiptIndex)) continue;

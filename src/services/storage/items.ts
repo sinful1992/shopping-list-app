@@ -74,15 +74,20 @@ export class ItemsStorage {
   }
 
   /**
-   * Get items for multiple lists in a single query
+   * Get items for multiple lists, one query per 500 lists — chunked to stay
+   * under SQLite's SQLITE_MAX_VARIABLE_NUMBER (999) on long histories.
    */
   async getItemsForLists(listIds: string[]): Promise<Item[]> {
     if (listIds.length === 0) return [];
     try {
       const itemsCollection = this.database.get<ItemModel>('items');
-      const items = await itemsCollection
-        .query(Q.where('list_id', Q.oneOf(listIds)))
-        .fetch();
+      const CHUNK = 500;
+      const items: ItemModel[] = [];
+      for (let i = 0; i < listIds.length; i += CHUNK) {
+        items.push(...await itemsCollection
+          .query(Q.where('list_id', Q.oneOf(listIds.slice(i, i + CHUNK))))
+          .fetch());
+      }
       return items.map(item => itemModelToType(item));
     } catch (error: any) {
       throw new Error(`Failed to get items for lists: ${error.message}`);

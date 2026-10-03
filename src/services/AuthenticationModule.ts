@@ -27,6 +27,7 @@ import {
 import { GOOGLE_WEB_CLIENT_ID } from '@env';
 import { User, UserCredential, FamilyGroup, JoinRequest, JoinRequestStatus, Unsubscribe } from '../models/types';
 import { safeJsonParse } from '../utils/safeJsonParse';
+import { isReceiptStoragePath } from '../utils/uri';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
 import CrashReporting from './CrashReporting';
@@ -796,7 +797,7 @@ class AuthenticationModule {
 
           // Delete receipt image from Cloud Storage if exists
           const list = lists[listId];
-          if (list.receiptUrl) {
+          if (isReceiptStoragePath(list.receiptUrl)) {
             storageDeletePromises.push(
               deleteObject(storageRef(getStorage(), list.receiptUrl)).catch(() => {
                 // Ignore errors if receipt doesn't exist

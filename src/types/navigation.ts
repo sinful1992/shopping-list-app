@@ -26,6 +26,7 @@ export type HistoryStackParamList = {
   HistoryHome: undefined;
   HistoryDetail: { listId: string };
   ReceiptView: { listId: string };
+  ReceiptMatch: { listId: string; autoAddAll?: boolean };
 };
 
 declare global {

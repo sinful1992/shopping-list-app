@@ -1,5 +1,5 @@
 import type { Item, ReceiptLineItem } from '../../models/types';
-import { dice, matchReceiptToList, stem } from '../receiptMatcher';
+import { dice, matchReceiptToList, receiptAliasKey, stem, unitPriceFromLines, unitsFromLines } from '../receiptMatcher';
 
 function makeItem(overrides: Partial<Item> & { id: string; name: string }): Item {
   return {
@@ -209,5 +209,138 @@ describe('matchReceiptToList', () => {
     const result = matchReceiptToList(receipt, list);
     expect(result.matches).toHaveLength(1);
     expect(result.matches[0].receiptIndex).toBe(1);
+  });
+});
+
+describe('unitPriceFromLines', () => {
+  test('no lines → null', () => {
+    expect(unitPriceFromLines([], 1)).toBeNull();
+  });
+
+  test('one line, one unit → the line price', () => {
+    expect(unitPriceFromLines([makeReceiptItem({ description: 'milk', price: 1.25 })], 1)).toBe(1.25);
+  });
+
+  test('one line, one unit, no line price → unit price', () => {
+    expect(unitPriceFromLines([makeReceiptItem({ description: 'milk', price: null, unitPrice: 0.9 })], 1)).toBe(0.9);
+  });
+
+  test('one line, several units → the printed unit price wins', () => {
+    const line = makeReceiptItem({ description: 'yoghurt', price: 3, unitPrice: 0.75, quantity: 4 });
+    expect(unitPriceFromLines([line], 4)).toBe(0.75);
+  });
+
+  test('one line, several units, no unit price → line price over the line quantity', () => {
+    const line = makeReceiptItem({ description: 'yoghurt', price: 3, quantity: 4 });
+    expect(unitPriceFromLines([line], 2)).toBe(0.75);
+  });
+
+  test('one line, several units, no quantity read → line price over the item units', () => {
+    const line = makeReceiptItem({ description: 'yoghurt', price: 3 });
+    expect(unitPriceFromLines([line], 3)).toBe(1);
+  });
+
+  test('one line counting several units → per unit, whatever the item counts', () => {
+    const line = makeReceiptItem({ description: '2 x milk', price: 3.1, quantity: 2 });
+    expect(unitPriceFromLines([line], 1)).toBeCloseTo(1.55);
+  });
+
+  test('one weighed line → the line price, not the price per kg', () => {
+    const line = makeReceiptItem({ description: 'bananas', price: 0.5, unitPrice: 1.1, quantity: 0.456 });
+    expect(unitPriceFromLines([line], 1)).toBe(0.5);
+    expect(unitPriceFromLines([line], 2)).toBe(0.25);
+  });
+
+  test('several lines are spread over the units the receipt shows, not the item count', () => {
+    const lines = [
+      makeReceiptItem({ description: 'semi skmd mlk', price: 1.65 }),
+      makeReceiptItem({ description: 'full ft milk', price: 1.45 }),
+    ];
+    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(1.55);
+    expect(unitPriceFromLines(lines, 3)).toBeCloseTo(1.55);
+  });
+
+  test('several lines, one with only a unit price and quantity', () => {
+    const lines = [
+      makeReceiptItem({ description: 'milk', price: 1 }),
+      makeReceiptItem({ description: 'milk', price: null, unitPrice: 0.5, quantity: 2 }),
+    ];
+    expect(unitPriceFromLines(lines, 1)).toBeCloseTo(2 / 3);
+  });
+
+  test('several lines, one without any price → null', () => {
+    const lines = [
+      makeReceiptItem({ description: 'milk', price: 1 }),
+      makeReceiptItem({ description: 'milk', price: null }),
+    ];
+    expect(unitPriceFromLines(lines, 1)).toBeNull();
+  });
+});
+
+describe('unitsFromLines', () => {
+  test('one line with no count printed → unknown', () => {
+    expect(unitsFromLines([makeReceiptItem({ description: 'milk' })])).toBeNull();
+  });
+
+  test('one line with a count → that count; a weight → one unit', () => {
+    expect(unitsFromLines([makeReceiptItem({ description: 'milk', quantity: 2 })])).toBe(2);
+    expect(unitsFromLines([makeReceiptItem({ description: 'bananas', quantity: 0.456 })])).toBe(1);
+  });
+
+  test('several lines → each line count, one unit where none is printed', () => {
+    expect(unitsFromLines([
+      makeReceiptItem({ description: 'milk' }),
+      makeReceiptItem({ description: 'milk', quantity: 2 }),
+      makeReceiptItem({ description: 'bananas', quantity: 0.456 }),
+    ])).toBe(4);
+  });
+});
+
+describe('matchReceiptToList with remembered receipt text', () => {
+  test('a remembered line goes to its item even with no token in common', () => {
+    const list = [makeItem({ id: '1', name: 'Milk' }), makeItem({ id: '2', name: 'Bread' })];
+    const receipt = [makeReceiptItem({ description: 'SEMI SKM  2.272L', price: 1.45 })];
+    const aliases = new Map([[receiptAliasKey('semi skm 2.272l'), 'milk']]);
+    const result = matchReceiptToList(receipt, list, aliases);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0].listItem.id).toBe('1');
+    expect(result.matches[0].method).toBe('alias');
+    expect(result.matches[0].score).toBe(1);
+  });
+
+  test('a remembered name matches singular and plural spellings', () => {
+    const list = [makeItem({ id: '1', name: 'Bananas' })];
+    const receipt = [makeReceiptItem({ description: 'LOOSE BNN', price: 0.8 })];
+    const result = matchReceiptToList(receipt, list, new Map([['loose bnn', 'banana']]));
+    expect(result.matches[0]?.listItem.id).toBe('1');
+  });
+
+  test('two remembered lines can both go to one item', () => {
+    const list = [makeItem({ id: '1', name: 'Milk' })];
+    const receipt = [
+      makeReceiptItem({ description: 'SEMI SKM', price: 1.1 }),
+      makeReceiptItem({ description: 'SEMI SKM', price: 1.1 }),
+    ];
+    const result = matchReceiptToList(receipt, list, new Map([['semi skm', 'Milk']]));
+    expect(result.matches.map(m => m.receiptIndex)).toEqual([0, 1]);
+    expect(result.unmatchedReceipt).toEqual([]);
+  });
+
+  test('an alias to an item not on the list falls through to fuzzy matching', () => {
+    const list = [makeItem({ id: '1', name: 'coffee' })];
+    const receipt = [makeReceiptItem({ description: 'Coffee beans', price: 4 })];
+    const result = matchReceiptToList(receipt, list, new Map([['coffee beans', 'Tea']]));
+    expect(result.matches[0].method).toBe('token');
+  });
+
+  test('an item taken by an alias is not also given to a fuzzy line', () => {
+    const list = [makeItem({ id: '1', name: 'milk' })];
+    const receipt = [
+      makeReceiptItem({ description: 'SEMI SKM', price: 1.1 }),
+      makeReceiptItem({ description: 'Milk chocolate', price: 2 }),
+    ];
+    const result = matchReceiptToList(receipt, list, new Map([['semi skm', 'milk']]));
+    expect(result.matches).toHaveLength(1);
+    expect(result.unmatchedReceipt.map(e => e.index)).toEqual([1]);
   });
 });

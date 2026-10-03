@@ -3,6 +3,7 @@ import { AppState, AppStateStatus } from 'react-native';
 import { ShoppingList, User } from '../models/types';
 import ShoppingListManager from '../services/ShoppingListManager';
 import FirebaseSyncListener from '../services/FirebaseSyncListener';
+import ImageStorageManager from '../services/ImageStorageManager';
 import PriceHistoryService from '../services/PriceHistoryService';
 import CrashReporting from '../services/CrashReporting';
 import { mergeWithPendingLists as mergePendingPure, PendingListEntry } from '../utils/pendingListsMerge';
@@ -58,6 +59,9 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
         setLoading(false);
         PriceHistoryService.backfillPriceHistory(familyGroupId)
           .catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists backfillPriceHistory'));
+        // Receipt captures that could not upload when scanned (offline).
+        ImageStorageManager.processUploadQueue()
+          .catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists processUploadQueue'));
       })
       .catch(() => setLoading(false));
 

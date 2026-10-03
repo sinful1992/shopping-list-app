@@ -31,6 +31,29 @@ export interface PriceStats {
   percentageChange: number; // Last vs average
 }
 
+/** The record id one purchase — an item on a list — is kept under. */
+export const purchaseRecordId = (listId: string, itemId: string): string => `item_${listId}_${itemId}`;
+
+/**
+ * The id to write a purchase's price under, given the family's records for
+ * that item name. A purchase recorded before ids were stable (a random id
+ * from a check-off, or a `backfill_` id) already has a record for the list;
+ * that record is rewritten rather than a second one added beside it, which
+ * would count the purchase twice with the stale price as one of the points.
+ */
+export function pickPurchaseRecordId(
+  existing: PriceHistoryRecord[],
+  listId: string,
+  itemId: string,
+  itemNameNormalized: string,
+): string {
+  const own = purchaseRecordId(listId, itemId);
+  if (existing.some(r => r.id === own)) return own;
+  const legacy = existing.find(r =>
+    r.listId === listId && r.itemNameNormalized === itemNameNormalized && !r.id.startsWith('item_'));
+  return legacy?.id ?? own;
+}
+
 /**
  * How far back Smart Savings is allowed to look.
  *
@@ -83,8 +106,11 @@ class PriceHistoryService {
   }
 
   /**
-   * Record a price event when an item is checked off.
+   * Record a price event when an item is bought.
    * All errors are handled internally — caller fires and forgets safely.
+   *
+   * @param recordId A stable id makes the write a correction of that record
+   *   rather than a new data point. Omitted, every call adds a record.
    */
   async recordPrice(
     familyGroupId: string,
@@ -92,9 +118,10 @@ class PriceHistoryService {
     price: number,
     storeName: string | null,
     listId: string,
+    recordId?: string,
   ): Promise<void> {
     const record: PriceHistoryRecord = {
-      id: uuidv4(),
+      id: recordId ?? uuidv4(),
       itemName,
       itemNameNormalized: itemName.toLowerCase().trim(),
       price,
@@ -141,12 +168,13 @@ class PriceHistoryService {
 
     while (true) {
       const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+      const itemsByList = await LocalStorageManager.getItemsGroupedByList(page.map(l => l.id));
       for (const list of page) {
-        const items = await LocalStorageManager.getItemsForList(list.id);
+        const items = itemsByList.get(list.id) ?? [];
         for (const item of items) {
           if (item.checked && item.price !== null) {
             allRecords.push({
-              id: `backfill_${list.id}_${item.id}`,
+              id: purchaseRecordId(list.id, item.id),
               itemName: item.name,
               itemNameNormalized: item.name.toLowerCase().trim(),
               price: item.price,
@@ -237,8 +265,9 @@ class PriceHistoryService {
 
       while (true) {
         const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        const itemsByList = await LocalStorageManager.getItemsGroupedByList(page.map(l => l.id));
         for (const list of page) {
-          const items = await LocalStorageManager.getItemsForList(list.id);
+          const items = itemsByList.get(list.id) ?? [];
           for (const item of items) {
             if (itemGroupKey(item.name) === groupKey && item.price) {
               pricePoints.push({
@@ -365,8 +394,9 @@ class PriceHistoryService {
 
       while (true) {
         const page = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, PAGE, offset);
+        const itemsByList = await LocalStorageManager.getItemsGroupedByList(page.map(l => l.id));
         for (const list of page) {
-          const items = await LocalStorageManager.getItemsForList(list.id);
+          const items = itemsByList.get(list.id) ?? [];
           items.forEach(item => {
             if (item.price !== null) {
               const name = item.name.toLowerCase();
@@ -425,8 +455,9 @@ class PriceHistoryService {
 
       const allPricePoints: (PricePoint & { itemName: string })[] = [];
 
+      const itemsByList = await LocalStorageManager.getItemsGroupedByList(recentLists.map(l => l.id));
       for (const list of recentLists) {
-        const items = await LocalStorageManager.getItemsForList(list.id);
+        const items = itemsByList.get(list.id) ?? [];
 
         items.forEach(item => {
           if (item.price !== null) {

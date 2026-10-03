@@ -6,6 +6,25 @@ import { CategoryHistoryModel } from '../../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../../database/models/PriceHistory';
 import { itemGroupKey } from '../../utils/itemGrouping';
 
+function applyPriceRecord(r: PriceHistoryModel, record: PriceHistoryRecord): void {
+  r.itemName = record.itemName;
+  r.itemNameNormalized = record.itemNameNormalized;
+  r.price = record.price;
+  r.storeName = record.storeName;
+  r.listId = record.listId;
+  r.recordedAt = record.recordedAt;
+  r.familyGroupId = record.familyGroupId;
+}
+
+function priceRecordDiffers(m: PriceHistoryModel, record: PriceHistoryRecord): boolean {
+  return (
+    m.itemName !== record.itemName ||
+    m.price !== record.price ||
+    m.storeName !== record.storeName ||
+    m.recordedAt !== record.recordedAt
+  );
+}
+
 /**
  * History storage domain: category-usage history and price history.
  * Receives the shared WatermelonDB handle from LocalStorageManager (the
@@ -258,21 +277,19 @@ export class HistoryStorage {
   async savePriceHistoryRecord(record: PriceHistoryRecord): Promise<void> {
     const collection = this.database.get<PriceHistoryModel>('price_history');
     await this.database.write(async () => {
-      try {
-        await collection.find(record.id);
+      const existing = await collection.query(Q.where('id', record.id)).fetch();
+      if (existing.length > 0) {
+        // One purchase keeps one id, so a second write for it is a correction
+        // (a receipt replacing a typed price), not a new data point.
+        if (priceRecordDiffers(existing[0], record)) {
+          await existing[0].update(r => applyPriceRecord(r, record));
+        }
         return;
-      } catch {
-        await collection.create(r => {
-          r._raw.id = record.id;
-          r.itemName = record.itemName;
-          r.itemNameNormalized = record.itemNameNormalized;
-          r.price = record.price;
-          r.storeName = record.storeName;
-          r.listId = record.listId;
-          r.recordedAt = record.recordedAt;
-          r.familyGroupId = record.familyGroupId;
-        });
       }
+      await collection.create(r => {
+        r._raw.id = record.id;
+        applyPriceRecord(r, record);
+      });
     }, 'savePriceHistoryRecord');
 
     this.invalidatePriceVariants(record.familyGroupId);
@@ -288,31 +305,32 @@ export class HistoryStorage {
     const collection = this.database.get<PriceHistoryModel>('price_history');
     const CHUNK = 500;
 
-    const existingIds = new Set<string>();
+    const existingById = new Map<string, PriceHistoryModel>();
     for (let i = 0; i < records.length; i += CHUNK) {
       const chunk = records.slice(i, i + CHUNK);
       const found = await collection.query(Q.where('id', Q.oneOf(chunk.map(r => r.id)))).fetch();
-      found.forEach(m => existingIds.add(m.id));
+      found.forEach(m => existingById.set(m.id, m));
     }
 
-    const toCreate = records.filter(r => !existingIds.has(r.id));
-    if (toCreate.length === 0) return;
+    const toCreate = records.filter(r => !existingById.has(r.id));
+    const toUpdate = records.filter(r => {
+      const m = existingById.get(r.id);
+      return m != null && priceRecordDiffers(m, r);
+    });
+    if (toCreate.length === 0 && toUpdate.length === 0) return;
 
     const applyCreate = (r: PriceHistoryModel, record: PriceHistoryRecord) => {
       r._raw.id = record.id;
-      r.itemName = record.itemName;
-      r.itemNameNormalized = record.itemNameNormalized;
-      r.price = record.price;
-      r.storeName = record.storeName;
-      r.listId = record.listId;
-      r.recordedAt = record.recordedAt;
-      r.familyGroupId = record.familyGroupId;
+      applyPriceRecord(r, record);
     };
 
     await this.database.write(async () => {
-      const ops: any[] = toCreate.map(record =>
-        collection.prepareCreate(r => applyCreate(r, record))
-      );
+      const ops: any[] = [
+        ...toCreate.map(record => collection.prepareCreate(r => applyCreate(r, record))),
+        ...toUpdate.map(record =>
+          existingById.get(record.id)!.prepareUpdate(r => applyPriceRecord(r, record))
+        ),
+      ];
 
       try {
         await this.database.batch(ops);

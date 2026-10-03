@@ -3,7 +3,7 @@ import { Item, Unsubscribe, SyncStatus } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
-import PriceHistoryService from './PriceHistoryService';
+import PriceHistoryService, { pickPurchaseRecordId } from './PriceHistoryService';
 import CrashReporting from './CrashReporting';
 import { sanitizeItemName, sanitizeQuantity, sanitizePrice, sanitizeCategory } from '../utils/sanitize';
 
@@ -110,35 +110,47 @@ class ItemManager {
       checked: newCheckedState,
     });
 
-    // Fire-and-forget: category history and price history on check-off
-    const needsListContext = newCheckedState && (!!existingItem.category || existingItem.price !== null);
-
-    if (needsListContext) {
-      LocalStorageManager.getList(existingItem.listId).then(list => {
-        if (list?.familyGroupId) {
-          if (existingItem.category) {
-            CategoryHistoryService.recordCategoryUsage(
-              list.familyGroupId,
-              existingItem.name,
-              existingItem.category
-            );
-          }
-          if (existingItem.price !== null) {
-            PriceHistoryService.recordPrice(
-              list.familyGroupId,
-              existingItem.name,
-              existingItem.price,
-              list.storeName ?? null,
-              existingItem.listId,
-            );
-          }
-        }
-      }).catch(error => {
-        CrashReporting.recordError(error as Error, 'ItemManager.toggleItemChecked listContext');
-      });
+    if (newCheckedState) {
+      this.recordPurchase(existingItem);
     }
 
     return updatedItem;
+  }
+
+  /**
+   * Record a bought item in the family's category and price history.
+   * Fire-and-forget; errors are reported, never thrown.
+   *
+   * The price record is keyed by list and item, so one purchase is one data
+   * point: re-checking an item, or a receipt correcting the price typed in
+   * the shop, rewrites that record instead of counting the purchase twice.
+   *
+   * @param countCategory False when this purchase's category was already
+   *   counted (the item was checked before), so a price correction does not
+   *   count it again.
+   */
+  recordPurchase(item: Item, countCategory = true): void {
+    if (!(countCategory && item.category) && item.price === null) return;
+    LocalStorageManager.getList(item.listId).then(async list => {
+      if (!list?.familyGroupId) return;
+      if (countCategory && item.category) {
+        CategoryHistoryService.recordCategoryUsage(list.familyGroupId, item.name, item.category);
+      }
+      if (item.price !== null) {
+        const normalized = item.name.toLowerCase().trim();
+        const existing = await LocalStorageManager.getPriceHistoryForItem(list.familyGroupId, normalized);
+        PriceHistoryService.recordPrice(
+          list.familyGroupId,
+          item.name,
+          item.price,
+          list.storeName ?? null,
+          item.listId,
+          pickPurchaseRecordId(existing, item.listId, item.id, normalized),
+        );
+      }
+    }).catch(error => {
+      CrashReporting.recordError(error as Error, 'ItemManager.recordPurchase');
+    });
   }
 
   /**
@@ -166,7 +178,14 @@ class ItemManager {
    */
   async addItemsBatch(
     listId: string,
-    itemsData: Array<{ name: string; quantity?: string; price?: number; category?: string | null; checked?: boolean }>,
+    itemsData: Array<{
+      name: string;
+      quantity?: string;
+      price?: number;
+      category?: string | null;
+      checked?: boolean;
+      unitQty?: number | null;
+    }>,
     userId: string
   ): Promise<Item[]> {
     const items: Item[] = itemsData
@@ -184,7 +203,8 @@ class ItemManager {
           createdAt: Date.now(),
           updatedAt: Date.now(),
           syncStatus: 'pending' as SyncStatus,
-          category: itemData.category ?? null,
+          category: itemData.category != null ? sanitizeCategory(itemData.category) : null,
+          unitQty: itemData.unitQty ?? null,
         };
       })
       .filter(item => item !== null) as Item[];

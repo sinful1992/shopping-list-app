@@ -23,12 +23,20 @@ jest.mock('../SyncEngine', () => ({
   default: { pushChange: (...args: any[]) => mockPushChange(...args) },
 }));
 
+const mockDeleteObject = jest.fn().mockResolvedValue(undefined);
+jest.mock('@react-native-firebase/storage', () => ({
+  getStorage: jest.fn(() => ({})),
+  ref: jest.fn((_s: unknown, path: string) => ({ path })),
+  deleteObject: (...args: unknown[]) => mockDeleteObject(...args),
+}));
+
 import ShoppingListManager from '../ShoppingListManager';
 
 describe('ShoppingListManager.deleteList — soft delete reconciles offline devices', () => {
   beforeEach(() => {
     mockUpdateList.mockReset();
     mockPushChange.mockReset().mockResolvedValue(undefined);
+    mockDeleteObject.mockClear();
   });
 
   it('syncs status=deleted via an update op and never pushes a hard delete', async () => {
@@ -55,5 +63,16 @@ describe('ShoppingListManager.deleteList — soft delete reconciles offline devi
       ([entity, , operation]) => entity === 'list' && operation === 'delete',
     );
     expect(pushedDelete).toBe(false);
+  });
+
+  it('removes the uploaded receipt image of a deleted list, and leaves a local path alone', async () => {
+    mockUpdateList.mockResolvedValueOnce({ id: 'list-1', status: 'deleted', receiptUrl: 'receipts/fg/list-1/1.jpg' });
+    await ShoppingListManager.deleteList('list-1');
+    expect(mockDeleteObject).toHaveBeenCalledWith({ path: 'receipts/fg/list-1/1.jpg' });
+
+    mockDeleteObject.mockClear();
+    mockUpdateList.mockResolvedValueOnce({ id: 'list-2', status: 'deleted', receiptUrl: '/cache/scan.jpg' });
+    await ShoppingListManager.deleteList('list-2');
+    expect(mockDeleteObject).not.toHaveBeenCalled();
   });
 });

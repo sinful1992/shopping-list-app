@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,13 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import { NUMERIC, RECEIPT_FONT } from '../../styles/theme';
 import { sanitizeError, sanitizePrice } from '../../utils/sanitize';
-import { toFileUri } from '../../utils/uri';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { isReceiptStoragePath, toFileUri } from '../../utils/uri';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
+import ImageStorageManager from '../../services/ImageStorageManager';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import { ReceiptData, ShoppingList } from '../../models/types';
@@ -54,6 +55,13 @@ const ReceiptViewScreen = () => {
   const [loading, setLoading] = useState(true);
   const [retrying, setRetrying] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  // The list's stored image path that already failed to load. The screen
+  // reloads on every focus, and without this it would retry the dead path
+  // and raise the same alert each time the user came back to it.
+  const missingImageRef = useRef<string | null>(null);
+  // Download URL per Storage path. The screen reloads on every focus, and an
+  // uploaded image's URL does not change, so it is fetched once.
+  const downloadUrlRef = useRef<{ path: string; url: string } | null>(null);
   const [list, setList] = useState<ShoppingList | null>(null);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [editing, setEditing] = useState(false);
@@ -64,10 +72,14 @@ const ReceiptViewScreen = () => {
     [receiptData],
   );
 
-  useEffect(() => {
-    loadReceiptData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Reloaded on every focus, not just mount: the match screen opened from
+  // here can save corrected lines back into this receipt.
+  useFocusEffect(
+    useCallback(() => {
+      loadReceiptData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  );
 
   const loadReceiptData = async () => {
     try {
@@ -82,7 +94,17 @@ const ReceiptViewScreen = () => {
 
       setList(fetchedList);
 
-      if (fetchedList.receiptUrl) {
+      if (fetchedList.receiptUrl && fetchedList.receiptUrl === missingImageRef.current) {
+        setReceiptUrl(null);
+      } else if (isReceiptStoragePath(fetchedList.receiptUrl)) {
+        // Uploaded: a Cloud Storage path, loaded over the network.
+        const path = fetchedList.receiptUrl;
+        if (downloadUrlRef.current?.path !== path) {
+          const url = await ImageStorageManager.getReceiptDownloadUrl(path).catch(() => null);
+          downloadUrlRef.current = url ? { path, url } : null;
+        }
+        setReceiptUrl(downloadUrlRef.current?.url ?? null);
+      } else if (fetchedList.receiptUrl) {
         setReceiptUrl(toFileUri(fetchedList.receiptUrl));
       }
 
@@ -212,11 +234,23 @@ const ReceiptViewScreen = () => {
             style={styles.receiptImage}
             resizeMode="contain"
             onError={() => {
-              showAlert('Error', 'Receipt image not found. It may have been deleted.', undefined, { icon: 'error' });
+              missingImageRef.current = list?.receiptUrl ?? null;
+              // A path into a phone's cache that is not here is most often a
+              // receipt another family member scanned and has not uploaded
+              // yet, which is not an error worth an alert.
+              if (isReceiptStoragePath(list?.receiptUrl)) {
+                showAlert('Error', 'Receipt image not found. It may have been deleted.', undefined, { icon: 'error' });
+              }
               setReceiptUrl(null);
             }}
           />
         </View>
+      )}
+      {!receiptUrl && !!list?.receiptUrl && list.receiptUrl === missingImageRef.current
+        && !isReceiptStoragePath(list.receiptUrl) && (
+        <Text style={styles.imageNote}>
+          The photo of this receipt is not on this phone. It shows here once the phone that scanned it has uploaded it.
+        </Text>
       )}
 
       {/* OCR Data Section — styled as the till receipt it came from */}
@@ -463,6 +497,18 @@ const ReceiptViewScreen = () => {
           </>
         )}
       </ReceiptCard>
+
+      {/* The match screen used to be reachable only straight after a scan;
+          a skipped or half-done match could never be picked up again. */}
+      {!editing && !!receiptData?.lineItems?.length && (
+        <TouchableOpacity
+          style={[styles.retryButton, styles.matchAgainButton]}
+          onPress={() => navigation.navigate('ReceiptMatch', { listId })}
+          accessibilityRole="button"
+        >
+          <Text style={styles.retryButtonText}>Match to list items</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 };
@@ -490,6 +536,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   imageContainer: {
     backgroundColor: '#000',
     minHeight: 300,
+  },
+  imageNote: {
+    fontSize: 14,
+    color: theme.text.secondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   receiptImage: {
     width: '100%',
@@ -662,6 +715,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 5,
+  },
+  matchAgainButton: {
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 32,
   },
   retryButtonText: {
     color: theme.text.onAccent,

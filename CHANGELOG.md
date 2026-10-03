@@ -4,7 +4,219 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [1.41.3] - 2026-09-05
+## [1.47.18] - 2026-09-25
+
+### Fixed
+- **A receipt line ticked to add could not be matched to an item already on the list.** A ticked line shows only its name box, which hides "Match to a list item", and quick-scan and "Add all" tick every unlisted line. The "Not on this receipt" slip said "Match one to a line above", but its items could not be tapped. Tapping an item on the slip now opens the receipt lines to match it to. Unclaimed lines, including ticked ones, are listed first, and lines matched to another item are listed after them. A line matched this way is no longer added as a new item, and the match is remembered for the next receipt like any other manual match.
+
+## [1.47.17] - 2026-09-22
+
+### Fixed
+- **An upload queued while offline could use up its retries and be dropped for good.** Each queue pass tried every entry and counted a failure against it, and an entry was dropped after five. Passes run on every start, on every scan and as the follow-up pass (1.47.9), so a phone that stayed offline for a while could exhaust a receipt's retries without ever having a connection, and the image then only ever existed on that phone.
+  - A pass started while offline now does nothing.
+  - If the connection drops during a pass, the failed upload keeps its retries and the pass stops there.
+  - The queue now runs as soon as the connection comes back, instead of waiting for the next app start.
+  - Retries are now used up only by real failures, such as Storage refusing the upload.
+
+## [1.47.16] - 2026-09-22
+
+### Fixed
+- **Scanning offline cost a photo, and for free users an ad, before it failed.** The receipt is read on the server, so a scan with no connection can only fail. It still opened the camera and ran the ad gate first, then showed a network error with a retry. The scan screen now checks the connection before the camera opens (and before a gallery pick), and says "You're offline. Scanning reads the receipt on our server, so it needs an internet connection. Connect and try again." instead. When the connection state is unknown, the scan goes ahead as before.
+
+## [1.47.15] - 2026-09-22
+
+### Fixed
+- **Family members were told a receipt image "may have been deleted" when it just had not uploaded yet.** A scan stores the scanning phone's cache path on the list straight away, and that path syncs to the family before the upload replaces it with the Cloud Storage path. Opening Receipt Details on another phone in that gap, or for a scan made offline, raised an error alert. A missing local image now shows a short note under the header instead: the photo is not on this phone, and it shows once the phone that scanned it has uploaded it. An uploaded image that fails to load still raises the alert.
+
+## [1.47.14] - 2026-09-22
+
+### Fixed
+- **A typed store name that merely contained a retailer's name could be picked as that retailer.** Since 1.43.2 a receipt from a known retailer takes the spelling the user already uses for it, found with the same substring test that reads till headers, so a store entered as "Sparrows Farm Shop" counted as Spar and a Spar receipt would have been filed under it. Typed names now have to name the retailer as a word of its own. A possessive or plural ("Tesco's", "Sainsburys") and "Co-operative" still count. Till headers keep the looser test.
+
+## [1.47.13] - 2026-09-22
+
+### Removed
+- Dead code in `ImageStorageManager`: `getQueuedUploadsCount` and the `onProgress` callback of `uploadReceipt` had no callers. `deleteReceipt`, which also had none, is now used by rescans (1.47.10).
+
+## [1.47.12] - 2026-09-22
+
+### Performance
+- **History search did more work than it needed.** Since 1.43.3 `SearchService.searchCompletedLists` fetches items for all the lists it needs in one pass, but it repeated the name and store checks in two places and sorted every list's items by date only to ask whether any name matched. It now checks the name and store once, fetches the remaining lists' items unsorted in one pass, and keeps the ids of lists with a matching item in a set. Results are unchanged.
+
+## [1.47.11] - 2026-09-22
+
+### Performance
+- **History details waited on a network call it never used.** `HistoryTracker.getListDetails` fetched a Cloud Storage download URL for the receipt and waited for it before the screen could show, but the screen only checked that the URL was set, to show the **View Receipt Photo** button, which opens Receipt Details. Since 1.47.1 uploads are real Storage paths, so every History detail open made that round trip, and a slow one offline. It is gone. The screen checks the list's own `receiptUrl`, and `ListDetails` no longer carries a separate `receiptUrl`.
+- **Receipt Details fetched the download URL on every focus.** Since 1.47.0 the screen reloads whenever it regains focus. An uploaded image's URL does not change, so it is now fetched once per Storage path and reused.
+
+## [1.47.10] - 2026-09-22
+
+### Fixed
+- **Uploaded receipt images outlived the lists that used them.** Since 1.47.1 receipts upload to Cloud Storage, but nothing ever removed one. Rescanning a list pointed it at the new capture and left the previous upload in the bucket, and deleting a list (which is permanent; archiving is separate) left its image there too. A rescan now deletes the image it replaces, and `ShoppingListManager.deleteList` deletes the list's image. A local path is never sent to Storage, and a missing object is not reported as an error.
+
+### Changed
+- The "is this a Cloud Storage path" check (`receipts/â€¦`) is one helper, `isReceiptStoragePath`, used by Receipt Details, OCR retry, account deletion, list deletion and rescans instead of four copies of `startsWith('receipts/')`.
+
+## [1.47.9] - 2026-09-22
+
+### Fixed
+- **A receipt scanned while an upload pass was running could wait for the next app start.** Since 1.47.1 a second `processUploadQueue` call joined the pass in progress, but that pass had read the queue before the new capture was added, so the scan was not uploaded until the queue next ran on start. Offline, one pass can take minutes, because Storage retries each upload. A call during a pass now gets one follow-up pass, shared by every caller that arrives meanwhile, which picks up whatever was queued.
+- **A capture queued while a pass removed an entry could be lost.** Adding, removing and retry-counting each read the stored queue, changed it and wrote it back with nothing ordering them, so a scan queued mid-pass could be overwritten by the pass's write and never upload. Every queue change now runs through one chain, one at a time.
+
+## [1.47.8] - 2026-09-22
+
+### Fixed
+- **Matching an older receipt again counted its purchases twice in price history.** Since 1.43.1 a purchase keeps one record id (`item_{list}_{item}`), so a receipt correcting a typed price rewrites that record. Purchases recorded before that have a random id (a check-off) or a `backfill_` id, so running "Match to list items" on an older list added an `item_` record beside the old one: two data points for one purchase, one still carrying the stale typed price. `recordPurchase` now looks up the family's records for the item and reuses the one already recorded for that list (`pickPurchaseRecordId`), so the old record is corrected in place and syncs to the family as a change.
+- The one-time price backfill now writes `item_` ids too, so on a new install its records and live check-offs for the same purchase share an id instead of duplicating each other.
+
+## [1.47.7] - 2026-09-22
+
+### Fixed
+- **Applying a receipt again counted each item's category again.** `ItemManager.recordPurchase` recorded category usage on every call, so each Apply or "Match again" on an item that was already checked added another use of its category, skewing the category the family is offered for that name. It now takes a `countCategory` flag, and the match screen passes false for items that were checked before Apply, so they only have their price record corrected.
+
+## [1.47.6] - 2026-09-22
+
+### Fixed
+- **Apply did nothing on a receipt the list already matched.** Running "Match to list items" again on a receipt that had already been applied left **Apply N prices** enabled, but Apply returned without a word: no alert, the screen stayed open, and matches changed by hand on that visit were never remembered. The button now counts what Apply will actually write (**Update N items**), reads **Done** when the linked lines change nothing, and Apply always saves the learned matches and closes, saying "Your list already matches this receipt" when there was nothing to write.
+
+### Changed
+- Receipt lines on the match screen are memoised with stable handlers, so typing an item name re-renders that line rather than the whole receipt. The per-item price and count previews come from one memo.
+
+## [1.47.5] - 2026-09-22
+
+### Fixed
+- **The match screen gave no sign that Apply would change an item's count.** Since 1.47.4 a `2 x MILK` 3.10 line sets Milk to ×2 at 1.55, but the line only showed 3.10 and the item name. Where Apply will set a count, the note under the line now says so, e.g. `Milk  ×2 at £1.55`. The screen and Apply share one rule (`unitQtyFromLines`), so the preview is what gets written.
+
+## [1.47.4] - 2026-09-22
+
+### Fixed
+- **An item paid for on several receipt lines was priced as one unit of the whole amount.** Linking `SEMI SKMD MLK` 1.65 and `FULL FT MILK` 1.45 to Milk set Milk to 3.10 per unit, and that 3.10 went into price history, because the lines were summed and divided by the item's own count (usually 1). A single `2 x MILK` 3.10 line did the same. The lines are now spread over the units the receipt shows — each line's printed count, or one unit per line (a weighed line is one unit) — so Milk records 1.55. An item with no count of its own (empty or 1) also takes that count, so the list total still matches what was paid; a count the user typed is kept.
+
+## [1.47.3] - 2026-09-22
+
+### Fixed
+- **Receipt Details repeated "Receipt image not found" every time it came back into view.** Since 1.47.0 the screen reloads on focus, so that corrections saved on the match screen show on return. For a receipt whose image is gone — any receipt scanned on another phone before uploads, whose path points into that phone's cache — each reload retried the dead path and raised the alert again. Found on the emulator going from Receipt Details to the match screen and back. The screen now remembers which stored path failed and does not retry it while it stays open.
+
+## [1.47.2] - 2026-09-22
+
+### Fixed
+- **A quick scan skipped while its receipt was uploading left the image in Storage.** Skip soft-deletes the list without clearing its `receiptUrl`, so an upload already in flight still matched it and attached the Storage path to the deleted list. The upload's own check now also treats a deleted list as unwanted and removes the object.
+
+## [1.47.1] - 2026-09-22
+
+### Fixed
+- **Receipt images never left the phone that scanned them.** `ImageStorageManager` had an upload, an offline queue and a queue processor, and nothing called any of them. `receiptUrl` kept a path into the scanning phone's cache, which synced to the rest of the family as a file they did not have, was lost on reinstall or a cache clear, and contradicted the privacy policy's statement that receipts are stored in Cloud Storage. A confirmed scan is now queued for upload and the queue runs straight away and again on each start (for scans made offline). When it lands, the list's `receiptUrl` becomes the Storage path through `ShoppingListManager`, so it syncs, and Receipt Details loads it from Storage on any device.
+  - Uploads go under the list's own family group, which the Storage rules check against the uploader's `familyGroupId` claim.
+  - A capture whose list was discarded (a skipped quick scan) or rescanned before it uploaded is dropped. An upload that finishes after a rescan is deleted rather than left orphaned.
+  - Failures retry on later runs, up to five times, and the list keeps its local path meanwhile, so nothing changes for the scanning phone until an upload succeeds.
+  - A second queue run while one is in progress joins it instead of uploading the same file twice.
+- Account deletion only passes Cloud Storage paths to Storage, not local file paths.
+
+### Deploy note
+- Uploads depend on `storage.rules` and the `setFamilyGroupClaim` function being deployed. CI deploys only the database rules. Until both are live, uploads fail harmlessly and receipts stay local as before.
+
+## [1.47.0] - 2026-09-22
+
+### Added
+- **A receipt can be matched again from Receipt Details.** The match screen was only reachable straight after a scan, so a match that was skipped, interrupted or half-done could never be picked up again, and a receipt corrected afterwards in Receipt Details could not be re-applied. Receipt Details now has a **Match to list items** button whenever the receipt has lines, from both the Lists and the History tabs (the match screen is now registered in the History stack too). Because items that already have a price are matched too (1.42.3), running it again on a list that was already matched links lines to the items they priced, rather than offering to add them a second time.
+- Receipt Details reloads when it regains focus, so corrections saved on the match screen show on return.
+
+## [1.46.1] - 2026-09-22
+
+### Changed
+- **Items added from a receipt arrive filed and counted.** A receipt line added as a new item used to land with no category — dropped at the bottom of the list and outside every category breakdown — and with the line total as its price even when the line counted several units.
+  - It now takes the category the family usually gives that name (`CategoryHistoryService.getSuggestedCategory`, as Frequently Bought already does).
+  - A line counting a whole number of units above one ("4 x YOGHURT £3.00") becomes that many units at the per-unit price (£0.75), so the unit price is right and the total is unchanged. A weighed line stays one unit.
+- `ItemManager.addItemsBatch` accepts `unitQty` and now sanitises `category` the way `addItem` does.
+
+## [1.46.0] - 2026-09-22
+
+### Added
+- **A line the scan half-read can be fixed on the match screen.** A line with no price or no name used to say "No price read on this line" and offer nothing, so the item on it could not be priced, matched or added. The note is now a tap target that opens an inline field for the missing half (a decimal keypad for a price). Once the line has both, it becomes a normal line: it is offered to the matcher straight away against items no other line has claimed, and otherwise it can be matched by hand or added. The corrections are saved back into the receipt on Apply, so Receipt Details and the rest of the family see the fixed lines. If the only change is a correction, the button reads **Save corrections**.
+
+### Fixed
+- **An edit to a receipt's lines never reached the rest of the family.** `FirebaseSyncListener.hasListChanged` compared every list field except `receiptData`, so a change that touched only the lines was dropped on arrival. This already affected line edits made in Receipt Details. It now compares receipts through `sameReceiptData`, which ignores the differences a Firebase round trip introduces (dropped nulls and empty arrays, key order), so a real edit is applied and a round trip is not mistaken for one.
+
+## [1.45.0] - 2026-09-22
+
+### Added
+- **Receipt savings are applied, shown and reconciled.** The OCR server prints each Clubcard or multi-buy saving against its line, and that line's price is the pre-saving figure. The app kept the savings but lost which line each belonged to, and no screen used them: items were priced at the shelf price, and the lines on the match screen did not add up to the TOTAL.
+  - Each saving now keeps its line (`ReceiptDiscount.lineIndex`) and prints under it on the match screen. Items are priced at what was paid for them — in the list, in price history and in the new-item price.
+  - A SAVINGS row sits under the TOTAL.
+  - When the lines less their savings do not come to the printed total, the receipt says so ("Lines come to £X, £Y over the total. Check the prices above against the paper.") before a misread price is applied.
+  - Receipts scanned before this change have savings without a line; they are placed on the first line printed with the same description.
+
+## [1.44.0] - 2026-09-22
+
+### Added
+- **The receipt matcher remembers.** Matching "TESCO SEMI SKM MLK 2.272L" to "Milk" by hand used to be forgotten the moment you pressed Apply, so the same abbreviation needed the same manual match on every receipt. Applying now remembers, per family group:
+  - A line matched by hand, or a fuzzy match you kept, is remembered as that item. On later receipts that line goes straight to the item before any fuzzy scoring, with no confidence percentage because it is not a guess. Two remembered lines may go to the same item.
+  - A line added as a new item under a name you typed is remembered under that name. When it appears again and is not on the list, the add field starts with that name instead of the till text.
+  - A remembered match you ignore, remove or change is forgotten, so a wrong one does not return on every receipt.
+- Receipt text is keyed with case and spacing folded only (`receiptAliasKey`); names are compared singular/plural-insensitively.
+
+### Changed
+- Schema v16 adds the local `receipt_aliases` table (migration 15 → 16). It is device-local and not synced, and it is cleared with the rest of the local data on account deletion.
+
+## [1.43.3] - 2026-09-22
+
+### Performance
+- **Analytics and History search queried the database once per list.** Four walks in `PriceHistoryService` (the price-history backfill, the legacy per-item history, the volatility chart and recent price extremes) and History search's item match each fetched a list's items inside a loop over every completed list, so their cost grew one query per trip in the household's history — for search, on every keystroke. They now fetch through `LocalStorageManager.getItemsGroupedByList`, one query per 500 lists, which returns each list's items in the same order as before. Search also only fetches items for lists whose name and store did not already match.
+- `getItemsForLists` now chunks its ids at 500 to stay under SQLite's 999-variable limit. Price prediction and the Analytics service already passed it every completed list id in one call, which a long enough history would have pushed past that limit.
+
+## [1.43.2] - 2026-09-22
+
+### Fixed
+- **A scanned list never knew which store it came from.** The receipt flow saved the till's merchant text to `merchantName` but never set `storeName`, which is the field price history, store layouts, the History store filter and the per-store comparison all read. Quick-scan lists in particular always had none, so every price recorded from them was store-less. A scan now sets the store when the list has none — the user's own spelling for that retailer if they have entered it before ("Tesco Extra"), otherwise its canonical name ("Sainsbury's", "Co-op"). The raw till header ("TESCO STORES 3452") is never used: an unrecognised merchant is only taken when it matches a store the user already entered. A store chosen by hand is never overwritten. This applies both to the first scan and to an OCR retry from Receipt Details.
+
+### Changed
+- Retailer detection moved from `ReceiptOCRService` into `src/utils/storeNames.ts`, with tests, next to the new resolver. `ReceiptOCRService.listPatchFor` is now the one place that decides which list fields a scan writes.
+
+## [1.43.1] - 2026-09-22
+
+### Fixed
+- **Prices applied from a receipt never reached price history.** `PriceHistoryService.recordPrice` had one caller, the check-off toggle; the receipt match screen writes through the batch item methods, which skip it, and the one-shot backfill had long since run. So the most exact price source the app has — the till's own figures — never showed in Analytics, Smart Savings, store comparison or predictions. Applying a receipt now records each item it prices or ticks off.
+- **One purchase could count twice.** Every price record got a fresh id, so checking an item off at £1.00 and then scanning a receipt that said £1.10 — or un-ticking and re-ticking it — added a second data point for the same purchase and skewed every average. Purchase records are now keyed by list and item (`item_{listId}_{itemId}`); a second write for the same purchase is a correction. Local saves update an existing record instead of skipping it, and the price-history listener also takes `child_changed`, so other devices receive the correction.
+
+### Changed
+- `ItemManager.recordPurchase(item)` holds the category-and-price recording that was inlined in `toggleItemChecked`; both the toggle and the receipt screen use it.
+
+## [1.43.0] - 2026-09-22
+
+### Added
+- **Receipt matches can be changed, not just ignored.** Tapping the annotation under any matched line opens the picker as "Change match", with the current item ticked and a **Remove match** action that turns the line back into an unlisted one (addable, or matchable again). Before this, ignoring a wrong auto-match left both the line and the item stuck: neither returned to the unmatched pools, so the right pairing could not be made.
+- **One item can take several receipt lines.** The picker now offers every list item, not only unmatched ones; an item already matched elsewhere says which line it is also on. The item's price is the lines' total spread over its units, so two separate "MILK £1.10" lines on a one-unit "Milk" record £2.20 paid. The annotation reads "2 lines" on each.
+- Ignoring a match releases its item back to the "Not on this receipt" slip.
+
+### Changed
+- The grouping and write-planning behind Apply moved out of the screen into `src/utils/receiptLinks.ts`, with tests.
+
+## [1.42.3] - 2026-09-22
+
+### Fixed
+- **An item that already had a price could not be matched to its receipt line.** The match screen only offered items with no price to the matcher, so anything priced while shopping — or carried over from an earlier list with its price — vanished from the screen entirely: never auto-matched, absent from the "Match to a list item" picker and from the "Not on this receipt" slip. When every item was priced the screen offered to add the whole shop to the list a second time. Every item is a candidate now. Where a match would change a price already on the item, the annotation shows `was £X`, and a fuzzy (under 100%) match of that kind starts ignored so the overwrite is the user's choice. Applying no longer writes an item whose price and checked state would not change.
+
+## [1.42.2] - 2026-09-05
+
+### Fixed
+- **Ignoring every match made the receipt claim it had found none.** The match screen'''s summary line branched on the accepted count, so rejecting all of them flipped it from "2 of 3 lines matched" to "3 lines · none matched yet" — which describes a failed scan rather than a scan the user overrode. It counts off the matches found, not the ones still accepted.
+- **The per-line "Match to a list item" action was invisible to screen readers.** It is a `Text` with an `onPress`, which carries no role of its own; it now declares the button role and names the receipt line it would act on.
+
+### Changed
+- `ReconciledLine` takes its stylesheet and theme from the screen instead of calling `useTheme` and `StyleSheet.create` itself. It renders once per printed line and the eval corpus has a 36-line receipt, so building a stylesheet inside it meant 36 of them per render. `EmptyState` in the same file was already written this way.
+
+## [1.42.1] - 2026-09-05
+
+### Fixed
+- **The tie glyph under each receipt line would have drawn a tofu box on Android.** The annotation row opened with U+21B3 set in `RECEIPT_FONT`, which resolves to plain `monospace` on Android — Droid Sans Mono, which has no such glyph. Every annotated line on the only platform this app ships to would have led with an empty box. Nothing in the toolchain can see this: tsc, eslint and the 270-test suite all passed on it. The glyph is gone; the annotation is tied to its line by an indent and a left rule, which cannot fail to render.
+
+## [1.42.0] - 2026-09-05
+
+### Changed
+- **The receipt match screen now shows the receipt.** It sorted the scan into three buckets — matched, unmatched receipt items, unmatched list items — two of them collapsed behind chevrons. That taxonomy is the app's, not the user's: someone holding the paper receipt finds a line by where it sits on the roll, and the buckets destroyed exactly that ordering. The screen now renders the receipt in printed order on the same `ReceiptCard` paper as Receipt Details, with what each line resolved to written underneath it as an annotation. List items the till never printed have no line to sit beside, so they get a second slip below the total. Only one control is visible per line: a receipt with four icons per row stops reading as a receipt, so the trailing toggle carries the common action and the rarer "match to a list item" lives on the annotation text.
+
+### Fixed
+- **A line the matcher had discarded still offered to add itself.** `matchReceiptToList` only considers lines carrying both a price and a description, so a line missing either appears in neither the matches nor the unmatched list. Rendering the receipt in full brought those lines back on screen, where the add toggle would have looked live and then been dropped by `handleApply`, which looks the index up in `unmatchedReceipt` and returns null when it is absent. Those lines now print with no control and say which half was not read.
 
 ### Fixed
 - **A malformed ID token answered with the decoder's own error text.** Probing the deployed proxy with `not.a.token` came back with a raw `Unexpected token ... is not valid JSON`, replacement characters and all: a three-segment string clears the shape check, then `atob` or `JSON.parse` throws and that message goes straight back as the 401 body. The status was always right and nothing sensitive escaped, so this is legibility rather than a hole. All three segments now decode inside one guard that answers `Malformed ID token`. The signature segment sat in the same position and is covered too. Every edge function carries this verification inlined — the Supabase bundler will not resolve a shared import — so the same defect was copy-pasted across all six, and all six are fixed.

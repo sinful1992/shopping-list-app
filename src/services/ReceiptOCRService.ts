@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuth, getIdToken } from '@react-native-firebase/auth';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
-import { ReceiptData, ReceiptLineItem, ReceiptStoreSlug, OCRResult } from '../models/types';
+import { ReceiptData, ReceiptLineItem, OCRResult, ShoppingList } from '../models/types';
+import { detectStoreSlug, resolveReceiptStoreName } from '../utils/storeNames';
+import StoreHistoryService from './StoreHistoryService';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
 import ImageStorageManager from './ImageStorageManager';
 import { sanitizeText } from '../utils/sanitize';
-import { toFileUri } from '../utils/uri';
+import { isReceiptStoragePath, toFileUri } from '../utils/uri';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
@@ -18,31 +20,6 @@ const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 const OCR_PROXY_URL = `${(SUPABASE_URL || '').replace(/\/+$/, '')}/functions/v1/ocr-proxy`;
 
 const DEFAULT_CURRENCY = 'GBP';
-
-// Uppercase substring → canonical slug, mirroring the retailer set the OCR
-// server recognises (_KNOWN_RETAILERS in receipt-ocr/ocr/parser.py). Ordered:
-// multi-word / apostrophe variants before shorter substrings they contain.
-const MERCHANT_TO_SLUG: ReadonlyArray<[string, ReceiptStoreSlug]> = [
-  ['TESCO', 'tesco'],
-  ['ASDA', 'asda'],
-  ['ALDI', 'aldi'],
-  ['SAINSBURY', 'sainsburys'],
-  ['MORRISONS', 'morrisons'],
-  ['WAITROSE', 'waitrose'],
-  ['COSTCO', 'costco'],
-  ['ICELAND', 'iceland'],
-  ['ONE STOP', 'onestop'],
-  ['BOOTHS', 'booths'],
-  ['BUDGENS', 'budgens'],
-  ['LONDIS', 'londis'],
-  ['LIDL', 'lidl'],
-  ['CO-OP', 'coop'],
-  ['COOP', 'coop'],
-  ['M&S', 'mands'],
-  ['MARKS & SPENCER', 'mands'],
-  ['SPAR', 'spar'],
-  ['NISA', 'nisa'],
-];
 
 /** Health probes should answer fast; don't let a dead server hang the UI. */
 const HEALTH_CHECK_TIMEOUT_MS = 10_000;
@@ -310,16 +287,39 @@ class ReceiptOCRService {
     const result = await this.extractReceipt(localFilePath);
 
     if (result.receiptData) {
-      await ShoppingListManager.updateList(listId, {
-        receiptData: result.receiptData,
-        totalAmount: result.totalAmount,
-        merchantName: result.merchantName,
-        purchaseDate: result.purchaseDate,
-        currency: result.currency,
-      });
+      const list = await ShoppingListManager.getListById(listId);
+      await ShoppingListManager.updateList(listId, await this.listPatchFor(result, list?.storeName));
     }
 
     return result;
+  }
+
+  /**
+   * The list fields a scan writes. The receipt also says where the shop
+   * happened: without a store on the list, prices recorded from it carry no
+   * store and never reach per-store comparisons. A store the user already
+   * chose is kept.
+   */
+  async listPatchFor(result: OCRResult, currentStoreName: string | null | undefined): Promise<Partial<ShoppingList>> {
+    const patch: Partial<ShoppingList> = {
+      receiptData: result.receiptData,
+      totalAmount: result.totalAmount,
+      merchantName: result.merchantName,
+      purchaseDate: result.purchaseDate,
+      currency: result.currency,
+    };
+    if (!currentStoreName) {
+      const storeName = resolveReceiptStoreName(
+        result.receiptData?.store ?? null,
+        result.merchantName,
+        await StoreHistoryService.getStoreHistory(),
+      );
+      if (storeName) {
+        patch.storeName = storeName;
+        await StoreHistoryService.addStore(storeName);
+      }
+    }
+    return patch;
   }
 
   /**
@@ -345,7 +345,7 @@ class ReceiptOCRService {
     // ("receipts/{group}/{list}/...") instead of the local capture file —
     // fetch it back to cache before re-running OCR.
     let filePath = list.receiptUrl;
-    if (filePath.startsWith('receipts/')) {
+    if (isReceiptStoragePath(filePath)) {
       try {
         filePath = await ImageStorageManager.downloadReceiptToCache(filePath, listId);
       } catch (error: any) {
@@ -388,13 +388,17 @@ class ReceiptOCRService {
     const totalAmount = parseNumber(data.total);
     const subtotal = parseNumber(data.subtotal);
 
+    // The server prints each saving against its line; keep which one, since
+    // the line's total_price is before the saving and the item bought on it
+    // cost the net amount.
     const discounts = (data.line_items || [])
-      .map(item => ({ raw: parseNumber(item.discount), desc: item.description }))
-      .filter((d): d is { raw: number; desc: string | null } => d.raw !== null)
-      .map(({ raw, desc }) => ({
+      .map((item, index) => ({ raw: parseNumber(item.discount), desc: item.description, index }))
+      .filter((d): d is { raw: number; desc: string | null; index: number } => d.raw !== null)
+      .map(({ raw, desc, index }) => ({
         description: desc || 'Discount',
         amount: raw,
         type: 'loyalty' as const,
+        lineIndex: index,
       }));
 
     const totalDiscount = parseNumber(data.savings);
@@ -422,7 +426,7 @@ class ReceiptOCRService {
     }
 
     const merchantName = data.merchant_name ? sanitizeText(data.merchant_name, 100) : null;
-    const store = this.detectStore(merchantName);
+    const store = detectStoreSlug(merchantName);
 
     return {
       totalAmount,
@@ -459,15 +463,6 @@ class ReceiptOCRService {
       sum += price + (parseNumber(item.discount) ?? 0);
     }
     return Math.abs(sum - total) < 0.015;
-  }
-
-  private detectStore(merchantName: string | null | undefined): ReceiptData['store'] {
-    if (!merchantName) return null;
-    const name = merchantName.toUpperCase();
-    for (const [needle, slug] of MERCHANT_TO_SLUG) {
-      if (name.includes(needle)) return slug;
-    }
-    return 'other';
   }
 }
 

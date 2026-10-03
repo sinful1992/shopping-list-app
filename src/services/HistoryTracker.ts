@@ -5,7 +5,6 @@ import {
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ItemManager from './ItemManager';
-import ImageStorageManager from './ImageStorageManager';
 import SearchService from './SearchService';
 import ArchiveService from './ArchiveService';
 
@@ -129,19 +128,9 @@ class HistoryTracker {
       const items = await ItemManager.getItemsForList(listId);
       const receiptData = list.receiptData;
 
-      let receiptUrl: string | null = null;
-      if (list.receiptUrl) {
-        try {
-          receiptUrl = await ImageStorageManager.getReceiptDownloadUrl(list.receiptUrl);
-        } catch {
-          receiptUrl = list.receiptUrl;
-        }
-      }
-
       return {
         list,
         items,
-        receiptUrl,
         receiptData,
       };
     } catch (error: any) {

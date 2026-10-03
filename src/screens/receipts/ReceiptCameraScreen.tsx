@@ -6,6 +6,7 @@ import {
   Image,
   Text,
 } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -14,6 +15,8 @@ import type { RouteProp } from '@react-navigation/native';
 import type { ListsStackParamList } from '../../types/navigation';
 import ReceiptCaptureModule from '../../services/ReceiptCaptureModule';
 import ReceiptOCRService from '../../services/ReceiptOCRService';
+import ImageStorageManager from '../../services/ImageStorageManager';
+import CrashReporting from '../../services/CrashReporting';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import { useUser } from '../../contexts/UserContext';
 import ReceiptPreviewOverlay from '../../components/ReceiptPreviewOverlay';
@@ -21,6 +24,7 @@ import { OCRResult } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateLong } from '../../utils/date';
+import { isReceiptStoragePath } from '../../utils/uri';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
@@ -127,8 +131,29 @@ const ReceiptCameraScreen = () => {
     };
   }, [capturedImage, retryToken, adGatePassed]);
 
+  /**
+   * The receipt is read on the server, so with no connection a scan can only
+   * fail — after the photo, and for a free user after the ad too. Checked
+   * before either. An unknown connection state is let through.
+   */
+  const confirmOnline = async (): Promise<boolean> => {
+    const state = await NetInfo.fetch().catch(() => null);
+    if (state?.isConnected !== false) return true;
+    showAlert(
+      "You're offline",
+      'Scanning reads the receipt on our server, so it needs an internet connection. Connect and try again.',
+      undefined,
+      { icon: 'warning' },
+    );
+    return false;
+  };
+
   const handleCapture = async () => {
     try {
+      if (!(await confirmOnline())) {
+        navigation.goBack();
+        return;
+      }
       const result = await ReceiptCaptureModule.captureReceipt();
 
       if (result.cancelled) {
@@ -160,6 +185,7 @@ const ReceiptCameraScreen = () => {
 
       // Quick-scan arrives without a listId; the list is only created here,
       // once the user confirms the scan, so a cancelled scan leaves no list.
+      const existing = listId ? await ShoppingListManager.getListById(listId) : null;
       const targetListId = listId ?? (await ShoppingListManager.createListOptimistic(
         formatDateLong(new Date()),
         user.uid,
@@ -169,12 +195,21 @@ const ReceiptCameraScreen = () => {
 
       await ShoppingListManager.updateList(targetListId, {
         receiptUrl: capturedImage,
-        receiptData: ocrResult.receiptData,
-        totalAmount: ocrResult.totalAmount,
-        merchantName: ocrResult.merchantName,
-        purchaseDate: ocrResult.purchaseDate,
-        currency: ocrResult.currency,
+        ...await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
       });
+
+      // The capture lives in this phone's cache; upload it so the rest of the
+      // family can see it and it survives a reinstall. Queued first, so an
+      // offline scan uploads on a later start.
+      ImageStorageManager.queueReceiptForUpload(capturedImage, targetListId)
+        .then(() => ImageStorageManager.processUploadQueue())
+        .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen receipt upload'));
+      // A rescan replaces the list's image; the one uploaded before is no
+      // longer referenced by anything.
+      if (isReceiptStoragePath(existing?.receiptUrl)) {
+        ImageStorageManager.deleteReceipt(existing.receiptUrl)
+          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen old receipt delete'));
+      }
 
       navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
     } catch (error: any) {
@@ -200,6 +235,7 @@ const ReceiptCameraScreen = () => {
 
   const handlePickGallery = async () => {
     try {
+      if (!(await confirmOnline())) return;
       const result = await ReceiptCaptureModule.pickFromGallery();
       if (result.cancelled) return;
 

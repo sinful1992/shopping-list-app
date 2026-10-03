@@ -211,6 +211,11 @@ function HistoryStack() {
         component={ReceiptViewScreen}
         options={{ title: 'Receipt Details' }}
       />
+      <Stack.Screen
+        name="ReceiptMatch"
+        component={ReceiptMatchScreen}
+        options={{ title: 'Match Receipt' }}
+      />
     </Stack.Navigator>
   );
 }

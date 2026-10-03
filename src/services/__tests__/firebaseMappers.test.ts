@@ -1,5 +1,6 @@
 import {
   mapFirebaseList,
+  sameReceiptData,
   mapFirebaseItem,
   mapFirebaseUrgentItem,
   mapFirebaseStoreLayout,
@@ -143,5 +144,40 @@ describe('firebaseMappers', () => {
       const order = ['produce', 'dairy'] as any;
       expect(mapFirebaseStoreLayout('s', { categoryOrder: order }, 'fg').categoryOrder).toBe(order);
     });
+  });
+});
+
+describe('sameReceiptData', () => {
+  const local = {
+    subtotal: null,
+    lineItems: [
+      { description: 'MILK', quantity: null, unitPrice: null, price: 1.2, vatCode: null, needsReview: false },
+    ],
+    discounts: [],
+    totalDiscount: null,
+    vatBreakdown: [],
+    store: 'tesco' as const,
+    extractedAt: 1,
+    confidence: 90,
+  };
+
+  it('treats the RTDB round trip (nulls and empty arrays dropped, keys reordered) as unchanged', () => {
+    const fromFirebase = {
+      store: 'tesco',
+      lineItems: [{ price: 1.2, needsReview: false, description: 'MILK' }],
+      extractedAt: 1,
+      confidence: 90,
+    } as any;
+    expect(sameReceiptData(local, fromFirebase)).toBe(true);
+  });
+
+  it('sees a corrected line as a change', () => {
+    const edited = { ...local, lineItems: [{ ...local.lineItems[0], price: 1.25 }] };
+    expect(sameReceiptData(local, edited)).toBe(false);
+  });
+
+  it('null and absent receipts are the same', () => {
+    expect(sameReceiptData(null, undefined)).toBe(true);
+    expect(sameReceiptData(null, local)).toBe(false);
   });
 });
