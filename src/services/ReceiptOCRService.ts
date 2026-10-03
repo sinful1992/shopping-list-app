@@ -9,6 +9,7 @@ import ShoppingListManager from './ShoppingListManager';
 import ImageStorageManager from './ImageStorageManager';
 import { sanitizeText } from '../utils/sanitize';
 import { isReceiptStoragePath, toFileUri } from '../utils/uri';
+import { buildOcrHints, OcrHints } from './ocrHints';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
 const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
@@ -59,6 +60,8 @@ interface OCRServerResponse {
     total_price: string;
     discount: string | null;
     needs_review?: boolean;
+    needs_check?: boolean;
+    corrected_from?: string | null;
   }>;
   subtotal: string | null;
   savings: string | null;
@@ -66,6 +69,10 @@ interface OCRServerResponse {
   // Receipt-level anomalies (item_index: null) alongside the per-item
   // needs_review flags above — e.g. no_items, no_total.
   anomalies?: Array<{ type: string; item_index: number | null }>;
+  // The server's sum check (receipt-ocr >= 1.2.0): item prices against the
+  // printed subtotal. residual is null when the receipt prints nothing to
+  // check against.
+  arithmetic?: { closes: boolean; residual: number | null; corrections: number };
 }
 
 /**
@@ -160,7 +167,11 @@ class ReceiptOCRService {
    * Extract receipt data from an image without persisting.
    * Forwards AbortSignal to fetch for cancellation support.
    */
-  async extractReceipt(localFilePath: string, signal?: AbortSignal): Promise<OCRResult> {
+  async extractReceipt(
+    localFilePath: string,
+    signal?: AbortSignal,
+    hints?: OcrHints | null,
+  ): Promise<OCRResult> {
     // A user-set server URL is the local-dev path: talk to that server
     // directly, since a dev instance runs without OCR_SHARED_SECRET and is
     // not reachable from the deployed proxy anyway. Otherwise go through
@@ -210,6 +221,9 @@ class ReceiptOCRService {
       } as any);
       if (proxyIdToken) {
         formData.append('idToken', proxyIdToken);
+      }
+      if (hints && hints.items.length > 0) {
+        formData.append('hints', JSON.stringify(hints));
       }
 
       const response = await fetch(requestUrl, {
@@ -284,7 +298,8 @@ class ReceiptOCRService {
    * Process a receipt image: extract OCR data and persist to the list.
    */
   async processReceipt(localFilePath: string, listId: string): Promise<OCRResult> {
-    const result = await this.extractReceipt(localFilePath);
+    const hints = await buildOcrHints(listId).catch(() => null);
+    const result = await this.extractReceipt(localFilePath, undefined, hints);
 
     if (result.receiptData) {
       const list = await ShoppingListManager.getListById(listId);
@@ -383,6 +398,8 @@ class ReceiptOCRService {
         price: parseNumber(item.total_price),
         vatCode: null,
         needsReview: item.needs_review === true,
+        needsCheck: item.needs_check === true,
+        correctedFrom: parseNumber(item.corrected_from ?? null),
       }));
 
     const totalAmount = parseNumber(data.total);
@@ -417,11 +434,13 @@ class ReceiptOCRService {
     // Mirror the server's is_complete_parse arithmetic gate: line items net of
     // their discounts must sum to the printed total. When both sides exist and
     // the sum doesn't verify, cap below the "please verify" threshold.
-    if (
-      totalAmount !== null &&
-      lineItems.length > 0 &&
-      !this.itemsSumMatchesTotal(data.line_items, totalAmount)
-    ) {
+    // A server new enough to check its own sum says so in `arithmetic`; its
+    // check knows subtotals and savings blocks, which this one doesn't. With
+    // nothing printed to check against (residual null) fall back to ours.
+    const verified = data.arithmetic && data.arithmetic.residual !== null
+      ? data.arithmetic.closes
+      : totalAmount === null || this.itemsSumMatchesTotal(data.line_items, totalAmount);
+    if (lineItems.length > 0 && !verified) {
       confidence = Math.min(confidence, 50);
     }
 

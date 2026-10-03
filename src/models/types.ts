@@ -155,6 +155,8 @@ export interface ReceiptLineItem {
   price: number | null;
   vatCode: string | null; // e.g., 'A', 'B', '*'
   needsReview?: boolean; // OCR server flagged this item's parse as suspect (e.g. no description/price)
+  needsCheck?: boolean; // the receipt's sum points at this line's price as a possible misread
+  correctedFrom?: number | null; // the price as first read, when the server's sum check corrected it
 }
 
 export interface CaptureResult {

@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { buildUpstreamForm } from './upstreamForm.ts'
 
 // Server-side hop between the app and the self-hosted PaddleOCR Space.
 //
@@ -120,6 +121,7 @@ serve(async (req: Request) => {
 
   let file: File
   let formToken: string | null = null
+  let hints: unknown = null
   try {
     const form = await req.formData()
     const candidate = form.get('file')
@@ -129,6 +131,7 @@ serve(async (req: Request) => {
     file = candidate
     const tokenPart = form.get('idToken')
     if (typeof tokenPart === 'string') formToken = tokenPart
+    hints = form.get('hints')
   } catch {
     return json({ error: 'Malformed multipart body' }, 400)
   }
@@ -155,9 +158,9 @@ serve(async (req: Request) => {
   }
 
   // Rebuild the multipart body rather than streaming the original through:
-  // formData() has already consumed it, and the Space only reads "file".
-  const upstreamForm = new FormData()
-  upstreamForm.append('file', file, file.name || 'receipt.jpg')
+  // formData() has already consumed it, and the Space reads only "file" and
+  // the optional "hints".
+  const upstreamForm = buildUpstreamForm(file, hints)
 
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (OCR_SHARED_SECRET) headers['X-OCR-Key'] = OCR_SHARED_SECRET
