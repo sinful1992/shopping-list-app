@@ -24,7 +24,6 @@ import { OCRResult } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateLong } from '../../utils/date';
-import { isReceiptStoragePath } from '../../utils/uri';
 import { buildOcrHints } from '../../services/ocrHints';
 
 const ReceiptCameraScreen = () => {
@@ -196,23 +195,16 @@ const ReceiptCameraScreen = () => {
         user,
       )).id;
 
-      await ShoppingListManager.updateList(targetListId, {
-        receiptUrl: capturedImage,
-        ...await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
-      });
-
-      // The capture lives in this phone's cache; upload it so the rest of the
-      // family can see it and it survives a reinstall. Queued first, so an
-      // offline scan uploads on a later start.
-      ImageStorageManager.queueReceiptForUpload(capturedImage, targetListId)
-        .then(() => ImageStorageManager.processUploadQueue())
+      // The capture lives in this phone's cache; it is queued for upload so
+      // the rest of the family can see it and it survives a reinstall. The
+      // image it replaces is deleted only once the new one has uploaded.
+      await ImageStorageManager.setListReceipt(
+        targetListId,
+        capturedImage,
+        await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
+      );
+      ImageStorageManager.processUploadQueue()
         .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen receipt upload'));
-      // A rescan replaces the list's image; the one uploaded before is no
-      // longer referenced by anything.
-      if (isReceiptStoragePath(existing?.receiptUrl)) {
-        ImageStorageManager.deleteReceipt(existing.receiptUrl)
-          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen old receipt delete'));
-      }
 
       navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
     } catch (error: any) {

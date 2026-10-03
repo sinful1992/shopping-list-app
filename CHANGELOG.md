@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.1] - 2026-10-03
+
+### Fixed
+- **A rescan no longer deletes the old receipt photo before the new one has uploaded.** The old photo was deleted from the cloud as soon as the list pointed at the new capture, which still only existed on the scanning phone. If that upload failed, no phone had an image. The old photo now stays until the new one has uploaded and the list points at it. Two rescans made offline delete it once, after the last one uploads. Deleting the list before the upload deletes it too. A rescan whose upload keeps failing stays queued for the next connection instead of being dropped. An upload finishing at the same moment as a new scan can no longer overwrite the newer scan.
+
 ## [1.48.0] - 2026-10-03
 
 ### Added

@@ -2,9 +2,11 @@ import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile, w
 import { utils } from '@react-native-firebase/app';
 import { v4 as uuidv4 } from 'uuid';
 import NetInfo from '@react-native-community/netinfo';
-import { QueuedUpload, UploadQueueResult, UploadError } from '../models/types';
+import { QueuedUpload, UploadQueueResult, UploadError, ShoppingList } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
+import CrashReporting from './CrashReporting';
+import { isReceiptStoragePath } from '../utils/uri';
 import EncryptedStorage from 'react-native-encrypted-storage';
 import { safeJsonParse } from '../utils/safeJsonParse';
 
@@ -22,19 +24,39 @@ class ImageStorageManager {
   // Every read-modify-write of the stored queue runs through this chain, so
   // a capture queued while a pass removes an entry is not overwritten.
   private queueWrites: Promise<unknown> = Promise.resolve();
+  // Per list: pointing the list at an image (a scan, or an upload landing)
+  // and deciding an old image is unreferenced run one at a time, so an
+  // upload never overwrites a newer scan between its check and its write.
+  private listLocks = new Map<string, Promise<unknown>>();
   private watchingConnection = false;
 
+  private static readonly MAX_RETRIES = 5;
+
   /**
-   * Upload receipt image to Firebase Cloud Storage
+   * Point a list at a new capture and queue it for upload. The image the
+   * list showed before stays in Storage until the new one has uploaded and
+   * the list points at it; other devices still need it until then.
+   */
+  async setListReceipt(listId: string, filePath: string, patch: Partial<ShoppingList>): Promise<void> {
+    await this.withListLock(listId, async () => {
+      const shown = (await LocalStorageManager.getList(listId))?.receiptUrl;
+      await ShoppingListManager.updateList(listId, { ...patch, receiptUrl: filePath });
+      await this.queueReceiptForUpload(
+        filePath,
+        listId,
+        isReceiptStoragePath(shown) ? shown : undefined,
+      );
+    });
+  }
+
+  /**
+   * Upload a queued capture to Firebase Cloud Storage and point its list at it
    * Implements Req 5.4, 5.5
    */
-  async uploadReceipt(
-    filePath: string,
-    listId: string,
-    familyGroupId: string,
-  ): Promise<string> {
+  private async uploadReceipt(upload: QueuedUpload, familyGroupId: string): Promise<void> {
     try {
       // Generate storage path: /receipts/{familyGroupId}/{listId}/{timestamp}.jpg
+      const { filePath, listId } = upload;
       const timestamp = Date.now();
       const storagePath = `receipts/${familyGroupId}/${listId}/${timestamp}.jpg`;
 
@@ -43,22 +65,53 @@ class ImageStorageManager {
 
       await putFile(reference, filePath);
 
-      // Point the list at the upload only if it still shows this capture: a
-      // rescan or a discarded quick scan while the upload was in flight means
-      // nothing wants it, and it would sit in the bucket unreferenced.
-      const list = await LocalStorageManager.getList(listId);
-      if (!list || list.status === 'deleted' || list.receiptUrl !== filePath) {
-        await deleteObject(reference).catch(() => {});
-        return storagePath;
-      }
-      // Through ShoppingListManager, not local storage alone, so the path
-      // syncs and the rest of the family can load the image.
-      await ShoppingListManager.updateList(listId, { receiptUrl: storagePath });
-
-      return storagePath;
+      await this.withListLock(listId, async () => {
+        // Point the list at the upload only if it still shows this capture: a
+        // rescan or a discarded quick scan while the upload was in flight means
+        // nothing wants it, and it would sit in the bucket unreferenced.
+        const list = await LocalStorageManager.getList(listId);
+        if (!list || list.status === 'deleted' || list.receiptUrl !== filePath) {
+          await deleteObject(reference).catch(() => {});
+        } else {
+          // Through ShoppingListManager, not local storage alone, so the path
+          // syncs and the rest of the family can load the image.
+          await ShoppingListManager.updateList(listId, { receiptUrl: storagePath });
+        }
+        await this.finishUpload(upload);
+      });
     } catch (error: any) {
       throw new Error(`Failed to upload receipt: ${error.message}`);
     }
+  }
+
+  /**
+   * Take an entry off the queue. The image it replaced is deleted once
+   * nothing refers to it: not the list, and no other queued capture of it.
+   * Runs under the list's lock.
+   */
+  private async finishUpload(upload: QueuedUpload): Promise<void> {
+    const replaced = upload.replacesPath;
+    if (replaced) {
+      const list = await LocalStorageManager.getList(upload.listId);
+      const shown = !!list && list.status !== 'deleted' && list.receiptUrl === replaced;
+      const queue = await this.getUploadQueue();
+      const pending = queue.some(item => item.id !== upload.id && item.replacesPath === replaced);
+      if (!shown && !pending) {
+        await this.deleteReceipt(replaced)
+          .catch(err => CrashReporting.recordError(err as Error, 'ImageStorageManager replaced receipt delete'));
+      }
+    }
+    await this.removeFromQueue(upload.id);
+  }
+
+  private withListLock<T>(listId: string, task: () => Promise<T>): Promise<T> {
+    const run = (this.listLocks.get(listId) ?? Promise.resolve()).then(task);
+    const tail = run.catch(() => undefined);
+    this.listLocks.set(listId, tail);
+    tail.then(() => {
+      if (this.listLocks.get(listId) === tail) this.listLocks.delete(listId);
+    });
+    return run;
   }
 
   /**
@@ -106,17 +159,23 @@ class ImageStorageManager {
    * Queue receipt for upload
    * Implements Req 5.6, 9.4
    */
-  async queueReceiptForUpload(filePath: string, listId: string): Promise<void> {
+  async queueReceiptForUpload(filePath: string, listId: string, replacesPath?: string): Promise<void> {
     try {
-      const queuedUpload: QueuedUpload = {
-        id: uuidv4(),
-        filePath,
-        listId,
-        timestamp: Date.now(),
-        retryCount: 0,
-      };
-
-      await this.mutateQueue(queue => [...queue, queuedUpload]);
+      await this.mutateQueue(queue => {
+        // A capture replacing one still waiting to upload takes over what
+        // that one replaced: the waiting one is dropped as superseded.
+        const inherited = replacesPath
+          ?? queue.find(item => item.listId === listId && item.replacesPath)?.replacesPath;
+        const queuedUpload: QueuedUpload = {
+          id: uuidv4(),
+          filePath,
+          listId,
+          timestamp: Date.now(),
+          retryCount: 0,
+          ...(inherited ? { replacesPath: inherited } : {}),
+        };
+        return [...queue, queuedUpload];
+      });
     } catch (error: any) {
       throw new Error(`Failed to queue upload: ${error.message}`);
     }
@@ -187,34 +246,39 @@ class ImageStorageManager {
       // capture was queued no longer wants this file.
       const list = await LocalStorageManager.getList(upload.listId);
       if (!list || list.status === 'deleted' || list.receiptUrl !== upload.filePath) {
-        await this.removeFromQueue(upload.id);
+        await this.withListLock(upload.listId, () => this.finishUpload(upload));
         continue;
       }
       processedCount++;
       try {
         // Stored under the list's own group, which the Storage rules check
         // against the uploader's familyGroupId claim.
-        await this.uploadReceipt(upload.filePath, upload.listId, list.familyGroupId);
+        await this.uploadReceipt(upload, list.familyGroupId);
         successCount++;
-
-        // Remove from queue on success
-        await this.removeFromQueue(upload.id);
-      } catch {
+      } catch (error) {
         // The connection dropped mid-pass: not this upload's fault, so it
         // keeps its retries, and the rest wait for the connection too.
         if (await this.isOffline()) {
           processedCount--;
           break;
         }
-        if (upload.retryCount >= 5) {
-          // Max retries reached, remove from queue
-          errors.push({
-            listId: upload.listId,
-            filePath: upload.filePath,
-            error: 'Max retries exceeded',
-          });
+        if (upload.retryCount < ImageStorageManager.MAX_RETRIES) {
+          upload.retryCount++;
+          await this.updateQueueItem(upload);
+          continue;
+        }
+        errors.push({
+          listId: upload.listId,
+          filePath: upload.filePath,
+          error: 'Max retries exceeded',
+        });
+        if (!upload.replacesPath) {
           await this.removeFromQueue(upload.id);
-        } else {
+        } else if (upload.retryCount === ImageStorageManager.MAX_RETRIES) {
+          // Dropping a rescan would leave the list with no image anywhere:
+          // the old one is no longer shown and this one never uploaded. It
+          // stays queued for the next reconnect or start, reported once.
+          CrashReporting.recordError(error as Error, 'ImageStorageManager rescan upload out of retries');
           upload.retryCount++;
           await this.updateQueueItem(upload);
         }
