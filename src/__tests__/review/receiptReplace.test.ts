@@ -191,3 +191,35 @@ describe('rescan replace: queue entries from older app versions', () => {
     expect(mockDeleteObject).not.toHaveBeenCalled();
   });
 });
+
+describe('rescan replace: a rescan while the previous capture is uploading', () => {
+  it('drops the in-flight upload, keeps A until C is up, then deletes A once', async () => {
+    list(OLD);
+    let releaseB: () => void = () => {};
+    mockPutFile.mockImplementationOnce((r: { path: string }) => new Promise<void>(resolve => {
+      mockEvents.push(`put ${r.path}`);
+      releaseB = resolve;
+    }));
+    const ism = ImageStorageManager as any;
+
+    await ism.setListReceipt('l1', '/cache/b.jpg', {});
+    const pass = ism.processUploadQueue();
+    await new Promise(r => setTimeout(r, 0));
+    // B's putFile is in flight; the user rescans.
+    await ism.setListReceipt('l1', '/cache/c.jpg', {});
+    expect(queued().find((e: any) => e.filePath === '/cache/c.jpg').replacesPath).toBe(OLD);
+    releaseB();
+    await pass;
+    await ism.processUploadQueue();
+
+    const shown = mockLists.l1.receiptUrl;
+    expect(shown).toMatch(/^receipts\/fg-1\/l1\//);
+    expect(deleted().filter(p => p === OLD)).toHaveLength(1);
+    // B's own upload is removed, C's is the one shown.
+    const puts = mockPutFile.mock.calls.map(([r]) => r.path);
+    expect(puts).toHaveLength(2);
+    expect(deleted()).toContain(puts[0]);
+    expect(shown).toBe(puts[1]);
+    expect(queued()).toHaveLength(0);
+  });
+});
