@@ -14,6 +14,8 @@ export interface OcrHints {
 
 /** Same cap as the server's; it ignores anything past it. */
 export const MAX_HINT_ITEMS = 200;
+/** The server cuts a name here too; cut first so the part stays under the proxy's size cap. */
+export const MAX_HINT_NAME = 100;
 
 export async function buildOcrHints(listId: string): Promise<OcrHints | null> {
   const list = await LocalStorageManager.getList(listId);
@@ -23,19 +25,26 @@ export async function buildOcrHints(listId: string): Promise<OcrHints | null> {
 
   const store = list.storeName ?? null;
   const hinted = await Promise.all(items.map(async item => ({
-    name: item.name,
-    lastPrice: await lastPrice(list.familyGroupId, item.name, store),
+    name: item.name.slice(0, MAX_HINT_NAME),
+    lastPrice: await lastPrice(list.familyGroupId, item.name, store, listId),
   })));
   return { store, items: hinted };
 }
 
 /**
- * The most recent price paid for the item, at this store when there is one
- * there. Price history is oldest first.
+ * The most recent price paid for the item on another list, at this store
+ * when there is one there. This list's own price may be a misread from an
+ * earlier scan of the same receipt. Price history is oldest first.
  */
-async function lastPrice(familyGroupId: string, itemName: string, store: string | null): Promise<number | null> {
+async function lastPrice(
+  familyGroupId: string,
+  itemName: string,
+  store: string | null,
+  listId: string,
+): Promise<number | null> {
   try {
-    const history = await PriceHistoryService.getPriceHistory(familyGroupId, itemName);
+    const history = (await PriceHistoryService.getPriceHistory(familyGroupId, itemName))
+      .filter(p => p.listId !== listId);
     if (history.length === 0) return null;
     const atStore = store
       ? history.filter(p => p.storeName?.toLowerCase() === store.toLowerCase())

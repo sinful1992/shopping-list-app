@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.2] - 2026-10-03
+
+### Fixed
+- **A price you type over a corrected one drops the "fixed by the receipt's total" note.** The note stayed after a manual edit, though it no longer described the price shown. Editing only the name keeps it.
+- **The scan's "last price" hint never comes from the list being scanned.** On a rescan, the hint was the price from the first scan of the same receipt, so a misread the user had accepted was offered back as "what it cost last time".
+- **Long item names are cut to 100 characters in the hint.** One very long list could make the whole hint too big for the proxy, which then dropped it without a word.
+
 ## [1.48.1] - 2026-10-03
 
 ### Fixed
