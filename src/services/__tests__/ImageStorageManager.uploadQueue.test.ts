@@ -239,7 +239,8 @@ describe('a rescan replacing an uploaded receipt', () => {
     await ImageStorageManager.setListReceipt('l1', '/cache/b.jpg', { storeName: 'Tesco' });
     await ImageStorageManager.processUploadQueue();
 
-    expect(mockLists.l1).toMatchObject({ receiptUrl: '/cache/b.jpg', storeName: 'Tesco' });
+    expect(mockLists.l1).toMatchObject({ receiptUrl: OLD, storeName: 'Tesco' });
+    expect(await ImageStorageManager.pendingCapture('l1')).toBe('/cache/b.jpg');
     expect(mockDeleteObject).not.toHaveBeenCalled();
     expect(queued()).toEqual([expect.objectContaining({ filePath: '/cache/b.jpg', replacesPath: OLD })]);
 
@@ -289,7 +290,7 @@ describe('a rescan replacing an uploaded receipt', () => {
       await ImageStorageManager.processUploadQueue();
     }
 
-    expect(mockLists.l1.receiptUrl).toBe('/cache/b.jpg');
+    expect(mockLists.l1.receiptUrl).toBe(OLD);
     expect(mockDeleteObject).not.toHaveBeenCalled();
     expect(queued()).toEqual([expect.objectContaining({ filePath: '/cache/b.jpg', replacesPath: OLD })]);
 
@@ -306,6 +307,26 @@ describe('a rescan replacing an uploaded receipt', () => {
 
     expect(result.successCount).toBe(1);
     expect(mockLists.l1.receiptUrl).toMatch(/^receipts\/fg-1\/l1\//);
+    expect(queued()).toEqual([]);
+  });
+
+  it('other devices keep the old receipt until the rescan uploads, never a path on this phone', async () => {
+    mockConnected = false;
+    await ImageStorageManager.setListReceipt('l1', '/cache/b.jpg', { totalAmount: 12 });
+
+    const synced = mockUpdateList.mock.calls.map(c => c[1]);
+    expect(synced).toEqual([{ totalAmount: 12 }]);
+    expect(mockLists.l1.receiptUrl).toBe(OLD);
+  });
+
+  it('a rescan here loses to a newer receipt synced from another phone', async () => {
+    await ImageStorageManager.setListReceipt('l1', '/cache/b.jpg', {});
+    mockLists.l1.receiptUrl = 'receipts/fg-1/l1/2000.jpg';
+    await ImageStorageManager.processUploadQueue();
+
+    expect(mockPutFile).not.toHaveBeenCalled();
+    expect(mockLists.l1.receiptUrl).toBe('receipts/fg-1/l1/2000.jpg');
+    expect(deletedPaths()).not.toContain('receipts/fg-1/l1/2000.jpg');
     expect(queued()).toEqual([]);
   });
 
@@ -336,8 +357,9 @@ describe('a rescan replacing an uploaded receipt', () => {
     release();
     await Promise.all([pass, rescan]);
 
-    expect(mockLists.l1.receiptUrl).toBe('/cache/c.jpg');
+    expect(mockLists.l1.receiptUrl).toBe(uploaded);
     expect(queued()).toEqual([expect.objectContaining({ filePath: '/cache/c.jpg', replacesPath: uploaded })]);
+    expect(await ImageStorageManager.pendingCapture('l1')).toBe('/cache/c.jpg');
   });
 });
 

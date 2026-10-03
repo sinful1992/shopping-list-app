@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.4] - 2026-10-03
+
+### Fixed
+- **Other phones keep seeing the old receipt photo while a rescan uploads.** A rescan pointed the list at the new photo's path on the scanning phone, which synced to every phone, and no other phone could open it. The list now keeps the uploaded photo until the new one is up, then swaps. The scanning phone shows its new photo straight away, and "Retry OCR" reads the new photo, not the old one.
+
 ## [1.48.3] - 2026-10-03
 
 ### Fixed

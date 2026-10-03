@@ -356,10 +356,12 @@ class ReceiptOCRService {
       };
     }
 
-    // After upload, receiptUrl holds the Cloud Storage path
+    // A rescan still uploading is the receipt the list's data came from,
+    // though the list may show the image it replaces until then. After
+    // upload, receiptUrl holds the Cloud Storage path
     // ("receipts/{group}/{list}/...") instead of the local capture file —
     // fetch it back to cache before re-running OCR.
-    let filePath = list.receiptUrl;
+    let filePath = (await ImageStorageManager.pendingCapture(listId).catch(() => null)) ?? list.receiptUrl;
     if (isReceiptStoragePath(filePath)) {
       try {
         filePath = await ImageStorageManager.downloadReceiptToCache(filePath, listId);

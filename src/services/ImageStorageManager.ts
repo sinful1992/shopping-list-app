@@ -33,20 +33,43 @@ class ImageStorageManager {
   private static readonly MAX_RETRIES = 5;
 
   /**
-   * Point a list at a new capture and queue it for upload. The image the
-   * list showed before stays in Storage until the new one has uploaded and
-   * the list points at it; other devices still need it until then.
+   * Save a new capture's scan to a list and queue the photo for upload.
+   * A list already showing an uploaded image keeps showing it, to the whole
+   * family, until the new one has uploaded: a path into this phone's cache
+   * would sync to devices that cannot open it. A first scan has nothing to
+   * keep, so the list points at the capture straight away.
    */
   async setListReceipt(listId: string, filePath: string, patch: Partial<ShoppingList>): Promise<void> {
     await this.withListLock(listId, async () => {
       const shown = (await LocalStorageManager.getList(listId))?.receiptUrl;
-      await ShoppingListManager.updateList(listId, { ...patch, receiptUrl: filePath });
-      await this.queueReceiptForUpload(
-        filePath,
-        listId,
-        isReceiptStoragePath(shown) ? shown : undefined,
-      );
+      const replacing = isReceiptStoragePath(shown);
+      await ShoppingListManager.updateList(listId, replacing ? patch : { ...patch, receiptUrl: filePath });
+      await this.queueReceiptForUpload(filePath, listId, replacing ? shown : undefined);
     });
+  }
+
+  /**
+   * The newest capture of a list still waiting to upload, on this phone.
+   * Until it uploads the list may still show the image it replaces, so
+   * whatever wants the latest photo here (viewing it, re-reading it) asks
+   * this first.
+   */
+  async pendingCapture(listId: string): Promise<string | null> {
+    const queue = await this.getUploadQueue();
+    return queue.filter(item => item.listId === listId).pop()?.filePath ?? null;
+  }
+
+  /**
+   * Whether a queued capture is still the one its list wants: the newest
+   * capture of the list, on a list that still shows it or the image it
+   * replaces. Anything else was superseded by a rescan here or elsewhere.
+   */
+  private isWanted(upload: QueuedUpload, list: ShoppingList | null, queue: QueuedUpload[]): list is ShoppingList {
+    if (!list || list.status === 'deleted') return false;
+    const newest = queue.filter(item => item.listId === upload.listId).pop();
+    if (newest && newest.id !== upload.id) return false;
+    return list.receiptUrl === upload.filePath
+      || (!!upload.replacesPath && list.receiptUrl === upload.replacesPath);
   }
 
   /**
@@ -66,11 +89,11 @@ class ImageStorageManager {
       await putFile(reference, filePath);
 
       await this.withListLock(listId, async () => {
-        // Point the list at the upload only if it still shows this capture: a
+        // Point the list at the upload only if it still wants this capture: a
         // rescan or a discarded quick scan while the upload was in flight means
-        // nothing wants it, and it would sit in the bucket unreferenced.
+        // nothing does, and it would sit in the bucket unreferenced.
         const list = await LocalStorageManager.getList(listId);
-        if (!list || list.status === 'deleted' || list.receiptUrl !== filePath) {
+        if (!this.isWanted(upload, list, await this.getUploadQueue())) {
           await deleteObject(reference).catch(() => {});
         } else {
           // Through ShoppingListManager, not local storage alone, so the path
@@ -254,7 +277,7 @@ class ImageStorageManager {
       // A list discarded (a skipped quick scan) or rescanned since the
       // capture was queued no longer wants this file.
       const list = await LocalStorageManager.getList(upload.listId);
-      if (!list || list.status === 'deleted' || list.receiptUrl !== upload.filePath) {
+      if (!this.isWanted(upload, list, queue)) {
         await this.withListLock(upload.listId, () => this.finishUpload(upload));
         continue;
       }

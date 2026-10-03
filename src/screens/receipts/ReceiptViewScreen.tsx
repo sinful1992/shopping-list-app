@@ -59,6 +59,9 @@ const ReceiptViewScreen = () => {
   // reloads on every focus, and without this it would retry the dead path
   // and raise the same alert each time the user came back to it.
   const missingImageRef = useRef<string | null>(null);
+  // The path the image on screen came from: the list's own, or this phone's
+  // capture of a rescan that has not uploaded yet.
+  const shownPathRef = useRef<string | null>(null);
   // Download URL per Storage path. The screen reloads on every focus, and an
   // uploaded image's URL does not change, so it is fetched once.
   const downloadUrlRef = useRef<{ path: string; url: string } | null>(null);
@@ -94,7 +97,15 @@ const ReceiptViewScreen = () => {
 
       setList(fetchedList);
 
-      if (fetchedList.receiptUrl && fetchedList.receiptUrl === missingImageRef.current) {
+      // A rescan still uploading shows here as taken, not as the image it
+      // replaces, which the rest of the family keeps seeing until then.
+      const pending = await ImageStorageManager.pendingCapture(listId).catch(() => null);
+      const pendingShown = !!pending && pending !== fetchedList.receiptUrl && pending !== missingImageRef.current;
+      shownPathRef.current = pendingShown ? pending : fetchedList.receiptUrl;
+
+      if (pendingShown) {
+        setReceiptUrl(toFileUri(pending));
+      } else if (fetchedList.receiptUrl && fetchedList.receiptUrl === missingImageRef.current) {
         setReceiptUrl(null);
       } else if (isReceiptStoragePath(fetchedList.receiptUrl)) {
         // Uploaded: a Cloud Storage path, loaded over the network.
@@ -234,6 +245,12 @@ const ReceiptViewScreen = () => {
             style={styles.receiptImage}
             resizeMode="contain"
             onError={() => {
+              if (list && shownPathRef.current !== list.receiptUrl) {
+                // This phone's pending capture is gone: show the list's own.
+                missingImageRef.current = shownPathRef.current;
+                loadReceiptData();
+                return;
+              }
               missingImageRef.current = list?.receiptUrl ?? null;
               // A path into a phone's cache that is not here is most often a
               // receipt another family member scanned and has not uploaded
