@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { buildUpstreamForm } from './upstreamForm.ts'
+import { pickIdToken, shouldRefetchKeys } from './auth.ts'
 
 // Server-side hop between the app and the self-hosted PaddleOCR Space.
 //
@@ -18,6 +19,11 @@ const OCR_SHARED_SECRET = Deno.env.get('OCR_SHARED_SECRET') || ''
 // oversized upload fails with a readable error rather than a platform 413.
 const MAX_UPLOAD_BYTES = 9 * 1024 * 1024
 
+// Inside the app's own 120s OCR timeout and the 150s platform wall clock, so
+// a hung Space ends in a readable 504 the app sees, not a client abort or a
+// function killed mid-request.
+const UPSTREAM_TIMEOUT_MS = 110_000
+
 // --- Firebase ID-token verification (inlined; the Supabase bundler does not
 // resolve ../_shared imports for these functions) ---
 const _authProjectId: string = (() => {
@@ -33,6 +39,7 @@ const _authJwkUrl =
   'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
 let _authKeyCache: Record<string, CryptoKey> = {}
 let _authKeyExpiry = 0
+let _authKeyFetchedAt = 0
 
 function _authB64urlToBytes(s: string): Uint8Array {
   const b64 = s.replace(/-/g, '+').replace(/_/g, '/')
@@ -48,6 +55,7 @@ function _authB64urlToString(s: string): string {
 }
 
 async function _authLoadKeys(): Promise<void> {
+  _authKeyFetchedAt = Date.now()
   const res = await fetch(_authJwkUrl)
   if (!res.ok) throw new Error('Failed to fetch Firebase signing keys')
   const jwks = await res.json()
@@ -64,7 +72,9 @@ async function _authLoadKeys(): Promise<void> {
 }
 
 async function _authGetKey(kid: string): Promise<CryptoKey> {
-  if (Date.now() > _authKeyExpiry || !_authKeyCache[kid]) await _authLoadKeys()
+  if (shouldRefetchKeys(Date.now(), _authKeyExpiry, !!_authKeyCache[kid], _authKeyFetchedAt)) {
+    await _authLoadKeys()
+  }
   const key = _authKeyCache[kid]
   if (!key) throw new Error('Unknown token key id')
   return key
@@ -142,7 +152,7 @@ serve(async (req: Request) => {
   // as a fallback for callers that set it. Parsing the body before
   // authenticating costs little — the platform bounds the body size anyway.
   try {
-    await verifyFirebaseIdToken(formToken ?? req.headers.get('X-Firebase-Token'))
+    await verifyFirebaseIdToken(pickIdToken(formToken, req.headers.get('X-Firebase-Token')))
   } catch (err) {
     return json({ error: (err as Error).message }, 401)
   }
@@ -170,13 +180,23 @@ serve(async (req: Request) => {
   const upstreamUrl = `${OCR_SERVER_URL}/ocr${debug === 'true' || debug === '1' ? '?debug=true' : ''}`
 
   let upstream: Response
+  let text: string
   try {
-    upstream = await fetch(upstreamUrl, { method: 'POST', body: upstreamForm, headers })
+    upstream = await fetch(upstreamUrl, {
+      method: 'POST',
+      body: upstreamForm,
+      headers,
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    })
+    // Inside the try: the timeout also covers reading a slow body.
+    text = await upstream.text()
   } catch (err) {
+    if ((err as Error).name === 'TimeoutError') {
+      return json({ error: 'OCR server timed out' }, 504)
+    }
     return json({ error: `OCR server unreachable: ${(err as Error).message}` }, 502)
   }
 
-  const text = await upstream.text()
   return new Response(text, {
     status: upstream.status,
     headers: { 'Content-Type': upstream.headers.get('Content-Type') || 'application/json' },

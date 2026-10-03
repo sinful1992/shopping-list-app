@@ -43,3 +43,16 @@ describe('buildUpstreamForm', () => {
     expect(names(buildUpstreamForm(receipt, 'x'.repeat(MAX_HINTS_BYTES + 1)))).toEqual(['file']);
   });
 });
+
+describe('the hints cap', () => {
+  it('counts bytes, not characters', () => {
+    // Two bytes each in UTF-8: under the cap in characters, over it in bytes.
+    const wide = 'ė'.repeat(MAX_HINTS_BYTES / 2 + 1);
+    expect(wide.length).toBeLessThanOrEqual(MAX_HINTS_BYTES);
+    expect(names(buildUpstreamForm(receipt, wide))).toEqual(['file']);
+  });
+
+  it('keeps hints exactly at the cap', () => {
+    expect(names(buildUpstreamForm(receipt, 'x'.repeat(MAX_HINTS_BYTES)))).toEqual(['file', 'hints']);
+  });
+});
