@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.4] - 2026-10-03
+
+### Fixed
+- **Other phones keep seeing the old receipt photo while a rescan uploads.** A rescan pointed the list at the new photo's path on the scanning phone, which synced to every phone, and no other phone could open it. The list now keeps the uploaded photo until the new one is up, then swaps. The scanning phone shows its new photo straight away, and "Retry OCR" reads the new photo, not the old one.
+
+## [1.48.3] - 2026-10-03
+
+### Fixed
+- **A receipt photo that keeps failing to upload is no longer given up on.** After 5 failed tries it was dropped from the upload queue. The list was left pointing at a file on the scanning phone that no other phone could load. It now stays queued and uploads on the next connection or start.
+
+## [1.48.2] - 2026-10-03
+
+### Fixed
+- **A price you type over a corrected one drops the "fixed by the receipt's total" note.** The note stayed after a manual edit, though it no longer described the price shown. Editing only the name keeps it.
+- **The scan's "last price" hint never comes from the list being scanned.** On a rescan, the hint was the price from the first scan of the same receipt, so a misread the user had accepted was offered back as "what it cost last time".
+- **Long item names are cut to 100 characters in the hint.** One very long list could make the whole hint too big for the proxy, which then dropped it without a word.
+
+## [1.48.1] - 2026-10-03
+
+### Fixed
+- **A rescan no longer deletes the old receipt photo before the new one has uploaded.** The old photo was deleted from the cloud as soon as the list pointed at the new capture, which still only existed on the scanning phone. If that upload failed, no phone had an image. The old photo now stays until the new one has uploaded and the list points at it. Two rescans made offline delete it once, after the last one uploads. Deleting the list before the upload deletes it too. A rescan whose upload keeps failing stays queued for the next connection instead of being dropped. An upload finishing at the same moment as a new scan can no longer overwrite the newer scan.
+
 ## [1.48.0] - 2026-10-03
 
 ### Added

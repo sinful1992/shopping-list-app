@@ -30,7 +30,7 @@ import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import { useUser } from '../../contexts/UserContext';
-import { matchReceiptToList, receiptAliasKey } from '../../utils/receiptMatcher';
+import { matchReceiptToList, receiptAliasKey, withLineEdit } from '../../utils/receiptMatcher';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
   discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
@@ -165,7 +165,7 @@ const ReceiptMatchScreen = () => {
   const [lineEdits, setLineEdits] = useState<Record<number, Partial<ReceiptLineItem>>>({});
   const lineItems = useMemo(
     () => (receiptData?.lineItems ?? []).map((line, i) =>
-      lineEdits[i] ? { ...line, ...lineEdits[i], needsReview: false, needsCheck: false } : line),
+      lineEdits[i] ? withLineEdit(line, lineEdits[i]) : line),
     [receiptData, lineEdits],
   );
   // Savings printed under a line are taken off it: an item is priced at what
@@ -246,7 +246,7 @@ const ReceiptMatchScreen = () => {
    * the matcher straight away against the items no line has claimed yet.
    */
   const correctLine = (index: number, patch: Partial<ReceiptLineItem>) => {
-    const fixed = { ...lineItems[index], ...patch, needsReview: false, needsCheck: false };
+    const fixed = withLineEdit(lineItems[index], patch);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setLineEdits(prev => ({ ...prev, [index]: { ...prev[index], ...patch } }));
     if (fixed.price == null || !fixed.description.trim()) return;

@@ -1,5 +1,5 @@
 import type { Item, ReceiptLineItem } from '../../models/types';
-import { dice, matchReceiptToList, receiptAliasKey, stem, unitPriceFromLines, unitsFromLines } from '../receiptMatcher';
+import { dice, matchReceiptToList, receiptAliasKey, stem, unitPriceFromLines, unitsFromLines, withLineEdit } from '../receiptMatcher';
 
 function makeItem(overrides: Partial<Item> & { id: string; name: string }): Item {
   return {
@@ -356,5 +356,23 @@ describe('matchReceiptToList with coupon lines', () => {
     );
     expect(result.matches).toHaveLength(1);
     expect(result.matches[0].receiptItem.price).toBe(3.79);
+  });
+});
+
+describe('withLineEdit', () => {
+  const corrected: ReceiptLineItem = {
+    description: 'EGGS', price: 3.3, quantity: 1, needsReview: true, needsCheck: true, correctedFrom: 8.3,
+  } as ReceiptLineItem;
+
+  it('a typed price is no longer the one the sum check fixed', () => {
+    expect(withLineEdit(corrected, { price: 3.5 })).toMatchObject({
+      price: 3.5, correctedFrom: null, needsCheck: false, needsReview: false,
+    });
+  });
+
+  it('a typed name keeps the note about the fixed price', () => {
+    expect(withLineEdit(corrected, { description: 'Eggs x6' })).toMatchObject({
+      description: 'Eggs x6', price: 3.3, correctedFrom: 8.3,
+    });
   });
 });
