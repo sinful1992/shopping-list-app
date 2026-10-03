@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.3] - 2026-10-03
+
+### Fixed
+- **A receipt photo that keeps failing to upload is no longer given up on.** After 5 failed tries it was dropped from the upload queue. The list was left pointing at a file on the scanning phone that no other phone could load. It now stays queued and uploads on the next connection or start.
+
 ## [1.48.2] - 2026-10-03
 
 ### Fixed

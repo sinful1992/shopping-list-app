@@ -98,10 +98,19 @@ class ImageStorageManager {
       const pending = queue.some(item => item.id !== upload.id && item.replacesPath === replaced);
       if (!shown && !pending) {
         await this.deleteReceipt(replaced)
-          .catch(err => CrashReporting.recordError(err as Error, 'ImageStorageManager replaced receipt delete'));
+          .catch(err => this.report(err, 'ImageStorageManager replaced receipt delete'));
       }
     }
     await this.removeFromQueue(upload.id);
+  }
+
+  /** A failed report must not turn a finished upload into a retry. */
+  private report(error: unknown, context: string): void {
+    try {
+      CrashReporting.recordError(error as Error, context);
+    } catch {
+      // Nothing left to tell.
+    }
   }
 
   private withListLock<T>(listId: string, task: () => Promise<T>): Promise<T> {
@@ -272,13 +281,11 @@ class ImageStorageManager {
           filePath: upload.filePath,
           error: 'Max retries exceeded',
         });
-        if (!upload.replacesPath) {
-          await this.removeFromQueue(upload.id);
-        } else if (upload.retryCount === ImageStorageManager.MAX_RETRIES) {
-          // Dropping a rescan would leave the list with no image anywhere:
-          // the old one is no longer shown and this one never uploaded. It
-          // stays queued for the next reconnect or start, reported once.
-          CrashReporting.recordError(error as Error, 'ImageStorageManager rescan upload out of retries');
+        // Dropping it would leave the list on a path into this phone's
+        // cache, which no other device can load. It stays queued for the
+        // next reconnect or start, reported once.
+        if (upload.retryCount === ImageStorageManager.MAX_RETRIES) {
+          this.report(error, 'ImageStorageManager upload out of retries');
           upload.retryCount++;
           await this.updateQueueItem(upload);
         }

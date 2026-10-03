@@ -51,9 +51,10 @@ jest.mock('../LocalStorageManager', () => ({
   default: { getList: jest.fn(async (id: string) => mockLists[id] ?? null) },
 }));
 const mockUpdateList = jest.fn(async (id: string, patch: any) => { Object.assign(mockLists[id], patch); return mockLists[id]; });
+const mockRecordError = jest.fn();
 jest.mock('../CrashReporting', () => ({
   __esModule: true,
-  default: { recordError: jest.fn() },
+  default: { recordError: (...args: unknown[]) => mockRecordError(...args) },
 }));
 jest.mock('../ShoppingListManager', () => ({
   __esModule: true,
@@ -74,6 +75,7 @@ beforeEach(() => {
   mockUpdateList.mockClear();
   mockDeleteObject.mockClear();
   mockDeleteObject.mockImplementation(() => Promise.resolve());
+  mockRecordError.mockReset();
 });
 
 describe('receipt upload queue', () => {
@@ -307,6 +309,17 @@ describe('a rescan replacing an uploaded receipt', () => {
     expect(queued()).toEqual([]);
   });
 
+  it('a failing crash report still finishes the upload', async () => {
+    mockDeleteObject.mockImplementation(() => Promise.reject(new Error('500')));
+    mockRecordError.mockImplementation(() => { throw new Error('crashlytics'); });
+    await ImageStorageManager.setListReceipt('l1', '/cache/b.jpg', {});
+    const result = await ImageStorageManager.processUploadQueue();
+
+    expect(result.successCount).toBe(1);
+    expect(mockPutFile).toHaveBeenCalledTimes(1);
+    expect(queued()).toEqual([]);
+  });
+
   it('a rescan while an upload points the list never loses the newer scan', async () => {
     mockLists.l1.receiptUrl = '/cache/b.jpg';
     await ImageStorageManager.queueReceiptForUpload('/cache/b.jpg', 'l1');
@@ -325,5 +338,24 @@ describe('a rescan replacing an uploaded receipt', () => {
 
     expect(mockLists.l1.receiptUrl).toBe('/cache/c.jpg');
     expect(queued()).toEqual([expect.objectContaining({ filePath: '/cache/c.jpg', replacesPath: uploaded })]);
+  });
+});
+
+describe('a first scan that keeps failing', () => {
+  it('stays queued past its retries, reported once, and uploads later', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/a.jpg' };
+    mockPutFile.mockImplementation(() => Promise.reject(new Error('403')));
+    await ImageStorageManager.queueReceiptForUpload('/cache/a.jpg', 'l1');
+    for (let i = 0; i < 9; i++) {
+      await ImageStorageManager.processUploadQueue();
+    }
+
+    expect(queued()).toEqual([expect.objectContaining({ filePath: '/cache/a.jpg' })]);
+    expect(mockRecordError).toHaveBeenCalledTimes(1);
+
+    mockPutFile.mockImplementation(() => Promise.resolve());
+    await ImageStorageManager.processUploadQueue();
+    expect(mockLists.l1.receiptUrl).toMatch(/^receipts\/fg-1\/l1\//);
+    expect(queued()).toEqual([]);
   });
 });
