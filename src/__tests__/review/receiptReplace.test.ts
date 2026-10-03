@@ -167,16 +167,39 @@ describe('rescan replace: entries dropped without uploading', () => {
     expect(queued()).toHaveLength(0);
   });
 
-  it('never deletes the path the list currently shows', async () => {
-    // The user went back to the uploaded image some other way: the list shows
-    // OLD again, so the stale entry must not delete it.
+  it('a rescan that left the list on OLD swaps it, then deletes OLD', async () => {
+    // Since codex P1 on #41 the list keeps showing OLD to the family until
+    // the rescan is up; OLD must not go before the swap.
     list(OLD);
     seed([{ filePath: '/cache/b.jpg', replacesPath: OLD }]);
 
     await ImageStorageManager.processUploadQueue();
 
-    expect(deleted()).not.toContain(OLD);
+    const setAt = mockEvents.findIndex(e => /^set l1 receipts\/fg-1\/l1\//.test(e));
+    expect(setAt).toBeGreaterThanOrEqual(0);
+    expect(mockEvents.indexOf(`delete ${OLD}`)).toBeGreaterThan(setAt);
+    expect(mockLists.l1.receiptUrl).not.toBe(OLD);
+  });
+
+  it('never deletes a newer Storage path another phone synced in', async () => {
+    const NEWER = 'receipts/fg-1/l1/2000.jpg';
+    list(NEWER);
+    seed([{ filePath: '/cache/b.jpg', replacesPath: OLD }]);
+
+    await ImageStorageManager.processUploadQueue();
+
+    expect(deleted()).not.toContain(NEWER);
+    expect(mockLists.l1.receiptUrl).toBe(NEWER);
+    expect(queued()).toHaveLength(0);
+  });
+
+  it('a rescan never publishes a phone-local path over an uploaded image', async () => {
+    list(OLD);
+    await (ImageStorageManager as any).setListReceipt('l1', '/cache/b.jpg', { totalAmount: 1 });
+
+    expect(mockEvents.filter(e => e.startsWith('set l1 /'))).toEqual([]);
     expect(mockLists.l1.receiptUrl).toBe(OLD);
+    expect(queued()[0]).toMatchObject({ filePath: '/cache/b.jpg', replacesPath: OLD });
   });
 });
 
