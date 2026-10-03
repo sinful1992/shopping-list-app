@@ -31,6 +31,21 @@ const NOISE_WORDS = new Set([
 const TOKEN_SPLIT = /[\s.,()\-/]+/;
 const DIGIT_ONLY = /^\d+$/;
 
+/**
+ * A receipt line with what the user typed over it. Their price replaces the
+ * one the sum check corrected, so the "fixed by the receipt's total" note no
+ * longer applies; a typed name leaves it.
+ */
+export function withLineEdit(line: ReceiptLineItem, edit: Partial<ReceiptLineItem>): ReceiptLineItem {
+  return {
+    ...line,
+    ...edit,
+    needsReview: false,
+    needsCheck: false,
+    ...(edit.price !== undefined ? { correctedFrom: null } : {}),
+  };
+}
+
 export function stem(token: string): string {
   if (token.endsWith('ies')) {
     return token.length > 4 ? token.slice(0, -3) + 'y' : token;

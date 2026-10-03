@@ -232,6 +232,9 @@ export interface QueuedUpload {
   listId: string;
   timestamp: number;
   retryCount: number;
+  // Storage path of the receipt this capture replaces; deleted once the
+  // capture has uploaded and nothing refers to it.
+  replacesPath?: string;
 }
 
 export interface UploadQueueResult {
