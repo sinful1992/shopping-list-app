@@ -41,6 +41,12 @@ jest.mock('@react-native-firebase/storage', () => ({
   writeToFile: jest.fn(),
 }));
 
+// Reporting is not under test; the firebase stub would throw inside it.
+jest.mock('../../services/CrashReporting', () => ({
+  __esModule: true,
+  default: { recordError: jest.fn(), log: jest.fn() },
+}));
+
 const mockLists: Record<string, any> = {};
 jest.mock('../../services/LocalStorageManager', () => ({
   __esModule: true,
