@@ -1,4 +1,7 @@
-/** The hints part is the shopping list as JSON; the Space caps it too. */
+/**
+ * The hints part is the shopping list as JSON. The Space reads at most 200
+ * items of it but has no size cap of its own, so this is the only one.
+ */
 export const MAX_HINTS_BYTES = 64 * 1024
 
 /**
@@ -9,7 +12,10 @@ export const MAX_HINTS_BYTES = 64 * 1024
 export function buildUpstreamForm(file: File, hints: unknown): FormData {
   const form = new FormData()
   form.append('file', file, file.name || 'receipt.jpg')
-  if (typeof hints === 'string' && hints.length > 0 && hints.length <= MAX_HINTS_BYTES) {
+  if (
+    typeof hints === 'string' && hints.length > 0 &&
+    new TextEncoder().encode(hints).length <= MAX_HINTS_BYTES
+  ) {
     form.append('hints', hints)
   }
   return form
