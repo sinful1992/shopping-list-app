@@ -9,6 +9,9 @@ Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) a
 - **JS-side updates (PR #43):** react-navigation 7.20/7.5/7.12, supabase-js 2.117, gifted-charts 1.4.81, uuid 14.0.2, firebase 12.19, firebase-admin 14.5, firebase-tools 15.32, jest 30.5, knip 6.39, eslint 9.39.5, prettier 3.9.9. `react-native-url-polyfill` 3 → 4 is a dependency-free URL implementation: 47 kB smaller bundle and faster on Hermes. Cloud Functions moved to Node 22 with firebase-functions 7 (the trigger is kept on `/v1`) and modular admin 14. `npm audit` went from 91 to 56, with the critical gone.
 - **react-native 0.86.0 → 0.86.3** (with `@react-native/*` 0.86.3): patch releases on our line, no template change.
 - **Native minors:** react-native-screens 4.28 (Android tab bar layout after a config change, stack fragment pop fix), safe-area-context 5.10.1, purchases + purchases-ui 10.11 (purchases-android 10.24), datetimepicker 9.2.1, google-signin 16.1.5, gesture-handler 2.33. gesture-handler 3 is skipped: it is a New-Arch rewrite and its `PanGesture` type clashes with reorderable-list.
+- **react-native-reanimated 4.5 → 4.7.1 with react-native-worklets 0.10 → 0.13** (bumped together; 4.7 peer-requires worklets 0.13.x). The worklet UI loop now pauses while the app is backgrounded. Also a serialization race fix, faster startup, and layout-animation crash fixes (the app uses no layout animations). The babel plugin path is unchanged.
+- **react-native-reorderable-list 0.18.0 → 0.18.1** (still pinned exactly). Fixes the dragged item's index during autoscroll when the finger is held still. Our patch was regenerated for 0.18.1 with both hunks unchanged: the negative-index guard on drop, and Android always using the item gesture alone.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** drag-reorder within and across categories, and the item check animation.
 
 ## [1.48.4] - 2026-10-03
 
