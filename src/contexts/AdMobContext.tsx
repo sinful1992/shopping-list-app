@@ -6,6 +6,7 @@ import mobileAds, {
   RewardedAdEventType,
   AdEventType,
   AdsConsent,
+  AdsConsentPrivacyOptionsRequirementStatus,
 } from 'react-native-google-mobile-ads';
 import { useRevenueCat } from './RevenueCatContext';
 import { AD_UNIT_IDS, INTERSTITIAL_COOLDOWN_MS, MAX_RETRY_ATTEMPTS } from '../config/adConfig';
@@ -17,6 +18,9 @@ interface AdMobContextType {
   consentChecked: boolean;
   consentObtained: boolean;
   retryConsent: () => Promise<void>;
+  /** UMP says this user (UK/EEA) must be able to change their consent choice later. */
+  privacyOptionsRequired: boolean;
+  showPrivacyOptions: () => Promise<void>;
   showInterstitial: () => boolean;
   /** Show now, or retry once after a delay (cold start: ad not loaded yet). */
   showInterstitialWithRetry: (delayMs?: number) => void;
@@ -31,6 +35,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [consentObtained, setConsentObtained] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  const [privacyOptionsRequired, setPrivacyOptionsRequired] = useState(false);
 
   const isConsentInFlightRef = useRef(false);
   const consentInitializedOnceRef = useRef(false);
@@ -87,6 +92,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       const { canRequestAds } = consentInfo;
       if (!mounted) { isConsentInFlightRef.current = false; return; }
 
+      setPrivacyOptionsRequired(
+        consentInfo.privacyOptionsRequirementStatus === AdsConsentPrivacyOptionsRequirementStatus.REQUIRED,
+      );
       setConsentObtained(canRequestAds);
       setConsentChecked(true);
 
@@ -132,7 +140,10 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const { canRequestAds } = await AdsConsent.getConsentInfo();
+    const { canRequestAds, privacyOptionsRequirementStatus } = await AdsConsent.getConsentInfo();
+    setPrivacyOptionsRequired(
+      privacyOptionsRequirementStatus === AdsConsentPrivacyOptionsRequirementStatus.REQUIRED,
+    );
     setConsentObtained(canRequestAds);
     setConsentChecked(true);
 
@@ -150,6 +161,26 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     }
 
     isConsentInFlightRef.current = false;
+  }, []);
+
+  const showPrivacyOptions = useCallback(async () => {
+    if (isConsentInFlightRef.current) return;
+    isConsentInFlightRef.current = true;
+
+    try {
+      const { canRequestAds } = await AdsConsent.showPrivacyOptionsForm();
+      setConsentObtained(canRequestAds);
+
+      if (canRequestAds && !consentInitializedOnceRef.current) {
+        await mobileAds().initialize();
+        setIsInitialized(true);
+        consentInitializedOnceRef.current = true;
+      }
+    } catch (e) {
+      CrashReporting.recordError(e as Error, 'AdMobContext UMP privacy options');
+    } finally {
+      isConsentInFlightRef.current = false;
+    }
   }, []);
 
   // Load interstitial ad
@@ -348,6 +379,8 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     consentChecked,
     consentObtained,
     retryConsent,
+    privacyOptionsRequired: privacyOptionsRequired && tier === 'free' && !hasEntitlement,
+    showPrivacyOptions,
     showInterstitial,
     showInterstitialWithRetry,
     setPendingInterstitial,

@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.12] - 2026-10-05
+
+### Added
+- **Ad privacy choices in Settings.** Free users in the UK and EEA answer Google's consent message on first launch, but there was no way to change that answer later, which Google's consent rules require. Settings › Legal now has an "Ad privacy choices" row that opens Google's privacy options form. It shows only when Google's consent SDK reports that privacy options are required, and only on the free tier. Changing the answer can make ads non-personalised, but ads still show on the free tier. If the form fails, the error is reported and nothing changes.
+
 ## [1.48.11] - 2026-10-05
 
 ### Fixed
