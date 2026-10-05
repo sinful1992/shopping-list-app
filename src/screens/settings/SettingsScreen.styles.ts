@@ -71,6 +71,13 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.accent.blueDim,
   },
+  codeButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shareButton: {
+    marginLeft: 8,
+  },
   helperText: {
     fontSize: 12,
     color: theme.text.tertiary,
