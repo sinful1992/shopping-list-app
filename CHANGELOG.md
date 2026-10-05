@@ -13,6 +13,8 @@ Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) a
 - **react-native-reorderable-list 0.18.0 → 0.18.1** (still pinned exactly). Fixes the dragged item's index during autoscroll when the finger is held still. Our patch was regenerated for 0.18.1 with both hunks unchanged: the negative-index guard on drop, and Android always using the item gesture alone.
   - ⚠️ **NEEDS DEVICE VALIDATION:** drag-reorder within and across categories, and the item check animation.
 - **react-native-svg 15.15.4 → 15.15.5; its patch-package patch is removed.** The patch reflected into `MatrixDecompositionContext` fields and cast `setBorderRadius` to float, for RN 0.74. On RN 0.86 those fields are public `@JvmField`s and both `setBorderRadius` overloads exist, so upstream compiles unchanged (proved by assembleRelease).
+- **Kotlin 2.1.20 → 2.3.21 (`android/build.gradle`) and react-native-google-mobile-ads 16.3.3 → 16.5.0.** This resolves the 1.25.14 deferral: Google Mobile Ads SDK 25.4.0 is compiled with Kotlin 2.3 metadata, which the 2.1.20 compiler cannot read. 16.5 brings GMA Android 25.4.0 and stops ad views being saved in instance state (an Android restore fix). Ads 17 is skipped: it ships the same GMA SDK with a new API we don't use.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** banner loads and the consent form.
 
 ## [1.48.4] - 2026-10-03
 
