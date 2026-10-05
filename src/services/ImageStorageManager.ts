@@ -1,5 +1,5 @@
 import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile, writeToFile } from '@react-native-firebase/storage';
-import { utils } from '@react-native-firebase/app';
+import { FilePath } from '@react-native-firebase/app';
 import { v4 as uuidv4 } from 'uuid';
 import NetInfo from '@react-native-community/netinfo';
 import { QueuedUpload, UploadQueueResult, UploadError, ShoppingList } from '../models/types';
@@ -153,7 +153,7 @@ class ImageStorageManager {
    */
   async downloadReceiptToCache(storagePath: string, listId: string): Promise<string> {
     try {
-      const localPath = `${utils.FilePath.CACHES_DIRECTORY}/ocr-retry-${listId}.jpg`;
+      const localPath = `${FilePath.CACHES_DIRECTORY}/ocr-retry-${listId}.jpg`;
       const reference = storageRef(getStorage(), storagePath);
       await writeToFile(reference, localPath);
       return localPath;

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.5] - 2026-10-05
+
 ### Changed (dependencies, task 17)
 Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) and `NATIVE.md` (native).
 - **JS-side updates (PR #43):** react-navigation 7.20/7.5/7.12, supabase-js 2.117, gifted-charts 1.4.81, uuid 14.0.2, firebase 12.19, firebase-admin 14.5, firebase-tools 15.32, jest 30.5, knip 6.39, eslint 9.39.5, prettier 3.9.9. `react-native-url-polyfill` 3 → 4 is a dependency-free URL implementation: 47 kB smaller bundle and faster on Hermes. Cloud Functions moved to Node 22 with firebase-functions 7 (the trigger is kept on `/v1`) and modular admin 14. `npm audit` went from 91 to 56, with the critical gone.
@@ -17,6 +19,9 @@ Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) a
   - ⚠️ **NEEDS DEVICE VALIDATION:** banner loads and the consent form.
 - **sp-react-native-in-app-updates 1.5.0 → 2.0.0.** It is now a Codegen TurboModule (no legacy-bridge interop), and `checkNeedsUpdate` failures now reject properly. The Android API we call (`checkNeedsUpdate().shouldUpdate`) is unchanged, and it still depends on react-native-device-info 10.3.0, so the `RNDeviceInfo` guard in `useInAppUpdate` still holds.
   - ⚠️ **NEEDS DEVICE VALIDATION:** the update prompt on a build older than the Play Store version.
+- **@react-native-firebase/* 25.1.0 → 26.4.0** (app-check still pinned exactly). Android Firebase BOM 34.15 → 34.18. Fixes include: the event emitter losing events to a stale ReactContext, null id-tokens from Credential Manager in auth, messaging stored-message integrity, and thread-safe listener/transaction maps in database and auth. Every module is now a TurboModule; the New Architecture is required, and we already run it. Gradle plugins move to the versions RNFB 26 is tested with: `google-services` 4.5.0 and `firebase-crashlytics-gradle` 3.0.8.
+  - **Forced code changes (v26 removed the namespaced API):** `AppCheckService` now uses modular `initializeAppCheck(getApp(), …)` with `new ReactNativeFirebaseAppCheckProvider()`. v26 made that call synchronous, and a native init failure no longer reaches our `catch`, because the library fires it with `void`. `ImageStorageManager` now uses `FilePath` instead of `utils.FilePath`. `notificationDeepLink` (and its test) now uses `RemoteMessage` instead of `FirebaseMessagingTypes.RemoteMessage`. `await logEvent(...)` is left alone: awaiting the now-void return is harmless.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** login (Google + email), list sync, receipt upload/download, tapping a push notification opens the right screen, and Crashlytics still reports.
 
 ## [1.48.4] - 2026-10-03
 
