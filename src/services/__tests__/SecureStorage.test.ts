@@ -38,6 +38,7 @@ const stored = (key: string): string | undefined =>
 
 beforeEach(() => {
   mockLegacyGet.mockImplementation(async (k: string) => mockLegacy[k] ?? null);
+  mockLegacyRemove.mockImplementation(async (k: string) => { delete mockLegacy[k]; });
   keychain.__entries.clear();
   Object.keys(mockLegacy).forEach(k => delete mockLegacy[k]);
   jest.clearAllMocks();
@@ -138,6 +139,29 @@ describe('SecureStorage', () => {
     expect(stored('@auth_token')).toBeUndefined();
     expect(mockLegacy['@auth_token']).toBeUndefined();
     expect(await store.getItem('@auth_token')).toBeNull();
+  });
+
+  // linus #1159: an empty new store can mean "cleared on purpose", so a key
+  // written or removed here must never be refilled from the old store.
+  it('a value cleared after a failed move does not come back from the old store', async () => {
+    mockLegacy['@fcm_token'] = 'stale';
+    mockLegacyGet.mockRejectedValueOnce(new Error('Keystore busy'));
+    const store = load();
+    await store.setItem('@fcm_token', 'fresh');
+    await store.setItem('@fcm_token', '');
+
+    expect(await load().getItem('@fcm_token')).toBeNull();
+  });
+
+  it('a logged-out user does not come back when the old delete failed', async () => {
+    mockLegacy['@user'] = '{"uid":"gone"}';
+    mockLegacyGet.mockRejectedValueOnce(new Error('Keystore busy'));
+    mockLegacyRemove.mockRejectedValueOnce(new Error('prefs locked'));
+    const store = load();
+    await store.removeItem('@user');
+
+    expect(mockLegacy['@user']).toBe('{"uid":"gone"}');
+    expect(await load().getItem('@user')).toBeNull();
   });
 
   it.each(['', null, undefined])('setItem(%p) removes the entry and never stores "null"', async value => {
