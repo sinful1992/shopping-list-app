@@ -1,18 +1,29 @@
 import { Share } from 'react-native';
-import { INVITE_LINK, buildInviteMessage, shareFamilyInvite } from '../inviteMessage';
+import { PLAY_STORE_LINK, PLAY_TESTING_LINK, buildInviteMessage, shareFamilyInvite } from '../inviteMessage';
 
 describe('buildInviteMessage', () => {
-  it('carries the landing join link and the exact join steps with the code', () => {
-    const message = buildInviteMessage('A3F7K9M2');
-    expect(message).toContain(INVITE_LINK);
-    expect(message).toContain('tap Join, enter code A3F7K9M2 and tap Request to Join');
-    expect(message).toContain("I'll approve you");
+  const message = buildInviteMessage('A3F7K9M2');
+
+  it('uses the exact Play links from growth/links.md', () => {
+    expect(PLAY_TESTING_LINK).toBe('https://play.google.com/apps/testing/com.familyshoppinglist.app');
+    expect(PLAY_STORE_LINK).toBe('https://play.google.com/store/apps/details?id=com.familyshoppinglist.app');
   });
 
-  it('links to the landing page join section with the in-app-invite source', () => {
-    expect(INVITE_LINK).toMatch(/^https:\/\/sinful1992\.github\.io\/familyshoppinglist-legal\/\?/);
-    expect(INVITE_LINK).toContain('utm_source=in-app-invite');
-    expect(INVITE_LINK.endsWith('#join')).toBe(true);
+  it('puts each Play link on its own line, opt-in before install', () => {
+    const lines = message.split('\n');
+    expect(lines.indexOf(PLAY_TESTING_LINK)).toBeGreaterThan(-1);
+    expect(lines.indexOf(PLAY_STORE_LINK)).toBeGreaterThan(lines.indexOf(PLAY_TESTING_LINK));
+  });
+
+  it('no longer links to the GitHub landing page', () => {
+    expect(message).not.toContain('github.io');
+    expect(message).not.toContain('utm_');
+  });
+
+  it('carries the join steps with the code exactly once', () => {
+    expect(message).toContain('tap Join, enter code A3F7K9M2 and tap Request to Join');
+    expect(message.split('A3F7K9M2')).toHaveLength(2);
+    expect(message).toContain("I'll approve you");
   });
 });
 

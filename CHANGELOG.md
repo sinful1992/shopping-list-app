@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.14] - 2026-10-05
+
+### Changed
+- **The invite message links to Google Play, not the web page.** The share text from 1.48.13 linked to the app's GitHub web page. It now gives the two Google Play links in order: the testing page to become a tester (people who already are skip it), then the Play Store page to install, then the join steps with the code. While the app is in closed testing, the store page shows "not found" until the account has opted in, which is why the testing link comes first.
+
 ## [1.48.13] - 2026-10-05
 
 ### Added
