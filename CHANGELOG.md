@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.10] - 2026-10-05
+
+### Fixed
+- **The splash icon showed white square corners.** `app-icon-512.png` has an opaque white background behind its rounded square, which showed against the #0a0a0a splash (seen on the AVD upgrade test, #1181). The splash images are now generated from `assets/bootsplash-logo.png`, a copy with the outer white flood-filled to transparent. The icon itself is unchanged.
+
 ## [1.48.9] - 2026-10-05
 
 ### Changed
