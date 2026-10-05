@@ -12,6 +12,7 @@ Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) a
 - **react-native-reanimated 4.5 → 4.7.1 with react-native-worklets 0.10 → 0.13** (bumped together; 4.7 peer-requires worklets 0.13.x). The worklet UI loop now pauses while the app is backgrounded. Also a serialization race fix, faster startup, and layout-animation crash fixes (the app uses no layout animations). The babel plugin path is unchanged.
 - **react-native-reorderable-list 0.18.0 → 0.18.1** (still pinned exactly). Fixes the dragged item's index during autoscroll when the finger is held still. Our patch was regenerated for 0.18.1 with both hunks unchanged: the negative-index guard on drop, and Android always using the item gesture alone.
   - ⚠️ **NEEDS DEVICE VALIDATION:** drag-reorder within and across categories, and the item check animation.
+- **react-native-svg 15.15.4 → 15.15.5; its patch-package patch is removed.** The patch reflected into `MatrixDecompositionContext` fields and cast `setBorderRadius` to float, for RN 0.74. On RN 0.86 those fields are public `@JvmField`s and both `setBorderRadius` overloads exist, so upstream compiles unchanged (proved by assembleRelease).
 
 ## [1.48.4] - 2026-10-03
 
