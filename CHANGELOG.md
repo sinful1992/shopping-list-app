@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (dependencies, task 17)
+Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) and `NATIVE.md` (native).
+- **JS-side updates (PR #43):** react-navigation 7.20/7.5/7.12, supabase-js 2.117, gifted-charts 1.4.81, uuid 14.0.2, firebase 12.19, firebase-admin 14.5, firebase-tools 15.32, jest 30.5, knip 6.39, eslint 9.39.5, prettier 3.9.9. `react-native-url-polyfill` 3 → 4 is a dependency-free URL implementation: 47 kB smaller bundle and faster on Hermes. Cloud Functions moved to Node 22 with firebase-functions 7 (the trigger is kept on `/v1`) and modular admin 14. `npm audit` went from 91 to 56, with the critical gone.
+- **react-native 0.86.0 → 0.86.3** (with `@react-native/*` 0.86.3): patch releases on our line, no template change.
+
 ## [1.48.4] - 2026-10-03
 
 ### Fixed
