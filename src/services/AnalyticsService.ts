@@ -8,14 +8,7 @@ import {
   type AnalyticsSummary,
 } from './analyticsAggregation';
 
-export type {
-  AnalyticsSummary,
-  CategorySpending,
-  SpendingByStore,
-  SpendingTrend,
-  TopItem,
-  TrendBucket,
-} from './analyticsAggregation';
+export type { AnalyticsSummary, TopItem } from './analyticsAggregation';
 
 /** How long a first paint will wait on items that are not local yet. */
 const BACKFILL_BUDGET_MS = 3000;
