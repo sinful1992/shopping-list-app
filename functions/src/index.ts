@@ -1,7 +1,9 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import * as functions from 'firebase-functions/v1';
+import { initializeApp } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getDatabase } from 'firebase-admin/database';
 
-admin.initializeApp();
+initializeApp();
 
 /**
  * Cloud Function: setFamilyGroupClaim
@@ -21,13 +23,13 @@ export const setFamilyGroupClaim = functions.database
 
     try {
       // Set the custom claim on the user's auth token
-      await admin.auth().setCustomUserClaims(uid, {
+      await getAuth().setCustomUserClaims(uid, {
         familyGroupId: familyGroupId || null,
       });
 
       // Write a timestamp that the client can watch to know when to refresh the token
       // The client should call auth().currentUser.getIdToken(true) when this changes
-      await admin.database().ref(`/users/${uid}/claimsUpdatedAt`).set(Date.now());
+      await getDatabase().ref(`/users/${uid}/claimsUpdatedAt`).set(Date.now());
 
       functions.logger.info(`Set familyGroupId claim for user ${uid}:`, familyGroupId);
     } catch (error) {

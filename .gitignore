@@ -142,3 +142,4 @@ docs/IMPROVEMENT_PLAN.md
 .github/copilot-instructions.md
 setup-secrets.ps1
 setup-secrets.bat
+functions/lib/
