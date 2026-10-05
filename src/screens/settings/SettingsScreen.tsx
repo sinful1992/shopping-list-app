@@ -20,6 +20,7 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAdMob } from '../../contexts/AdMobContext';
 import { HIT_SLOP } from '../../styles/theme';
 import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
@@ -36,6 +37,7 @@ const SettingsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { showAlert } = useAlert();
   const { theme, themeMode, setThemeMode } = useTheme();
+  const { privacyOptionsRequired, showPrivacyOptions } = useAdMob();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
@@ -566,6 +568,13 @@ const SettingsScreen = () => {
           <Text style={styles.legalButtonText}>Terms of Service</Text>
           <Icon name="chevron-forward-outline" size={16} color={theme.text.secondary} />
         </TouchableOpacity>
+        {privacyOptionsRequired && (
+          <TouchableOpacity style={styles.legalButton} onPress={showPrivacyOptions}>
+            <Icon name="options-outline" size={20} color={theme.accent.blue} />
+            <Text style={styles.legalButtonText}>Ad privacy choices</Text>
+            <Icon name="chevron-forward-outline" size={16} color={theme.text.secondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Logout Section */}
