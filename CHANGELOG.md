@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.11] - 2026-10-05
+
+### Fixed
+- **The privacy policy did not mention ads.** The free tier shows rewarded AdMob ads, and the Google Mobile Ads SDK receives the advertising ID, IP address, device information and ad interactions, but the in-app policy listed only Firebase, Supabase and RevenueCat. It now has a Google AdMob section, word for word the same as the website policy, and the date is October 2026. The camera section now says that a scanned receipt photo goes through the Supabase server to the receipt-reading service on Hugging Face, which only reads it. `docs/DATA_SAFETY.md` adds the AdMob rows and the optional receipt photos, so the Play Data safety form can match the SDKs in the app.
+
 ## [1.48.10] - 2026-10-05
 
 ### Fixed

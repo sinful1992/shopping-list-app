@@ -1,12 +1,12 @@
 /**
  * Privacy Policy for Family Shopping List
- * Last updated: August 2026
+ * Last updated: October 2026
  */
 
 export const PRIVACY_POLICY_CONTENT = `
 # Privacy Policy for Family Shopping List
 
-**Last Updated: August 2026**
+**Last Updated: October 2026**
 
 ## Introduction
 
@@ -62,11 +62,21 @@ Supabase Privacy Policy: https://supabase.com/privacy
 
 RevenueCat Privacy Policy: https://www.revenuecat.com/privacy
 
+### Google AdMob (advertising)
+The free version of the app shows rewarded ads from Google AdMob: an ad plays before you scan a receipt or raise an urgent item. Premium and Family subscribers see no ads, and the ad service is not started for them.
+- **What AdMob receives**: your device's advertising ID, IP address, device and app information (such as device model, Android version and language), and your interactions with the ads
+- **Why**: to show ads, measure them, prevent fraud and, only with your consent, personalise them
+- **Your choice**: in the UK and EEA the app asks for your consent through Google's consent message before any personalised ads are shown. You can reset or delete your advertising ID at any time in your Android settings (Settings › Privacy › Ads)
+- We never share your shopping lists, receipts, prices or family group data with AdMob
+
+Google Privacy Policy: https://policies.google.com/privacy. How Google uses information from apps that use its services: https://policies.google.com/technologies/partner-sites
+
 ## Camera and Photo Access
 
 We request camera access to:
 - Capture receipt photos after shopping trips
 - Receipt images are stored in Firebase Cloud Storage and linked to your shopping lists
+- When you scan a receipt, the photo is sent through our server on Supabase to our receipt-reading service, hosted on Hugging Face, which reads the shop, date, total and item lines and returns them to the app. The service is used only to read your receipt
 - You can delete receipt images at any time
 
 ## Data Sharing Within Family Groups
