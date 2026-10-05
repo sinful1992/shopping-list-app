@@ -16,7 +16,7 @@ import {
 import { getDatabase, ref, get, set, update, remove, runTransaction, push, query, orderByChild, equalTo, onValue } from '@react-native-firebase/database';
 import { getStorage, ref as storageRef, deleteObject } from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import SecureStorage from './SecureStorage';
 import {
   GoogleSignin,
   isSuccessResponse,
@@ -255,8 +255,8 @@ class AuthenticationModule {
 
       await firebaseSignOut(getAuth());
       // Clear user data and token from encrypted storage
-      await EncryptedStorage.removeItem(this.USER_KEY);
-      await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
+      await SecureStorage.removeItem(this.USER_KEY);
+      await SecureStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
     } catch (error: unknown) {
@@ -376,7 +376,7 @@ class AuthenticationModule {
       const userSnapshot = await get(ref(db, `/users/${userId}`));
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
       return { group: familyGroup, invitationCode };
@@ -404,7 +404,7 @@ class AuthenticationModule {
 
       if (userData) {
         // Update cache with fresh data
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(userData));
         return userData;
       }
     } catch (error) {
@@ -414,7 +414,7 @@ class AuthenticationModule {
     // Offline / read failed → serve last-known user instead of "logged out".
     // Sign-out removes USER_KEY, so this cannot resurrect a signed-out user;
     // guard against a stale cache from a different account on the same device.
-    const cached = await EncryptedStorage.getItem(this.USER_KEY).catch(() => null);
+    const cached = await SecureStorage.getItem(this.USER_KEY).catch(() => null);
     const cachedUser = safeJsonParse<User | null>(cached, null);
     if (cachedUser && cachedUser.uid !== currentUser.uid) {
       return null;
@@ -430,7 +430,7 @@ class AuthenticationModule {
   async getAuthToken(): Promise<string | null> {
     try {
       // Try encrypted storage first
-      const token = await EncryptedStorage.getItem(this.AUTH_TOKEN_KEY);
+      const token = await SecureStorage.getItem(this.AUTH_TOKEN_KEY);
       if (token) {
         return token;
       }
@@ -439,7 +439,7 @@ class AuthenticationModule {
       const oldToken = await AsyncStorage.getItem(this.AUTH_TOKEN_KEY);
       if (oldToken) {
         // Migrate to encrypted storage
-        await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, oldToken);
+        await SecureStorage.setItem(this.AUTH_TOKEN_KEY, oldToken);
         await AsyncStorage.removeItem(this.AUTH_TOKEN_KEY);
         return oldToken;
       }
@@ -448,7 +448,7 @@ class AuthenticationModule {
       const currentUser = getAuth().currentUser;
       if (currentUser) {
         const freshToken = await getIdToken(currentUser);
-        await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, freshToken);
+        await SecureStorage.setItem(this.AUTH_TOKEN_KEY, freshToken);
         return freshToken;
       }
 
@@ -527,7 +527,7 @@ class AuthenticationModule {
             return;
           }
 
-          EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+          SecureStorage.setItem(this.USER_KEY, JSON.stringify(userData));
           callback(userData);
 
           // Once per sign-in: an approval that landed while this account was
@@ -893,7 +893,7 @@ class AuthenticationModule {
         });
       }
 
-      // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)
+      // Step 5: Clear FCM token (revokes device token + cleans SecureStorage)
       await NotificationManager.clearToken();
 
       // Step 6: Delete user profile from Realtime Database
@@ -903,8 +903,8 @@ class AuthenticationModule {
       await LocalStorageManager.clearAllData();
 
       // Step 8: Clear storage (user data and token from encrypted storage)
-      await EncryptedStorage.removeItem(this.USER_KEY);
-      await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
+      await SecureStorage.removeItem(this.USER_KEY);
+      await SecureStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
 
@@ -1123,7 +1123,7 @@ class AuthenticationModule {
 
     const updatedUser = userSnapshot.val();
     if (updatedUser) {
-      await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+      await SecureStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
     }
 
     return groupSnapshot.val();
@@ -1177,7 +1177,7 @@ class AuthenticationModule {
 
       if (user) {
         // Update local cache
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(user));
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(user));
       }
 
       return user;
@@ -1192,8 +1192,8 @@ class AuthenticationModule {
    */
   private async storeAuthData(user: User, token: string): Promise<void> {
     // User data and token both in encrypted storage
-    await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, token);
+    await SecureStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    await SecureStorage.setItem(this.AUTH_TOKEN_KEY, token);
   }
 }
 

@@ -1,5 +1,5 @@
 import { getStorage, ref as storageRef, getDownloadURL, deleteObject, putFile, writeToFile } from '@react-native-firebase/storage';
-import { utils } from '@react-native-firebase/app';
+import { FilePath } from '@react-native-firebase/app';
 import { v4 as uuidv4 } from 'uuid';
 import NetInfo from '@react-native-community/netinfo';
 import { QueuedUpload, UploadQueueResult, UploadError, ShoppingList } from '../models/types';
@@ -7,7 +7,7 @@ import LocalStorageManager from './LocalStorageManager';
 import ShoppingListManager from './ShoppingListManager';
 import CrashReporting from './CrashReporting';
 import { isReceiptStoragePath } from '../utils/uri';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import SecureStorage from './SecureStorage';
 import { safeJsonParse } from '../utils/safeJsonParse';
 
 /**
@@ -153,7 +153,7 @@ class ImageStorageManager {
    */
   async downloadReceiptToCache(storagePath: string, listId: string): Promise<string> {
     try {
-      const localPath = `${utils.FilePath.CACHES_DIRECTORY}/ocr-retry-${listId}.jpg`;
+      const localPath = `${FilePath.CACHES_DIRECTORY}/ocr-retry-${listId}.jpg`;
       const reference = storageRef(getStorage(), storagePath);
       await writeToFile(reference, localPath);
       return localPath;
@@ -327,7 +327,7 @@ class ImageStorageManager {
    * Helper: Get upload queue from storage
    */
   private async getUploadQueue(): Promise<QueuedUpload[]> {
-    const queueJson = await EncryptedStorage.getItem(this.UPLOAD_QUEUE_KEY);
+    const queueJson = await SecureStorage.getItem(this.UPLOAD_QUEUE_KEY);
     return safeJsonParse<QueuedUpload[]>(queueJson, []);
   }
 
@@ -349,7 +349,7 @@ class ImageStorageManager {
   private mutateQueue(change: (queue: QueuedUpload[]) => QueuedUpload[]): Promise<void> {
     const write = this.queueWrites.then(async () => {
       const queue = await this.getUploadQueue();
-      await EncryptedStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(change(queue)));
+      await SecureStorage.setItem(this.UPLOAD_QUEUE_KEY, JSON.stringify(change(queue)));
     });
     this.queueWrites = write.catch(() => undefined);
     return write;

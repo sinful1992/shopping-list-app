@@ -6,14 +6,14 @@ import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.react.defaults.DefaultReactActivityDelegate;
-import org.devio.rn.splashscreen.SplashScreen;
+import com.zoontek.rnbootsplash.RNBootSplash;
 
 public class MainActivity extends ReactActivity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     EdgeToEdge.enable(this);
-    SplashScreen.show(this);
+    RNBootSplash.init(this, R.style.BootTheme);
     // Pass null: react-native-screens fragments cannot be restored from saved
     // state (IllegalStateException on relaunch after process death); RN rebuilds
     // the UI from scratch instead.

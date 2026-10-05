@@ -1,11 +1,11 @@
-import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import type { RemoteMessage } from '@react-native-firebase/messaging';
 
 // List ids are client-generated UUIDs (see ListDetailScreen's route guard);
 // anything else in the payload is dropped rather than fed into navigation.
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Map an FCM message to a deep-link path, or null if it shouldn't navigate.
-export function notificationToDeepLink(message: FirebaseMessagingTypes.RemoteMessage | null): string | null {
+export function notificationToDeepLink(message: RemoteMessage | null): string | null {
   const data = message?.data;
   if (data?.type === 'urgent_item') {
     return 'familyshoppinglist://urgent';

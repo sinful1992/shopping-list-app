@@ -18,7 +18,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import Icon from 'react-native-vector-icons/Ionicons';
 import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
 import { getMessaging, getInitialNotification, onNotificationOpenedApp } from '@react-native-firebase/messaging';
-import SplashScreen from 'react-native-splash-screen';
+import BootSplash from 'react-native-bootsplash';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import { runReceiptSyncBackfill } from './src/services/receiptSyncBackfill';
@@ -459,7 +459,7 @@ function App(): JSX.Element {
   // Hide splash screen when app is ready
   useEffect(() => {
     if (!loading) {
-      SplashScreen.hide();
+      BootSplash.hide().catch(err => CrashReporting.recordError(err as Error, 'App BootSplash hide'));
     }
   }, [loading]);
 

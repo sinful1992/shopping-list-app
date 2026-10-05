@@ -1,4 +1,8 @@
-import { firebase } from '@react-native-firebase/app-check';
+import { getApp } from '@react-native-firebase/app';
+import {
+  initializeAppCheck,
+  ReactNativeFirebaseAppCheckProvider,
+} from '@react-native-firebase/app-check';
 import CrashReporting from './CrashReporting';
 
 /**
@@ -31,9 +35,7 @@ class AppCheckService {
       return;
     }
     try {
-      const provider = firebase
-        .appCheck()
-        .newReactNativeFirebaseAppCheckProvider();
+      const provider = new ReactNativeFirebaseAppCheckProvider();
 
       provider.configure({
         android: {
@@ -44,7 +46,7 @@ class AppCheckService {
         },
       });
 
-      await firebase.appCheck().initializeAppCheck({
+      initializeAppCheck(getApp(), {
         provider,
         isTokenAutoRefreshEnabled: true,
       });

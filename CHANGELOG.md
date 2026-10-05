@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.10] - 2026-10-05
+
+### Fixed
+- **The splash icon showed white square corners.** `app-icon-512.png` has an opaque white background behind its rounded square, which showed against the #0a0a0a splash (seen on the AVD upgrade test, #1181). The splash images are now generated from `assets/bootsplash-logo.png`, a copy with the outer white flood-filled to transparent. The icon itself is unchanged.
+
+## [1.48.9] - 2026-10-05
+
+### Changed
+- **Encrypted storage: react-native-encrypted-storage → react-native-keychain 10.0.0, through a new `SecureStorage` wrapper.** The old library has been unmaintained since 2022 (last publish 2022-11). `SecureStorage` (`src/services/SecureStorage.ts`) keeps the old `getItem`/`setItem`/`removeItem` shape, so the three callers (AuthenticationModule, NotificationManager, ImageStorageManager) only change their import. All six keys stay encrypted: `@user`, `@auth_token`, `@fcm_token`, `@fcm_token_data` and `@upload_queue`. The queue keeps the encrypted-storage policy from e93ae50 (receipt paths are financial data), so it does not go back to AsyncStorage.
+  - **Storage:** one keychain entry per key (`service` = `fsl.` + key), pinned to Keystore AES-GCM with no user authentication. Nothing prompts for biometrics, and a lock-screen change can't invalidate the entries.
+  - **One-time move:** the first operation on a key in a launch waits for the move. If the new store is empty, it reads the old one, writes the new one, then deletes the old copy. A write or remove that arrives during the move waits for it, so a queued receipt or a logout can't be overwritten by the old value. If the old read fails (for example after a Keystore reset), nothing is written, the failure is recorded once, and the move retries on the next launch. A crash between "write new" and "delete old" leaves a harmless old copy, which `removeItem` clears along with the new one.
+  - **Empty values:** keychain rejects empty strings, so `setItem('' | null | undefined)` removes the entry; nothing stores the string "null".
+  - **A cleared key never comes back from the old store** (review #1159). An empty new store can mean the key was cleared on purpose. So once a key has been moved, written or removed here, a keychain marker (`fsl.migrated.<key>`) records that, and the old store is never read for it again. Without it, a logout or account deletion after a failed old read, followed by a failed old delete, could bring back the deleted user's profile or token on the next launch.
+  - **react-native-encrypted-storage stays installed this release, read-only, only to move existing data.** It is removed in a later version, once users have updated past 1.48.9.
+  - **Tests:** `SecureStorage.test.ts` (13) covers the move, a cleared key staying cleared after a failed move (including a failed old delete), a second launch being a no-op, a failing old read, a lingering old copy, a write and a remove racing the move, and empty values. Mutation-checked: dropping the move wait from `setItem` or `removeItem`, or the per-launch memo, each fails a test. Three existing tests now mock `SecureStorage` instead of encrypted-storage. Jest maps `react-native-keychain` to an in-memory mock.
+  - ⚠️ **NEEDS DEVICE VALIDATION (upgrade, not fresh install):** install a dev build, log in, and queue a receipt while offline. Then install this build **over** it (same signature). You stay logged in, notifications still arrive, and the queued receipt uploads once you're back online.
+
+## [1.48.7] - 2026-10-05
+
+### Changed
+- **Splash screen: react-native-splash-screen → react-native-bootsplash 7.3.4.** The old library has been unmaintained since 2022 (last publish 2022-06). bootsplash is maintained and draws through the Android 12+ SplashScreen API, so Android 12+ phones no longer show the system splash and then a second one. **The look changes:** the white "Family Shopping List / Loading…" text on #0a0a0a becomes the app icon (100dp) on the same #0a0a0a. The assets were generated from `assets/app-icon-512.png`. `MainActivity` now calls `RNBootSplash.init(this, R.style.BootTheme)`, keeping `EdgeToEdge.enable` and `super.onCreate(null)`. The launcher activity uses `BootTheme`, which hands over to `AppTheme`. `launch_screen.xml` is removed. `hide()` now returns a Promise: App.tsx records a failure, and ErrorBoundary swallows it.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** cold start shows the icon splash once and hides when the app is ready, and an early crash still reaches the error screen rather than leaving the splash on top.
+
+## [1.48.6] - 2026-10-05
+
+### Changed (dependencies, task 17)
+Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) and `NATIVE.md` (native).
+- **JS-side updates (PR #43):** react-navigation 7.20/7.5/7.12, supabase-js 2.117, gifted-charts 1.4.81, uuid 14.0.2, firebase 12.19, firebase-admin 14.5, firebase-tools 15.32, jest 30.5, knip 6.39, eslint 9.39.5, prettier 3.9.9. `react-native-url-polyfill` 3 → 4 is a dependency-free URL implementation: 47 kB smaller bundle and faster on Hermes. Cloud Functions moved to Node 22 with firebase-functions 7 (the trigger is kept on `/v1`) and modular admin 14 (not deployed: CI only deploys the database rules, so this needs `firebase deploy --only functions`). `npm audit` went from 91 to 56, with the critical gone.
+- **react-native 0.86.0 → 0.86.3** (with `@react-native/*` 0.86.3): patch releases on our line, no template change.
+- **Native minors:** react-native-screens 4.28 (Android tab bar layout after a config change, stack fragment pop fix), safe-area-context 5.10.1, purchases + purchases-ui 10.11 (purchases-android 10.24), datetimepicker 9.2.1, google-signin 16.1.5, gesture-handler 2.33. gesture-handler 3 is skipped: it is a New-Arch rewrite and its `PanGesture` type clashes with reorderable-list.
+- **react-native-reanimated 4.5 → 4.7.1 with react-native-worklets 0.10 → 0.13** (bumped together; 4.7 peer-requires worklets 0.13.x). The worklet UI loop now pauses while the app is backgrounded. Also a serialization race fix, faster startup, and layout-animation crash fixes (the app uses no layout animations). The babel plugin path is unchanged.
+- **react-native-reorderable-list 0.18.0 → 0.18.1** (still pinned exactly). Fixes the dragged item's index during autoscroll when the finger is held still. Our patch was regenerated for 0.18.1 with both hunks unchanged: the negative-index guard on drop, and Android always using the item gesture alone.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** drag-reorder within and across categories, and the item check animation.
+- **react-native-svg 15.15.4 → 15.15.5; its patch-package patch is removed.** The patch reflected into `MatrixDecompositionContext` fields and cast `setBorderRadius` to float, for RN 0.74. On RN 0.86 those fields are public `@JvmField`s and both `setBorderRadius` overloads exist, so upstream compiles unchanged (proved by assembleRelease).
+- **Kotlin 2.1.20 → 2.2.20 (`android/build.gradle`) and react-native-google-mobile-ads 16.3.3 → 16.5.0.** This resolves the 1.25.14 deferral: Google Mobile Ads SDK 25.4.0 is compiled with Kotlin 2.3 metadata, which the 2.1.20 compiler cannot read; a 2.2 compiler reads one minor ahead, and `:react-native-google-mobile-ads:compileReleaseKotlin` passes. It is 2.2.20, not 2.3.x, because async-storage maps KSP only up to Kotlin 2.2.20: on 2.3.21 it fell back to KSP 2.1.0 and the build failed ("ksp-2.1.0-1.0.28 is too old for kotlin-2.3.21"). 16.5 brings GMA Android 25.4.0 and stops ad views being saved in instance state (an Android restore fix). Ads 17 is skipped: it ships the same GMA SDK with a new API we don't use.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** banner loads and the consent form.
+- **sp-react-native-in-app-updates 1.5.0 → 2.0.0.** It is now a Codegen TurboModule (no legacy-bridge interop), and `checkNeedsUpdate` failures now reject properly. The Android API we call (`checkNeedsUpdate().shouldUpdate`) is unchanged, and it still depends on react-native-device-info 10.3.0, so the `RNDeviceInfo` guard in `useInAppUpdate` still holds.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** the update prompt on a build older than the Play Store version.
+- **@react-native-firebase/* 25.1.0 → 26.4.0** (app-check still pinned exactly). Android Firebase BOM 34.15 → 34.18. Fixes include: the event emitter losing events to a stale ReactContext, null id-tokens from Credential Manager in auth, messaging stored-message integrity, and thread-safe listener/transaction maps in database and auth. Every module is now a TurboModule; the New Architecture is required, and we already run it. Gradle plugins move to the versions RNFB 26 is tested with: `google-services` 4.5.0 and `firebase-crashlytics-gradle` 3.0.8.
+  - **Forced code changes (v26 removed the namespaced API):** `AppCheckService` now uses modular `initializeAppCheck(getApp(), …)` with `new ReactNativeFirebaseAppCheckProvider()`. v26 made that call synchronous, and a native init failure no longer reaches our `catch`, because the library fires it with `void`. `ImageStorageManager` now uses `FilePath` instead of `utils.FilePath`. `notificationDeepLink` (and its test) now uses `RemoteMessage` instead of `FirebaseMessagingTypes.RemoteMessage`. `await logEvent(...)` is left alone: awaiting the now-void return is harmless.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** login (Google + email), list sync, receipt upload/download, tapping a push notification opens the right screen, and Crashlytics still reports.
+
 ## [1.48.4] - 2026-10-03
 
 ### Fixed

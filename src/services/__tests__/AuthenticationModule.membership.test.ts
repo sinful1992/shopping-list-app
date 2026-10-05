@@ -31,7 +31,7 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   isErrorWithCode: jest.fn(() => false),
   statusCodes: {},
 }));
-jest.mock('react-native-encrypted-storage', () => ({
+jest.mock('../SecureStorage', () => ({
   __esModule: true,
   default: {
     setItem: jest.fn(() => Promise.resolve()),

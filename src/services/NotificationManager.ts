@@ -10,7 +10,7 @@ import {
 import { getAuth, getIdToken } from '@react-native-firebase/auth';
 import { PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import SecureStorage from './SecureStorage';
 import supabase from './SupabaseClient';
 import { safeJsonParse } from '../utils/safeJsonParse';
 import CrashReporting from './CrashReporting';
@@ -57,8 +57,8 @@ class NotificationManager {
         return this.fcmToken;
       }
 
-      // Try EncryptedStorage first (new location)
-      const storedToken = await EncryptedStorage.getItem(this.FCM_TOKEN_KEY);
+      // Try SecureStorage first (new location)
+      const storedToken = await SecureStorage.getItem(this.FCM_TOKEN_KEY);
       if (storedToken) {
         this.fcmToken = storedToken;
         return storedToken;
@@ -66,7 +66,7 @@ class NotificationManager {
       // Migration: move from AsyncStorage on first access after upgrade
       const legacyToken = await AsyncStorage.getItem(this.FCM_TOKEN_KEY);
       if (legacyToken) {
-        await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, legacyToken);
+        await SecureStorage.setItem(this.FCM_TOKEN_KEY, legacyToken);
         await AsyncStorage.removeItem(this.FCM_TOKEN_KEY);
         this.fcmToken = legacyToken;
         return legacyToken;
@@ -83,7 +83,7 @@ class NotificationManager {
 
       // Cache the token
       this.fcmToken = token;
-      await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
+      await SecureStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       return token;
     } catch {
@@ -118,7 +118,7 @@ class NotificationManager {
         throw error;
       }
 
-      await EncryptedStorage.setItem(
+      await SecureStorage.setItem(
         '@fcm_token_data',
         JSON.stringify({
           token,
@@ -147,10 +147,10 @@ class NotificationManager {
     // Handle token refresh
     const unsubTokenRefresh = onTokenRefresh(getMessaging(), async (token) => {
       this.fcmToken = token;
-      await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
+      await SecureStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       // Update token in Supabase
-      const tokenData = await EncryptedStorage.getItem('@fcm_token_data').catch(() => null);
+      const tokenData = await SecureStorage.getItem('@fcm_token_data').catch(() => null);
       const parsed = safeJsonParse<{ userId?: string; familyGroupId?: string } | null>(tokenData, null);
       if (parsed?.userId && parsed?.familyGroupId) {
         await this.registerToken(parsed.userId, parsed.familyGroupId).catch(err => CrashReporting.recordError(err as Error, 'NotificationManager registerToken on refresh'));
@@ -243,8 +243,8 @@ class NotificationManager {
   async clearToken(): Promise<void> {
     try {
       await deleteToken(getMessaging());
-      await EncryptedStorage.removeItem(this.FCM_TOKEN_KEY);
-      await EncryptedStorage.removeItem('@fcm_token_data');
+      await SecureStorage.removeItem(this.FCM_TOKEN_KEY);
+      await SecureStorage.removeItem('@fcm_token_data');
       this.fcmToken = null;
     } catch {
       // Token clear failed - not critical
