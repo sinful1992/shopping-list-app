@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.48.6",
+  "version": "1.48.7",
   "private": true,
   "license": "UNLICENSED",
   "author": "sinful1992",
@@ -37,6 +37,7 @@
     "@supabase/supabase-js": "^2.117.2",
     "react": "19.2.3",
     "react-native": "0.86.3",
+    "react-native-bootsplash": "^7.3.4",
     "react-native-document-scanner-plugin": "^2.0.4",
     "react-native-encrypted-storage": "^4.0.3",
     "react-native-gesture-handler": "^2.33.0",
@@ -51,7 +52,6 @@
     "react-native-reorderable-list": "0.18.1",
     "react-native-safe-area-context": "^5.10.1",
     "react-native-screens": "^4.28.0",
-    "react-native-splash-screen": "^3.3.0",
     "react-native-svg": "^15.15.5",
     "react-native-url-polyfill": "^4.0.0",
     "react-native-vector-icons": "^10.3.0",

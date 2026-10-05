@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.7] - 2026-10-05
+
+### Changed
+- **Splash screen: react-native-splash-screen → react-native-bootsplash 7.3.4.** The old library has been unmaintained since 2022 (last publish 2022-06). bootsplash is maintained and draws through the Android 12+ SplashScreen API, so Android 12+ phones no longer show the system splash and then a second one. **The look changes:** the white "Family Shopping List / Loading…" text on #0a0a0a becomes the app icon (100dp) on the same #0a0a0a. The assets were generated from `assets/app-icon-512.png`. `MainActivity` now calls `RNBootSplash.init(this, R.style.BootTheme)`, keeping `EdgeToEdge.enable` and `super.onCreate(null)`. The launcher activity uses `BootTheme`, which hands over to `AppTheme`. `launch_screen.xml` is removed. `hide()` now returns a Promise: App.tsx records a failure, and ErrorBoundary swallows it.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** cold start shows the icon splash once and hides when the app is ready, and an early crash still reaches the error screen rather than leaving the splash on top.
+
 ## [1.48.6] - 2026-10-05
 
 ### Changed (dependencies, task 17)
