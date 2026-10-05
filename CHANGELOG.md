@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed (spike, not for release until device-tested)
+- **react-native-gesture-handler 2.33.0 → 3.3.0.** v3 is the New-Architecture rebuild (hook API, one native detector, batched native ops). react-native-reorderable-list 0.18.1 still types its `panGesture` prop with the name `PanGesture`, which v3 now uses for its new hook-gesture type; the v2-style object we pass from `Gesture.Pan()` is `LegacyPanGesture` in v3. The reorderable-list patch gains one line in `types/props` importing `LegacyPanGesture as PanGesture`. Type-only: the library and `CategoryItemList` keep using the legacy `Gesture` API, which v3 still ships. Drag-reorder needs a device check (long-press, reorder within a category, autoscroll, drop).
+
 ## [1.48.10] - 2026-10-05
 
 ### Fixed

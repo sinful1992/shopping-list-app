@@ -1,3 +1,15 @@
+diff --git a/node_modules/react-native-reorderable-list/lib/typescript/types/props.d.ts b/node_modules/react-native-reorderable-list/lib/typescript/types/props.d.ts
+index 3512a7a..614696e 100644
+--- a/node_modules/react-native-reorderable-list/lib/typescript/types/props.d.ts
++++ b/node_modules/react-native-reorderable-list/lib/typescript/types/props.d.ts
+@@ -1,6 +1,6 @@
+ /// <reference types="react" />
+ import type { FlatListProps, MatrixTransform, PerspectiveTransform, RotateTransform, RotateXTransform, RotateYTransform, RotateZTransform, ScaleTransform, ScaleXTransform, ScaleYTransform, ScrollViewProps, SkewXTransform, SkewYTransform, TranslateXTransform, TranslateYTransform, ViewStyle } from 'react-native';
+-import { PanGesture } from 'react-native-gesture-handler';
++import { LegacyPanGesture as PanGesture } from 'react-native-gesture-handler';
+ import { SharedValue, useAnimatedScrollHandler } from 'react-native-reanimated';
+ import { ItemLayoutAnimation, MaximumOneOf, SharedValueOrType } from './misc';
+ export interface ReorderableListReorderEvent {
 diff --git a/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx b/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
 index 81bdff2..00339a2 100644
 --- a/node_modules/react-native-reorderable-list/src/components/ReorderableListCore.tsx
@@ -32,3 +44,16 @@ index 81bdff2..00339a2 100644
  
    const composedScrollHandler = useComposedEventHandler([
      handleScroll,
+diff --git a/node_modules/react-native-reorderable-list/src/types/props.ts b/node_modules/react-native-reorderable-list/src/types/props.ts
+index cc69dcb..b8dda77 100644
+--- a/node_modules/react-native-reorderable-list/src/types/props.ts
++++ b/node_modules/react-native-reorderable-list/src/types/props.ts
+@@ -17,7 +17,7 @@ import type {
+   ViewStyle,
+ } from 'react-native';
+ 
+-import {PanGesture} from 'react-native-gesture-handler';
++import { LegacyPanGesture as PanGesture } from 'react-native-gesture-handler';
+ import {SharedValue, useAnimatedScrollHandler} from 'react-native-reanimated';
+ 
+ import {ItemLayoutAnimation, MaximumOneOf, SharedValueOrType} from './misc';
