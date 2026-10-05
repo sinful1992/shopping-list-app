@@ -26,6 +26,7 @@ import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
 import { useSettings } from '../../hooks';
+import { shareFamilyInvite } from '../../utils/inviteMessage';
 import { version } from '../../../package.json';
 
 /**
@@ -142,6 +143,15 @@ const SettingsScreen = () => {
     if (invitationCode && invitationCode !== 'ERROR' && invitationCode !== 'NOT_FOUND') {
       Clipboard.setString(invitationCode);
       showAlert('Success', 'Invitation code copied to clipboard', undefined, { icon: 'success' });
+    }
+  };
+
+  const handleShareInvitationCode = async () => {
+    if (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') return;
+    try {
+      await shareFamilyInvite(invitationCode);
+    } catch (error: unknown) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
   };
 
@@ -408,25 +418,37 @@ const SettingsScreen = () => {
                 ) : (
                   <Text style={styles.invitationCode}>{invitationCode}</Text>
                 )}
-                <TouchableOpacity
-                  style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
-                  hitSlop={HIT_SLOP}
-                  onPress={() => {
-                    if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
-                      // Retry loading
-                      retryLoadInvitationCode();
-                    } else {
-                      handleCopyInvitationCode();
-                    }
-                  }}
-                  disabled={!invitationCode}
-                >
-                  <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color={theme.accent.blue} />
-                </TouchableOpacity>
+                <View style={styles.codeButtons}>
+                  <TouchableOpacity
+                    style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
+                    hitSlop={HIT_SLOP}
+                    onPress={() => {
+                      if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
+                        // Retry loading
+                        retryLoadInvitationCode();
+                      } else {
+                        handleCopyInvitationCode();
+                      }
+                    }}
+                    disabled={!invitationCode}
+                  >
+                    <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color={theme.accent.blue} />
+                  </TouchableOpacity>
+                  {invitationCode && invitationCode !== 'ERROR' && invitationCode !== 'NOT_FOUND' ? (
+                    <TouchableOpacity
+                      style={[styles.copyButton, styles.shareButton]}
+                      hitSlop={HIT_SLOP}
+                      onPress={handleShareInvitationCode}
+                      accessibilityLabel="Invite family"
+                    >
+                      <Icon name="share-social-outline" size={20} color={theme.accent.blue} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             </View>
             <Text style={styles.helperText}>
-              Share this code with family members to invite them to your group
+              Tap share to send family members the app link and this code
             </Text>
           </View>
 

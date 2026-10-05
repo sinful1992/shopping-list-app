@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.13] - 2026-10-05
+
+### Added
+- **Invite family with one tap.** Settings › Family Group has a share button next to the invitation code, and the "Family group created" message has an "Invite family now" button. Both open the phone's share sheet with a ready-made message: the app's web page (which explains how to join the testing while the app is in closed testing, and links to Google Play after launch) and the join steps with the code (sign up, tap Join, enter the code, tap Request to Join). Closing the share sheet does nothing.
+
 ## [1.48.12] - 2026-10-05
 
 ### Added

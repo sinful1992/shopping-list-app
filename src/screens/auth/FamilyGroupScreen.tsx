@@ -17,6 +17,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Theme } from '../../styles/theme';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { shareFamilyInvite } from '../../utils/inviteMessage';
 
 type JoinState = 'idle' | 'pending' | 'approved' | 'rejected';
 
@@ -100,7 +101,16 @@ const FamilyGroupScreen = () => {
       const result = await AuthenticationModule.createFamilyGroup(groupName.trim(), user.uid);
       await AuthenticationModule.refreshUserData();
 
-      showAlert('Success', `Family group created! Invitation code: ${result.invitationCode}`, undefined, { icon: 'success' });
+      const { invitationCode: code } = result;
+      showAlert(
+        'Success',
+        `Family group created! Invitation code: ${code}`,
+        [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Invite family now', onPress: () => { shareFamilyInvite(code).catch(() => {}); } },
+        ],
+        { icon: 'success' },
+      );
     } catch (error: unknown) {
       showAlert('Error', error instanceof Error ? error.message : 'Something went wrong.', undefined, { icon: 'error' });
     } finally {
