@@ -6,7 +6,7 @@
  */
 
 const mockStore: Record<string, string> = {};
-jest.mock('react-native-encrypted-storage', () => ({
+jest.mock('../SecureStorage', () => ({
   __esModule: true,
   default: {
     getItem: jest.fn(async (k: string) => mockStore[k] ?? null),

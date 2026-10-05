@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.8] - 2026-10-05
+
+### Changed
+- **Encrypted storage: react-native-encrypted-storage → react-native-keychain 10.0.0, through a new `SecureStorage` wrapper.** The old library has been unmaintained since 2022 (last publish 2022-11). `SecureStorage` (`src/services/SecureStorage.ts`) keeps the old `getItem`/`setItem`/`removeItem` shape, so the three callers (AuthenticationModule, NotificationManager, ImageStorageManager) only change their import. All six keys stay encrypted: `@user`, `@auth_token`, `@fcm_token`, `@fcm_token_data` and `@upload_queue`. The queue keeps the encrypted-storage policy from e93ae50 (receipt paths are financial data), so it does not go back to AsyncStorage.
+  - **Storage:** one keychain entry per key (`service` = `fsl.` + key), pinned to Keystore AES-GCM with no user authentication. Nothing prompts for biometrics, and a lock-screen change can't invalidate the entries.
+  - **One-time move:** the first operation on a key in a launch waits for the move. If the new store is empty, it reads the old one, writes the new one, then deletes the old copy. A write or remove that arrives during the move waits for it, so a queued receipt or a logout can't be overwritten by the old value. If the old read fails (for example after a Keystore reset), nothing is written, the failure is recorded once, and the move retries on the next launch. A crash between "write new" and "delete old" leaves a harmless old copy, which `removeItem` clears along with the new one.
+  - **Empty values:** keychain rejects empty strings, so `setItem('' | null | undefined)` removes the entry; nothing stores the string "null".
+  - **react-native-encrypted-storage stays installed this release, read-only, only to move existing data.** It is removed in a later version, once users have updated past 1.48.8.
+  - **Tests:** `SecureStorage.test.ts` (11) covers the move, a second launch being a no-op, a failing old read, a lingering old copy, a write and a remove racing the move, and empty values. Mutation-checked: dropping the move wait from `setItem` or `removeItem`, or the per-launch memo, each fails a test. Three existing tests now mock `SecureStorage` instead of encrypted-storage. Jest maps `react-native-keychain` to an in-memory mock.
+  - ⚠️ **NEEDS DEVICE VALIDATION (upgrade, not fresh install):** install a dev build, log in, and queue a receipt while offline. Then install this build **over** it (same signature). You stay logged in, notifications still arrive, and the queued receipt uploads once you're back online.
+
 ## [1.48.7] - 2026-10-05
 
 ### Changed

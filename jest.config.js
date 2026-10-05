@@ -8,6 +8,7 @@ module.exports = {
     '^@react-native-firebase/(.*)$': '<rootDir>/__tests__/__mocks__/firebase.js',
     // Stub other native modules that may be transitively imported
     '^@react-native-async-storage/async-storage$': '<rootDir>/__tests__/__mocks__/asyncStorage.js',
+    '^react-native-keychain$': '<rootDir>/__tests__/__mocks__/keychain.js',
   },
   // uuid v14 ships ESM-only; allow Babel to transform it
   transformIgnorePatterns: [
