@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.49.2] - 2026-10-06
+
+### Fixed
+- **One incomplete family profile no longer hides every creator name.** A member profile without an email address or user id made the name lookup fail for the whole family, so no card showed a creator. That member is now skipped or matched by their id, and a name that starts with an emoji shows correctly in the initial circle.
+
 ## [1.49.1] - 2026-10-06
 
 ### Changed

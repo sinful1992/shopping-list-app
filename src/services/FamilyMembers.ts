@@ -14,20 +14,21 @@ export async function loadFamilyMembers(memberIds: string[]): Promise<User[]> {
   );
 
   const members: User[] = [];
-  for (const result of results) {
+  results.forEach((result, i) => {
     if (result.status === 'fulfilled') {
       const member = result.value.val();
-      if (member) members.push(member);
+      // Older profiles may lack uid; the path id is the member's uid.
+      if (member) members.push({ ...member, uid: member.uid ?? memberIds[i] });
     } else {
       CrashReporting.recordError(
         result.reason as Error,
         'loadFamilyMembers',
       );
     }
-  }
+  });
   return members;
 }
 
 export function memberName(member: User): string {
-  return member.displayName || member.role || member.email.split('@')[0];
+  return member.displayName || member.role || member.email?.split('@')[0] || '';
 }

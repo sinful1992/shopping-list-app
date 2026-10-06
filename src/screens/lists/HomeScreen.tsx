@@ -233,7 +233,7 @@ const HomeScreen = () => {
         storeName={list.storeName}
         formattedDate={formattedDate}
         createdByName={createdByName}
-        createdByInitial={creatorName ? creatorName.charAt(0).toUpperCase() : null}
+        createdByInitial={creatorName ? Array.from(creatorName)[0].toUpperCase() : null}
         accessibilityDate={formatDateSpoken(date)}
         syncStatus={syncStatus}
         onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
