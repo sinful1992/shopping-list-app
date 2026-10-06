@@ -25,6 +25,7 @@ import type { ListsStackParamList } from '../../types/navigation';
 import AuthenticationModule from '../../services/AuthenticationModule';
 import DatabaseMigration from '../../services/DatabaseMigration';
 import { useAuth, useShoppingLists } from '../../hooks';
+import { useFamilyMemberNames } from '../../hooks/useFamilyMemberNames';
 import { formatDateLong, formatDateShort } from '../../utils/date';
 
 /**
@@ -40,6 +41,7 @@ const HomeScreen = () => {
 
   const { user, familyGroupId } = useAuth();
   const { lists, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
+  const memberNames = useFamilyMemberNames(familyGroupId, user?.uid ?? null);
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -206,6 +208,7 @@ const HomeScreen = () => {
         lockedByName={list.lockedByName}
         storeName={list.storeName}
         formattedDate={formattedDate}
+        createdByName={memberNames.get(list.createdBy)}
         syncStatus={syncStatus}
         onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
         onDelete={() => handleDeleteList(list.id, list.name)}

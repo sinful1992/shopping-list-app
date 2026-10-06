@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.49.0] - 2026-10-06
+
+### Added
+- **List cards show who made the list.** An active list's card reads "Created 05/10/2026 · by Anna". The name comes from Settings; if it isn't set, the family role is used, then the start of the email address. If names can't be loaded (offline, or someone who has left the family), only the date shows.
+
 ## [1.48.15] - 2026-10-06
 
 ### Fixed

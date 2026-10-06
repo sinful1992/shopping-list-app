@@ -26,6 +26,7 @@ interface AnimatedListCardProps {
   lockedByName?: string | null;
   storeName?: string | null;
   formattedDate: string;
+  createdByName?: string | null;
   syncStatus: SyncStatus;
   onPress: () => void;
   onDelete: () => void;
@@ -43,6 +44,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   lockedByName,
   storeName,
   formattedDate,
+  createdByName,
   syncStatus,
   onPress,
   onDelete,
@@ -108,7 +110,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
         </>
       ) : (
         <Text style={[staticStyles.listDateSecondary, { color: theme.text.tertiary }]}>
-          Created {formattedDate}
+          Created {formattedDate}{createdByName ? ` · by ${createdByName}` : ''}
         </Text>
       )}
     </AnimatedTouchableOpacity>
