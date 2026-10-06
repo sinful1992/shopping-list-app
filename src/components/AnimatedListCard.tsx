@@ -95,15 +95,18 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
         </View>
       </View>
 
-      <Text style={[staticStyles.listDateFormatted, { color: theme.text.secondary }, isCompleted && { color: theme.text.tertiary }]}>
-        {formattedDate}
-      </Text>
-      {isCompleted && storeName && (
-        <Text style={[staticStyles.storeName, { color: theme.text.secondary }]}>
-          {storeName}
-        </Text>
-      )}
-      {!isCompleted && (
+      {isCompleted ? (
+        <>
+          <Text style={[staticStyles.listDateFormatted, { color: theme.text.tertiary }]}>
+            {formattedDate}
+          </Text>
+          {storeName && (
+            <Text style={[staticStyles.storeName, { color: theme.text.secondary }]}>
+              {storeName}
+            </Text>
+          )}
+        </>
+      ) : (
         <Text style={[staticStyles.listDateSecondary, { color: theme.text.tertiary }]}>
           Created {formattedDate}
         </Text>
@@ -161,7 +164,7 @@ const staticStyles = {
   },
   listDateSecondary: {
     fontSize: 12,
-    marginTop: 2,
+    marginTop: 4,
   },
   storeName: {
     fontSize: 14,

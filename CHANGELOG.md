@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.48.15] - 2026-10-06
+
+### Fixed
+- **"Created" on a list card shows the day the list was really made.** When a list reached a phone from the cloud (made on another family member's phone, or after a reinstall or new sign-in), the phone saved it with the current time as its creation date, so the card showed the day it arrived. Editing the list on that phone then sent the wrong date back to the cloud for everyone. Lists and items now keep their real creation date. A phone that already has a wrong date takes the right one from the cloud on its next sync, if the cloud still has it. Lists whose cloud date was already overwritten stay as they are.
+- **The list card no longer shows the same date twice.** An active list showed its date on its own line and again as "Created …". It now shows only "Created …". Completed lists still show the date they were completed.
+
 ## [1.48.13] - 2026-10-05
 
 ### Added
