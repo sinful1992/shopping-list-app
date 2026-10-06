@@ -28,6 +28,28 @@ import { useAuth, useShoppingLists } from '../../hooks';
 import { useFamilyMemberNames } from '../../hooks/useFamilyMemberNames';
 import { formatDateLong, formatDateShort } from '../../utils/date';
 
+const LOCALE = 'en-GB';
+
+/** "Sun 5 Oct", with the year only when it isn't this year: "Fri 12 Dec 2025". */
+function formatDateMeta(date: Date): string {
+  return date.toLocaleDateString(LOCALE, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }),
+  }).replace(',', '');
+}
+
+/** "Sunday 5 October 2026" for screen readers. */
+function formatDateSpoken(date: Date): string {
+  return date.toLocaleDateString(LOCALE, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).replace(',', '');
+}
+
 /**
  * HomeScreen
  * Displays all active shopping lists
@@ -191,7 +213,9 @@ const HomeScreen = () => {
     const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
     const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
-    const formattedDate = formatDateShort(date);
+    const formattedDate = isCompleted ? formatDateShort(date) : formatDateMeta(date);
+    const creatorName = memberNames.get(list.createdBy);
+    const createdByName = list.createdBy === user?.uid ? 'you' : creatorName;
 
     const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
       ? list.syncStatus
@@ -208,7 +232,9 @@ const HomeScreen = () => {
         lockedByName={list.lockedByName}
         storeName={list.storeName}
         formattedDate={formattedDate}
-        createdByName={memberNames.get(list.createdBy)}
+        createdByName={createdByName}
+        createdByInitial={creatorName ? creatorName.charAt(0).toUpperCase() : null}
+        accessibilityDate={formatDateSpoken(date)}
         syncStatus={syncStatus}
         onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
         onDelete={() => handleDeleteList(list.id, list.name)}

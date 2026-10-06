@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.49.1] - 2026-10-06
+
+### Changed
+- **The creator line reads as a sentence.** An active list's card now says "Created by Anna on Sun 5 Oct" (or "Created by you on …" for your own lists), with a small circle showing the creator's initial so family members are easy to tell apart. The year appears only for dates outside this year. If the name isn't known, it reads "Created on Sun 5 Oct". Screen readers hear the full date.
+
 ## [1.49.0] - 2026-10-06
 
 ### Added

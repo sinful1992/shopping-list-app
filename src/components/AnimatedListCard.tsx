@@ -27,6 +27,8 @@ interface AnimatedListCardProps {
   storeName?: string | null;
   formattedDate: string;
   createdByName?: string | null;
+  createdByInitial?: string | null;
+  accessibilityDate?: string;
   syncStatus: SyncStatus;
   onPress: () => void;
   onDelete: () => void;
@@ -45,6 +47,8 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   storeName,
   formattedDate,
   createdByName,
+  createdByInitial,
+  accessibilityDate,
   syncStatus,
   onPress,
   onDelete,
@@ -109,9 +113,31 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
           )}
         </>
       ) : (
-        <Text style={[staticStyles.listDateSecondary, { color: theme.text.tertiary }]}>
-          Created {formattedDate}{createdByName ? ` · by ${createdByName}` : ''}
-        </Text>
+        <View
+          style={staticStyles.creatorRow}
+          accessible
+          accessibilityLabel={createdByName
+            ? `Created by ${createdByName} on ${accessibilityDate ?? formattedDate}`
+            : `Created on ${accessibilityDate ?? formattedDate}`}
+        >
+          {createdByName && createdByInitial && (
+            <View
+              style={[staticStyles.creatorAvatar, { backgroundColor: theme.accent.blueSubtle }]}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Text style={[staticStyles.creatorInitial, { color: theme.accent.blue }]}>{createdByInitial}</Text>
+            </View>
+          )}
+          <Text style={[staticStyles.creatorText, { color: theme.text.tertiary }]} numberOfLines={1}>
+            {createdByName ? (
+              <>
+                Created by <Text style={[staticStyles.creatorName, { color: theme.text.secondary }]}>{createdByName}</Text> on {formattedDate}
+              </>
+            ) : (
+              `Created on ${formattedDate}`
+            )}
+          </Text>
+        </View>
       )}
     </AnimatedTouchableOpacity>
   );
@@ -164,9 +190,29 @@ const staticStyles = {
     fontSize: 14,
     marginTop: 4,
   },
-  listDateSecondary: {
+  creatorRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    marginTop: 6,
+  },
+  creatorAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  creatorInitial: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+  },
+  creatorText: {
+    flexShrink: 1,
     fontSize: 12,
-    marginTop: 4,
+  },
+  creatorName: {
+    fontWeight: '600' as const,
   },
   storeName: {
     fontSize: 14,
