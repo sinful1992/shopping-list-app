@@ -49,7 +49,7 @@ export function mapFirebaseList(
     name: data.name ?? '',
     familyGroupId: data.familyGroupId ?? fallbackFamilyGroupId,
     createdBy: data.createdBy ?? '',
-    createdAt: data.createdAt ?? Date.now(),
+    createdAt: data.createdAt ?? 0,
     status: data.status ?? 'active',
     completedAt: data.completedAt ?? null,
     completedBy: data.completedBy ?? null,

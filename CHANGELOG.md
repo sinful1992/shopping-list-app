@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.49.2] - 2026-10-06
+
+### Fixed
+- **One incomplete family profile no longer hides every creator name.** A member profile without an email address or user id made the name lookup fail for the whole family, so no card showed a creator. That member is now skipped or matched by their id, and a name that starts with an emoji shows correctly in the initial circle.
+
+## [1.49.1] - 2026-10-06
+
+### Changed
+- **The creator line reads as a sentence.** An active list's card now says "Created by Anna on Sun 5 Oct" (or "Created by you on …" for your own lists), with a small circle showing the creator's initial so family members are easy to tell apart. The year appears only for dates outside this year. If the name isn't known, it reads "Created on Sun 5 Oct". Screen readers hear the full date.
+
+## [1.49.0] - 2026-10-06
+
+### Added
+- **List cards show who made the list.** An active list's card reads "Created 05/10/2026 · by Anna". The name comes from Settings; if it isn't set, the family role is used, then the start of the email address. If names can't be loaded (offline, or someone who has left the family), only the date shows.
+
+## [1.48.15] - 2026-10-06
+
+### Fixed
+- **"Created" on a list card shows the day the list was really made.** When a list reached a phone from the cloud (made on another family member's phone, or after a reinstall or new sign-in), the phone saved it with the current time as its creation date, so the card showed the day it arrived. Editing the list on that phone then sent the wrong date back to the cloud for everyone. Lists and items now keep their real creation date. A phone that already has a wrong date takes the right one from the cloud on its next sync, if the cloud still has it. Lists whose cloud date was already overwritten stay as they are.
+- **The list card no longer shows the same date twice.** An active list showed its date on its own line and again as "Created …". It now shows only "Created …". Completed lists still show the date they were completed.
+
 ## [1.48.13] - 2026-10-05
 
 ### Added

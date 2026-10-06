@@ -1,11 +1,13 @@
 import { ShoppingList, Item, ReceiptData, UrgentItem } from '../../models/types';
 import { safeJsonParse } from '../../utils/safeJsonParse';
+import { sameReceiptData } from './firebaseMappers';
 import { ShoppingListModel } from '../../database/models/ShoppingList';
 import { ItemModel } from '../../database/models/Item';
 import { UrgentItemModel } from '../../database/models/UrgentItem';
 
 export function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
   record._raw.id = list.id;
+  if (list.createdAt > 0) record._setRaw('created_at', list.createdAt);
   record.name = list.name;
   record.familyGroupId = list.familyGroupId;
   record.createdBy = list.createdBy;
@@ -31,6 +33,7 @@ export function applyListCreate(record: ShoppingListModel, list: ShoppingList): 
 }
 
 export function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
+  if (list.createdAt > 0) record._setRaw('created_at', list.createdAt);
   record.name = list.name;
   record.status = list.status;
   record.completedAt = list.completedAt;
@@ -55,6 +58,7 @@ export function applyListFullUpdate(record: ShoppingListModel, list: ShoppingLis
 
 export function applyItemCreate(record: ItemModel, item: Item): void {
   record._raw.id = item.id;
+  if (item.createdAt > 0) record._setRaw('created_at', item.createdAt);
   record.listId = item.listId;
   record.name = item.name;
   record.quantity = item.quantity;
@@ -94,7 +98,14 @@ export function hasListChanged(local: ShoppingList, incoming: ShoppingList): boo
     local.storeName !== incoming.storeName ||
     local.archived !== incoming.archived ||
     local.receiptUrl !== incoming.receiptUrl ||
-    (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
+    (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
+    local.totalAmount !== incoming.totalAmount ||
+    local.merchantName !== incoming.merchantName ||
+    local.purchaseDate !== incoming.purchaseDate ||
+    local.currency !== incoming.currency ||
+    (incoming.createdAt > 0 && local.createdAt !== incoming.createdAt) ||
+    // A receipt corrected on another device changes only its lines.
+    !sameReceiptData(local.receiptData, incoming.receiptData)
   );
 }
 

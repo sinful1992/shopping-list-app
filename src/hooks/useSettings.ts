@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDatabase, ref, get, update } from '@react-native-firebase/database';
+import { getDatabase, ref, update } from '@react-native-firebase/database';
 import { updateProfile } from '@react-native-firebase/auth';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import { useUser } from '../contexts/UserContext';
 import AuthenticationModule, { ReauthMethod } from '../services/AuthenticationModule';
 import CrashReporting from '../services/CrashReporting';
+import { loadFamilyMembers } from '../services/FamilyMembers';
 import NotificationManager from '../services/NotificationManager';
 import ReceiptOCRService from '../services/ReceiptOCRService';
 
@@ -146,33 +147,7 @@ export function useSettings() {
     }
   };
 
-  const loadFamilyMembers = async (memberIds: string[]): Promise<User[]> => {
-    if (memberIds.length === 0) return [];
-
-    const db = getDatabase();
-    // allSettled, not all: a single unreadable member must cost one row, not
-    // the whole list. A member admitted into memberIds whose own profile has
-    // not caught up yet is exactly such a read.
-    const results = await Promise.allSettled(
-      memberIds.map(id => get(ref(db, `/users/${id}`)))
-    );
-
-    const members: User[] = [];
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        const member = result.value.val();
-        if (member) members.push(member);
-      } else {
-        CrashReporting.recordError(
-          result.reason as Error,
-          'useSettings loadFamilyMembers',
-        );
-      }
-    }
-    return members;
-  };
-
-const updateName = useCallback(async (newName: string): Promise<void> => {
+  const updateName = useCallback(async (newName: string): Promise<void> => {
     if (!user) return;
 
     const firebaseUser = await AuthenticationModule.getCurrentFirebaseUser();

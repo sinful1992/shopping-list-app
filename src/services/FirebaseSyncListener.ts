@@ -2,7 +2,6 @@ import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAd
 import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import {
   mapFirebaseList,
-  sameReceiptData,
   mapFirebaseItem,
   mapFirebaseUrgentItem,
   mapFirebaseStoreLayout,
@@ -13,6 +12,7 @@ import {
 } from './storage/firebaseMappers';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
+import { hasListChanged } from './storage/mappers';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -208,7 +208,7 @@ class FirebaseSyncListener {
 
       const incomingList = mapFirebaseList(listId, firebaseData, resolvedFamilyGroupId);
 
-      if (existingList && !this.hasListChanged(existingList, incomingList)) {
+      if (existingList && !hasListChanged(existingList, incomingList)) {
         return;
       }
 
@@ -228,32 +228,6 @@ class FirebaseSyncListener {
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncListToLocal');
     }
-  }
-
-  /**
-   * Compare local and incoming list data to detect meaningful changes.
-   * Returns true if any user-visible field differs.
-   */
-  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.isLocked !== incoming.isLocked ||
-      local.lockedBy !== incoming.lockedBy ||
-      local.completedAt !== incoming.completedAt ||
-      local.completedBy !== incoming.completedBy ||
-      local.budget !== incoming.budget ||
-      local.storeName !== incoming.storeName ||
-      local.archived !== incoming.archived ||
-      local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
-      local.totalAmount !== incoming.totalAmount ||
-      local.merchantName !== incoming.merchantName ||
-      local.purchaseDate !== incoming.purchaseDate ||
-      local.currency !== incoming.currency ||
-      // A receipt corrected on another device changes only its lines.
-      !sameReceiptData(local.receiptData, incoming.receiptData)
-    );
   }
 
   /**
