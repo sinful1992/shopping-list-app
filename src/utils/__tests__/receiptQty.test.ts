@@ -97,16 +97,34 @@ describe('Apply on the Tesco receipt: linked items', () => {
     expect(u.get('chorizo')).toEqual({ price: 2.55, unitQty: 2, checked: true });
   });
 
-  // Current behaviour, written down (contract done item 2): a count the user
-  // typed is kept, and the price is still per unit from the receipt.
-  test('a linked item that already has a count above 1 keeps it', () => {
+  // USER #1769: what was bought wins over what the list asked for, when the
+  // receipt shows the count (a counted line, or several lines).
+  test('a linked item asking for 3 takes the 2 the receipt shows', () => {
     const u = apply({ [SALAMI]: link('salami') }, [makeItem({ id: 'salami', unitQty: 3 })]);
-    expect(u.get('salami')).toEqual({ price: 1.1, checked: true });
+    expect(u.get('salami')).toEqual({ price: 1.1, unitQty: 2, checked: true });
+  });
+
+  test('a linked item asking for 1 more than two lines show takes their sum', () => {
+    const u = apply({ [SALAMI]: link('meat'), [CHORIZO]: link('meat') }, [makeItem({ id: 'meat', unitQty: 5 })]);
+    expect(u.get('meat')?.unitQty).toBe(4);
   });
 
   test('a linked item that already has count 2 is only priced and checked', () => {
     const u = apply({ [SALAMI]: link('salami') }, [makeItem({ id: 'salami', unitQty: 2 })]);
     expect(u.get('salami')).toEqual({ price: 1.1, checked: true });
+  });
+
+  // A single line with no count above 1 does not say how many were bought:
+  // the OCR can miss a leading "2", so a count the user typed is kept.
+  // Price is per unit either way: a printed 1 is one unit at the line price;
+  // no count printed spreads the line over the item's own 3.
+  test.each([
+    ['quantity 1', 1, 4.95],
+    ['no quantity', null, 1.65],
+  ])('a linked item asking for 3 keeps it on a single line with %s', (_label, quantity, unitPrice) => {
+    const lines = [{ ...tescoLines[MILK], quantity, unitPrice: null, price: 4.95 }];
+    const u = apply({ 0: link('milk') }, [makeItem({ id: 'milk', unitQty: 3 })], lines);
+    expect(u.get('milk')).toEqual({ price: unitPrice, checked: true });
   });
 
   test('an already applied item (count 2, price, checked) is not rewritten', () => {

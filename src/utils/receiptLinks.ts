@@ -35,13 +35,14 @@ export function groupLinesByItem(links: ReceiptLinks): Map<string, number[]> {
 }
 
 /**
- * The count an item takes from its receipt lines, or null to leave it: only an
- * item with no count of its own (empty or 1) takes the units the receipt
- * shows, so a count the user typed is kept.
+ * The count an item takes from its receipt lines, or null to leave it. What
+ * was bought wins over what the list asked for (USER, task 27) whenever the
+ * receipt shows more than one unit. A single line of one unit does not say
+ * enough to override a typed count: the OCR can miss a leading "2".
  */
 export function unitQtyFromLines(lines: ReceiptLineItem[], item: Item): number | null {
   const units = unitsFromLines(lines);
-  return units != null && units > 1 && (item.unitQty ?? 1) <= 1 ? units : null;
+  return units != null && units > 1 && item.unitQty !== units ? units : null;
 }
 
 /**

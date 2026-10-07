@@ -55,11 +55,11 @@ describe('planItemUpdates', () => {
     expect(u.updates.unitQty).toBe(2);
   });
 
-  test('a count the user typed is kept', () => {
+  test('two lines on an item asking for 3 set it to the 2 bought', () => {
     const items = new Map([['milk', makeItem({ id: 'milk', unitQty: 3 })]]);
     const [u] = planItemUpdates(new Map([['milk', [0, 2]]]), lines, items);
     expect(u.updates.price).toBeCloseTo(1.1);
-    expect(u.updates.unitQty).toBeUndefined();
+    expect(u.updates.unitQty).toBe(2);
   });
 
   test('one line with no count printed leaves the units alone', () => {
