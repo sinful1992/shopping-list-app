@@ -6,7 +6,6 @@ import React from 'react';
 import { Text } from 'react-native';
 import { act, create, ReactTestInstance, ReactTestRenderer } from 'react-test-renderer';
 import type { ReceiptData } from '../../../models/types';
-import { DARK_THEME } from '../../../styles/theme';
 import ReceiptViewScreen from '../ReceiptViewScreen';
 
 jest.mock('react-native-vector-icons/Ionicons', () => 'Icon');
