@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.50.0] - 2026-10-07
+
+### Changed
+- **The receipt decides how many you bought.** If your list asked for 3 and the receipt shows 2 ("2 Tesco Diced Chorizo", or the same product on two lines), applying the receipt now sets the item to 2. Before, a count you had typed was always kept. A single line that shows one unit still leaves your count alone, since the scan can miss a printed "2".
+
+## [1.49.3] - 2026-10-07
+
+### Fixed
+- **Receipt lines show how many you bought.** The scan already read the count printed on the till roll ("2 Tesco Diced Chorizo"), but Receipt Details and the receipt-matching screen only showed the name and price. A line with more than one unit now reads "2 × Tesco Diced Chorizo 130g". Single items and weighed items look the same as before.
+
 ## [1.49.2] - 2026-10-06
 
 ### Fixed

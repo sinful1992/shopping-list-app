@@ -33,7 +33,7 @@ import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, receiptAliasKey, withLineEdit } from '../../utils/receiptMatcher';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
-  discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
+  discountsByLine, formatLineQty, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
   ReceiptLink as Link, ReceiptLinks,
 } from '../../utils/receiptLinks';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
@@ -808,6 +808,7 @@ const ReconciledLine = React.memo(({
   const pick = onPick ? () => onPick(index) : undefined;
 
   const price = item.price ?? item.unitPrice;
+  const qty = formatLineQty(item);
   const ignored = link?.ignored ?? false;
   const linked = link != null && linkedItem != null;
 
@@ -837,6 +838,11 @@ const ReconciledLine = React.memo(({
   return (
     <View style={styles.line}>
       <View style={styles.lineTop}>
+        {qty != null && (
+          <Text testID={`receipt-line-qty-${index}`} style={[styles.lineQty, ignored && styles.struck]}>
+            {qty}
+          </Text>
+        )}
         <Text
           style={[styles.lineDesc, ignored && styles.struck]}
           numberOfLines={3}
@@ -1192,6 +1198,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   lineDesc: {
     flex: 1,
     fontSize: 12,
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+  },
+  lineQty: {
+    fontSize: 12,
+    fontWeight: '600' as const,
     color: theme.text.primary,
     fontFamily: RECEIPT_FONT,
   },
