@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.49.3] - 2026-10-07
+
+### Fixed
+- **Receipt lines show how many you bought.** The scan already read the count printed on the till roll ("2 Tesco Diced Chorizo"), but Receipt Details and the receipt-matching screen only showed the name and price. A line with more than one unit now reads "2 × Tesco Diced Chorizo 130g". Single items and weighed items look the same as before.
+
 ## [1.49.2] - 2026-10-06
 
 ### Fixed
