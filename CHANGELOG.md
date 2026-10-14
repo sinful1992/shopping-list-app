@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.50.2] - 2026-10-15
+
+### Fixed
+- **Smart savings showed the first list's suggestions on every list opened in the next 5 minutes.** The cache was keyed on the family and the time window, not the items. It now includes the list's items.
+
+### Performance
+- **Home no longer downloads the whole family database twice.** The "does the group still exist" check and the family group read both fetched the group node, which holds every list, item and price record. They now read only the group's own fields.
+- **Checking off a priced item no longer re-reads the whole price history.** A new price only adds its name to the cached variants, so the cache isn't dropped anymore. A correction that renames a row still clears it.
+- **Returning to the app no longer rewrites every category-history and store-layout row.** Rows that haven't changed are skipped.
+- **The ad and subscription contexts keep one value between renders.** Every screen using them used to re-render on each profile update.
+
 ## [1.50.1] - 2026-10-15
 
 ### Fixed

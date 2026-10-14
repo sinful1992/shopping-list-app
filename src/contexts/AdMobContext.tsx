@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import mobileAds, {
   InterstitialAd,
@@ -373,19 +373,23 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, [showInterstitial]);
 
-  const value: AdMobContextType = {
+  // The provider re-renders on every profile tick (its parent passes the
+  // live user); a new value object each time re-rendered every consumer.
+  const showPrivacyRow = privacyOptionsRequired && tier === 'free' && !hasEntitlement;
+  const value: AdMobContextType = useMemo(() => ({
     shouldShowAds,
     isInitialized,
     consentChecked,
     consentObtained,
     retryConsent,
-    privacyOptionsRequired: privacyOptionsRequired && tier === 'free' && !hasEntitlement,
+    privacyOptionsRequired: showPrivacyRow,
     showPrivacyOptions,
     showInterstitial,
     showInterstitialWithRetry,
     setPendingInterstitial,
     showRewarded,
-  };
+  }), [shouldShowAds, isInitialized, consentChecked, consentObtained, retryConsent, showPrivacyRow,
+    showPrivacyOptions, showInterstitial, showInterstitialWithRetry, setPendingInterstitial, showRewarded]);
 
   return (
     <AdMobContext.Provider value={value}>

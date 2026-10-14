@@ -55,6 +55,32 @@ export class HistoryStorage {
     this.priceVariantsGeneration++;
   }
 
+  /**
+   * Keep the variant cache in step with written price rows. A new row only
+   * adds its name to its group, so a cached map is updated in place: dropping
+   * it made the next priced check-off re-read the whole price table. A row
+   * whose name changed may have taken the last use of the old name away, so
+   * that still drops the cache. The generation bump stops a build that was
+   * already reading from storing a map without the new row.
+   */
+  private notePriceRows(familyGroupId: string, createdNames: string[], renamed: boolean): void {
+    const cached = this.priceVariants.get(familyGroupId);
+    if (renamed || !cached) {
+      if (renamed || createdNames.length > 0) this.invalidatePriceVariants(familyGroupId);
+      return;
+    }
+    if (createdNames.length === 0) return;
+    for (const name of createdNames) {
+      const key = itemGroupKey(name);
+      const names = cached.get(key);
+      // A new array, not a push: lookups hand these to Q.oneOf, which
+      // freezes them.
+      if (!names) cached.set(key, [name]);
+      else if (!names.includes(name)) cached.set(key, [...names, name]);
+    }
+    this.priceVariantsGeneration++;
+  }
+
   /** For callers that delete price rows without going through this class. */
   clearPriceVariantCache(): void {
     this.priceVariants.clear();
@@ -222,6 +248,11 @@ export class HistoryStorage {
         const existing = existingMap.get(key);
 
         if (existing) {
+          // Every foreground return re-reads the whole node; rewriting rows
+          // that did not change only churned the table and its observers.
+          const unchanged = existing.usageCount === (data.usageCount || 1)
+            && data.lastUsedAt != null && existing.lastUsedAt === data.lastUsedAt;
+          if (unchanged) continue;
           ops.push(existing.prepareUpdate(r => applyUpdate(r as CategoryHistoryModel, data)));
         } else {
           ops.push(collection.prepareCreate(r => applyCreate(r, itemNameNormalized, category, data)));
@@ -276,12 +307,15 @@ export class HistoryStorage {
    */
   async savePriceHistoryRecord(record: PriceHistoryRecord): Promise<void> {
     const collection = this.database.get<PriceHistoryModel>('price_history');
+    let created = false;
+    let renamed = false;
     await this.database.write(async () => {
       const existing = await collection.query(Q.where('id', record.id)).fetch();
       if (existing.length > 0) {
         // One purchase keeps one id, so a second write for it is a correction
         // (a receipt replacing a typed price), not a new data point.
         if (priceRecordDiffers(existing[0], record)) {
+          renamed = existing[0].itemNameNormalized !== record.itemNameNormalized;
           await existing[0].update(r => applyPriceRecord(r, record));
         }
         return;
@@ -290,9 +324,11 @@ export class HistoryStorage {
         r._raw.id = record.id;
         applyPriceRecord(r, record);
       });
+      created = true;
     }, 'savePriceHistoryRecord');
 
-    this.invalidatePriceVariants(record.familyGroupId);
+    // The echo of this phone's own write arrives here too, and changes nothing.
+    this.notePriceRows(record.familyGroupId, created ? [record.itemNameNormalized] : [], renamed);
   }
 
   /**
@@ -318,6 +354,10 @@ export class HistoryStorage {
       return m != null && priceRecordDiffers(m, r);
     });
     if (toCreate.length === 0 && toUpdate.length === 0) return;
+    // Read before the write below applies the new names to these models.
+    const renamedGroups = new Set(toUpdate
+      .filter(r => existingById.get(r.id)!.itemNameNormalized !== r.itemNameNormalized)
+      .map(r => r.familyGroupId));
 
     const applyCreate = (r: PriceHistoryModel, record: PriceHistoryRecord) => {
       r._raw.id = record.id;
@@ -348,8 +388,9 @@ export class HistoryStorage {
       }
     }, 'savePriceHistoryBatch');
 
-    for (const id of new Set(toCreate.map(r => r.familyGroupId))) {
-      this.invalidatePriceVariants(id);
+    const groups = new Set([...toCreate, ...toUpdate].map(r => r.familyGroupId));
+    for (const id of groups) {
+      this.notePriceRows(id, toCreate.filter(r => r.familyGroupId === id).map(r => r.itemNameNormalized), renamedGroups.has(id));
     }
   }
 
