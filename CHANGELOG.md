@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.2] - 2026-10-15
+
+### Fixed
+- **Marking an item urgent again notifies the family again.** The server only sends a notification for a new urgent entry, and every marking reused the item's id, so after the first time it stayed silent. Each marking now makes its own entry.
+
 ## [1.51.1] - 2026-10-15
 
 ### Removed
