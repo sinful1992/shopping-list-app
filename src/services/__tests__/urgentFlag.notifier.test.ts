@@ -1,6 +1,8 @@
 /**
  * The urgent push (task 49) goes through the existing upsert-urgent-item
- * function, with the item's id as the row id. It is fire-and-forget: a failed
+ * function. Each marking is a new row with a fresh id: the push trigger fires
+ * on INSERT only, so a re-used id would make a re-mark silent (ada 1.51.2).
+ * It is fire-and-forget: a failed
  * or impossible send is reported, never thrown into the add or edit.
  */
 const mockInvoke = jest.fn();
@@ -29,16 +31,28 @@ beforeEach(() => {
   mockInvoke.mockResolvedValue({ error: null });
 });
 
-it('sends the item as an active urgent row keyed by the item id', async () => {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+it('sends the item as a new active urgent row', async () => {
   notifyItemUrgent(item);
   await flush();
   expect(mockInvoke).toHaveBeenCalledTimes(1);
   expect(mockInvoke).toHaveBeenCalledWith('upsert-urgent-item', {
     body: expect.objectContaining({
-      idToken: 'id-token', id: 'item-9', name: 'Nappies', family_group_id: 'fam-1',
+      idToken: 'id-token', id: expect.stringMatching(UUID), name: 'Nappies', family_group_id: 'fam-1',
       created_by: 'user-1', created_by_name: 'Giedrius', status: 'active',
     }),
   });
+});
+
+it('marking the same item twice sends two different row ids, so both push', async () => {
+  notifyItemUrgent(item);
+  notifyItemUrgent(item);
+  await flush();
+  const ids = mockInvoke.mock.calls.map(c => c[1].body.id);
+  expect(ids).toHaveLength(2);
+  expect(ids[0]).not.toBe(ids[1]);
+  expect(ids[0]).not.toBe('item-9');
 });
 
 it('a function error is reported, not thrown', async () => {
