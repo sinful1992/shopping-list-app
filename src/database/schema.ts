@@ -6,7 +6,7 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Implements Requirements: 4.4, 9.2, 9.3, 9.5
  */
 export const schema = appSchema({
-  version: 16,
+  version: 17,
   tables: [
     // Shopping Lists Table
     tableSchema({
@@ -57,6 +57,7 @@ export const schema = appSchema({
         { name: 'unit_qty', type: 'number', isOptional: true },
         { name: 'measurement_unit', type: 'string', isOptional: true },
         { name: 'measurement_value', type: 'number', isOptional: true },
+        { name: 'is_urgent', type: 'boolean', isOptional: true },
       ],
     }),
 

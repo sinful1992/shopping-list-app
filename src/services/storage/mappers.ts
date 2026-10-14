@@ -71,6 +71,7 @@ export function applyItemCreate(record: ItemModel, item: Item): void {
   record.unitQty = item.unitQty ?? null;
   record.measurementUnit = item.measurementUnit ?? null;
   record.measurementValue = item.measurementValue ?? null;
+  record.isUrgent = item.isUrgent === true;
 }
 
 export function applyItemFullUpdate(record: ItemModel, item: Item): void {
@@ -84,6 +85,7 @@ export function applyItemFullUpdate(record: ItemModel, item: Item): void {
   record.unitQty = item.unitQty ?? null;
   record.measurementUnit = item.measurementUnit ?? null;
   record.measurementValue = item.measurementValue ?? null;
+  record.isUrgent = item.isUrgent === true;
 }
 
 export function hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
@@ -156,6 +158,7 @@ export function itemModelToType(model: ItemModel): Item {
     unitQty: model.unitQty,
     measurementUnit: model.measurementUnit,
     measurementValue: model.measurementValue,
+    isUrgent: model.isUrgent === true,
   };
 }
 

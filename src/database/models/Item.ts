@@ -19,4 +19,5 @@ export class ItemModel extends Model {
   @field('unit_qty') unitQty!: number | null;
   @field('measurement_unit') measurementUnit!: string | null;
   @field('measurement_value') measurementValue!: number | null;
+  @field('is_urgent') isUrgent!: boolean | null;
 }

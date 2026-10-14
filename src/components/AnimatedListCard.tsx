@@ -29,6 +29,8 @@ interface AnimatedListCardProps {
   createdByName?: string | null;
   createdByInitial?: string | null;
   accessibilityDate?: string;
+  /** Unchecked urgent items on this list. */
+  urgentCount?: number;
   syncStatus: SyncStatus;
   onPress: () => void;
   onDelete: () => void;
@@ -49,6 +51,7 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   createdByName,
   createdByInitial,
   accessibilityDate,
+  urgentCount = 0,
   syncStatus,
   onPress,
   onDelete,
@@ -76,6 +79,18 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
           </Text>
         </View>
         <View style={staticStyles.listBadges}>
+          {urgentCount > 0 && (
+            <View
+              style={[staticStyles.urgentBadge, { backgroundColor: theme.accent.redSubtle }]}
+              accessible
+              accessibilityLabel={`${urgentCount} urgent item${urgentCount === 1 ? '' : 's'}`}
+            >
+              <Icon name="flame" size={12} color={theme.accent.red} />
+              <Text style={[staticStyles.urgentBadgeText, { color: theme.accent.red }]}>
+                {urgentCount} urgent
+              </Text>
+            </View>
+          )}
           {isLocked && (
             <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange, backgroundColor: theme.accent.orangeSubtle }]}>
               <Icon name="cart" size={11} color={theme.accent.orange} /> {lockedByRole || lockedByName || 'Shopping'}
@@ -173,6 +188,18 @@ const staticStyles = {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
+  },
+  urgentBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  urgentBadgeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
   completedBadge: {
     fontSize: 12,

@@ -171,5 +171,15 @@ export default schemaMigrations({
         }),
       ],
     },
+    // Migration from version 16 to 17: urgent is a flag on a list item
+    {
+      toVersion: 17,
+      steps: [
+        addColumns({
+          table: 'items',
+          columns: [{ name: 'is_urgent', type: 'boolean', isOptional: true }],
+        }),
+      ],
+    },
   ],
 });

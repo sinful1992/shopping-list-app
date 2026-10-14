@@ -211,6 +211,7 @@ class SyncEngine {
         if (localEntity.unitQty !== remoteEntity.unitQty) merged.unitQty = localEntity.unitQty;
         if (localEntity.measurementUnit !== remoteEntity.measurementUnit) merged.measurementUnit = localEntity.measurementUnit;
         if (localEntity.measurementValue !== remoteEntity.measurementValue) merged.measurementValue = localEntity.measurementValue;
+        if (localEntity.isUrgent !== remoteEntity.isUrgent) merged.isUrgent = localEntity.isUrgent;
         merged.updatedAt = localEntity.updatedAt;
       }
       return merged;

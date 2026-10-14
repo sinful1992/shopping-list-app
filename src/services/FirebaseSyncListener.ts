@@ -268,7 +268,8 @@ class FirebaseSyncListener {
       local.sortOrder !== incoming.sortOrder ||
       local.unitQty !== incoming.unitQty ||
       local.measurementUnit !== incoming.measurementUnit ||
-      local.measurementValue !== incoming.measurementValue
+      local.measurementValue !== incoming.measurementValue ||
+      (local.isUrgent === true) !== (incoming.isUrgent === true)
     );
   }
 

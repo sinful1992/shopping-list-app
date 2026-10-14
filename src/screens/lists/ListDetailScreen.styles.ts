@@ -90,6 +90,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     marginRight: 10,
     minWidth: 44,
   },
+  urgentToggleOn: {
+    backgroundColor: theme.accent.redSubtle,
+    borderColor: theme.accent.redDim,
+  },
+  urgentHeaderName: {
+    color: theme.accent.red,
+  },
   emptyState: {
     alignItems: 'center',
     padding: 40,

@@ -164,6 +164,10 @@ class LocalStorageManager {
     return this.items.observeItemsForList(listId, callback);
   }
 
+  observeUrgentCounts(callback: (counts: Map<string, number>) => void): () => void {
+    return this.items.observeUrgentCounts(callback);
+  }
+
   // ===== SYNC QUEUE METHODS (delegated to SyncQueueStorage) =====
 
   async addToSyncQueue(operation: QueuedOperation): Promise<void> {

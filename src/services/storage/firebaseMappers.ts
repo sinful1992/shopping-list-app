@@ -85,6 +85,7 @@ export interface FirebaseItemPayload {
   unitQty?: number | null;
   measurementUnit?: string | null;
   measurementValue?: number | null;
+  isUrgent?: boolean;
 }
 
 export function mapFirebaseItem(id: string, listId: string, data: FirebaseItemPayload): Item {
@@ -104,6 +105,7 @@ export function mapFirebaseItem(id: string, listId: string, data: FirebaseItemPa
     unitQty: data.unitQty ?? null,
     measurementUnit: data.measurementUnit ?? null,
     measurementValue: data.measurementValue ?? null,
+    isUrgent: data.isUrgent === true,
   };
 }
 

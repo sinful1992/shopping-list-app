@@ -111,6 +111,7 @@ export interface Item {
   unitQty?: number | null;
   measurementUnit?: string | null;
   measurementValue?: number | null;
+  isUrgent?: boolean;
 }
 
 // Receipt Types

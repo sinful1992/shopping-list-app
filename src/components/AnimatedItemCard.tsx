@@ -19,6 +19,7 @@ interface AnimatedItemCardProps {
     measurementUnit?: string | null;
     measurementValue?: number | null;
     category?: string | null;
+    isUrgent?: boolean;
   };
   /** Unit price — card multiplies by quantity for display */
   itemPrice: number;
@@ -193,8 +194,15 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       fontStyle: 'italic',
     },
     checkedOpacity: { opacity: 0.5 },
+    itemRowUrgent: {
+      borderColor: theme.accent.redDim,
+    },
+    urgentFlame: {
+      marginRight: 4,
+    },
   }), [theme]);
   const isChecked = item.checked === true;
+  const isUrgent = item.isUrgent === true;
   // Checking an item plays the animation in place before the parent moves the
   // card to the Completed section: visuals flip on this local state at tap
   // time, while the parent delays the actual state change (and this card's
@@ -261,6 +269,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       style={[
         cardStyles.itemRow,
         displayChecked && cardStyles.itemRowChecked,
+        isUrgent && !displayChecked && cardStyles.itemRowUrgent,
         displayChecked && cardStyles.checkedOpacity,
         cardAnimatedStyle,
       ]}
@@ -272,7 +281,7 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
         disabled={isListLocked}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: displayChecked, disabled: isListLocked }}
-        accessibilityLabel={item.name}
+        accessibilityLabel={isUrgent ? `${item.name}, urgent` : item.name}
       >
         <Animated.View style={checkAnimatedStyle}>
           {displayChecked && (
@@ -298,6 +307,14 @@ const AnimatedItemCard: React.FC<AnimatedItemCardProps> = ({
       >
         <View style={cardStyles.itemContentColumn}>
           <View style={cardStyles.itemContentRow}>
+            {isUrgent && (
+              <Icon
+                name={displayChecked ? 'flame-outline' : 'flame'}
+                size={15}
+                color={displayChecked ? theme.text.tertiary : theme.accent.red}
+                style={cardStyles.urgentFlame}
+              />
+            )}
             {qty > 1 && (
               <Text style={cardStyles.qtyPrefix}>{qty}x</Text>
             )}

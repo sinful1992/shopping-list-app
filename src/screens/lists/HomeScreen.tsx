@@ -26,6 +26,7 @@ import AuthenticationModule from '../../services/AuthenticationModule';
 import DatabaseMigration from '../../services/DatabaseMigration';
 import { useAuth, useShoppingLists } from '../../hooks';
 import { useFamilyMemberNames } from '../../hooks/useFamilyMemberNames';
+import { useUrgentCounts } from '../../hooks/useUrgentCounts';
 import { formatDateLong, formatDateShort } from '../../utils/date';
 
 const LOCALE = 'en-GB';
@@ -64,6 +65,7 @@ const HomeScreen = () => {
   const { user, familyGroupId } = useAuth();
   const { lists, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
   const memberNames = useFamilyMemberNames(familyGroupId, user?.uid ?? null);
+  const urgentCounts = useUrgentCounts();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -235,6 +237,7 @@ const HomeScreen = () => {
         createdByName={createdByName}
         createdByInitial={creatorName ? Array.from(creatorName)[0].toUpperCase() : null}
         accessibilityDate={formatDateSpoken(date)}
+        urgentCount={isCompleted ? 0 : urgentCounts.get(list.id) ?? 0}
         syncStatus={syncStatus}
         onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
         onDelete={() => handleDeleteList(list.id, list.name)}

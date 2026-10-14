@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.0] - 2026-10-15
+
+### Added
+- **Any list item can be urgent.** Tap the flame next to the Add button to add the next item as urgent, or switch Urgent on in an item's details. Urgent items sit in their own Urgent section at the top of the list with a flame on each row. A list card on Home shows how many urgent items are still to buy ("2 urgent"). When an item becomes urgent, the rest of the family gets a notification, as before. Once bought, the item goes to Completed with a faded flame.
+
 ## [1.50.0] - 2026-10-07
 
 ### Changed
