@@ -278,12 +278,27 @@ class AuthenticationModule {
         return null;
       }
 
-      const groupSnapshot = await get(ref(db, `/familyGroups/${user.familyGroupId}`));
-
-      return groupSnapshot.val();
+      return await this.readFamilyGroupMeta(user.familyGroupId);
     } catch (error: unknown) {
       throw new Error(`Failed to get family group: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * The group's own fields, read one by one: the group node also holds the
+   * family's lists, items and price history, so a read of the node downloads
+   * all of it. Null when the group is gone.
+   */
+  private async readFamilyGroupMeta(groupId: string): Promise<FamilyGroup | null> {
+    const db = getDatabase();
+    const fields = ['name', 'invitationCode', 'createdBy', 'memberIds', 'createdAt', 'subscriptionTier'] as const;
+    const snaps = await Promise.all(fields.map(f => get(ref(db, `/familyGroups/${groupId}/${f}`))));
+    if (!snaps.some(snap => snap.exists())) return null;
+    const group: Record<string, unknown> = { id: groupId };
+    fields.forEach((f, i) => {
+      if (snaps[i].exists()) group[f] = snaps[i].val();
+    });
+    return group as unknown as FamilyGroup;
   }
 
   /**
@@ -292,8 +307,11 @@ class AuthenticationModule {
    */
   async validateFamilyGroupExists(groupId: string): Promise<boolean> {
     try {
-      const groupSnapshot = await get(ref(getDatabase(), `/familyGroups/${groupId}`));
-      return groupSnapshot.exists();
+      // createdAt is written with the group and never removed, the field the
+      // App's deletion listener watches too. Reading the group node itself
+      // would download every list, item and price record of the family.
+      const createdAt = await get(ref(getDatabase(), `/familyGroups/${groupId}/createdAt`));
+      return createdAt.exists();
     } catch {
       return false;
     }
@@ -1116,9 +1134,9 @@ class AuthenticationModule {
 
     await remove(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`)).catch(() => {});
 
-    const [userSnapshot, groupSnapshot] = await Promise.all([
+    const [userSnapshot, group] = await Promise.all([
       get(ref(db, `/users/${userId}`)),
-      get(ref(db, `/familyGroups/${groupId}`)),
+      this.readFamilyGroupMeta(groupId),
     ]);
 
     const updatedUser = userSnapshot.val();
@@ -1126,7 +1144,7 @@ class AuthenticationModule {
       await SecureStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
     }
 
-    return groupSnapshot.val();
+    return group as FamilyGroup;
   }
 
   /**
