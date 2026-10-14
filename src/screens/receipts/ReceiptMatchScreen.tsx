@@ -478,6 +478,14 @@ const ReceiptMatchScreen = () => {
     setEditingNames(prev => ({ ...prev, [index]: name })));
   const onCorrect = useStableCallback(correctLine);
 
+  // What decides is what the list holds, not the way out: an Apply that
+  // wrote the receipt's items and then failed (completing the list, say)
+  // leaves a list worth keeping, however the screen is left afterwards.
+  const discardIfEmpty = useCallback(async () => {
+    if ((await ItemManager.getItemsForList(listId)).length > 0) return;
+    await ShoppingListManager.deleteList(listId);
+  }, [listId]);
+
   const handleSkip = async () => {
     if (applyingRef.current || skipping) return;
     // Quick-scan created the list solely for this receipt; skipping means the
@@ -486,7 +494,7 @@ const ReceiptMatchScreen = () => {
     if (autoAddAll) {
       setSkipping(true);
       try {
-        await ShoppingListManager.deleteList(listId);
+        await discardIfEmpty();
       } catch (error: any) {
         showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
         setSkipping(false);
@@ -503,9 +511,9 @@ const ReceiptMatchScreen = () => {
   useEffect(() => navigation.addListener('beforeRemove', () => {
     if (!autoAddAll || settledRef.current || applyingRef.current) return;
     settledRef.current = true;
-    ShoppingListManager.deleteList(listId)
+    discardIfEmpty()
       .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen discard on leave'));
-  }), [navigation, autoAddAll, listId]);
+  }), [navigation, autoAddAll, listId, discardIfEmpty]);
 
   if (loading) {
     return (

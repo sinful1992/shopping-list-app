@@ -11,6 +11,10 @@ import { act, create, ReactTestInstance, ReactTestRenderer } from 'react-test-re
 import type { ReceiptData } from '../../../models/types';
 import ReceiptMatchScreen from '../ReceiptMatchScreen';
 
+// A cold run transforms the whole screen tree first; the default 5 s timed
+// out on the first run of the full suite (ada #3761).
+jest.setTimeout(30000);
+
 jest.mock('react-native-vector-icons/Ionicons', () => 'Icon');
 jest.mock('react-native-linear-gradient', () => 'LinearGradient');
 jest.mock('react-native-svg', () => ({ __esModule: true, default: 'Svg', Polygon: 'Polygon', Line: 'Line' }));
@@ -159,6 +163,35 @@ describe('quick-scan list is discarded on every way out but Apply', () => {
     expect(navigation.goBack).not.toHaveBeenCalled();
     await leaveByBack();
     expect(ShoppingListManager.deleteList).toHaveBeenCalledTimes(2);
+  });
+
+  describe('an Apply that wrote the items and then failed', () => {
+    async function failedApply(): Promise<ReactTestRenderer> {
+      const written = [{ id: 'new-1', listId: 'list-1', name: 'Milk 2L', checked: true }];
+      ItemManager.addItemsBatch.mockImplementationOnce(async () => {
+        ItemManager.getItemsForList.mockResolvedValue(written);
+        return written;
+      });
+      ShoppingListManager.updateList.mockRejectedValueOnce(new Error('db busy'));
+      const renderer = await render();
+      await press(renderer, /^(Apply|Add|Complete)/);
+      expect(ItemManager.addItemsBatch).toHaveBeenCalledTimes(1);
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      return renderer;
+    }
+
+    test('back afterwards keeps the list and its items', async () => {
+      await failedApply();
+      await leaveByBack();
+      expect(ShoppingListManager.deleteList).not.toHaveBeenCalled();
+    });
+
+    test('Skip afterwards keeps the list and goes back', async () => {
+      const renderer = await failedApply();
+      await press(renderer, /^Skip$/);
+      expect(ShoppingListManager.deleteList).not.toHaveBeenCalled();
+      expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
   });
 
   test('a match started from an existing list is never deleted on back', async () => {

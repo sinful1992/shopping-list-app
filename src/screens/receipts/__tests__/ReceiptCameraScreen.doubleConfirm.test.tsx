@@ -8,6 +8,10 @@ import React from 'react';
 import { act, create } from 'react-test-renderer';
 import ReceiptCameraScreen from '../ReceiptCameraScreen';
 
+// A cold run transforms the whole screen tree first; the default 5 s timed
+// out on the first run of the full suite (ada #3761).
+jest.setTimeout(30000);
+
 jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,
   default: { fetch: jest.fn(async () => ({ isConnected: true })) },

@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
   - A double tap on Confirm created two lists. Skip discarded only the one the match screen was given, and the other stayed on Home empty. Confirm now creates one list, however fast it is pressed.
   - Leaving the match screen by the back arrow, the phone's back button or a swipe kept the list. Only Skip discarded it. Every way out but Apply now discards it.
   - A deleted list could come back. A receipt write that timed out before Skip and was retried after it, or an older Firebase snapshot read when the app came back to the front (after the camera or an ad), turned the deleted list active again, here and on the family's phones. A deleted list is never restored, so this data is now ignored, and the stale retry is dropped.
+  - A quick-scan list is discarded only while it is still empty. If Apply wrote the receipt's items and then failed, leaving the screen (Skip or back) keeps the list and its items.
 
 ## [1.50.0] - 2026-10-07
 
