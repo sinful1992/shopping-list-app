@@ -1,4 +1,4 @@
-import { ShoppingList, Item, UrgentItem, StoreLayout, ListStatus, FamilyRole, ReceiptData, UrgentItemStatus } from '../../models/types';
+import { ShoppingList, Item, StoreLayout, ListStatus, FamilyRole, ReceiptData } from '../../models/types';
 import { CategoryType } from '../CategoryService';
 
 /**
@@ -106,40 +106,6 @@ export function mapFirebaseItem(id: string, listId: string, data: FirebaseItemPa
     measurementUnit: data.measurementUnit ?? null,
     measurementValue: data.measurementValue ?? null,
     isUrgent: data.isUrgent === true,
-  };
-}
-
-export interface FirebaseUrgentItemPayload {
-  name?: string;
-  familyGroupId?: string;
-  createdBy?: string;
-  createdByName?: string;
-  createdAt?: number;
-  resolvedBy?: string | null;
-  resolvedByName?: string | null;
-  resolvedAt?: number | null;
-  price?: number | null;
-  status?: UrgentItemStatus;
-}
-
-export function mapFirebaseUrgentItem(
-  id: string,
-  data: FirebaseUrgentItemPayload,
-  fallbackFamilyGroupId: string
-): UrgentItem {
-  return {
-    id,
-    name: data.name ?? '',
-    familyGroupId: data.familyGroupId ?? fallbackFamilyGroupId,
-    createdBy: data.createdBy ?? '',
-    createdByName: data.createdByName ?? '',
-    createdAt: data.createdAt ?? Date.now(),
-    resolvedBy: data.resolvedBy ?? null,
-    resolvedByName: data.resolvedByName ?? null,
-    resolvedAt: data.resolvedAt ?? null,
-    price: data.price ?? null,
-    status: data.status ?? 'active',
-    syncStatus: 'synced',
   };
 }
 

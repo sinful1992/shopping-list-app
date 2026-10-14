@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.1] - 2026-10-15
+
+### Removed
+- **The Urgent tab is gone.** Urgent is now a flag on a list item (1.51.0), so the separate Urgent screen, its watch-an-ad step and the "Urgent Items" usage row on the subscription screen are removed. Urgent items made with the old screen are dropped from the phone, not moved into a list. Tapping an urgent notification opens your lists, where the card shows which list has urgent items.
+
 ## [1.51.0] - 2026-10-15
 
 ### Added

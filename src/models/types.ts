@@ -8,6 +8,7 @@ export type SubscriptionTier = 'free' | 'premium' | 'family';
 export interface UsageCounters {
   listsCreated: number;
   ocrProcessed: number;
+  // Never incremented any more; database.rules.json still requires the key.
   urgentItemsCreated: number;
   lastResetDate: number; // Timestamp for monthly reset
 }
@@ -15,7 +16,6 @@ export interface UsageCounters {
 export interface SubscriptionLimits {
   maxLists: number | null; // null = unlimited
   maxOCRPerMonth: number | null;
-  maxUrgentItemsPerMonth: number | null;
   maxFamilyMembers: number | null;
 }
 
@@ -184,7 +184,7 @@ export interface OCRResult {
 
 // Sync Types
 
-export type EntityType = 'list' | 'item' | 'urgentItem' | 'storeLayout';
+export type EntityType = 'list' | 'item' | 'storeLayout';
 export type Operation = 'create' | 'update' | 'delete';
 
 interface QueuedOperationBase<E extends EntityType, D> {
@@ -203,7 +203,6 @@ interface QueuedOperationBase<E extends EntityType, D> {
 export type QueuedOperation =
   | QueuedOperationBase<'list', ShoppingList>
   | QueuedOperationBase<'item', Item>
-  | QueuedOperationBase<'urgentItem', UrgentItem>
   | QueuedOperationBase<'storeLayout', StoreLayout>;
 
 export interface SyncResult {
@@ -249,25 +248,6 @@ export interface UploadError {
   listId: string;
   filePath: string;
   error: string;
-}
-
-// Urgent Item Types
-
-export type UrgentItemStatus = 'active' | 'resolved';
-
-export interface UrgentItem {
-  id: string;
-  name: string;
-  familyGroupId: string;
-  createdBy: string;
-  createdByName: string;
-  createdAt: number;
-  resolvedBy: string | null;
-  resolvedByName: string | null;
-  resolvedAt: number | null;
-  price: number | null;
-  status: UrgentItemStatus;
-  syncStatus: SyncStatus;
 }
 
 // Budget and Expenditure Types

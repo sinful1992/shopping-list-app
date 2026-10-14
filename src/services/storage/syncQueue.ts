@@ -56,7 +56,7 @@ export class SyncQueueStorage {
         }
         return {
           id: op.id,
-          entityType: op.entityType as 'list' | 'item' | 'urgentItem',
+          entityType: op.entityType as 'list' | 'item',
           entityId: op.entityId,
           operation: op.operation as 'create' | 'update' | 'delete',
           data,

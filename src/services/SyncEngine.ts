@@ -9,7 +9,6 @@ import {
   SyncEngineStatus,
   ShoppingList,
   Item,
-  UrgentItem,
   StoreLayout,
   Unsubscribe,
 } from '../models/types';
@@ -381,7 +380,7 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: ShoppingList | Item | UrgentItem | StoreLayout | null
+    data: ShoppingList | Item | StoreLayout | null
   ): Promise<void> {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
@@ -439,7 +438,7 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: ShoppingList | Item | UrgentItem | StoreLayout | null
+    data: ShoppingList | Item | StoreLayout | null
   ): Promise<string> {
     // Single localized assertion: TS can't prove entityType/data pair up,
     // but callers always pass matching pairs.

@@ -1,9 +1,8 @@
-import { ShoppingList, Item, ReceiptData, UrgentItem } from '../../models/types';
+import { ShoppingList, Item, ReceiptData } from '../../models/types';
 import { safeJsonParse } from '../../utils/safeJsonParse';
 import { sameReceiptData } from './firebaseMappers';
 import { ShoppingListModel } from '../../database/models/ShoppingList';
 import { ItemModel } from '../../database/models/Item';
-import { UrgentItemModel } from '../../database/models/UrgentItem';
 
 export function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
   record._raw.id = list.id;
@@ -159,22 +158,5 @@ export function itemModelToType(model: ItemModel): Item {
     measurementUnit: model.measurementUnit,
     measurementValue: model.measurementValue,
     isUrgent: model.isUrgent === true,
-  };
-}
-
-export function urgentItemModelToType(model: UrgentItemModel): UrgentItem {
-  return {
-    id: model.id,
-    name: model.name,
-    familyGroupId: model.familyGroupId,
-    createdBy: model.createdBy,
-    createdByName: model.createdByName,
-    createdAt: Number(model.createdAt),
-    resolvedBy: model.resolvedBy,
-    resolvedByName: model.resolvedByName,
-    resolvedAt: model.resolvedAt,
-    price: model.price,
-    status: model.status as 'active' | 'resolved',
-    syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
   };
 }

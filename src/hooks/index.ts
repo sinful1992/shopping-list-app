@@ -8,6 +8,5 @@
 export { useAuth } from './useAuth';
 export { useShoppingLists } from './useShoppingLists';
 export { useBudgetData } from './useBudgetData';
-export { useUrgentItems } from './useUrgentItems';
 export { useSettings } from './useSettings';
 export { useInAppUpdate } from './useInAppUpdate';

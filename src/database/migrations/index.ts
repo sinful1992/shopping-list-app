@@ -1,4 +1,4 @@
-import { schemaMigrations, addColumns, createTable } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, addColumns, createTable, unsafeExecuteSql } from '@nozbe/watermelondb/Schema/migrations';
 
 /**
  * Database Migrations
@@ -179,6 +179,10 @@ export default schemaMigrations({
           table: 'items',
           columns: [{ name: 'is_urgent', type: 'boolean', isOptional: true }],
         }),
+        // The standalone urgent items are gone; old ones are dropped, not
+        // moved into lists. Queued writes for them would have no handler.
+        unsafeExecuteSql("DELETE FROM sync_queue WHERE entity_type = 'urgentItem';"),
+        unsafeExecuteSql('DROP TABLE IF EXISTS urgent_items;'),
       ],
     },
   ],
