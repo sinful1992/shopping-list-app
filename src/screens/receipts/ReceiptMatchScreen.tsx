@@ -86,6 +86,9 @@ const ReceiptMatchScreen = () => {
   const user = useUser();
   const userId = user?.uid ?? null;
   const applyingRef = useRef(false);
+  // Set once the screen is left through Apply or Skip, which settle the
+  // quick-scan list themselves; any other way out discards it.
+  const settledRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -425,6 +428,7 @@ const ReceiptMatchScreen = () => {
       if (autoAddAll) parts.push('Shopping completed');
       if (parts.length === 0) parts.push('Your list already matches this receipt');
       showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
+      settledRef.current = true;
       navigation.goBack();
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -489,8 +493,19 @@ const ReceiptMatchScreen = () => {
         return;
       }
     }
+    settledRef.current = true;
     navigation.goBack();
   };
+
+  // Leaving by the header back, the hardware back or the swipe gesture is an
+  // abandon too, the same as Skip: without this a quick scan left that way
+  // stayed on Home as an empty active list.
+  useEffect(() => navigation.addListener('beforeRemove', () => {
+    if (!autoAddAll || settledRef.current || applyingRef.current) return;
+    settledRef.current = true;
+    ShoppingListManager.deleteList(listId)
+      .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen discard on leave'));
+  }), [navigation, autoAddAll, listId]);
 
   if (loading) {
     return (

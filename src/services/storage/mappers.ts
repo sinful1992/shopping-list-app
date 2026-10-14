@@ -86,6 +86,15 @@ export function applyItemFullUpdate(record: ItemModel, item: Item): void {
   record.measurementValue = item.measurementValue ?? null;
 }
 
+/**
+ * Whether remote data would turn a list deleted on this phone back into a
+ * live one. Nothing restores a deleted list, so such data is stale: a
+ * snapshot read before the delete reached the server, or a late echo.
+ */
+export function revivesDeletedList(local: ShoppingList | null | undefined, incoming: ShoppingList): boolean {
+  return local?.status === 'deleted' && incoming.status !== 'deleted';
+}
+
 export function hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
   return (
     local.name !== incoming.name ||

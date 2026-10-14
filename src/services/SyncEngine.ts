@@ -273,6 +273,11 @@ class SyncEngine {
           continue;
         }
 
+        if (await this.revivesDeletedList(operation)) {
+          await LocalStorageManager.removeFromSyncQueue(operation.id);
+          continue;
+        }
+
         try {
           await this.withTimeout(
             this.syncToFirebase(
@@ -429,6 +434,20 @@ class SyncEngine {
       .catch(() => {
         // The write really did fail; the queued operation stands
       });
+  }
+
+  /**
+   * Whether a queued list write would bring back a list deleted since it was
+   * queued. Retries are replayed out of order, so a write that timed out
+   * before the delete (a quick scan's receipt, then Skip) could otherwise land
+   * after it and turn the deleted list active again for the whole family.
+   * A deleted list is never restored, so such a write is dropped.
+   */
+  private async revivesDeletedList(operation: QueuedOperation): Promise<boolean> {
+    if (operation.entityType !== 'list' || operation.operation === 'delete') return false;
+    if ((operation.data as ShoppingList | null)?.status === 'deleted') return false;
+    const local = await LocalStorageManager.getList(operation.entityId);
+    return local?.status === 'deleted';
   }
 
   /**
