@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.3] - 2026-10-15
+
+### Fixed
+- **Every phone in the family sees the urgent tag on Home.** A list's items were only downloaded when someone opened that list, so an item another family member marked urgent didn't show as "1 urgent" on your Home card until you opened the list. Home now keeps the items of active lists in sync. As a side effect, an active list opens with its items already there.
+
 ## [1.51.2] - 2026-10-15
 
 ### Fixed

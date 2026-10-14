@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
  */
 class FirebaseSyncListener {
   private activeListeners: Map<string, () => void> = new Map();
+  private itemListenerRefs: Map<string, number> = new Map();
 
   /**
    * Start listening to all lists for a family group
@@ -101,14 +102,36 @@ class FirebaseSyncListener {
   }
 
   /**
-   * Start listening to items for a specific list
+   * Start listening to items for a specific list. Home (for the urgent count
+   * on active lists) and the open list share one listener, so it is counted:
+   * each caller's unsubscribe releases its own hold, and the Firebase
+   * listener stops when the last one is released.
    */
   startListeningToItems(familyGroupId: string, listId: string): Unsubscribe {
     const key = `items_${familyGroupId}_${listId}`;
-    if (this.activeListeners.has(key)) {
-      return this.activeListeners.get(key)!;
+    if (!this.activeListeners.has(key)) {
+      this.activeListeners.set(key, this.openItemsListener(familyGroupId, listId, key));
     }
+    this.itemListenerRefs.set(key, (this.itemListenerRefs.get(key) ?? 0) + 1);
+    // stopAllListeners can tear this one down and a later call open a fresh
+    // one under the same key; a stale hold must not release the new one.
+    const teardown = this.activeListeners.get(key);
 
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      if (this.activeListeners.get(key) !== teardown) return;
+      const refs = (this.itemListenerRefs.get(key) ?? 1) - 1;
+      if (refs > 0) {
+        this.itemListenerRefs.set(key, refs);
+        return;
+      }
+      teardown?.();
+    };
+  }
+
+  private openItemsListener(familyGroupId: string, listId: string, key: string): Unsubscribe {
     const db = getDatabase();
     const itemsRef = ref(db, `familyGroups/${familyGroupId}/items`);
     let isCancelled = false;
@@ -176,16 +199,14 @@ class FirebaseSyncListener {
       }
     });
 
-    const unsubscribe = () => {
+    return () => {
       isCancelled = true;
       unsubChildAdded();
       unsubChildChanged();
       unsubChildRemoved();
       this.activeListeners.delete(key);
+      this.itemListenerRefs.delete(key);
     };
-
-    this.activeListeners.set(key, unsubscribe);
-    return unsubscribe;
   }
 
   /**

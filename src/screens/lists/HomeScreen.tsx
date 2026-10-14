@@ -27,6 +27,7 @@ import DatabaseMigration from '../../services/DatabaseMigration';
 import { useAuth, useShoppingLists } from '../../hooks';
 import { useFamilyMemberNames } from '../../hooks/useFamilyMemberNames';
 import { useUrgentCounts } from '../../hooks/useUrgentCounts';
+import { useActiveListItemsSync } from '../../hooks/useActiveListItemsSync';
 import { formatDateLong, formatDateShort } from '../../utils/date';
 
 const LOCALE = 'en-GB';
@@ -66,6 +67,7 @@ const HomeScreen = () => {
   const { lists, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
   const memberNames = useFamilyMemberNames(familyGroupId, user?.uid ?? null);
   const urgentCounts = useUrgentCounts();
+  useActiveListItemsSync(familyGroupId, lists);
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
