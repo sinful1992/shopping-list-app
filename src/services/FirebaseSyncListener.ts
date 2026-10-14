@@ -10,7 +10,7 @@ import {
 } from './storage/firebaseMappers';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
-import { hasListChanged } from './storage/mappers';
+import { hasListChanged, revivesDeletedList } from './storage/mappers';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -228,6 +228,12 @@ class FirebaseSyncListener {
       const incomingList = mapFirebaseList(listId, firebaseData, resolvedFamilyGroupId);
 
       if (existingList && !hasListChanged(existingList, incomingList)) {
+        return;
+      }
+      // A deleted list is never restored. An older snapshot or a late echo
+      // (a quick scan's receipt write landing after Skip) must not bring it
+      // back as an empty active list.
+      if (revivesDeletedList(existingList, incomingList)) {
         return;
       }
 

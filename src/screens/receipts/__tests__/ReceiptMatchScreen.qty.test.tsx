@@ -9,6 +9,10 @@ import { act, create, ReactTestInstance, ReactTestRenderer } from 'react-test-re
 import type { Item, ReceiptData } from '../../../models/types';
 import ReceiptMatchScreen from '../ReceiptMatchScreen';
 
+// A cold run transforms the whole screen tree first; the default 5 s timed
+// out on the first run of the full suite (ada #3761).
+jest.setTimeout(30000);
+
 jest.mock('react-native-vector-icons/Ionicons', () => 'Icon');
 jest.mock('react-native-linear-gradient', () => 'LinearGradient');
 jest.mock('react-native-svg', () => ({ __esModule: true, default: 'Svg', Polygon: 'Polygon', Line: 'Line' }));

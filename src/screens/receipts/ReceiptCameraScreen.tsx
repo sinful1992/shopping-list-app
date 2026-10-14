@@ -44,6 +44,7 @@ const ReceiptCameraScreen = () => {
   const [retryToken, setRetryToken] = useState(0);
   const [adGatePassed, setAdGatePassed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const confirmingRef = useRef(false);
 
   useEffect(() => {
     handleCapture();
@@ -177,8 +178,12 @@ const ReceiptCameraScreen = () => {
   };
 
   const handleConfirm = async () => {
-    if (!capturedImage || !ocrResult || confirming) return;
+    // A ref, not the state: a double tap lands both presses before the
+    // re-render, and each would create its own quick-scan list. Skip then
+    // discards only the one it was given, leaving the other empty on Home.
+    if (!capturedImage || !ocrResult || confirmingRef.current) return;
 
+    confirmingRef.current = true;
     setConfirming(true);
     try {
       if (!user || !user.familyGroupId) {
@@ -210,6 +215,7 @@ const ReceiptCameraScreen = () => {
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
+      confirmingRef.current = false;
       setConfirming(false);
     }
   };

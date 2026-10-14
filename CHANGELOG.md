@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.4] - 2026-10-15
+
+### Changed
+- Includes the quick-scan Skip fix from 1.50.1: skipping or backing out of a quick scan no longer leaves an empty list on Home.
+
 ## [1.51.3] - 2026-10-15
 
 ### Fixed
@@ -23,6 +28,14 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Any list item can be urgent.** Tap the flame next to the Add button to add the next item as urgent, or switch Urgent on in an item's details. Urgent items sit in their own Urgent section at the top of the list with a flame on each row. A list card on Home shows how many urgent items are still to buy ("2 urgent"). When an item becomes urgent, the rest of the family gets a notification, as before. Once bought, the item goes to Completed with a faded flame.
+## [1.50.1] - 2026-10-15
+
+### Fixed
+- **A skipped quick scan no longer leaves an empty list on Home.** Three ways led to it:
+  - A double tap on Confirm created two lists. Skip discarded only the one the match screen was given, and the other stayed on Home empty. Confirm now creates one list, however fast it is pressed.
+  - Leaving the match screen by the back arrow, the phone's back button or a swipe kept the list. Only Skip discarded it. Every way out but Apply now discards it.
+  - A deleted list could come back. A receipt write that timed out before Skip and was retried after it, or an older Firebase snapshot read when the app came back to the front (after the camera or an ad), turned the deleted list active again, here and on the family's phones. A deleted list is never restored, so this data is now ignored, and the stale retry is dropped.
+  - A quick-scan list is discarded only while it is still empty. If Apply wrote the receipt's items and then failed, leaving the screen (Skip or back) keeps the list and its items.
 
 ## [1.50.0] - 2026-10-07
 

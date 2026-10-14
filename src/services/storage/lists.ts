@@ -2,7 +2,7 @@ import { Database, Q } from '@nozbe/watermelondb';
 import { ShoppingList, ReceiptData } from '../../models/types';
 import CrashReporting from '../CrashReporting';
 import { ShoppingListModel } from '../../database/models/ShoppingList';
-import { applyListCreate, applyListFullUpdate, hasListChanged, listModelToType } from './mappers';
+import { applyListCreate, applyListFullUpdate, hasListChanged, listModelToType, revivesDeletedList } from './mappers';
 
 /**
  * Lists storage domain: shopping lists plus their receipt/expenditure reads.
@@ -58,7 +58,7 @@ export class ListsStorage {
         const existing = existingMap.get(list.id);
         if (existing) {
           const local = listModelToType(existing);
-          if (!hasListChanged(local, list)) continue;
+          if (!hasListChanged(local, list) || revivesDeletedList(local, list)) continue;
           ops.push(existing.prepareUpdate(r => applyListFullUpdate(r, list)));
         } else {
           ops.push(collection.prepareCreate(r => applyListCreate(r, list)));
@@ -76,7 +76,7 @@ export class ListsStorage {
             const rec = records[0];
             if (rec) {
               const local = listModelToType(rec);
-              if (!hasListChanged(local, list)) continue;
+              if (!hasListChanged(local, list) || revivesDeletedList(local, list)) continue;
               await rec.update(r => applyListFullUpdate(r, list));
             } else {
               await collection.create(r => applyListCreate(r, list));
