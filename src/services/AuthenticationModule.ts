@@ -441,42 +441,6 @@ class AuthenticationModule {
   }
 
   /**
-   * Get authentication token
-   * Implements Req 1.2
-   * SECURITY: Token is stored in encrypted storage (EncryptedSharedPreferences on Android, Keychain on iOS)
-   */
-  async getAuthToken(): Promise<string | null> {
-    try {
-      // Try encrypted storage first
-      const token = await SecureStorage.getItem(this.AUTH_TOKEN_KEY);
-      if (token) {
-        return token;
-      }
-
-      // Migration: Check if token exists in old AsyncStorage
-      const oldToken = await AsyncStorage.getItem(this.AUTH_TOKEN_KEY);
-      if (oldToken) {
-        // Migrate to encrypted storage
-        await SecureStorage.setItem(this.AUTH_TOKEN_KEY, oldToken);
-        await AsyncStorage.removeItem(this.AUTH_TOKEN_KEY);
-        return oldToken;
-      }
-
-      // Get fresh token from Firebase
-      const currentUser = getAuth().currentUser;
-      if (currentUser) {
-        const freshToken = await getIdToken(currentUser);
-        await SecureStorage.setItem(this.AUTH_TOKEN_KEY, freshToken);
-        return freshToken;
-      }
-
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
    * Listen for authentication state changes
    * Implements Req 1.2
    */

@@ -140,11 +140,6 @@ export const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 6,
     fontWeight: '600',
   },
-  memberName: {
-    fontSize: 14,
-    color: theme.text.secondary,
-    marginBottom: 4,
-  },
   creatorBadge: {
     fontSize: 12,
     color: theme.accent.orange,

@@ -323,6 +323,7 @@ class FirebaseSyncListener {
 
   /**
    * Stop all active listeners
+   * @internal test seam
    */
   stopAllListeners(): void {
     this.activeListeners.forEach((unsubscribe) => unsubscribe());
@@ -334,17 +335,6 @@ class FirebaseSyncListener {
    */
   stopListeningToLists(familyGroupId: string): void {
     const key = `lists_${familyGroupId}`;
-    const unsubscribe = this.activeListeners.get(key);
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  }
-
-  /**
-   * Stop listening to items for a list
-   */
-  stopListeningToItems(familyGroupId: string, listId: string): void {
-    const key = `items_${familyGroupId}_${listId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();
@@ -670,7 +660,6 @@ class FirebaseSyncListener {
       unsubscribe();
     }
   }
-
 }
 
 export default new FirebaseSyncListener();

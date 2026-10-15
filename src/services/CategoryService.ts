@@ -22,7 +22,7 @@
  * as items get re-edited.
  *
  * Declaration order below IS the display order. sortOrder is kept consistent
- * but nothing reads it (getCategorySortOrder has no call sites).
+ * but nothing reads it.
  */
 
 export type CategoryType =
@@ -161,53 +161,6 @@ class CategoryService {
   getCategory(id: string | null | undefined): Category | null {
     if (!id) return null;
     return this.categories.find(cat => cat.id === id) || null;
-  }
-
-  /**
-   * Get category color
-   */
-  getCategoryColor(id: string | null | undefined): string {
-    const category = this.getCategory(id);
-    return category?.color || this.categories.find(c => c.id === 'Other')!.color;
-  }
-
-  /**
-   * Get category icon
-   */
-  getCategoryIcon(id: string | null | undefined): string {
-    const category = this.getCategory(id);
-    return category?.icon || this.categories.find(c => c.id === 'Other')!.icon;
-  }
-
-  /**
-   * Get category name
-   */
-  getCategoryName(id: string | null | undefined): string {
-    const category = this.getCategory(id);
-    return category?.name || 'Other';
-  }
-
-  /**
-   * Get default category (Other)
-   */
-  getDefaultCategory(): Category {
-    return this.categories.find(c => c.id === 'Other')!;
-  }
-
-  /**
-   * Get sort order for category (for grouping/sorting)
-   */
-  getCategorySortOrder(id: string | null | undefined): number {
-    const category = this.getCategory(id);
-    return category?.sortOrder || 999; // Uncategorized items go last
-  }
-
-  /**
-   * Validate if a string is a valid category ID
-   */
-  isValidCategory(id: string | null | undefined): id is CategoryType {
-    if (!id) return false;
-    return this.categories.some(cat => cat.id === id);
   }
 }
 

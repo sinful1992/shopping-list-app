@@ -19,84 +19,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.accent.greenSubtle,
     borderColor: theme.accent.greenDim,
   },
-  syncIndicator: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    zIndex: 1,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  listTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 10,
-  },
   listName: {
     fontSize: 20,
     fontWeight: '700',
     color: theme.text.primary,
-  },
-  completedText: {
-    color: theme.text.secondary,
-  },
-  completedBadge: {
-    fontSize: 12,
-    color: theme.accent.green,
-    backgroundColor: theme.accent.greenSubtle,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADIUS.small,
-    fontWeight: '600',
-  },
-  listDate: {
-    fontSize: 14,
-    color: theme.text.secondary,
-  },
-  listDateFormatted: {
-    fontSize: 14,
-    color: theme.text.primary,
-    fontWeight: '600',
-    marginTop: 4,
   },
   storeName: {
     fontSize: 16,
     color: theme.text.primary,
     fontWeight: '700',
     marginTop: 6,
-  },
-  listDateSecondary: {
-    fontSize: 12,
-    color: theme.text.tertiary,
-    marginTop: 4,
-  },
-  listBadges: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  shoppingBadge: {
-    fontSize: 12,
-    color: theme.accent.orange,
-    backgroundColor: theme.accent.orangeSubtle,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    fontWeight: '600',
-  },
-  deleteIconButton: {
-    padding: 4,
-  },
-  deleteIcon: {
-    fontSize: 18,
   },
   emptyState: {
     alignItems: 'center',
@@ -196,9 +128,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 18,
     color: theme.text.primary,
     fontWeight: '600',
-  },
-  calendarIcon: {
-    fontSize: 24,
   },
   datePreview: {
     fontSize: 12,

@@ -90,6 +90,7 @@ class PriceHistoryService {
 
   /**
    * Clear suggestions cache for a family group
+   * @internal test seam
    */
   clearSuggestionsCache(familyGroupId?: string): void {
     if (familyGroupId) {
@@ -439,47 +440,6 @@ class PriceHistoryService {
         .slice(0, limit);
     } catch {
       return [];
-    }
-  }
-
-  /**
-   * Get cheapest and most expensive items recently purchased
-   */
-  async getRecentPriceExtremes(
-    familyGroupId: string,
-    daysBack: number = 30
-  ): Promise<{ cheapest: PricePoint[]; mostExpensive: PricePoint[] }> {
-    try {
-      const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
-
-      const allPricePoints: (PricePoint & { itemName: string })[] = [];
-
-      const itemsByList = await LocalStorageManager.getItemsGroupedByList(recentLists.map(l => l.id));
-      for (const list of recentLists) {
-        const items = itemsByList.get(list.id) ?? [];
-
-        items.forEach(item => {
-          if (item.price !== null) {
-            allPricePoints.push({
-              price: item.price,
-              date: list.completedAt || list.createdAt,
-              storeName: list.storeName || null,
-              listId: list.id,
-              itemName: item.name,
-            });
-          }
-        });
-      }
-
-      const sortedByPrice = [...allPricePoints].sort((a, b) => a.price - b.price);
-
-      return {
-        cheapest: sortedByPrice.slice(0, 5),
-        mostExpensive: sortedByPrice.slice(-5).reverse(),
-      };
-    } catch {
-      return { cheapest: [], mostExpensive: [] };
     }
   }
 

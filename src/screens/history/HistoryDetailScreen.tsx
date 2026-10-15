@@ -452,45 +452,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 20,
     marginHorizontal: 10,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: theme.text.primary,
     marginBottom: 15,
-  },
-  editLink: {
-    fontSize: 16,
-    color: theme.accent.blue,
-    fontWeight: '600',
-  },
-  receiptDataContainer: {
-    marginTop: 10,
-  },
-  receiptField: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  receiptLabel: {
-    fontSize: 14,
-    color: theme.text.secondary,
-  },
-  receiptValue: {
-    fontSize: 14,
-    color: theme.text.primary,
-    fontWeight: '600',
-  },
-  totalValue: {
-    ...NUMERIC,
-    fontSize: 18,
-    fontWeight: '700',
-    color: theme.accent.green,
   },
   itemsContainer: {
     marginTop: 10,
@@ -504,10 +470,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   checkboxContainer: {
     marginRight: 12,
-  },
-  checkboxChecked: {
-    fontSize: 20,
-    color: theme.accent.green,
   },
   checkboxUnchecked: {
     width: 20,
@@ -531,11 +493,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   itemNameChecked: {
     textDecorationLine: 'line-through',
     color: theme.text.tertiary,
-  },
-  itemQuantity: {
-    fontSize: 12,
-    color: theme.text.secondary,
-    marginTop: 2,
   },
   itemPrice: {
     ...NUMERIC,

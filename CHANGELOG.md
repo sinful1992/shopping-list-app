@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.14] - 2026-10-15
+
+### Removed
+- Dead code: ReceiptOCRService.getServerUrl and DEFAULT_OCR_SERVER_URL, unused since checkHealth went (scans go through the ocr-proxy edge function).
+
+### Tests
+- hasItemChanged now has cases for a quantity (unitQty) change from another phone; dropping that comparison used to pass every test.
+- The createdAt heal test's list fixture stores storeName/archived as null, as a saved list reads back, so the "only createdAt different" case fails when the createdAt comparison is removed.
+
+## [1.51.13] - 2026-10-15
+
+### Removed
+- Dead code: ShoppingListManager.markListAsCompleted (lists are completed through completeShoppingFast and the receipt flow) and CategoryService.getCategorySortOrder. FirebaseSyncListener.stopAllListeners is only used by tests and is now marked @internal.
+
+## [1.51.12] - 2026-10-15
+
+### Changed
+- Test-only helpers (SyncEngine.stopPeriodicRetry, PriceHistoryService.clearSuggestionsCache, _resetAttemptedCache) are marked @internal so knip --production and the new npm run dead check skip them.
+
+## [1.51.11] - 2026-10-15
+
+### Removed
+- Dead code: 28 style entries no screen uses any more, most left on Home after the list card moved into AnimatedListCard (list header, dates, badges, delete and calendar icons), plus old receipt fields on History detail and unused close-button text styles in three sheets.
+
+## [1.51.10] - 2026-10-15
+
+### Removed
+- Dead code: unused methods in HistoryTracker (and the PaginatedHistory type), SearchService, StoreHistoryService, ReceiptOCRService (checkHealth), FirebaseSyncListener (stopListeningToItems), CrashReporting (testCrash), CategoryHistoryService, BudgetTracker, BudgetAlertService and AuthenticationModule (getAuthToken).
+
+## [1.51.9] - 2026-10-15
+
+### Removed
+- Dead code: PricePredictionService.invalidateCache, clearAllCaches, getPredictedPrice, prefetchPredictions and PriceHistoryService.getRecentPriceExtremes.
+
+## [1.51.8] - 2026-10-15
+
+### Removed
+- Dead code: ArchiveService.archiveList, permanentlyDeleteList, shouldAutoArchive, getDaysUntilArchive and CategoryService.getCategoryColor, getCategoryIcon, getCategoryName, getDefaultCategory, isValidCategory.
+
+## [1.51.7] - 2026-10-15
+
+### Removed
+- Dead code: the FirebaseAnalytics list, item, receipt, family, paywall and budget event helpers. None was ever called; the app logs screen views and custom events only.
+
+## [1.51.6] - 2026-10-15
+
+### Removed
+- Dead code: SyncEngine.resolveConflict, which the app never called (incoming changes are merged by FirebaseSyncListener). Its tests, including the task 49 urgent cases, went with it.
+
 ## [1.51.5] - 2026-10-15
 
 ### Changed

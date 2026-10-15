@@ -1,4 +1,4 @@
-import { ExpenditureSummary, ExpenditureBreakdownItem, ShoppingList } from '../models/types';
+import { ExpenditureSummary, ExpenditureBreakdownItem } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 
 /**
@@ -129,28 +129,6 @@ class BudgetTracker {
       };
     } catch (error: any) {
       throw new Error(`Failed to calculate member expenditure: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get lists without receipts
-   * Implements Req 7.5
-   */
-  async getListsWithoutReceipts(
-    familyGroupId: string,
-    startDate: number,
-    endDate: number
-  ): Promise<ShoppingList[]> {
-    try {
-      const lists = await LocalStorageManager.getCompletedLists(
-        familyGroupId,
-        startDate,
-        endDate
-      );
-
-      return lists.filter((list) => list.receiptUrl === null);
-    } catch (error: any) {
-      throw new Error(`Failed to get lists without receipts: ${error.message}`);
     }
   }
 }

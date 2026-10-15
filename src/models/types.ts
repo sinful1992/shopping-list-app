@@ -282,14 +282,6 @@ export interface ListDetails {
   receiptData: ReceiptData | null;
 }
 
-export interface PaginatedHistory {
-  lists: ShoppingList[];
-  total: number;
-  offset: number;
-  limit: number;
-  hasMore: boolean;
-}
-
 // Category History Types
 
 export interface CategoryHistory {

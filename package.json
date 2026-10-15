@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.51.5",
+  "version": "1.51.14",
   "private": true,
   "license": "UNLICENSED",
   "author": "sinful1992",
@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "knip": "knip",
+    "dead": "node scripts/find-dead-members.mjs",
     "check:encoding": "node scripts/check-encoding.js",
     "postinstall": "patch-package"
   },

@@ -180,13 +180,6 @@ class BudgetAlertService {
   }
 
   /**
-   * Format currency for display
-   */
-  formatCurrency(amount: number): string {
-    return `£${amount.toFixed(2)}`;
-  }
-
-  /**
    * Get alert icon based on level
    */
   getAlertIcon(level: AlertLevel): string {
@@ -201,32 +194,6 @@ class BudgetAlertService {
         return '🚨';
       default:
         return '✅';
-    }
-  }
-
-  /**
-   * Check if budget is available for a period
-   */
-  async hasBudgetForPeriod(
-    familyGroupId: string,
-    period: BudgetPeriod
-  ): Promise<boolean> {
-    const settings = await this.getBudgetSettings(familyGroupId);
-    const limit = period === 'monthly'
-      ? settings.monthlyLimit
-      : settings.weeklyLimit;
-    return limit !== null && limit > 0;
-  }
-
-  /**
-   * Clear budget settings (for testing or reset)
-   */
-  async clearBudgetSettings(familyGroupId: string): Promise<void> {
-    try {
-      const key = `budget_settings_${familyGroupId}`;
-      await AsyncStorage.removeItem(key);
-    } catch (error) {
-      throw error;
     }
   }
 }

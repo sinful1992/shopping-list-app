@@ -555,10 +555,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 16,
     color: theme.text.secondary,
   },
-  emptyText: {
-    fontSize: 16,
-    color: theme.text.secondary,
-  },
   imageContainer: {
     backgroundColor: '#000',
     minHeight: 300,

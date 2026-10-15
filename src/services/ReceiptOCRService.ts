@@ -12,7 +12,6 @@ import { isReceiptStoragePath, toFileUri } from '../utils/uri';
 import { buildOcrHints, OcrHints } from './ocrHints';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
-const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 
 // Scans go through the ocr-proxy edge function, which holds the Space's
 // shared secret server-side and admits the request on a Firebase ID token.
@@ -21,9 +20,6 @@ const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 const OCR_PROXY_URL = `${(SUPABASE_URL || '').replace(/\/+$/, '')}/functions/v1/ocr-proxy`;
 
 const DEFAULT_CURRENCY = 'GBP';
-
-/** Health probes should answer fast; don't let a dead server hang the UI. */
-const HEALTH_CHECK_TIMEOUT_MS = 10_000;
 
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
@@ -84,14 +80,6 @@ interface OCRServerResponse {
  */
 class ReceiptOCRService {
   /**
-   * Get the configured OCR server URL.
-   */
-  async getServerUrl(): Promise<string> {
-    const stored = await AsyncStorage.getItem(OCR_SERVER_URL_KEY);
-    return stored ?? DEFAULT_OCR_SERVER_URL;
-  }
-
-  /**
    * Return the raw stored URL without falling back to the default.
    * Returns null when the user hasn't overridden the default.
    */
@@ -112,40 +100,6 @@ class ReceiptOCRService {
       throw new Error('OCR server URL must start with http:// or https://');
     }
     await AsyncStorage.setItem(OCR_SERVER_URL_KEY, cleaned);
-  }
-
-  /**
-   * Check if the OCR server is reachable and the model is loaded.
-   */
-  async checkHealth(): Promise<{ ok: boolean; modelLoaded: boolean }> {
-    const serverUrl = await this.getServerUrl();
-    if (!serverUrl) {
-      return { ok: false, modelLoaded: false };
-    }
-
-    // RN's fetch never times out on its own — a dead server would hang
-    // the settings screen's health check indefinitely.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(`${serverUrl}/health`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        return { ok: false, modelLoaded: false };
-      }
-
-      const data = await response.json();
-      return { ok: true, modelLoaded: data.model_loaded === true };
-    } catch {
-      return { ok: false, modelLoaded: false };
-    } finally {
-      clearTimeout(timeoutId);
-    }
   }
 
   /** Empty OCRResult carrying an error message. */

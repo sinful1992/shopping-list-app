@@ -18,7 +18,6 @@ describe('CategoryService', () => {
   });
 
   it('gives every category a sortOrder of at least 1', () => {
-    // getCategorySortOrder falls back on `|| 999`, so a 0 would silently sort last.
     for (const { id, sortOrder } of CategoryService.getCategories()) {
       expect({ id, sortOrder }).toEqual({ id, sortOrder: expect.any(Number) });
       expect(sortOrder).toBeGreaterThanOrEqual(1);
@@ -81,6 +80,5 @@ describe('CategoryService', () => {
     expect(CategoryService.getCategory('Baking')).toBeNull();
     expect(CategoryService.getCategory(null)).toBeNull();
     expect(CategoryService.getCategory(undefined)).toBeNull();
-    expect(CategoryService.getCategoryName('Baking')).toBe('Other');
   });
 });
