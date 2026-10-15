@@ -6,7 +6,6 @@ import migrations from '../../database/migrations';
 import { ShoppingListModel } from '../../database/models/ShoppingList';
 import { ItemModel } from '../../database/models/Item';
 import { SyncQueueModel } from '../../database/models/SyncQueue';
-import { UrgentItemModel } from '../../database/models/UrgentItem';
 import { CategoryHistoryModel } from '../../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../../database/models/PriceHistory';
 import StoreLayoutModel from '../../database/models/StoreLayout';
@@ -31,6 +30,6 @@ export function createDatabase(): Database {
 
   return new Database({
     adapter,
-    modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, UrgentItemModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel, ReceiptAliasModel],
+    modelClasses: [ShoppingListModel, ItemModel, SyncQueueModel, CategoryHistoryModel, PriceHistoryModel, StoreLayoutModel, ItemPreferenceModel, ReceiptAliasModel],
   });
 }

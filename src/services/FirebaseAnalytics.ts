@@ -104,26 +104,6 @@ class FirebaseAnalytics {
     });
   }
 
-  // ===== URGENT ITEM EVENTS =====
-
-  /**
-   * Log when an urgent item is created
-   */
-  async logUrgentItemCreated(itemId: string): Promise<void> {
-    await logAnalyticsEvent(getAnalytics(), 'urgent_item_created', {
-      item_id: itemId,
-    });
-  }
-
-  /**
-   * Log when an urgent item is resolved
-   */
-  async logUrgentItemResolved(itemId: string): Promise<void> {
-    await logAnalyticsEvent(getAnalytics(), 'urgent_item_resolved', {
-      item_id: itemId,
-    });
-  }
-
   // ===== RECEIPT EVENTS =====
 
   /**

@@ -128,7 +128,6 @@ class UsageTracker {
   async getUsageSummary(user: User): Promise<{
     lists: { used: number; limit: number | null };
     ocr: { used: number; limit: number | null };
-    urgentItems: { used: number; limit: number | null };
   }> {
     const counters = await this.checkAndResetIfNeeded(user);
     const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
@@ -142,10 +141,6 @@ class UsageTracker {
       ocr: {
         used: counters.ocrProcessed,
         limit: limits.maxOCRPerMonth,
-      },
-      urgentItems: {
-        used: counters.urgentItemsCreated,
-        limit: limits.maxUrgentItemsPerMonth,
       },
     };
   }

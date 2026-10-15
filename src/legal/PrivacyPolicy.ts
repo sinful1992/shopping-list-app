@@ -63,7 +63,7 @@ Supabase Privacy Policy: https://supabase.com/privacy
 RevenueCat Privacy Policy: https://www.revenuecat.com/privacy
 
 ### Google AdMob (advertising)
-The free version of the app shows rewarded ads from Google AdMob: an ad plays before you scan a receipt or raise an urgent item. Premium and Family subscribers see no ads, and the ad service is not started for them.
+The free version of the app shows rewarded ads from Google AdMob: an ad plays before you scan a receipt. Premium and Family subscribers see no ads, and the ad service is not started for them.
 - **What AdMob receives**: your device's advertising ID, IP address, device and app information (such as device model, Android version and language), and your interactions with the ads
 - **Why**: to show ads, measure them, prevent fraud and, only with your consent, personalise them
 - **Your choice**: in the UK and EEA the app asks for your consent through Google's consent message before any personalised ads are shown. You can reset or delete your advertising ID at any time in your Android settings (Settings › Privacy › Ads)

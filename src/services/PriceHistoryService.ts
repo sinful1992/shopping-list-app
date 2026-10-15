@@ -501,9 +501,11 @@ class PriceHistoryService {
     daysBack?: number
   ): Promise<Map<string, { bestStore: string; bestPrice: number; savings: number }>> {
     try {
-      // The window is part of the key: caching on the group alone would serve
-      // the first window's answer to every later one.
-      const cacheKey = `${familyGroupId}:${daysBack ?? 'all'}`;
+      // The window and the items are part of the key: caching on the group
+      // alone served the first list's answer to every list opened after it.
+      const itemsKey = [...new Set(itemNames.filter(n => typeof n === 'string').map(n => n.trim().toLowerCase()))]
+        .sort().join('\u0000');
+      const cacheKey = `${familyGroupId}:${daysBack ?? 'all'}:${itemsKey}`;
       const cached = this.suggestionsCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
         return cached.data;
@@ -550,9 +552,14 @@ class PriceHistoryService {
         }
       }
 
+      // One entry per list's item set now, so expired ones are let go here.
+      const now = Date.now();
+      for (const [key, entry] of this.suggestionsCache) {
+        if (now - entry.timestamp >= this.CACHE_TTL) this.suggestionsCache.delete(key);
+      }
       this.suggestionsCache.set(cacheKey, {
         data: suggestions,
-        timestamp: Date.now(),
+        timestamp: now,
       });
 
       return suggestions;

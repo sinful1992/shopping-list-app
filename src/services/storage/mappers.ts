@@ -1,11 +1,12 @@
-import { ShoppingList, Item, ReceiptData, UrgentItem } from '../../models/types';
+import { ShoppingList, Item, ReceiptData } from '../../models/types';
 import { safeJsonParse } from '../../utils/safeJsonParse';
+import { sameReceiptData } from './firebaseMappers';
 import { ShoppingListModel } from '../../database/models/ShoppingList';
 import { ItemModel } from '../../database/models/Item';
-import { UrgentItemModel } from '../../database/models/UrgentItem';
 
 export function applyListCreate(record: ShoppingListModel, list: ShoppingList): void {
   record._raw.id = list.id;
+  if (list.createdAt > 0) record._setRaw('created_at', list.createdAt);
   record.name = list.name;
   record.familyGroupId = list.familyGroupId;
   record.createdBy = list.createdBy;
@@ -31,6 +32,7 @@ export function applyListCreate(record: ShoppingListModel, list: ShoppingList): 
 }
 
 export function applyListFullUpdate(record: ShoppingListModel, list: ShoppingList): void {
+  if (list.createdAt > 0) record._setRaw('created_at', list.createdAt);
   record.name = list.name;
   record.status = list.status;
   record.completedAt = list.completedAt;
@@ -55,6 +57,7 @@ export function applyListFullUpdate(record: ShoppingListModel, list: ShoppingLis
 
 export function applyItemCreate(record: ItemModel, item: Item): void {
   record._raw.id = item.id;
+  if (item.createdAt > 0) record._setRaw('created_at', item.createdAt);
   record.listId = item.listId;
   record.name = item.name;
   record.quantity = item.quantity;
@@ -67,6 +70,7 @@ export function applyItemCreate(record: ItemModel, item: Item): void {
   record.unitQty = item.unitQty ?? null;
   record.measurementUnit = item.measurementUnit ?? null;
   record.measurementValue = item.measurementValue ?? null;
+  record.isUrgent = item.isUrgent === true;
 }
 
 export function applyItemFullUpdate(record: ItemModel, item: Item): void {
@@ -80,6 +84,16 @@ export function applyItemFullUpdate(record: ItemModel, item: Item): void {
   record.unitQty = item.unitQty ?? null;
   record.measurementUnit = item.measurementUnit ?? null;
   record.measurementValue = item.measurementValue ?? null;
+  record.isUrgent = item.isUrgent === true;
+}
+
+/**
+ * Whether remote data would turn a list deleted on this phone back into a
+ * live one. Nothing restores a deleted list, so such data is stale: a
+ * snapshot read before the delete reached the server, or a late echo.
+ */
+export function revivesDeletedList(local: ShoppingList | null | undefined, incoming: ShoppingList): boolean {
+  return local?.status === 'deleted' && incoming.status !== 'deleted';
 }
 
 export function hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
@@ -94,7 +108,14 @@ export function hasListChanged(local: ShoppingList, incoming: ShoppingList): boo
     local.storeName !== incoming.storeName ||
     local.archived !== incoming.archived ||
     local.receiptUrl !== incoming.receiptUrl ||
-    (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false)
+    (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
+    local.totalAmount !== incoming.totalAmount ||
+    local.merchantName !== incoming.merchantName ||
+    local.purchaseDate !== incoming.purchaseDate ||
+    local.currency !== incoming.currency ||
+    (incoming.createdAt > 0 && local.createdAt !== incoming.createdAt) ||
+    // A receipt corrected on another device changes only its lines.
+    !sameReceiptData(local.receiptData, incoming.receiptData)
   );
 }
 
@@ -145,22 +166,6 @@ export function itemModelToType(model: ItemModel): Item {
     unitQty: model.unitQty,
     measurementUnit: model.measurementUnit,
     measurementValue: model.measurementValue,
-  };
-}
-
-export function urgentItemModelToType(model: UrgentItemModel): UrgentItem {
-  return {
-    id: model.id,
-    name: model.name,
-    familyGroupId: model.familyGroupId,
-    createdBy: model.createdBy,
-    createdByName: model.createdByName,
-    createdAt: Number(model.createdAt),
-    resolvedBy: model.resolvedBy,
-    resolvedByName: model.resolvedByName,
-    resolvedAt: model.resolvedAt,
-    price: model.price,
-    status: model.status as 'active' | 'resolved',
-    syncStatus: model.syncStatus as 'synced' | 'pending' | 'failed',
+    isUrgent: model.isUrgent === true,
   };
 }

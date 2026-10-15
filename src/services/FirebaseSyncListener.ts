@@ -1,18 +1,16 @@
 import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, child } from '@react-native-firebase/database';
-import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
+import { ShoppingList, Item, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import {
   mapFirebaseList,
-  sameReceiptData,
   mapFirebaseItem,
-  mapFirebaseUrgentItem,
   mapFirebaseStoreLayout,
   FirebaseListPayload,
   FirebaseItemPayload,
-  FirebaseUrgentItemPayload,
   FirebaseStoreLayoutPayload,
 } from './storage/firebaseMappers';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
+import { hasListChanged, revivesDeletedList } from './storage/mappers';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -23,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
  */
 class FirebaseSyncListener {
   private activeListeners: Map<string, () => void> = new Map();
+  private itemListenerRefs: Map<string, number> = new Map();
 
   /**
    * Start listening to all lists for a family group
@@ -103,14 +102,36 @@ class FirebaseSyncListener {
   }
 
   /**
-   * Start listening to items for a specific list
+   * Start listening to items for a specific list. Home (for the urgent count
+   * on active lists) and the open list share one listener, so it is counted:
+   * each caller's unsubscribe releases its own hold, and the Firebase
+   * listener stops when the last one is released.
    */
   startListeningToItems(familyGroupId: string, listId: string): Unsubscribe {
     const key = `items_${familyGroupId}_${listId}`;
-    if (this.activeListeners.has(key)) {
-      return this.activeListeners.get(key)!;
+    if (!this.activeListeners.has(key)) {
+      this.activeListeners.set(key, this.openItemsListener(familyGroupId, listId, key));
     }
+    this.itemListenerRefs.set(key, (this.itemListenerRefs.get(key) ?? 0) + 1);
+    // stopAllListeners can tear this one down and a later call open a fresh
+    // one under the same key; a stale hold must not release the new one.
+    const teardown = this.activeListeners.get(key);
 
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      if (this.activeListeners.get(key) !== teardown) return;
+      const refs = (this.itemListenerRefs.get(key) ?? 1) - 1;
+      if (refs > 0) {
+        this.itemListenerRefs.set(key, refs);
+        return;
+      }
+      teardown?.();
+    };
+  }
+
+  private openItemsListener(familyGroupId: string, listId: string, key: string): Unsubscribe {
     const db = getDatabase();
     const itemsRef = ref(db, `familyGroups/${familyGroupId}/items`);
     let isCancelled = false;
@@ -178,16 +199,14 @@ class FirebaseSyncListener {
       }
     });
 
-    const unsubscribe = () => {
+    return () => {
       isCancelled = true;
       unsubChildAdded();
       unsubChildChanged();
       unsubChildRemoved();
       this.activeListeners.delete(key);
+      this.itemListenerRefs.delete(key);
     };
-
-    this.activeListeners.set(key, unsubscribe);
-    return unsubscribe;
   }
 
   /**
@@ -208,7 +227,13 @@ class FirebaseSyncListener {
 
       const incomingList = mapFirebaseList(listId, firebaseData, resolvedFamilyGroupId);
 
-      if (existingList && !this.hasListChanged(existingList, incomingList)) {
+      if (existingList && !hasListChanged(existingList, incomingList)) {
+        return;
+      }
+      // A deleted list is never restored. An older snapshot or a late echo
+      // (a quick scan's receipt write landing after Skip) must not bring it
+      // back as an empty active list.
+      if (revivesDeletedList(existingList, incomingList)) {
         return;
       }
 
@@ -228,32 +253,6 @@ class FirebaseSyncListener {
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncListToLocal');
     }
-  }
-
-  /**
-   * Compare local and incoming list data to detect meaningful changes.
-   * Returns true if any user-visible field differs.
-   */
-  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.isLocked !== incoming.isLocked ||
-      local.lockedBy !== incoming.lockedBy ||
-      local.completedAt !== incoming.completedAt ||
-      local.completedBy !== incoming.completedBy ||
-      local.budget !== incoming.budget ||
-      local.storeName !== incoming.storeName ||
-      local.archived !== incoming.archived ||
-      local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
-      local.totalAmount !== incoming.totalAmount ||
-      local.merchantName !== incoming.merchantName ||
-      local.purchaseDate !== incoming.purchaseDate ||
-      local.currency !== incoming.currency ||
-      // A receipt corrected on another device changes only its lines.
-      !sameReceiptData(local.receiptData, incoming.receiptData)
-    );
   }
 
   /**
@@ -294,7 +293,8 @@ class FirebaseSyncListener {
       local.sortOrder !== incoming.sortOrder ||
       local.unitQty !== incoming.unitQty ||
       local.measurementUnit !== incoming.measurementUnit ||
-      local.measurementValue !== incoming.measurementValue
+      local.measurementValue !== incoming.measurementValue ||
+      (local.isUrgent === true) !== (incoming.isUrgent === true)
     );
   }
 
@@ -345,132 +345,6 @@ class FirebaseSyncListener {
    */
   stopListeningToItems(familyGroupId: string, listId: string): void {
     const key = `items_${familyGroupId}_${listId}`;
-    const unsubscribe = this.activeListeners.get(key);
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  }
-
-  /**
-   * Start listening to urgent items for a family group
-   */
-  startListeningToUrgentItems(familyGroupId: string): Unsubscribe {
-    const key = `urgent_items_${familyGroupId}`;
-
-    if (this.activeListeners.has(key)) {
-      return this.activeListeners.get(key)!;
-    }
-
-    const urgentItemsRef = ref(getDatabase(), `urgentItems/${familyGroupId}`);
-    const initialBuffer: { itemId: string; data: any }[] = [];
-    let initialLoadDone = false;
-
-    // Buffer events that arrive while get() is in-flight so items created
-    // during the initial load window are not silently dropped.
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
-      initialLoadDone = true;
-      if (initialBuffer.length === 0) return;
-      const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) =>
-        mapFirebaseUrgentItem(itemId, data, familyGroupId)
-      );
-      await LocalStorageManager.saveUrgentItemsBatch(urgentItems);
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener urgentItems flush'); }
-    };
-
-    const unsubChildAdded = onChildAdded(urgentItemsRef, async (snapshot) => {
-      const itemId = snapshot.key;
-      const itemData = snapshot.val();
-      if (!itemId || !itemData) return;
-      if (!initialLoadDone) {
-        initialBuffer.push({ itemId, data: itemData });
-        return;
-      }
-      await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
-    });
-
-    get(urgentItemsRef).then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener urgentItems value sentinel');
-      await safeFlush();
-    });
-
-    const unsubChildChanged = onChildChanged(urgentItemsRef, async (snapshot) => {
-      const itemId = snapshot.key;
-      const itemData = snapshot.val();
-
-      if (itemId && itemData) {
-        await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
-      }
-    });
-
-    const unsubChildRemoved = onChildRemoved(urgentItemsRef, async (snapshot) => {
-      const itemId = snapshot.key;
-
-      if (itemId) {
-        try {
-          await LocalStorageManager.deleteUrgentItem(itemId);
-        } catch (error) {
-          CrashReporting.recordError(error as Error, 'FirebaseSyncListener urgent item deletion');
-        }
-      }
-    });
-
-    const unsubscribe = () => {
-      unsubChildAdded();
-      unsubChildChanged();
-      unsubChildRemoved();
-      this.activeListeners.delete(key);
-    };
-
-    this.activeListeners.set(key, unsubscribe);
-    return unsubscribe;
-  }
-
-  /**
-   * Sync an urgent item from Firebase to local WatermelonDB
-   * Skips the write if the item already exists locally with identical data,
-   * preventing observer flicker from echo-back writes.
-   */
-  private async syncUrgentItemToLocal(familyGroupId: string, itemId: string, firebaseData: FirebaseUrgentItemPayload): Promise<void> {
-    try {
-      const existingItem = await LocalStorageManager.getUrgentItem(itemId);
-
-      const urgentItem = mapFirebaseUrgentItem(itemId, firebaseData, familyGroupId);
-
-      if (existingItem && !this.hasUrgentItemChanged(existingItem, urgentItem)) {
-        return;
-      }
-
-      await LocalStorageManager.saveUrgentItem(urgentItem);
-    } catch (error) {
-      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncUrgentItemToLocal');
-    }
-  }
-
-  /**
-   * Compare local and incoming urgent item data to detect meaningful changes.
-   * Returns true if any user-visible field differs.
-   */
-  private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.resolvedBy !== incoming.resolvedBy ||
-      local.resolvedByName !== incoming.resolvedByName ||
-      local.resolvedAt !== incoming.resolvedAt ||
-      local.price !== incoming.price
-    );
-  }
-
-  /**
-   * Stop listening to urgent items for a family group
-   */
-  stopListeningToUrgentItems(familyGroupId: string): void {
-    const key = `urgent_items_${familyGroupId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { safeJsonParse } from '../utils/safeJsonParse';
 import Purchases, {
   PurchasesOffering,
@@ -269,7 +269,9 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
 
   const hasEntitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID] !== undefined;
 
-  const value: RevenueCatContextType = {
+  // The provider re-renders on every profile tick (it is given the live
+  // user); a new value object each time re-rendered every consumer.
+  const value: RevenueCatContextType = useMemo(() => ({
     tier,
     customerInfo,
     offerings,
@@ -279,7 +281,8 @@ export function RevenueCatProvider({ user, children }: RevenueCatProviderProps) 
     presentCustomerCenter,
     restorePurchases,
     hasEntitlement,
-  };
+  }), [tier, customerInfo, offerings, isLoading, isPurchasing, presentPaywall, presentCustomerCenter,
+    restorePurchases, hasEntitlement]);
 
   return (
     <RevenueCatContext.Provider value={value}>

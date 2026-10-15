@@ -243,7 +243,7 @@ const SettingsScreen = () => {
   const handleDeleteAccount = () => {
     showAlert(
       'Delete Account',
-      'WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All urgent items\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
+      'WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
       [
         { text: 'Cancel', style: 'cancel' },
         {

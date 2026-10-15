@@ -5,6 +5,7 @@ import SyncEngine from './SyncEngine';
 import CategoryHistoryService from './CategoryHistoryService';
 import PriceHistoryService, { pickPurchaseRecordId } from './PriceHistoryService';
 import CrashReporting from './CrashReporting';
+import { notifyItemUrgent } from './UrgentNotifier';
 import { sanitizeItemName, sanitizeQuantity, sanitizePrice, sanitizeCategory } from '../utils/sanitize';
 
 /**
@@ -17,7 +18,7 @@ class ItemManager {
    * Add new item to shopping list
    * Implements Req 3.1, 3.2
    */
-  async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number, category?: string | null): Promise<Item> {
+  async addItem(listId: string, name: string, userId: string, quantity?: string, price?: number, category?: string | null, isUrgent = false): Promise<Item> {
     const sanitizedName = sanitizeItemName(name);
     if (!sanitizedName) {
       throw new Error('Item name is required');
@@ -38,10 +39,12 @@ class ItemManager {
       sortOrder: Date.now(),
       measurementUnit: null,
       measurementValue: null,
+      isUrgent,
     };
 
     // Save locally first (offline-first)
     await LocalStorageManager.saveItem(item);
+    if (isUrgent) notifyItemUrgent(item);
 
     // Trigger sync in background (fire-and-forget for instant local updates).
     // Awaiting it left the add-item field holding the typed text for as long
@@ -79,11 +82,16 @@ class ItemManager {
       sanitizedUpdates.category = sanitizeCategory(updates.category);
     }
 
+    // The family hears about an item once, when it turns urgent.
+    const becameUrgent = updates.isUrgent === true
+      && (await LocalStorageManager.getItem(itemId))?.isUrgent !== true;
+
     const item = await LocalStorageManager.updateItem(itemId, {
       ...sanitizedUpdates,
       updatedAt: Date.now(),
       syncStatus: 'pending',
     });
+    if (becameUrgent) notifyItemUrgent(item);
 
     // Trigger sync in background (fire-and-forget for instant local updates)
     SyncEngine.pushChange('item', itemId, 'update', item).catch(error => {

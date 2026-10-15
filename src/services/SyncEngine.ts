@@ -9,7 +9,6 @@ import {
   SyncEngineStatus,
   ShoppingList,
   Item,
-  UrgentItem,
   StoreLayout,
   Unsubscribe,
 } from '../models/types';
@@ -211,6 +210,7 @@ class SyncEngine {
         if (localEntity.unitQty !== remoteEntity.unitQty) merged.unitQty = localEntity.unitQty;
         if (localEntity.measurementUnit !== remoteEntity.measurementUnit) merged.measurementUnit = localEntity.measurementUnit;
         if (localEntity.measurementValue !== remoteEntity.measurementValue) merged.measurementValue = localEntity.measurementValue;
+        if (localEntity.isUrgent !== remoteEntity.isUrgent) merged.isUrgent = localEntity.isUrgent;
         merged.updatedAt = localEntity.updatedAt;
       }
       return merged;
@@ -270,6 +270,11 @@ class SyncEngine {
       for (const operation of queue) {
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
           deferred++;
+          continue;
+        }
+
+        if (await this.revivesDeletedList(operation)) {
+          await LocalStorageManager.removeFromSyncQueue(operation.id);
           continue;
         }
 
@@ -380,7 +385,7 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: ShoppingList | Item | UrgentItem | StoreLayout | null
+    data: ShoppingList | Item | StoreLayout | null
   ): Promise<void> {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
@@ -432,13 +437,27 @@ class SyncEngine {
   }
 
   /**
+   * Whether a queued list write would bring back a list deleted since it was
+   * queued. Retries are replayed out of order, so a write that timed out
+   * before the delete (a quick scan's receipt, then Skip) could otherwise land
+   * after it and turn the deleted list active again for the whole family.
+   * A deleted list is never restored, so such a write is dropped.
+   */
+  private async revivesDeletedList(operation: QueuedOperation): Promise<boolean> {
+    if (operation.entityType !== 'list' || operation.operation === 'delete') return false;
+    if ((operation.data as ShoppingList | null)?.status === 'deleted') return false;
+    const local = await LocalStorageManager.getList(operation.entityId);
+    return local?.status === 'deleted';
+  }
+
+  /**
    * Helper: Add operation to queue. Returns the queued operation's id.
    */
   private async queueOperation(
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: ShoppingList | Item | UrgentItem | StoreLayout | null
+    data: ShoppingList | Item | StoreLayout | null
   ): Promise<string> {
     // Single localized assertion: TS can't prove entityType/data pair up,
     // but callers always pass matching pairs.

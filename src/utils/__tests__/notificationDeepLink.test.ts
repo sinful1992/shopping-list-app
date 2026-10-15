@@ -19,9 +19,9 @@ describe('notificationToDeepLink', () => {
     expect(notificationToDeepLink(msg({ type: 'something_else' }))).toBeNull();
   });
 
-  it('maps urgent_item to the urgent tab', () => {
+  it('maps urgent_item to Home', () => {
     expect(notificationToDeepLink(msg({ type: 'urgent_item' }))).toBe(
-      'familyshoppinglist://urgent'
+      'familyshoppinglist://home'
     );
   });
 

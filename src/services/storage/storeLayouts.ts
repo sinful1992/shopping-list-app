@@ -142,6 +142,12 @@ export class StoreLayoutsStorage {
       for (const { layoutId, data } of entries) {
         const existing = existingMap.get(layoutId);
         if (existing) {
+          // Every foreground return re-reads the whole node; a layout that is
+          // already synced with this content is left alone.
+          const unchanged = existing.syncStatus === 'synced'
+            && (data.categoryOrder === undefined || existing.categoryOrder === JSON.stringify(data.categoryOrder))
+            && (data.updatedAt === undefined || existing.updatedAt === data.updatedAt);
+          if (unchanged) continue;
           ops.push(existing.prepareUpdate(r => applyUpdate(r as StoreLayoutModel, data)));
         } else {
           ops.push(collection.prepareCreate(r => applyCreate(r, layoutId, data)));

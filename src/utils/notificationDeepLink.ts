@@ -7,8 +7,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 // Map an FCM message to a deep-link path, or null if it shouldn't navigate.
 export function notificationToDeepLink(message: RemoteMessage | null): string | null {
   const data = message?.data;
+  // Urgent is a flag on a list item now; Home shows which lists have one.
   if (data?.type === 'urgent_item') {
-    return 'familyshoppinglist://urgent';
+    return 'familyshoppinglist://home';
   }
   if (data?.type === 'receipt_scanned') {
     const listId = data.listId;

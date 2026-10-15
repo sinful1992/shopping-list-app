@@ -23,13 +23,6 @@ class BudgetTracker {
         endDate
       );
 
-      // Get resolved urgent items in date range
-      const urgentItems = await LocalStorageManager.getResolvedUrgentItems(
-        familyGroupId,
-        startDate,
-        endDate
-      );
-
       let totalAmount = 0;
       let listsWithReceipts = 0;
       let listsWithoutReceipts = 0;
@@ -41,13 +34,6 @@ class BudgetTracker {
           listsWithReceipts++;
         } else {
           listsWithoutReceipts++;
-        }
-      }
-
-      // Add urgent items with prices
-      for (const item of urgentItems) {
-        if (item.price) {
-          totalAmount += item.price;
         }
       }
 
@@ -114,16 +100,8 @@ class BudgetTracker {
         endDate
       );
 
-      // Get resolved urgent items
-      const urgentItems = await LocalStorageManager.getResolvedUrgentItems(
-        familyGroupId,
-        startDate,
-        endDate
-      );
-
       // Filter by user
       const userLists = lists.filter((list) => list.createdBy === userId);
-      const userUrgentItems = urgentItems.filter((item) => item.resolvedBy === userId);
 
       let totalAmount = 0;
       let listsWithReceipts = 0;
@@ -135,13 +113,6 @@ class BudgetTracker {
           listsWithReceipts++;
         } else {
           listsWithoutReceipts++;
-        }
-      }
-
-      // Add urgent items resolved by this user
-      for (const item of userUrgentItems) {
-        if (item.price) {
-          totalAmount += item.price;
         }
       }
 

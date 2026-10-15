@@ -44,14 +44,6 @@ export function sanitizeItemName(name: string): string {
 }
 
 /**
- * Sanitize urgent item name
- * Max 200 characters
- */
-export function sanitizeUrgentItemName(name: string): string {
-  return sanitizeText(name, 200);
-}
-
-/**
  * Sanitize store name
  * Max 100 characters
  */
@@ -115,7 +107,6 @@ export function sanitizeError(error: unknown): string {
     if (
       msg.startsWith('List name') ||
       msg.startsWith('Item name') ||
-      msg.startsWith('Urgent item name') ||
       msg.startsWith('Invalid invitation') ||
       msg.startsWith('This family group') ||
       msg.startsWith('Permission denied') ||

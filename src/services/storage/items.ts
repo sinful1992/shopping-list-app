@@ -115,6 +115,7 @@ export class ItemsStorage {
           if (updates.unitQty !== undefined) record.unitQty = updates.unitQty;
           if (updates.measurementUnit !== undefined) record.measurementUnit = updates.measurementUnit;
           if (updates.measurementValue !== undefined) record.measurementValue = updates.measurementValue;
+          if (updates.isUrgent !== undefined) record.isUrgent = updates.isUrgent;
         });
       }, 'updateItem');
 
@@ -156,6 +157,7 @@ export class ItemsStorage {
           if (itemUpdates.unitQty !== undefined) r.unitQty = itemUpdates.unitQty;
           if (itemUpdates.measurementUnit !== undefined) r.measurementUnit = itemUpdates.measurementUnit;
           if (itemUpdates.measurementValue !== undefined) r.measurementValue = itemUpdates.measurementValue;
+          if (itemUpdates.isUrgent !== undefined) r.isUrgent = itemUpdates.isUrgent;
         }));
         processedRecords.push(record);
       }
@@ -309,7 +311,7 @@ export class ItemsStorage {
 
     // Use observeWithColumns to trigger on field changes (category, checked, etc.)
     // Without this, observer only fires on record add/delete, not field updates
-    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value']).subscribe((itemModels) => {
+    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value', 'is_urgent']).subscribe((itemModels) => {
       // Convert to Item types
       let items = itemModels.map((model) => itemModelToType(model));
 
@@ -321,6 +323,26 @@ export class ItemsStorage {
       });
 
       callback(items);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Observe how many unchecked urgent items each list has (listId → count).
+   * Lists with none are absent from the map.
+   */
+  observeUrgentCounts(callback: (counts: Map<string, number>) => void): () => void {
+    const query = this.database.get<ItemModel>('items').query(
+      Q.where('is_urgent', true),
+      Q.where('checked', false),
+    );
+    const subscription = query.observeWithColumns(['is_urgent', 'checked']).subscribe((itemModels) => {
+      const counts = new Map<string, number>();
+      for (const model of itemModels) {
+        counts.set(model.listId, (counts.get(model.listId) ?? 0) + 1);
+      }
+      callback(counts);
     });
 
     return () => subscription.unsubscribe();

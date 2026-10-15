@@ -4,6 +4,86 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.5] - 2026-10-15
+
+### Changed
+- Includes the speed fixes from 1.50.2 (task 49 app review).
+
+## [1.51.4] - 2026-10-15
+
+### Changed
+- Includes the quick-scan Skip fix from 1.50.1: skipping or backing out of a quick scan no longer leaves an empty list on Home.
+
+## [1.51.3] - 2026-10-15
+
+### Fixed
+- **Every phone in the family sees the urgent tag on Home.** A list's items were only downloaded when someone opened that list, so an item another family member marked urgent didn't show as "1 urgent" on your Home card until you opened the list. Home now keeps the items of active lists in sync. As a side effect, an active list opens with its items already there.
+
+## [1.51.2] - 2026-10-15
+
+### Fixed
+- **Marking an item urgent again notifies the family again.** The server only sends a notification for a new urgent entry, and every marking reused the item's id, so after the first time it stayed silent. Each marking now makes its own entry.
+
+## [1.51.1] - 2026-10-15
+
+### Removed
+- **The Urgent tab is gone.** Urgent is now a flag on a list item (1.51.0), so the separate Urgent screen, its watch-an-ad step and the "Urgent Items" usage row on the subscription screen are removed. Urgent items made with the old screen are dropped from the phone, not moved into a list. Tapping an urgent notification opens your lists, where the card shows which list has urgent items.
+
+## [1.51.0] - 2026-10-15
+
+### Added
+- **Any list item can be urgent.** Tap the flame next to the Add button to add the next item as urgent, or switch Urgent on in an item's details. Urgent items sit in their own Urgent section at the top of the list with a flame on each row. A list card on Home shows how many urgent items are still to buy ("2 urgent"). When an item becomes urgent, the rest of the family gets a notification, as before. Once bought, the item goes to Completed with a faded flame.
+## [1.50.2] - 2026-10-15
+
+### Fixed
+- **Smart savings showed the first list's suggestions on every list opened in the next 5 minutes.** The cache was keyed on the family and the time window, not the items. It now includes the list's items.
+
+### Performance
+- **Home no longer downloads the whole family database twice.** The "does the group still exist" check and the family group read both fetched the group node, which holds every list, item and price record. They now read only the group's own fields.
+- **Checking off a priced item no longer re-reads the whole price history.** A new price only adds its name to the cached variants, so the cache isn't dropped anymore. A correction that renames a row still clears it.
+- **Returning to the app no longer rewrites every category-history and store-layout row.** Rows that haven't changed are skipped.
+- **The ad and subscription contexts keep one value between renders.** Every screen using them used to re-render on each profile update.
+
+## [1.50.1] - 2026-10-15
+
+### Fixed
+- **A skipped quick scan no longer leaves an empty list on Home.** Three ways led to it:
+  - A double tap on Confirm created two lists. Skip discarded only the one the match screen was given, and the other stayed on Home empty. Confirm now creates one list, however fast it is pressed.
+  - Leaving the match screen by the back arrow, the phone's back button or a swipe kept the list. Only Skip discarded it. Every way out but Apply now discards it.
+  - A deleted list could come back. A receipt write that timed out before Skip and was retried after it, or an older Firebase snapshot read when the app came back to the front (after the camera or an ad), turned the deleted list active again, here and on the family's phones. A deleted list is never restored, so this data is now ignored, and the stale retry is dropped.
+  - A quick-scan list is discarded only while it is still empty. If Apply wrote the receipt's items and then failed, leaving the screen (Skip or back) keeps the list and its items.
+
+## [1.50.0] - 2026-10-07
+
+### Changed
+- **The receipt decides how many you bought.** If your list asked for 3 and the receipt shows 2 ("2 Tesco Diced Chorizo", or the same product on two lines), applying the receipt now sets the item to 2. Before, a count you had typed was always kept. A single line that shows one unit still leaves your count alone, since the scan can miss a printed "2".
+
+## [1.49.3] - 2026-10-07
+
+### Fixed
+- **Receipt lines show how many you bought.** The scan already read the count printed on the till roll ("2 Tesco Diced Chorizo"), but Receipt Details and the receipt-matching screen only showed the name and price. A line with more than one unit now reads "2 × Tesco Diced Chorizo 130g". Single items and weighed items look the same as before.
+
+## [1.49.2] - 2026-10-06
+
+### Fixed
+- **One incomplete family profile no longer hides every creator name.** A member profile without an email address or user id made the name lookup fail for the whole family, so no card showed a creator. That member is now skipped or matched by their id, and a name that starts with an emoji shows correctly in the initial circle.
+
+## [1.49.1] - 2026-10-06
+
+### Changed
+- **The creator line reads as a sentence.** An active list's card now says "Created by Anna on Sun 5 Oct" (or "Created by you on …" for your own lists), with a small circle showing the creator's initial so family members are easy to tell apart. The year appears only for dates outside this year. If the name isn't known, it reads "Created on Sun 5 Oct". Screen readers hear the full date.
+
+## [1.49.0] - 2026-10-06
+
+### Added
+- **List cards show who made the list.** An active list's card reads "Created 05/10/2026 · by Anna". The name comes from Settings; if it isn't set, the family role is used, then the start of the email address. If names can't be loaded (offline, or someone who has left the family), only the date shows.
+
+## [1.48.15] - 2026-10-06
+
+### Fixed
+- **"Created" on a list card shows the day the list was really made.** When a list reached a phone from the cloud (made on another family member's phone, or after a reinstall or new sign-in), the phone saved it with the current time as its creation date, so the card showed the day it arrived. Editing the list on that phone then sent the wrong date back to the cloud for everyone. Lists and items now keep their real creation date. A phone that already has a wrong date takes the right one from the cloud on its next sync, if the cloud still has it. Lists whose cloud date was already overwritten stay as they are.
+- **The list card no longer shows the same date twice.** An active list showed its date on its own line and again as "Created …". It now shows only "Created …". Completed lists still show the date they were completed.
+
 ## [1.48.13] - 2026-10-05
 
 ### Added

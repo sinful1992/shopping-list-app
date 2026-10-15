@@ -28,6 +28,7 @@ import { ReceiptData, ShoppingList } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateTime } from '../../utils/date';
+import { formatLineQty } from '../../utils/receiptLinks';
 import ReceiptCard, { ReceiptRule } from '../../components/ReceiptCard';
 
 type EditableReceipt = ReceiptData & {
@@ -406,6 +407,14 @@ const ReceiptViewScreen = () => {
                           {item.needsReview && (
                             <Icon name="alert-circle" size={12} color={theme.accent.orange} />
                           )}
+                          {formatLineQty(item) != null && (
+                            <Text
+                              testID={`receipt-line-qty-${index}`}
+                              style={[styles.itemQty, item.needsReview && styles.itemTextNeedsReview]}
+                            >
+                              {formatLineQty(item)}
+                            </Text>
+                          )}
                           <Text
                             style={[styles.itemDescription, item.needsReview && styles.itemTextNeedsReview]}
                           >
@@ -675,6 +684,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  itemQty: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
   },
   itemDescription: {
     flex: 1,

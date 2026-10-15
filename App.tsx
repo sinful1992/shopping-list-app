@@ -78,7 +78,6 @@ const linking = {
               ListDetail: 'list/:listId',
             },
           },
-          Urgent: 'urgent',
           History: {
             screens: {
               HistoryHome: 'history',
@@ -140,7 +139,6 @@ import ReceiptMatchScreen from './src/screens/receipts/ReceiptMatchScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import LegalDocumentScreen from './src/screens/settings/LegalDocumentScreen';
-import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
 import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
 import TermsAcceptanceScreen from './src/screens/auth/TermsAcceptanceScreen';
@@ -271,16 +269,6 @@ function MainTabNavigator() {
               <Icon name="list-outline" size={size} color={color} />
             ),
           };
-        }}
-      />
-      <Tab.Screen
-        name="Urgent"
-        component={UrgentItemsScreen}
-        options={{
-          title: 'Urgent',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="flame" size={size} color={color} />
-          ),
         }}
       />
       <Tab.Screen
