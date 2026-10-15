@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.7] - 2026-10-15
+
+### Removed
+- Dead code: the FirebaseAnalytics list, item, receipt, family, paywall and budget event helpers. None was ever called; the app logs screen views and custom events only.
+
 ## [1.51.6] - 2026-10-15
 
 ### Removed
