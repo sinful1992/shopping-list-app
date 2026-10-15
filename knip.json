@@ -1,13 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "entry": [
-    "index.js!",
     "App.tsx!",
     "scripts/**/*.{ts,js,mjs}"
   ],
   "project": [
-    "index.js!",
-    "App.tsx!",
     "src/**/*.{ts,tsx}!",
     "scripts/**/*.{ts,js,mjs}"
   ],
