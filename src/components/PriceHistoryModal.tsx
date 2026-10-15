@@ -334,11 +334,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeButtonText: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    color: theme.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
   loadingContainer: {
     padding: 40,
     alignItems: 'center',

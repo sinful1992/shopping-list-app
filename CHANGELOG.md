@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.11] - 2026-10-15
+
+### Removed
+- Dead code: 28 style entries no screen uses any more, most left on Home after the list card moved into AnimatedListCard (list header, dates, badges, delete and calendar icons), plus old receipt fields on History detail and unused close-button text styles in three sheets.
+
 ## [1.51.10] - 2026-10-15
 
 ### Removed

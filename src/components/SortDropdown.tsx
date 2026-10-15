@@ -199,11 +199,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
-  checkmark: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    color: theme.accent.blue,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
 });
 
 export default SortDropdown;
