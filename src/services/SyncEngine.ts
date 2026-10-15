@@ -97,6 +97,7 @@ class SyncEngine {
 
   /**
    * Stop periodic retry (for cleanup)
+   * @internal test seam
    */
   stopPeriodicRetry(): void {
     if (this.retryIntervalId) {

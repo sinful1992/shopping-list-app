@@ -54,7 +54,10 @@ async function loadAttempted(familyGroupId: string): Promise<Set<string>> {
   return set;
 }
 
-/** Reset between family groups in tests; the cache is module state. */
+/**
+ * Reset between family groups in tests; the cache is module state.
+ * @internal test seam
+ */
 export function _resetAttemptedCache(): void {
   attemptedCache.clear();
 }

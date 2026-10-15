@@ -90,6 +90,7 @@ class PriceHistoryService {
 
   /**
    * Clear suggestions cache for a family group
+   * @internal test seam
    */
   clearSuggestionsCache(familyGroupId?: string): void {
     if (familyGroupId) {

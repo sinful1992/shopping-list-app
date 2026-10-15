@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.12] - 2026-10-15
+
+### Changed
+- Test-only helpers (SyncEngine.stopPeriodicRetry, PriceHistoryService.clearSuggestionsCache, _resetAttemptedCache) are marked @internal so knip --production and the new npm run dead check skip them.
+
 ## [1.51.11] - 2026-10-15
 
 ### Removed
