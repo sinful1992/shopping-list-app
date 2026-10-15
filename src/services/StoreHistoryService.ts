@@ -102,17 +102,6 @@ class StoreHistoryService {
       return [];
     }
   }
-
-  /**
-   * Clear store history (for testing or user preference)
-   */
-  async clearHistory(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem(this.STORAGE_KEY);
-    } catch {
-      // Silently handle clear history error
-    }
-  }
 }
 
 interface StoreEntry {

@@ -142,14 +142,6 @@ class CategoryHistoryService {
   }
 
   /**
-   * Check if an item has conflicting categories (2+ different categories used)
-   */
-  async hasConflict(familyGroupId: string, itemName: string): Promise<boolean> {
-    const categories = await this.getCategoriesForItem(familyGroupId, itemName);
-    return categories.length >= 2;
-  }
-
-  /**
    * Get most commonly used category for an item
    */
   async getSuggestedCategory(
@@ -158,26 +150,6 @@ class CategoryHistoryService {
   ): Promise<string | null> {
     const categories = await this.getCategoriesForItem(familyGroupId, itemName);
     return categories.length > 0 ? categories[0].category : null;
-  }
-
-  /**
-   * Clear history for a specific item
-   */
-  async clearHistoryForItem(familyGroupId: string, itemName: string): Promise<void> {
-    const normalized = itemName.toLowerCase().trim();
-
-    try {
-      const records = await LocalStorageManager.getCategoryHistoryForItem(
-        familyGroupId,
-        normalized
-      );
-
-      for (const record of records) {
-        await LocalStorageManager.deleteCategoryHistory(record.id);
-      }
-    } catch (error: any) {
-      throw error;
-    }
   }
 }
 

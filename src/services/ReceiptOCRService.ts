@@ -22,9 +22,6 @@ const OCR_PROXY_URL = `${(SUPABASE_URL || '').replace(/\/+$/, '')}/functions/v1/
 
 const DEFAULT_CURRENCY = 'GBP';
 
-/** Health probes should answer fast; don't let a dead server hang the UI. */
-const HEALTH_CHECK_TIMEOUT_MS = 10_000;
-
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
  * ~20s when the model isn't resident; warm requests are a few seconds.
@@ -112,40 +109,6 @@ class ReceiptOCRService {
       throw new Error('OCR server URL must start with http:// or https://');
     }
     await AsyncStorage.setItem(OCR_SERVER_URL_KEY, cleaned);
-  }
-
-  /**
-   * Check if the OCR server is reachable and the model is loaded.
-   */
-  async checkHealth(): Promise<{ ok: boolean; modelLoaded: boolean }> {
-    const serverUrl = await this.getServerUrl();
-    if (!serverUrl) {
-      return { ok: false, modelLoaded: false };
-    }
-
-    // RN's fetch never times out on its own — a dead server would hang
-    // the settings screen's health check indefinitely.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(`${serverUrl}/health`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        return { ok: false, modelLoaded: false };
-      }
-
-      const data = await response.json();
-      return { ok: true, modelLoaded: data.model_loaded === true };
-    } catch {
-      return { ok: false, modelLoaded: false };
-    } finally {
-      clearTimeout(timeoutId);
-    }
   }
 
   /** Empty OCRResult carrying an error message. */

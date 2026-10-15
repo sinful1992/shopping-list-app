@@ -341,17 +341,6 @@ class FirebaseSyncListener {
   }
 
   /**
-   * Stop listening to items for a list
-   */
-  stopListeningToItems(familyGroupId: string, listId: string): void {
-    const key = `items_${familyGroupId}_${listId}`;
-    const unsubscribe = this.activeListeners.get(key);
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  }
-
-  /**
    * Start listening to category history for a family group
    * Syncs Firebase category usage data to local WatermelonDB
    */
@@ -670,7 +659,6 @@ class FirebaseSyncListener {
       unsubscribe();
     }
   }
-
 }
 
 export default new FirebaseSyncListener();

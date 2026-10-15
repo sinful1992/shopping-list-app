@@ -5,7 +5,6 @@ import {
   setAttributes as setCrashlyticsAttributes,
   log as crashlyticsLog,
   recordError as crashlyticsRecordError,
-  crash as crashlyticsCrash,
 } from '@react-native-firebase/crashlytics';
 
 /**
@@ -67,15 +66,6 @@ class CrashReporting {
       crashlyticsLog(getCrashlytics(), `Component stack: ${componentStack}`);
     }
     crashlyticsRecordError(getCrashlytics(), error);
-  }
-
-  /**
-   * Force a crash (for testing purposes only)
-   */
-  testCrash(): void {
-    if (__DEV__) {
-      crashlyticsCrash(getCrashlytics());
-    }
   }
 
   /**

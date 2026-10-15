@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.10] - 2026-10-15
+
+### Removed
+- Dead code: unused methods in HistoryTracker (and the PaginatedHistory type), SearchService, StoreHistoryService, ReceiptOCRService (checkHealth), FirebaseSyncListener (stopListeningToItems), CrashReporting (testCrash), CategoryHistoryService, BudgetTracker, BudgetAlertService and AuthenticationModule (getAuthToken).
+
 ## [1.51.9] - 2026-10-15
 
 ### Removed
