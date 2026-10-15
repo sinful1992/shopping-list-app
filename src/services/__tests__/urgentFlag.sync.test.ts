@@ -42,3 +42,13 @@ describe('hasItemChanged sees the flag', () => {
     expect(changed(local, incoming)).toBe(expected);
   });
 });
+
+describe('hasItemChanged sees a count change from another phone', () => {
+  it.each([
+    [{ unitQty: null }, { unitQty: 2 }, true],
+    [{ unitQty: 2 }, { unitQty: 3 }, true],
+    [{ unitQty: 2 }, { unitQty: 2 }, false],
+  ])('%j → %j changed: %s', (local, incoming, expected) => {
+    expect(changed(local, incoming)).toBe(expected);
+  });
+});

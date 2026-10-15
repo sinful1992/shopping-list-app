@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.14] - 2026-10-15
+
+### Removed
+- Dead code: ReceiptOCRService.getServerUrl and DEFAULT_OCR_SERVER_URL, unused since checkHealth went (scans go through the ocr-proxy edge function).
+
+### Tests
+- hasItemChanged now has cases for a quantity (unitQty) change from another phone; dropping that comparison used to pass every test.
+- The createdAt heal test's list fixture stores storeName/archived as null, as a saved list reads back, so the "only createdAt different" case fails when the createdAt comparison is removed.
+
 ## [1.51.13] - 2026-10-15
 
 ### Removed

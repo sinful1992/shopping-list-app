@@ -12,7 +12,6 @@ import { isReceiptStoragePath, toFileUri } from '../utils/uri';
 import { buildOcrHints, OcrHints } from './ocrHints';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
-const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 
 // Scans go through the ocr-proxy edge function, which holds the Space's
 // shared secret server-side and admits the request on a Firebase ID token.
@@ -80,14 +79,6 @@ interface OCRServerResponse {
  * no cloud costs, runs on Oracle Cloud free tier or local network.
  */
 class ReceiptOCRService {
-  /**
-   * Get the configured OCR server URL.
-   */
-  async getServerUrl(): Promise<string> {
-    const stored = await AsyncStorage.getItem(OCR_SERVER_URL_KEY);
-    return stored ?? DEFAULT_OCR_SERVER_URL;
-  }
-
   /**
    * Return the raw stored URL without falling back to the default.
    * Returns null when the user hasn't overridden the default.

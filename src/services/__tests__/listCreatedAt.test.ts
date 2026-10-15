@@ -61,6 +61,10 @@ const makeList = (overrides: Partial<ShoppingList> = {}): ShoppingList => ({
   merchantName: null,
   purchaseDate: null,
   currency: null,
+  // As a stored list reads back, so a save of the same list is no change and
+  // the heal tests below see only the createdAt difference.
+  storeName: null,
+  archived: null,
   ...overrides,
 });
 
