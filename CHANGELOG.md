@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.8] - 2026-10-15
+
+### Removed
+- Dead code: ArchiveService.archiveList, permanentlyDeleteList, shouldAutoArchive, getDaysUntilArchive and CategoryService.getCategoryColor, getCategoryIcon, getCategoryName, getDefaultCategory, isValidCategory.
+
 ## [1.51.7] - 2026-10-15
 
 ### Removed

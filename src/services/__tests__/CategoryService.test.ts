@@ -81,6 +81,5 @@ describe('CategoryService', () => {
     expect(CategoryService.getCategory('Baking')).toBeNull();
     expect(CategoryService.getCategory(null)).toBeNull();
     expect(CategoryService.getCategory(undefined)).toBeNull();
-    expect(CategoryService.getCategoryName('Baking')).toBe('Other');
   });
 });
