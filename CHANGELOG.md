@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.9] - 2026-10-15
+
+### Removed
+- Dead code: PricePredictionService.invalidateCache, clearAllCaches, getPredictedPrice, prefetchPredictions and PriceHistoryService.getRecentPriceExtremes.
+
 ## [1.51.8] - 2026-10-15
 
 ### Removed
