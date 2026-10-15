@@ -1,7 +1,6 @@
 /**
  * Urgent syncs between phones (task 49): a remote change of only the flag is
- * applied (hasItemChanged sees it), and a conflict keeps the newer side's flag
- * when neither side checked the item.
+ * applied (hasItemChanged sees it).
  */
 jest.useFakeTimers();
 
@@ -41,27 +40,5 @@ describe('hasItemChanged sees the flag', () => {
     [{}, { isUrgent: false }, false],
   ])('%j → %j changed: %s', (local, incoming, expected) => {
     expect(changed(local, incoming)).toBe(expected);
-  });
-});
-
-describe('resolveConflict keeps the newer flag when neither side checked', () => {
-  it('local newer and urgent: merged item is urgent', async () => {
-    const merged = await SyncEngine.resolveConflict(item({ isUrgent: true, updatedAt: 2000 }), item({ isUrgent: false }));
-    expect(merged.isUrgent).toBe(true);
-  });
-
-  it('local newer and cleared: merged item is not urgent', async () => {
-    const merged = await SyncEngine.resolveConflict(item({ isUrgent: false, updatedAt: 2000 }), item({ isUrgent: true }));
-    expect(merged.isUrgent).toBe(false);
-  });
-
-  it('remote newer: remote flag stands', async () => {
-    const merged = await SyncEngine.resolveConflict(item({ isUrgent: true }), item({ isUrgent: false, updatedAt: 2000 }));
-    expect(merged.isUrgent).toBe(false);
-  });
-
-  it('one side checked it: the checked side wins whole, flag and all', async () => {
-    const remote = item({ checked: true, isUrgent: true });
-    expect(await SyncEngine.resolveConflict(item({ isUrgent: false, updatedAt: 9999 }), remote)).toBe(remote);
   });
 });

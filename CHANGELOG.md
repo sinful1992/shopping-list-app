@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.6] - 2026-10-15
+
+### Removed
+- Dead code: SyncEngine.resolveConflict, which the app never called (incoming changes are merged by FirebaseSyncListener). Its tests, including the task 49 urgent cases, went with it.
+
 ## [1.51.5] - 2026-10-15
 
 ### Changed
