@@ -323,6 +323,7 @@ class FirebaseSyncListener {
 
   /**
    * Stop all active listeners
+   * @internal test seam
    */
   stopAllListeners(): void {
     this.activeListeners.forEach((unsubscribe) => unsubscribe());

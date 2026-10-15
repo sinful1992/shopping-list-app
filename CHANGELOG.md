@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.51.13] - 2026-10-15
+
+### Removed
+- Dead code: ShoppingListManager.markListAsCompleted (lists are completed through completeShoppingFast and the receipt flow) and CategoryService.getCategorySortOrder. FirebaseSyncListener.stopAllListeners is only used by tests and is now marked @internal.
+
 ## [1.51.12] - 2026-10-15
 
 ### Changed

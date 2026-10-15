@@ -22,7 +22,7 @@
  * as items get re-edited.
  *
  * Declaration order below IS the display order. sortOrder is kept consistent
- * but nothing reads it (getCategorySortOrder has no call sites).
+ * but nothing reads it.
  */
 
 export type CategoryType =
@@ -161,14 +161,6 @@ class CategoryService {
   getCategory(id: string | null | undefined): Category | null {
     if (!id) return null;
     return this.categories.find(cat => cat.id === id) || null;
-  }
-
-  /**
-   * Get sort order for category (for grouping/sorting)
-   */
-  getCategorySortOrder(id: string | null | undefined): number {
-    const category = this.getCategory(id);
-    return category?.sortOrder || 999; // Uncategorized items go last
   }
 }
 
