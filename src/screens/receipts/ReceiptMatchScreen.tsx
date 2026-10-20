@@ -461,9 +461,10 @@ const ReceiptMatchScreen = () => {
     addedIndices.forEach(idx => {
       const line = lineItems[idx];
       const name = (editingNames[idx] ?? '').trim();
-      // Only a real rename is remembered; the store-free default is offered
-      // again anyway, so saving it would fill the alias table with no gain.
-      if (line && name && name !== stripRetailer(line.description).trim()) {
+      // Only a name other than the one offered is remembered: the offer comes
+      // back anyway, while a typed name, including a store-free one over a
+      // wrong remembered name, has to be learnt.
+      if (line && name && name !== suggestedName(aliases, line).trim()) {
         entries.push({ receiptKey: receiptAliasKey(line.description), itemName: name });
       }
     });

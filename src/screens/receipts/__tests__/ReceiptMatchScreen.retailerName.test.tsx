@@ -141,4 +141,21 @@ describe('receipt lines added as items drop the shop name', () => {
     expect(addedNames()).toContain('Milk');
     expect(addedNames()).not.toContain('Semi Skimmed Milk 2.272L');
   });
+
+  test('typing the store-free name over a wrong remembered name replaces it', async () => {
+    LocalStorageManager.getReceiptAliases.mockResolvedValue(new Map([['tesco semi skimmed milk 2.272l', 'Oat Milk']]));
+    const renderer = await render();
+    const milk = renderer.root.findAllByType(TextInput).find(n => n.props.value === 'Oat Milk');
+    if (!milk) throw new Error('no name field for the milk line');
+    await act(async () => { milk.props.onChangeText('Semi Skimmed Milk 2.272L'); });
+    await apply(renderer);
+    expect(addedNames()).toContain('Semi Skimmed Milk 2.272L');
+    expect(savedAliases()).toEqual([{ receiptKey: 'tesco semi skimmed milk 2.272l', itemName: 'Semi Skimmed Milk 2.272L' }]);
+  });
+
+  test('keeping the remembered name saves nothing new', async () => {
+    LocalStorageManager.getReceiptAliases.mockResolvedValue(new Map([['tesco semi skimmed milk 2.272l', 'Milk']]));
+    await apply(await render());
+    expect(savedAliases()).toEqual([]);
+  });
 });

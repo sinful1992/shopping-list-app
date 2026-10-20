@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.52.1] - 2026-10-20
+
+### Fixed
+- Typing the store-free name over a wrong remembered name for a receipt line is remembered again; 1.52.0 skipped any name equal to the store-free default, so the wrong name came back on every receipt.
+
 ## [1.52.0] - 2026-10-20
 
 ### Changed
