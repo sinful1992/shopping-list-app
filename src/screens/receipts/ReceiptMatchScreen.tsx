@@ -31,6 +31,7 @@ import CrashReporting from '../../services/CrashReporting';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, receiptAliasKey, withLineEdit } from '../../utils/receiptMatcher';
+import { stripRetailer } from '../../utils/stripRetailer';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
   discountsByLine, formatLineQty, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
@@ -42,9 +43,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/** A line the family renamed before is offered under that name again. */
+/**
+ * A line the family renamed before is offered under that name again. Any
+ * other line is offered without the shop's name the till prints in front of
+ * own-brand products, so "Tesco Whole Milk" and "Sainsbury's Whole Milk"
+ * become the same item and their prices can be compared.
+ */
 const suggestedName = (aliases: ReadonlyMap<string, string>, line: ReceiptLineItem) =>
-  aliases.get(receiptAliasKey(line.description)) ?? line.description;
+  aliases.get(receiptAliasKey(line.description)) ?? stripRetailer(line.description);
 
 /**
  * A callback whose identity never changes but always runs the latest `fn`,
@@ -341,7 +347,7 @@ const ReceiptMatchScreen = () => {
     const newItems = addIndices
       .map(idx => {
         const line = lineItems[idx];
-        const name = (editingNames[idx] ?? line.description).trim();
+        const name = (editingNames[idx] ?? stripRetailer(line.description)).trim();
         if (!name) return null;
         const { price, unitQty } = newItemFromLine(paidLines[idx]);
         return { index: idx, name, price: price ?? undefined, unitQty, checked: true as const };
@@ -455,7 +461,10 @@ const ReceiptMatchScreen = () => {
     addedIndices.forEach(idx => {
       const line = lineItems[idx];
       const name = (editingNames[idx] ?? '').trim();
-      if (line && name && name !== line.description.trim()) {
+      // Only a name other than the one offered is remembered: the offer comes
+      // back anyway, while a typed name, including a store-free one over a
+      // wrong remembered name, has to be learnt.
+      if (line && name && name !== suggestedName(aliases, line).trim()) {
         entries.push({ receiptKey: receiptAliasKey(line.description), itemName: name });
       }
     });
