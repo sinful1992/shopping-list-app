@@ -40,6 +40,14 @@ describe('stripRetailer', () => {
     expect(stripRetailer(line)).toBe(expected);
   });
 
+  test('a possessive goes with any store name', () => {
+    expect(stripRetailer("Aldi's Milk")).toBe('Milk');
+    expect(stripRetailer('Asda’s bread')).toBe('bread');
+    expect(stripRetailer("Lidl's eggs")).toBe('eggs');
+    expect(stripRetailer("M&S's Percy Pig")).toBe('Percy Pig');
+    expect(stripRetailer("Aldi's")).toBe("Aldi's");
+  });
+
   test('a name that is only a store is kept', () => {
     expect(stripRetailer('Tesco')).toBe('Tesco');
     expect(stripRetailer('  Iceland ')).toBe('Iceland');

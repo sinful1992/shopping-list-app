@@ -16,7 +16,7 @@ const RETAILER_PREFIX = new RegExp(
       'spar', 'nisa', 'costco', 'booths', 'budgens', 'londis',
       'js', 'cp',
     ].join('|') +
-    ')(?![a-z0-9&\\u00C0-\\u024F])[\\s\\-–:,.]*',
+    ")(?:['’]s)?(?![a-z0-9&\\u00C0-\\u024F])[\\s\\-–:,.]*",
   'i',
 );
 
