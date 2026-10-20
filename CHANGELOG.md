@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.52.0] - 2026-10-20
+
+### Changed
+- Prices of the same product bought at different shops are compared again. Tills print the shop's name in front of own-brand lines ("Tesco Semi Skimmed Milk", Co-op "CP ..."), and price history, the Item Store Comparison and the analytics grouped on that name, so a Tesco and a Sainsbury's purchase never met. Grouping now ignores one leading shop name, so purchases already recorded group together without a migration.
+- A receipt line added as a new item is offered without the shop's name ("Semi Skimmed Milk 2.272L"). Only a name the family types over it is remembered for the next receipt; quality tiers such as Finest stay in the name.
+
 ## [1.51.14] - 2026-10-15
 
 ### Removed
