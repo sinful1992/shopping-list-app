@@ -182,15 +182,21 @@ export function useSettings() {
     if (!opts?.force) {
       // Capped: on Wi-Fi with no internet each queued op waits out its own
       // timeout, which would leave the user staring at nothing for minutes.
+      // A change still on its way to Firebase isn't queued yet; wait for it
+      // too, and if it's still out when time runs out, the count includes it.
       await Promise.race([
-        SyncEngine.syncPendingChanges().catch(err =>
-          CrashReporting.recordError(err as Error, 'useSettings logout flush')),
+        Promise.all([
+          SyncEngine.syncPendingChanges().catch(err =>
+            CrashReporting.recordError(err as Error, 'useSettings logout flush')),
+          SyncEngine.waitForInFlight(),
+        ]),
         new Promise(resolve => setTimeout(resolve, LOGOUT_FLUSH_TIMEOUT_MS)),
       ]);
       // Not caught: if the queue can't even be read, failing the sign-out is
       // safer than deleting changes nobody counted.
       const { pendingOperations } = await SyncEngine.getSyncStatus();
-      if (pendingOperations > 0) return { signedOut: false, pending: pendingOperations };
+      const pending = pendingOperations + SyncEngine.getInFlightCount();
+      if (pending > 0) return { signedOut: false, pending };
     }
     await AuthenticationModule.signOut();
     return { signedOut: true, pending: 0 };
