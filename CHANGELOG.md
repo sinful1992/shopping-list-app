@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.11] - 2026-10-29
+
+### Fixed
+- Saving one budget limit no longer wipes the other: the form now opens with both saved limits filled in (review #6).
+
 ## [1.53.10] - 2026-10-29
 
 ### Fixed
