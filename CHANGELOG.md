@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.13] - 2026-10-29
+
+### Fixed
+- Sign-out also resets the sync engine before clearing, so a change still being sent can't land in the next account's family. Sign-out can no longer hang on removing the push token (capped), a double tap no longer shows "Sign out failed", and sending waiting changes gives up after 10 seconds and asks. Account delete clears the phone the same way. "Accept Ads" tapped offline keeps the screen for someone who refused before. The Budget form also fills in the saved limits when they load after it was opened (ada's review of 1.53.9-1.53.12).
+
 ## [1.53.12] - 2026-10-29
 
 ### Fixed

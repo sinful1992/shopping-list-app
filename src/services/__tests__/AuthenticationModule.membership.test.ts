@@ -51,6 +51,10 @@ jest.mock('../FirebaseSyncListener', () => ({
   __esModule: true,
   default: { stopAllListeners: jest.fn() },
 }));
+jest.mock('../SyncEngine', () => ({
+  __esModule: true,
+  default: { resetForSignOut: jest.fn() },
+}));
 jest.mock('../ImageStorageManager', () => ({
   __esModule: true,
   default: { clearUploadQueue: jest.fn(() => Promise.resolve()) },
@@ -324,6 +328,17 @@ describe('deleteUserAccount', () => {
 
     expect(pathsWritten()).toContain(`remove /familyGroups/${GROUP}/joinRequests/${BOB}`);
     expect(pathsWritten()).toContain(`remove /users/${BOB}`);
+  });
+
+  // Task 100 review: account delete clears the phone the same way sign-out
+  // does, so no listener, in-flight push or queued upload outlives the account.
+  it('stops listeners and the sync engine and drops queued uploads, like sign-out', async () => {
+    mockTree[`/users/${BOB}`] = bob({});
+    await AuthenticationModule.deleteUserAccount(PASSWORD);
+    expect(jest.requireMock('../FirebaseSyncListener').default.stopAllListeners).toHaveBeenCalled();
+    expect(jest.requireMock('../SyncEngine').default.resetForSignOut).toHaveBeenCalled();
+    expect(jest.requireMock('../ImageStorageManager').default.clearUploadQueue).toHaveBeenCalled();
+    expect(jest.requireMock('../LocalStorageManager').default.clearAllData).toHaveBeenCalled();
   });
 
   // The request is what authorises an approval: both the .write and the

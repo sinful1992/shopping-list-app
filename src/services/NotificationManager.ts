@@ -22,6 +22,7 @@ import CrashReporting from './CrashReporting';
 class NotificationManager {
   private fcmToken: string | null = null;
   private readonly STALE_TOKEN_KEY = '@fcm_token_stale';
+  private readonly DELETE_TOKEN_TIMEOUT_MS = 1000;
   private readonly FCM_TOKEN_KEY = '@fcm_token';
 
   /**
@@ -257,7 +258,12 @@ class NotificationManager {
     await SecureStorage.removeItem(this.FCM_TOKEN_KEY).catch(() => undefined);
     await SecureStorage.removeItem('@fcm_token_data').catch(() => undefined);
     try {
-      await deleteToken(getMessaging());
+      // Capped: a call that never answers (offline) would hang every sign-out.
+      await Promise.race([
+        deleteToken(getMessaging()),
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('deleteToken timed out')), this.DELETE_TOKEN_TIMEOUT_MS)),
+      ]);
     } catch (err) {
       // Usually offline. Mark it, so getFCMToken revokes it before reuse.
       CrashReporting.recordError(err as Error, 'NotificationManager clearToken deleteToken');

@@ -47,6 +47,10 @@ jest.mock('../FirebaseSyncListener', () => ({
   __esModule: true,
   default: { stopAllListeners: jest.fn(() => { mockCalls.push('stopAllListeners'); }) },
 }));
+jest.mock('../SyncEngine', () => ({
+  __esModule: true,
+  default: { resetForSignOut: jest.fn(() => { mockCalls.push('resetForSignOut'); }) },
+}));
 jest.mock('../ImageStorageManager', () => ({
   __esModule: true,
   default: { clearUploadQueue: jest.fn(() => { mockCalls.push('clearUploadQueue'); return Promise.resolve(); }) },
@@ -76,7 +80,7 @@ describe('AuthenticationModule.signOut (review #2/#3)', () => {
   it('removes the push token, stops listeners, clears local data and the upload queue, then signs out', async () => {
     await AuthenticationModule.signOut();
     const order = mockCalls.filter(c => !c.startsWith('secure.'));
-    expect(order).toEqual(['clearToken', 'stopAllListeners', 'clearAllData', 'clearUploadQueue', 'firebaseSignOut']);
+    expect(order).toEqual(['clearToken', 'stopAllListeners', 'resetForSignOut', 'clearAllData', 'clearUploadQueue', 'firebaseSignOut']);
   });
 
   it('clears the push token on every caller, not only the Settings button', async () => {

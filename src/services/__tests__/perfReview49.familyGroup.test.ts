@@ -47,6 +47,10 @@ jest.mock('../FirebaseSyncListener', () => ({
   __esModule: true,
   default: { stopAllListeners: jest.fn() },
 }));
+jest.mock('../SyncEngine', () => ({
+  __esModule: true,
+  default: { resetForSignOut: jest.fn() },
+}));
 jest.mock('../ImageStorageManager', () => ({
   __esModule: true,
   default: { clearUploadQueue: jest.fn(() => Promise.resolve()) },

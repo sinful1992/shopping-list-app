@@ -32,6 +32,7 @@ import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
 import FirebaseSyncListener from './FirebaseSyncListener';
 import ImageStorageManager from './ImageStorageManager';
+import SyncEngine from './SyncEngine';
 import CrashReporting from './CrashReporting';
 
 /** How an already signed-in account proves it is still present. */
@@ -51,6 +52,9 @@ class AuthenticationModule {
    * does not treat the profile it deletes as a session to repair.
    */
   private deletionInProgress = false;
+  private signOutInFlight: Promise<void> | null = null;
+  // clearToken caps its own FCM call; this is the backstop for the whole step.
+  private readonly CLEAR_TOKEN_TIMEOUT_MS = 1500;
 
   /**
    * Sign up new user with email and password
@@ -245,11 +249,37 @@ class AuthenticationModule {
    * Implements Req 1.6
    */
   async signOut(): Promise<void> {
+    // A double tap must not run it twice: the second Firebase sign-out finds
+    // no user and would report a failure after a good sign-out.
+    if (!this.signOutInFlight) {
+      this.signOutInFlight = this.runSignOut().finally(() => { this.signOutInFlight = null; });
+    }
+    return this.signOutInFlight;
+  }
+
+  /**
+   * Remove everything of this account from the phone: listeners and the sync
+   * engine first (a late Firebase event or an in-flight push must not write
+   * after the clear, nor replay into the next account's family), then the
+   * local DB with its sync queue, then queued receipt uploads.
+   */
+  private async clearLocalSession(): Promise<void> {
+    FirebaseSyncListener.stopAllListeners();
+    SyncEngine.resetForSignOut();
+    await LocalStorageManager.clearAllData();
+    await ImageStorageManager.clearUploadQueue();
+  }
+
+  private async runSignOut(): Promise<void> {
     try {
       // Every sign-out path comes through here, so the push token is removed
       // here too: left registered, the next account on this phone would get
-      // this family's notifications. Never throws (offline is handled inside).
-      await NotificationManager.clearToken();
+      // this family's notifications. Best effort: it must not block sign-out.
+      await Promise.race([
+        NotificationManager.clearToken().catch(err =>
+          CrashReporting.recordError(err as Error, 'AuthenticationModule signOut clearToken')),
+        new Promise(resolve => setTimeout(resolve, this.CLEAR_TOKEN_TIMEOUT_MS)),
+      ]);
 
       // Revoke Google access if signed in with Google
       try {
@@ -261,12 +291,9 @@ class AuthenticationModule {
       }
 
       // This account's lists, items and unsent changes must not reach the next
-      // account: queued ops would sync into its family. Listeners stop first,
-      // so a late Firebase event can't write rows back into the cleared DB.
-      // A failed clear fails the sign-out, rather than leave the data behind.
-      FirebaseSyncListener.stopAllListeners();
-      await LocalStorageManager.clearAllData();
-      await ImageStorageManager.clearUploadQueue();
+      // account: queued ops would sync into its family. A failed clear fails
+      // the sign-out, rather than leave the data behind.
+      await this.clearLocalSession();
 
       await firebaseSignOut(getAuth());
       // Clear user data and token from encrypted storage
@@ -896,8 +923,8 @@ class AuthenticationModule {
       // Step 6: Delete user profile from Realtime Database
       await remove(ref(db, `/users/${userId}`));
 
-      // Step 7: Clear all local WatermelonDB data
-      await LocalStorageManager.clearAllData();
+      // Step 7: Clear all local data, the same way sign-out does
+      await this.clearLocalSession();
 
       // Step 8: Clear storage (user data and token from encrypted storage)
       await SecureStorage.removeItem(this.USER_KEY);

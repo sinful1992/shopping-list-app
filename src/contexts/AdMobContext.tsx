@@ -49,21 +49,36 @@ function recordConsentAnswer(canRequestAds: boolean): void {
  * A refusal on record keeps the wall (fails closed). With no answer at all the
  * form can't be shown, so the user gets in without ads until UMP is reachable.
  */
-async function offlineConsent(): Promise<'obtained' | 'refused' | 'unknown'> {
-  let cached: { canRequestAds: boolean; status?: string } | null = null;
+type CachedConsent = { canRequestAds: boolean; status?: string } | null;
+
+async function readCachedConsent(): Promise<CachedConsent> {
   try {
-    cached = await AdsConsent.getConsentInfo();
+    return await AdsConsent.getConsentInfo();
   } catch (e) {
     CrashReporting.recordError(e as Error, 'AdMobContext cached consent info');
+    return null;
   }
+}
+
+async function offlineConsent(
+  cachedBefore?: CachedConsent,
+): Promise<'obtained' | 'refused' | 'unknown'> {
+  // retryConsent passes the cache it read before AdsConsent.reset() wiped it.
+  const cached = cachedBefore !== undefined ? cachedBefore : await readCachedConsent();
   if (cached?.canRequestAds) return 'obtained';
+  if (cached?.status === 'OBTAINED') {
+    // A refusal UMP remembers (made before this build kept its own record):
+    // keep it here too, so a later reset can't lose it.
+    recordConsentAnswer(false);
+    return 'refused';
+  }
   let refused: string | null = null;
   try {
     refused = await AsyncStorage.getItem(CONSENT_REFUSED_KEY);
   } catch (e) {
     CrashReporting.recordError(e as Error, 'AdMobContext read consent answer');
   }
-  if (refused || cached?.status === 'OBTAINED') return 'refused';
+  if (refused) return 'refused';
   return 'unknown';
 }
 
@@ -195,14 +210,17 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     setConsentObtained(false);
     setIsInitialized(false);
 
+    // reset() wipes UMP's cached answer, which is the only record of a
+    // refusal made before this build: read it first for the offline fallback.
+    const cachedBefore = await readCachedConsent();
     try {
       AdsConsent.reset();
       await AdsConsent.gatherConsent();
     } catch (e) {
       CrashReporting.recordError(e as Error, 'AdMobContext UMP consent retry');
-      // Accept Ads tapped while offline: the form can't open, so nobody refused
-      // anything here. Same fallback as a cold start.
-      const fallback = await offlineConsent();
+      // Accept Ads tapped while offline: the form can't open. Same fallback as
+      // a cold start, judged on the answer from before the reset.
+      const fallback = await offlineConsent(cachedBefore);
       setConsentObtained(fallback === 'obtained');
       setConsentUnavailable(fallback === 'unknown');
       setConsentChecked(true);

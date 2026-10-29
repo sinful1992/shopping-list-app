@@ -84,4 +84,19 @@ describe('useSettings.logout (review #2)', () => {
     await expect(r.current.logout()).rejects.toThrow('db locked');
     expect(signOut).not.toHaveBeenCalled();
   });
+
+  it('gives up sending after 10 s on Wi-Fi with no internet and asks, instead of hanging', async () => {
+    jest.useFakeTimers();
+    try {
+      sync.syncPendingChanges.mockReturnValue(new Promise(() => {}));
+      pending(2);
+      const r = await hook();
+      const done = r.current.logout();
+      await act(async () => { jest.advanceTimersByTime(10000); });
+      await expect(done).resolves.toEqual({ signedOut: false, pending: 2 });
+      expect(signOut).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
