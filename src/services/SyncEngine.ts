@@ -31,6 +31,9 @@ class SyncEngine {
   private familyGroupId: string | null = null;
   // Bumped on sign-out: work started for the old account must not queue or send afterwards
   private session = 0;
+  // pushChange writes not yet settled: not in the queue yet, but not sent either
+  private inFlight = 0;
+  private inFlightWaiters: Array<() => void> = [];
   private syncInProgress: boolean = false;
   private retryIntervalId: ReturnType<typeof setInterval> | null = null;
   private statusListeners = new Set<(status: SyncEngineStatus) => void>();
@@ -178,6 +181,7 @@ class SyncEngine {
 
     if (this.isOnline) {
       const write = this.syncToFirebase(entityType, entityId, operation, syncData);
+      this.inFlight++;
       try {
         await this.withTimeout(write);
         if (session !== this.session) return;
@@ -187,6 +191,11 @@ class SyncEngine {
         if (session !== this.session) return;
         const queuedId = await this.queueOperation(entityType, entityId, operation, syncData);
         this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
+      } finally {
+        this.inFlight--;
+        if (this.inFlight === 0) {
+          this.inFlightWaiters.splice(0).forEach(resolve => resolve());
+        }
       }
     } else {
       await this.queueOperation(entityType, entityId, operation, syncData);
@@ -321,6 +330,17 @@ class SyncEngine {
       failedCount: result.deferred,
       errors: [],
     };
+  }
+
+  /** Changes being sent right now. A failed send joins the queue only after its timeout. */
+  getInFlightCount(): number {
+    return this.inFlight;
+  }
+
+  /** Resolves once no change is being sent. May wait as long as a send's timeout; callers cap it. */
+  waitForInFlight(): Promise<void> {
+    if (this.inFlight === 0) return Promise.resolve();
+    return new Promise(resolve => this.inFlightWaiters.push(resolve));
   }
 
   /**

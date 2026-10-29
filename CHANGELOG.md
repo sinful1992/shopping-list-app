@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.14] - 2026-10-29
+
+### Added
+- SyncEngine reports changes still being sent (`getInFlightCount`, `waitForInFlight`), so Logout can count an edit made seconds earlier on Wi-Fi with no internet (Codex P2 on PR #54).
+
 ### Changed
 - The database rules tests run one file at a time, so two suites can't clear each other's emulator data.
 
