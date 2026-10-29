@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.17] - 2026-10-29
+
+### Fixed
+- Logout reads the changes still being sent before the waiting ones, so a change that moves from one to the other at that moment is still counted in "Changes Not Sent" (ada's review of 1.53.15).
+
+## [1.53.16] - 2026-10-29
+
+### Fixed
+- A change counts as being sent from the moment it is made, including the local read before the send and the queue write when offline, so Logout can't miss it in those few milliseconds (linus's review of 1.53.14).
+
+## [1.53.15] - 2026-10-29
+
+### Fixed
+- An edit made seconds before Logout, while it is still being sent, is no longer lost without a word: logout waits for it (within the same 10 seconds) and, if it still hasn't gone through, counts it in "Changes Not Sent" (Codex review on PR #54).
+
+## [1.53.14] - 2026-10-29
+
+### Added
+- SyncEngine reports changes still being sent (`getInFlightCount`, `waitForInFlight`), so Logout can count an edit made seconds earlier on Wi-Fi with no internet (Codex P2 on PR #54).
+
 ### Changed
 - The database rules tests run one file at a time, so two suites can't clear each other's emulator data.
 
