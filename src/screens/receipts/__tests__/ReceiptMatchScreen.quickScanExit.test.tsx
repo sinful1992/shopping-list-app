@@ -49,7 +49,7 @@ jest.mock('../../../contexts/UserContext', () => {
 });
 jest.mock('../../../services/ShoppingListManager', () => ({
   __esModule: true,
-  default: { getListById: jest.fn(), deleteList: jest.fn(), updateList: jest.fn() },
+  default: { getListById: jest.fn(), deleteList: jest.fn(), updateList: jest.fn(), completeFromReceipt: jest.fn() },
 }));
 jest.mock('../../../services/ItemManager', () => ({
   __esModule: true,
@@ -123,6 +123,7 @@ beforeEach(() => {
   route.params = { listId: 'list-1', autoAddAll: true };
   ShoppingListManager.deleteList.mockResolvedValue(undefined);
   ShoppingListManager.updateList.mockResolvedValue({});
+  ShoppingListManager.completeFromReceipt.mockResolvedValue({});
 });
 
 describe('quick-scan list is discarded on every way out but Apply', () => {
@@ -150,7 +151,7 @@ describe('quick-scan list is discarded on every way out but Apply', () => {
   test('Apply completes the list and leaving afterwards never deletes it', async () => {
     const renderer = await render();
     await press(renderer, /^(Apply|Add|Complete)/);
-    expect(ShoppingListManager.updateList).toHaveBeenCalledWith('list-1', expect.objectContaining({ status: 'completed' }));
+    expect(ShoppingListManager.completeFromReceipt).toHaveBeenCalledWith('list-1', 'user-1', 0);
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
     await leaveByBack();
     expect(ShoppingListManager.deleteList).not.toHaveBeenCalled();
@@ -172,7 +173,7 @@ describe('quick-scan list is discarded on every way out but Apply', () => {
         ItemManager.getItemsForList.mockResolvedValue(written);
         return written;
       });
-      ShoppingListManager.updateList.mockRejectedValueOnce(new Error('db busy'));
+      ShoppingListManager.completeFromReceipt.mockRejectedValueOnce(new Error('db busy'));
       const renderer = await render();
       await press(renderer, /^(Apply|Add|Complete)/);
       expect(ItemManager.addItemsBatch).toHaveBeenCalledTimes(1);

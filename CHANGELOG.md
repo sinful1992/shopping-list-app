@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.3] - 2026-10-29
+
+### Fixed
+- Partial Shop keeps each carried-over item's unit count ("2 x Eggs" stayed "Eggs" on the new list), from Done Shopping and from a receipt scan alike (Codex review on PR #53).
+
+## [1.53.2] - 2026-10-29
+
+### Fixed
+- When Apply fails after some of the receipt was already saved, the receipt lines lock and the button reads Try again. The retry saves only what is still missing and then completes the list. Before, a line ticked between the two taps was reported as added but never saved.
+
+## [1.53.1] - 2026-10-29
+
+### Fixed
+- Tapping Apply again after the list could not be completed no longer adds the receipt's new items, or their prices, a second time.
+
+## [1.53.0] - 2026-10-29
+
+### Added
+- Scanning a receipt on a list now finishes the shopping: Apply on Receipt Match moves the list to History as completed, keeps the receipt's total and store, and releases shopping mode. Before, only the quick scan on Home did this, so a list scanned after shopping stayed active.
+- When the receipt leaves list items unchecked, Apply asks Full Shop / Partial Shop / Cancel like Done Shopping; Partial Shop moves those items to a new list with the same name. Match again on a completed list only corrects it.
+
 ## [1.52.1] - 2026-10-20
 
 ### Fixed

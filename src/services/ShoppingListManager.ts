@@ -250,6 +250,30 @@ class ShoppingListManager {
   }
 
   /**
+   * Finish a trip from its scanned receipt. The scan already wrote the
+   * receipt, total, store and date at confirm time, so unlike
+   * completeShoppingFast this leaves them alone; it also releases a
+   * shopping-mode lock the shopper may still hold.
+   */
+  async completeFromReceipt(
+    listId: string,
+    userId: string,
+    uncheckedItemsCount: number
+  ): Promise<ShoppingList> {
+    return this.updateList(listId, {
+      status: 'completed',
+      completedAt: Date.now(),
+      completedBy: userId,
+      uncheckedItemsCount,
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
+    });
+  }
+
+  /**
    * Fast completion using pre-calculated total (avoids re-fetching items)
    * Used by UI when running total is already known
    */

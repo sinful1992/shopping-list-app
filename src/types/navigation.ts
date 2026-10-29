@@ -17,8 +17,8 @@ export type ListsStackParamList = {
   Home: undefined;
   ListDetail: { listId: string };
   HistoryDetail: { listId: string };
-  ReceiptCamera: { listId?: string; autoAddAll?: boolean };
-  ReceiptMatch: { listId: string; autoAddAll?: boolean };
+  ReceiptCamera: { listId?: string; autoAddAll?: boolean; completeOnApply?: boolean };
+  ReceiptMatch: { listId: string; autoAddAll?: boolean; completeOnApply?: boolean };
   ReceiptView: { listId: string };
 };
 
@@ -26,7 +26,7 @@ export type HistoryStackParamList = {
   HistoryHome: undefined;
   HistoryDetail: { listId: string };
   ReceiptView: { listId: string };
-  ReceiptMatch: { listId: string; autoAddAll?: boolean };
+  ReceiptMatch: { listId: string; autoAddAll?: boolean; completeOnApply?: boolean };
 };
 
 declare global {
