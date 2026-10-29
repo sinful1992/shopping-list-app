@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.2] - 2026-10-29
+
+### Fixed
+- When Apply fails after some of the receipt was already saved, the receipt lines lock and the button reads Try again. The retry saves only what is still missing and then completes the list. Before, a line ticked between the two taps was reported as added but never saved.
+
 ## [1.53.1] - 2026-10-29
 
 ### Fixed

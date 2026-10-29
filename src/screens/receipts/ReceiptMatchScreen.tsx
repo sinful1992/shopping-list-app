@@ -92,8 +92,10 @@ const ReceiptMatchScreen = () => {
   const user = useUser();
   const userId = user?.uid ?? null;
   const applyingRef = useRef(false);
-  const itemsAddedRef = useRef(false);
-  const writesDoneRef = useRef(false);
+  // Apply's writes that have landed. Once any has, the rows are frozen:
+  // a retry after a failure must not see a plan the first tap never wrote.
+  const writeStepsRef = useRef({ corrections: false, added: false, updated: false, remembered: false });
+  const [frozen, setFrozen] = useState(false);
   // Set once the screen is left through Apply or Skip, which settle the
   // quick-scan list themselves; any other way out discards it.
   const settledRef = useRef(false);
@@ -440,48 +442,51 @@ const ReceiptMatchScreen = () => {
     applyingRef.current = true;
     setApplying(true);
     try {
-      // An Apply whose writes landed but whose completion failed is tapped
-      // again to retry: the items are not written, or priced, twice.
-      if (!writesDoneRef.current) {
-        // The fixed lines go back into the receipt, so Receipt Details, a
-        // later "Match again" and the rest of the family see them too.
-        if (hasCorrections && receiptData) {
-          await ShoppingListManager.updateList(listId, { receiptData: { ...receiptData, lineItems } });
-        }
-        const written: Item[] = [];
-        if (newItems.length > 0 && !itemsAddedRef.current) {
-          if (!userId) throw new Error('User not authenticated');
-          // Filed under the category the family usually gives that name, the
-          // way an item added from Frequently Bought is.
-          const familyGroupId = shoppingList?.familyGroupId;
-          const categories = await Promise.all(newItems.map(n =>
-            familyGroupId
-              ? CategoryHistoryService.getSuggestedCategory(familyGroupId, n.name).catch(() => null)
-              : Promise.resolve(null)));
-          written.push(...await ItemManager.addItemsBatch(
-            listId,
-            newItems.map(({ name, price, unitQty, checked }, i) => ({
-              name, price, unitQty, checked, category: categories[i],
-            })),
-            userId,
-          ));
-          itemsAddedRef.current = true;
-        }
-        if (updates.length > 0) {
-          written.push(...await ItemManager.updateItemsBatch(updates));
-        }
-        // The receipt is the most exact price source the app gets; without this
-        // it never reached price history, only a check-off in the shop did.
-        // An item that was already checked had its category counted when it
-        // was, so a repeat Apply only corrects its price record.
-        written
-          .filter(i => i.checked)
-          .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
-        if (shoppingList?.familyGroupId) {
-          rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
-            .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
-        }
-        writesDoneRef.current = true;
+      // Each write is a step that runs once. When one fails after another
+      // landed, the screen freezes (see `frozen`) so a retry writes what the
+      // first tap planned: the remaining steps, then the completion.
+      const done = writeStepsRef.current;
+      // The fixed lines go back into the receipt, so Receipt Details, a
+      // later "Match again" and the rest of the family see them too.
+      if (hasCorrections && receiptData && !done.corrections) {
+        await ShoppingListManager.updateList(listId, { receiptData: { ...receiptData, lineItems } });
+        done.corrections = true;
+      }
+      // The receipt is the most exact price source the app gets; without the
+      // recordPurchase calls it never reached price history, only a check-off
+      // in the shop did. An item that was already checked had its category
+      // counted when it was, so a repeat Apply only corrects its price record.
+      const record = (written: Item[]) => written
+        .filter(i => i.checked)
+        .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
+      if (newItems.length > 0 && !done.added) {
+        if (!userId) throw new Error('User not authenticated');
+        // Filed under the category the family usually gives that name, the
+        // way an item added from Frequently Bought is.
+        const familyGroupId = shoppingList?.familyGroupId;
+        const categories = await Promise.all(newItems.map(n =>
+          familyGroupId
+            ? CategoryHistoryService.getSuggestedCategory(familyGroupId, n.name).catch(() => null)
+            : Promise.resolve(null)));
+        const added = await ItemManager.addItemsBatch(
+          listId,
+          newItems.map(({ name, price, unitQty, checked }, i) => ({
+            name, price, unitQty, checked, category: categories[i],
+          })),
+          userId,
+        );
+        done.added = true;
+        record(added);
+      }
+      if (updates.length > 0 && !done.updated) {
+        const updated = await ItemManager.updateItemsBatch(updates);
+        done.updated = true;
+        record(updated);
+      }
+      if (shoppingList?.familyGroupId && !done.remembered) {
+        done.remembered = true;
+        rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
+          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
       }
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`);
@@ -522,6 +527,8 @@ const ReceiptMatchScreen = () => {
       }
       close(parts);
     } catch (error: any) {
+      const steps = writeStepsRef.current;
+      if (steps.corrections || steps.added || steps.updated) setFrozen(true);
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       applyingRef.current = false;
@@ -659,6 +666,7 @@ const ReceiptMatchScreen = () => {
     if (parts.length === 0 && linesByItem.size > 0) parts.push('Done');
     return parts.length ? parts.join(' · ') : 'Apply';
   })();
+  const applyText = frozen ? 'Try again' : applyLabel;
 
   const pickerLink = pickerReceiptIndex != null ? links[pickerReceiptIndex] ?? null : null;
 
@@ -676,6 +684,7 @@ const ReceiptMatchScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View pointerEvents={frozen ? 'none' : 'auto'}>
         <ReceiptCard>
           <Text style={styles.merchant}>
             {shoppingList?.merchantName || 'RECEIPT'}
@@ -804,6 +813,7 @@ const ReceiptMatchScreen = () => {
             ))}
           </ReceiptCard>
         )}
+        </View>
       </ScrollView>
 
       <AssignPickerModal
@@ -858,7 +868,7 @@ const ReceiptMatchScreen = () => {
             {applying ? (
               <ActivityIndicator color={theme.text.onAccent} />
             ) : (
-              <Text style={styles.applyText}>{applyLabel}</Text>
+              <Text style={styles.applyText}>{applyText}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>

@@ -131,7 +131,7 @@ async function choose(text: string): Promise<void> {
   await act(async () => { await button.onPress?.(); });
 }
 
-const APPLY = /^(Apply|Update|Add|Done|Save)/;
+const APPLY = /^(Apply|Update|Add|Done|Save|Try again)/;
 
 const lastAlert = () => showAlert.mock.calls[showAlert.mock.calls.length - 1];
 
@@ -235,6 +235,70 @@ describe('a receipt scanned on a list', () => {
     expect(ItemManager.addItemsBatch).toHaveBeenCalledTimes(1);
     expect(ItemManager.recordPurchase).toHaveBeenCalledTimes(1);
     expect(ShoppingListManager.completeFromReceipt).toHaveBeenCalledTimes(2);
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  // linus #7646: a retry used to skip every write, so a line ticked to add
+  // between the two taps was never added while the alert said it was.
+  test('after a failed completion the rows freeze and the retry only completes', async () => {
+    ShoppingListManager.getListById.mockReset();
+    const butterReceipt = {
+      lineItems: [
+        { description: 'Milk 2L', quantity: 1, unitPrice: 1.65, price: 1.65, vatCode: null },
+        { description: 'Butter', quantity: 1, unitPrice: 2.1, price: 2.1, vatCode: null },
+      ],
+      discounts: [],
+    } as unknown as ReceiptData;
+    ShoppingListManager.completeFromReceipt.mockRejectedValueOnce(new Error('offline'));
+    const renderer = await render([milk], [{ ...milk, checked: true }]);
+    ShoppingListManager.getListById.mockResolvedValue({
+      id: 'list-1', name: 'Weekly shop', familyGroupId: 'fam-1', currency: '£',
+      merchantName: 'Tesco', totalAmount: 3.75, receiptData: butterReceipt, status: 'active',
+    });
+    ItemManager.getItemsForList.mockReset();
+    ItemManager.getItemsForList.mockResolvedValueOnce([milk]).mockResolvedValue([{ ...milk, checked: true }]);
+    let fresh!: ReactTestRenderer;
+    await act(async () => { renderer.unmount(); fresh = create(<ReceiptMatchScreen />); });
+    await press(fresh, APPLY);
+    expect(ItemManager.updateItemsBatch).toHaveBeenCalledTimes(1);
+    expect(navigation.goBack).not.toHaveBeenCalled();
+
+    const frozenRows = fresh.root.findAll(n => n.props.pointerEvents === 'none');
+    expect(frozenRows.length).toBeGreaterThan(0);
+    expect(frozenRows.some(n => /Butter/.test(textOf(n)))).toBe(true);
+
+    await press(fresh, /^Try again$/);
+    expect(ItemManager.updateItemsBatch).toHaveBeenCalledTimes(1);
+    expect(ItemManager.addItemsBatch).not.toHaveBeenCalled();
+    expect(ItemManager.recordPurchase).toHaveBeenCalledTimes(1);
+    expect(ShoppingListManager.completeFromReceipt).toHaveBeenCalledTimes(2);
+    expect(lastAlert()[1]).toBe('Updated 1 item · Shopping completed');
+  });
+
+  test('a write that fails after another landed retries only the one that failed', async () => {
+    route.params = { listId: 'list-1', autoAddAll: true };
+    ShoppingListManager.getListById.mockResolvedValue({
+      id: 'list-1', name: 'Weekly shop', familyGroupId: 'fam-1', currency: '£',
+      merchantName: 'Tesco', totalAmount: 3.75, status: 'active',
+      receiptData: {
+        lineItems: [
+          { description: 'Milk 2L', quantity: 1, unitPrice: 1.65, price: 1.65, vatCode: null },
+          { description: 'Butter', quantity: 1, unitPrice: 2.1, price: 2.1, vatCode: null },
+        ],
+        discounts: [],
+      },
+    });
+    ItemManager.getItemsForList.mockResolvedValue([milk]);
+    ItemManager.addItemsBatch.mockResolvedValue([{ ...milk, id: 'new-butter', name: 'Butter', checked: true }]);
+    ItemManager.updateItemsBatch.mockRejectedValueOnce(new Error('db busy'));
+    let renderer!: ReactTestRenderer;
+    await act(async () => { renderer = create(<ReceiptMatchScreen />); });
+    await press(renderer, APPLY);
+    expect(ShoppingListManager.completeFromReceipt).not.toHaveBeenCalled();
+    await press(renderer, /^Try again$/);
+    expect(ItemManager.addItemsBatch).toHaveBeenCalledTimes(1);
+    expect(ItemManager.updateItemsBatch).toHaveBeenCalledTimes(2);
+    expect(ShoppingListManager.completeFromReceipt).toHaveBeenCalledTimes(1);
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
   });
 
