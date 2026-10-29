@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.5] - 2026-10-29
+
+### Fixed
+- Items deleted on another phone while this phone's app was closed no longer come back when the list is opened, so ticking one can't bring it back for the whole family either (review #7).
+
 ## [1.53.4] - 2026-10-29
 
 ### Fixed

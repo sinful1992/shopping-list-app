@@ -148,8 +148,13 @@ class FirebaseSyncListener {
       await this.syncItemToLocal(listId, snap.key, snap.val());
     });
 
-    // once('value'): sole initial load path
-    get(filteredRef).then(async (snapshot) => {
+    // once('value'): sole initial load path. The local read comes first: an item
+    // already synced before the server read and missing from it was deleted remotely.
+    LocalStorageManager.getItemsForList(listId).then(async (itemsBeforeLoad) => {
+      const syncedBeforeLoad = new Set(
+        itemsBeforeLoad.filter(i => i.syncStatus === 'synced').map(i => i.id)
+      );
+      const snapshot = await get(filteredRef);
       if (isCancelled) return;
       const entries: { id: string; data: any }[] = [];
       snapshot.forEach(snap => {
@@ -173,6 +178,12 @@ class FirebaseSyncListener {
       }
       if (toSync.length > 0) {
         await LocalStorageManager.saveItemsBatchUpsert(toSync);
+      }
+      const deletedRemotely = localItems
+        .filter(i => i.syncStatus === 'synced' && syncedBeforeLoad.has(i.id) && !initialItemIds.has(i.id))
+        .map(i => i.id);
+      if (deletedRemotely.length > 0) {
+        await LocalStorageManager.deleteItemsBatch(deletedRemotely);
       }
     }).catch(err => {
       initialLoadDone = true;
