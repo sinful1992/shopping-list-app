@@ -194,8 +194,12 @@ export function useSettings() {
       ]);
       // Not caught: if the queue can't even be read, failing the sign-out is
       // safer than deleting changes nobody counted.
+      // In-flight first: a send that times out while the queue is being read
+      // moves from one to the other, and read the other way round it would be
+      // missed by both. This way the worst case counts it twice.
+      const inFlight = SyncEngine.getInFlightCount();
       const { pendingOperations } = await SyncEngine.getSyncStatus();
-      const pending = pendingOperations + SyncEngine.getInFlightCount();
+      const pending = pendingOperations + inFlight;
       if (pending > 0) return { signedOut: false, pending };
     }
     await AuthenticationModule.signOut();

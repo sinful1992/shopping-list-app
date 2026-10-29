@@ -134,4 +134,27 @@ describe('useSettings.logout (review #2)', () => {
       jest.useRealTimers();
     }
   });
+
+  // ada's review of 1.53.15: the send times out during the queue read and
+  // moves into the queue after it was read. Counting in-flight first catches it.
+  it('a send that moves into the queue while the queue is being read is still counted', async () => {
+    jest.useFakeTimers();
+    try {
+      sync.waitForInFlight.mockReturnValue(new Promise(() => {}));
+      sync.getInFlightCount.mockReturnValue(1);
+      sync.getSyncStatus.mockImplementation(async () => {
+        // The queue was read as empty; then the timed-out send is queued and
+        // leaves the in-flight count.
+        sync.getInFlightCount.mockReturnValue(0);
+        return { isOnline: true, pendingOperations: 0, lastSyncTimestamp: null };
+      });
+      const r = await hook();
+      const done = r.current.logout();
+      await act(async () => { jest.advanceTimersByTime(10000); });
+      await expect(done).resolves.toEqual({ signedOut: false, pending: 1 });
+      expect(signOut).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

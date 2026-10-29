@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.17] - 2026-10-29
+
+### Fixed
+- Logout reads the changes still being sent before the waiting ones, so a change that moves from one to the other at that moment is still counted in "Changes Not Sent" (ada's review of 1.53.15).
+
 ## [1.53.16] - 2026-10-29
 
 ### Fixed
