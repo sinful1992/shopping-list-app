@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- The database rules tests run one file at a time, so two suites can't clear each other's emulator data.
+
 ## [1.53.13] - 2026-10-29
 
 ### Fixed
