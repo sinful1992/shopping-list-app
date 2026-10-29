@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.6] - 2026-10-29
+
+### Fixed
+- A change that can't be sent because there is no internet (shop Wi-Fi with no connection) is no longer thrown away after 5 tries. It stays queued and is retried at least every 5 minutes until it gets through. A change Firebase refuses is dropped at once, and the drop is logged (review #8).
+
 ## [1.53.5] - 2026-10-29
 
 ### Fixed
