@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import mobileAds, {
   InterstitialAd,
   RewardedAd,
@@ -17,6 +18,8 @@ interface AdMobContextType {
   isInitialized: boolean;
   consentChecked: boolean;
   consentObtained: boolean;
+  /** UMP could not be reached (offline) and this phone has no consent answer on record: let the user in without ads. */
+  consentUnavailable: boolean;
   retryConsent: () => Promise<void>;
   /** UMP says this user (UK/EEA) must be able to change their consent choice later. */
   privacyOptionsRequired: boolean;
@@ -30,12 +33,64 @@ interface AdMobContextType {
 
 const AdMobContext = createContext<AdMobContextType | null>(null);
 
+const CONSENT_REFUSED_KEY = 'ads_consent_refused';
+
+/** Remember an online answer, so an offline start can tell a refusal from "never asked". */
+function recordConsentAnswer(canRequestAds: boolean): void {
+  const write = canRequestAds
+    ? AsyncStorage.removeItem(CONSENT_REFUSED_KEY)
+    : AsyncStorage.setItem(CONSENT_REFUSED_KEY, '1');
+  write.catch(e => CrashReporting.recordError(e as Error, 'AdMobContext record consent answer'));
+}
+
+/**
+ * gatherConsent failed, usually because the phone is offline. UMP keeps the
+ * last answer on the phone, so a user who accepted before is let in as usual.
+ * A refusal on record keeps the wall (fails closed). With no answer at all the
+ * form can't be shown, so the user gets in without ads until UMP is reachable.
+ */
+type CachedConsent = { canRequestAds: boolean; status?: string } | null;
+
+async function readCachedConsent(): Promise<CachedConsent> {
+  try {
+    return await AdsConsent.getConsentInfo();
+  } catch (e) {
+    CrashReporting.recordError(e as Error, 'AdMobContext cached consent info');
+    return null;
+  }
+}
+
+async function offlineConsent(
+  cachedBefore?: CachedConsent,
+): Promise<'obtained' | 'refused' | 'unknown'> {
+  // retryConsent passes the cache it read before AdsConsent.reset() wiped it.
+  const cached = cachedBefore !== undefined ? cachedBefore : await readCachedConsent();
+  if (cached?.canRequestAds) return 'obtained';
+  if (cached?.status === 'OBTAINED') {
+    // A refusal UMP remembers (made before this build kept its own record):
+    // keep it here too, so a later reset can't lose it.
+    recordConsentAnswer(false);
+    return 'refused';
+  }
+  let refused: string | null = null;
+  try {
+    refused = await AsyncStorage.getItem(CONSENT_REFUSED_KEY);
+  } catch (e) {
+    CrashReporting.recordError(e as Error, 'AdMobContext read consent answer');
+  }
+  if (refused) return 'refused';
+  return 'unknown';
+}
+
 export function AdMobProvider({ children }: { children: React.ReactNode }) {
   const { tier, hasEntitlement, isLoading } = useRevenueCat();
   const [isInitialized, setIsInitialized] = useState(false);
   const [consentObtained, setConsentObtained] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [privacyOptionsRequired, setPrivacyOptionsRequired] = useState(false);
+  const [consentUnavailable, setConsentUnavailable] = useState(false);
+  // Bumped when the app comes back to the foreground while UMP was unreachable.
+  const [consentRetryTick, setConsentRetryTick] = useState(0);
 
   const isConsentInFlightRef = useRef(false);
   const consentInitializedOnceRef = useRef(false);
@@ -77,11 +132,24 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
         await AdsConsent.gatherConsent();
       } catch (e) {
         CrashReporting.recordError(e as Error, 'AdMobContext UMP consent');
+        const fallback = await offlineConsent();
         if (mounted) {
-          setConsentObtained(false);
+          setConsentObtained(fallback === 'obtained');
+          setConsentUnavailable(fallback === 'unknown');
           setConsentChecked(true);
         }
         isConsentInFlightRef.current = false;
+        if (fallback === 'obtained' && mounted) {
+          try {
+            await mobileAds().initialize();
+            if (mounted) {
+              setIsInitialized(true);
+              consentInitializedOnceRef.current = true;
+            }
+          } catch (initError) {
+            CrashReporting.recordError(initError as Error, 'AdMobContext mobileAds initialize');
+          }
+        }
         return;
       }
 
@@ -95,7 +163,9 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       setPrivacyOptionsRequired(
         consentInfo.privacyOptionsRequirementStatus === AdsConsentPrivacyOptionsRequirementStatus.REQUIRED,
       );
+      recordConsentAnswer(canRequestAds);
       setConsentObtained(canRequestAds);
+      setConsentUnavailable(false);
       setConsentChecked(true);
 
       if (!canRequestAds) { isConsentInFlightRef.current = false; return; }
@@ -120,7 +190,17 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       isConsentInFlightRef.current = false;
     };
-  }, [isLoading, tier, hasEntitlement]);
+  }, [isLoading, tier, hasEntitlement, consentRetryTick]);
+
+  // Offline start with no answer on record: ask UMP again once the app is
+  // back in the foreground (the phone may have found a network meanwhile).
+  useEffect(() => {
+    if (!consentUnavailable) return;
+    const subscription = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') setConsentRetryTick(t => t + 1);
+    });
+    return () => subscription.remove();
+  }, [consentUnavailable]);
 
   const retryConsent = useCallback(async () => {
     if (isConsentInFlightRef.current) return;
@@ -130,11 +210,19 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     setConsentObtained(false);
     setIsInitialized(false);
 
+    // reset() wipes UMP's cached answer, which is the only record of a
+    // refusal made before this build: read it first for the offline fallback.
+    const cachedBefore = await readCachedConsent();
     try {
       AdsConsent.reset();
       await AdsConsent.gatherConsent();
     } catch (e) {
       CrashReporting.recordError(e as Error, 'AdMobContext UMP consent retry');
+      // Accept Ads tapped while offline: the form can't open. Same fallback as
+      // a cold start, judged on the answer from before the reset.
+      const fallback = await offlineConsent(cachedBefore);
+      setConsentObtained(fallback === 'obtained');
+      setConsentUnavailable(fallback === 'unknown');
       setConsentChecked(true);
       isConsentInFlightRef.current = false;
       return;
@@ -144,6 +232,8 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     setPrivacyOptionsRequired(
       privacyOptionsRequirementStatus === AdsConsentPrivacyOptionsRequirementStatus.REQUIRED,
     );
+    recordConsentAnswer(canRequestAds);
+    setConsentUnavailable(false);
     setConsentObtained(canRequestAds);
     setConsentChecked(true);
 
@@ -169,6 +259,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { canRequestAds } = await AdsConsent.showPrivacyOptionsForm();
+      recordConsentAnswer(canRequestAds);
       setConsentObtained(canRequestAds);
 
       if (canRequestAds && !consentInitializedOnceRef.current) {
@@ -381,6 +472,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     isInitialized,
     consentChecked,
     consentObtained,
+    consentUnavailable,
     retryConsent,
     privacyOptionsRequired: showPrivacyRow,
     showPrivacyOptions,
@@ -388,7 +480,7 @@ export function AdMobProvider({ children }: { children: React.ReactNode }) {
     showInterstitialWithRetry,
     setPendingInterstitial,
     showRewarded,
-  }), [shouldShowAds, isInitialized, consentChecked, consentObtained, retryConsent, showPrivacyRow,
+  }), [shouldShowAds, isInitialized, consentChecked, consentObtained, consentUnavailable, retryConsent, showPrivacyRow,
     showPrivacyOptions, showInterstitial, showInterstitialWithRetry, setPendingInterstitial, showRewarded]);
 
   return (

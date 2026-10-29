@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- The database rules tests run one file at a time, so two suites can't clear each other's emulator data.
+
+## [1.53.13] - 2026-10-29
+
+### Fixed
+- Sign-out also resets the sync engine before clearing, so a change still being sent can't land in the next account's family. Sign-out can no longer hang on removing the push token (capped), a double tap no longer shows "Sign out failed", and sending waiting changes gives up after 10 seconds and asks. Account delete clears the phone the same way. "Accept Ads" tapped offline keeps the screen for someone who refused before. The Budget form also fills in the saved limits when they load after it was opened (ada's review of 1.53.9-1.53.12).
+
+## [1.53.12] - 2026-10-29
+
+### Fixed
+- Opening the app with no internet no longer locks free users out behind "Ads Required". Consent given before still counts offline; a refusal on record still shows the screen; with no answer yet the app opens without ads and asks again when it is back online (review #9).
+
+## [1.53.11] - 2026-10-29
+
+### Fixed
+- Saving one budget limit no longer wipes the other: the form now opens with both saved limits filled in (review #6).
+
+## [1.53.10] - 2026-10-29
+
+### Fixed
+- Signing out now removes this phone's copy of the old account's lists, items and unsent changes, and its queued receipt uploads, so none of it reaches the next account. Changes not sent yet (offline) are tried once first; if some are still waiting, "Changes Not Sent" asks before they are lost. The push token is removed on every sign-out path (Terms decline too), and a token that couldn't be revoked offline is revoked before the next account registers, so it can't get the old family's notifications (review #2, #3).
+
+## [1.53.9] - 2026-10-29
+
+### Security
+- Nobody can add another user to their own family and then read that user's email and name. A new family could carry a fake join request "from" someone else, which the approve step then accepted; a join request can now only be written by the person asking (review #1). Live only after the rules deploy on master.
+
+## [1.53.8] - 2026-10-29
+
+### Fixed
+- A change still being sent when someone signs out can no longer be queued afterwards and sent into the next account's family. Firebase data that arrives just after sign-out is no longer written back into the cleared phone (review #2, ada's break tests).
+
+## [1.53.7] - 2026-10-29
+
+### Fixed
+- A trip finished with Done Shopping (no receipt scanned) takes a price typed in History into its total again. 1.53.4 mistook the empty receipt that Done Shopping saves for a scanned one.
+- An item ticked while a list is first loading is never removed as deleted elsewhere. A change that fails with "Client is offline" stays queued, and dropping a write for a list deleted on this phone is logged (linus's break tests).
+
+## [1.53.6] - 2026-10-29
+
+### Fixed
+- A change that can't be sent because there is no internet (shop Wi-Fi with no connection) is no longer thrown away after 5 tries. It stays queued and is retried at least every 5 minutes until it gets through. A change Firebase refuses is dropped at once, and the drop is logged (review #8).
+
+## [1.53.5] - 2026-10-29
+
+### Fixed
+- Items deleted on another phone while this phone's app was closed no longer come back when the list is opened, so ticking one can't bring it back for the whole family either (review #7).
+
+## [1.53.4] - 2026-10-29
+
+### Fixed
+- Typing a missing price on a trip in History no longer replaces the scanned receipt's total. A trip without a receipt is now totalled like the running total: ticked items only, price times unit count (review #4).
+
 ## [1.53.3] - 2026-10-29
 
 ### Fixed

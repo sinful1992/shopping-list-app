@@ -29,11 +29,15 @@ interface QueueProcessResult {
 class SyncEngine {
   private isOnline: boolean = true;
   private familyGroupId: string | null = null;
+  // Bumped on sign-out: work started for the old account must not queue or send afterwards
+  private session = 0;
   private syncInProgress: boolean = false;
   private retryIntervalId: ReturnType<typeof setInterval> | null = null;
   private statusListeners = new Set<(status: SyncEngineStatus) => void>();
   private readonly SYNC_TIMEOUT_MS = 30000; // 30 second timeout for sync operations
   private readonly RETRY_INTERVAL_MS = 60000; // Retry pending operations every 60 seconds
+  private readonly MAX_RETRIES = 5; // for errors that are not about the network
+  private readonly MAX_RETRY_DELAY_MS = 5 * 60 * 1000;
 
   constructor() {
     NetInfo.addEventListener((state) => {
@@ -136,6 +140,16 @@ class SyncEngine {
   }
 
   /**
+   * Sign-out: forget the family, so a write still in flight can't be queued
+   * after the local data is cleared and replayed into the next account's family.
+   */
+  resetForSignOut(): void {
+    this.session++;
+    this.familyGroupId = null;
+    this.stopPeriodicRetry();
+  }
+
+  /**
    * Push a change to Firebase (or queue if offline)
    * Implements Req 4.1, 4.2, 4.3
    */
@@ -148,6 +162,7 @@ class SyncEngine {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
     }
+    const session = this.session;
 
     // Delete doesn't need data — syncToFirebase calls .remove()
     // For create/update: use provided data, fall back to DB read only if not provided
@@ -159,14 +174,17 @@ class SyncEngine {
     }
 
     const updatedAt = syncData && 'updatedAt' in syncData ? syncData.updatedAt : null;
+    if (session !== this.session) return;
 
     if (this.isOnline) {
       const write = this.syncToFirebase(entityType, entityId, operation, syncData);
       try {
         await this.withTimeout(write);
+        if (session !== this.session) return;
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
+        if (session !== this.session) return;
         const queuedId = await this.queueOperation(entityType, entityId, operation, syncData);
         this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
       }
@@ -191,6 +209,7 @@ class SyncEngine {
     }
 
     this.syncInProgress = true;
+    const session = this.session;
     let processed = 0;
     let deferred = 0;
 
@@ -199,12 +218,14 @@ class SyncEngine {
       const now = Date.now();
 
       for (const operation of queue) {
+        if (session !== this.session) break;
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
           deferred++;
           continue;
         }
 
         if (await this.revivesDeletedList(operation)) {
+          CrashReporting.log(`Dropped sync operation ${operation.id} (list/${operation.entityId} ${operation.operation}): list deleted on this phone`);
           await LocalStorageManager.removeFromSyncQueue(operation.id);
           continue;
         }
@@ -226,12 +247,17 @@ class SyncEngine {
           processed++;
         } catch (error) {
           CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);
+          if (session !== this.session) break;
 
-          const maxRetries = 5;
           const newRetryCount = operation.retryCount + 1;
+          const refused = this.isRefusedByServer(error);
 
-          if (newRetryCount >= maxRetries) {
-            CrashReporting.log(`Max retries reached for sync operation ${operation.id}`);
+          // A network failure (shop Wi-Fi with no internet) keeps the change until it gets through
+          if (refused || (!this.isNetworkError(error) && newRetryCount >= this.MAX_RETRIES)) {
+            CrashReporting.log(
+              `Dropped sync operation ${operation.id} (${operation.entityType}/${operation.entityId} ${operation.operation}) ` +
+              `after ${newRetryCount} tries: ${refused ? 'refused by server' : 'max retries'}: ${this.errorText(error)}`
+            );
             if (operation.entityType === 'list') {
               await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'failed' });
             } else if (operation.entityType === 'item') {
@@ -243,7 +269,7 @@ class SyncEngine {
           } else {
             // Exponential backoff with jitter prevents thundering herd on server recovery
             const baseDelay = 1000;
-            const exponentialDelay = baseDelay * Math.pow(2, newRetryCount - 1);
+            const exponentialDelay = Math.min(baseDelay * Math.pow(2, newRetryCount - 1), this.MAX_RETRY_DELAY_MS);
             const jitter = Math.random() * 1000;
             const nextRetryAt = now + exponentialDelay + jitter;
 
@@ -379,6 +405,25 @@ class SyncEngine {
     if ((operation.data as ShoppingList | null)?.status === 'deleted') return false;
     const local = await LocalStorageManager.getList(operation.entityId);
     return local?.status === 'deleted';
+  }
+
+  /** Firebase refuses the write (rules or validation): sending it again can't succeed. */
+  private isRefusedByServer(error: unknown): boolean {
+    const code = (error as { code?: string } | null)?.code ?? '';
+    const message = this.errorText(error);
+    return code === 'database/permission-denied' || /permission[-_ ]denied/i.test(message);
+  }
+
+  /** The write did not reach Firebase: a timeout, or no connection. */
+  private isNetworkError(error: unknown): boolean {
+    const code = (error as { code?: string } | null)?.code ?? '';
+    const message = this.errorText(error);
+    return /^database\/(network-error|disconnected|unavailable)$/.test(code) ||
+      /timed out|network|disconnected|offline/i.test(message);
+  }
+
+  private errorText(error: unknown): string {
+    return typeof error === 'string' ? error : (error as Error | null)?.message ?? '';
   }
 
   /**
