@@ -536,7 +536,7 @@ const ListDetailScreen = () => {
   };
 
   const handleTakeReceiptPhoto = () => {
-    navigation.navigate('ReceiptCamera', { listId });
+    navigation.navigate('ReceiptCamera', { listId, completeOnApply: true });
   };
 
   const handleStartShopping = () => {

@@ -68,7 +68,7 @@ const ReceiptMatchScreen = () => {
   const { showAlert } = useAlert();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { listId, autoAddAll } = route.params;
+  const { listId, autoAddAll, completeOnApply } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -339,6 +339,80 @@ const ReceiptMatchScreen = () => {
     });
   };
 
+  const close = (parts: string[], outcome?: string) => {
+    const shown = outcome ? [...parts, outcome] : parts;
+    if (shown.length === 0) shown.push('Your list already matches this receipt');
+    showAlert('Done', shown.join(' · '), undefined, { icon: 'success' });
+    settledRef.current = true;
+    navigation.goBack();
+  };
+
+  /** Complete the list and tell the family what was just bought. */
+  const finishTrip = async (uncheckedCount: number, itemCount: number) => {
+    if (!userId) throw new Error('User not authenticated');
+    await ShoppingListManager.completeFromReceipt(listId, userId, uncheckedCount);
+    // Fire-and-forget; the notification tap deep-links to this now-completed
+    // list in History.
+    if (shoppingList?.familyGroupId) {
+      NotificationManager.notifyReceiptScanned({
+        familyGroupId: shoppingList.familyGroupId,
+        userId,
+        userName: user?.displayName || user?.email || 'A family member',
+        listId,
+        storeName: shoppingList.merchantName,
+        listName: shoppingList.name,
+        itemCount,
+        totalAmount: shoppingList.totalAmount,
+        currency: shoppingList.currency,
+      }).catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen notifyReceiptScanned'));
+    }
+  };
+
+  /**
+   * Full Shop or Partial Shop after a list's receipt left items unchecked.
+   * Partial carries them to a new list under the old name, as Done Shopping
+   * does; the trip is completed either way.
+   */
+  const finishFromChoice = async (parts: string[], itemCount: number, unchecked: Item[], carryOver: boolean) => {
+    try {
+      await finishTrip(unchecked.length, itemCount);
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+      navigation.goBack();
+      return;
+    }
+    if (!carryOver) {
+      close(parts, 'Shopping completed');
+      return;
+    }
+    try {
+      if (!user || !shoppingList) throw new Error('User not authenticated');
+      const newList = await ShoppingListManager.createList(shoppingList.name, user.uid, shoppingList.familyGroupId, user);
+      await ItemManager.addItemsBatch(
+        newList.id,
+        unchecked.map(i => ({
+          name: i.name,
+          quantity: i.quantity ?? undefined,
+          price: i.price ?? undefined,
+          category: i.category,
+        })),
+        user.uid,
+      );
+    } catch {
+      const names = unchecked.map(i => `• ${i.name}`).join('\n');
+      showAlert(
+        'Partial Save',
+        `Your list was completed, but the items not bought could not be moved to a new list (you may be at your list limit):\n\n${names}`,
+        undefined,
+        { icon: 'warning' },
+      );
+      navigation.goBack();
+      return;
+    }
+    const n = unchecked.length;
+    close(parts, `Shopping completed · ${n} item${n === 1 ? '' : 's'} carried to a new list`);
+  };
+
   const handleApply = async () => {
     if (applyingRef.current) return;
 
@@ -401,41 +475,44 @@ const ReceiptMatchScreen = () => {
         rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
           .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
       }
-      // Quick-scan is a post-shop flow: everything applied from the receipt is
-      // already bought, so finish the trip instead of leaving an active list.
-      // The receipt total/merchant were attached to the list at confirm time.
-      if (autoAddAll) {
-        await ShoppingListManager.updateList(listId, {
-          status: 'completed',
-          completedAt: Date.now(),
-          completedBy: userId,
-          uncheckedItemsCount: 0,
-        });
-        // Tell the family what was just bought (fire-and-forget); the
-        // notification tap deep-links to this now-completed list in History.
-        if (shoppingList?.familyGroupId && userId) {
-          NotificationManager.notifyReceiptScanned({
-            familyGroupId: shoppingList.familyGroupId,
-            userId,
-            userName: user?.displayName || user?.email || 'A family member',
-            listId,
-            storeName: shoppingList.merchantName,
-            listName: shoppingList.name,
-            itemCount: updates.length + newItems.length,
-            totalAmount: shoppingList.totalAmount,
-            currency: shoppingList.currency,
-          }).catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen notifyReceiptScanned'));
-        }
-      }
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`);
       if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
       if (hasCorrections && parts.length === 0) parts.push('Receipt corrected');
-      if (autoAddAll) parts.push('Shopping completed');
-      if (parts.length === 0) parts.push('Your list already matches this receipt');
-      showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
-      settledRef.current = true;
-      navigation.goBack();
+      const itemCount = updates.length + newItems.length;
+
+      // A receipt is the end of a trip: a quick scan, or a scan attached to
+      // a list still being shopped, finishes it. A list already completed
+      // (Match again from Receipt View) is only corrected.
+      if (autoAddAll) {
+        await finishTrip(0, itemCount);
+        close(parts, 'Shopping completed');
+        return;
+      }
+      if (completeOnApply && shoppingList?.status !== 'completed') {
+        const unchecked = (await ItemManager.getItemsForList(listId)).filter(i => !i.checked);
+        if (unchecked.length === 0) {
+          await finishTrip(0, itemCount);
+          close(parts, 'Shopping completed');
+          return;
+        }
+        // The same choice Done Shopping offers. The items are already
+        // written, so every answer leaves the screen.
+        settledRef.current = true;
+        const n = unchecked.length;
+        showAlert(
+          'Items Not Bought',
+          `${n} item${n === 1 ? '' : 's'} weren't on the receipt or checked. What would you like to do?`,
+          [
+            { text: 'Full Shop', style: 'default', onPress: () => { finishFromChoice(parts, itemCount, unchecked, false); } },
+            { text: 'Partial Shop', style: 'default', onPress: () => { finishFromChoice(parts, itemCount, unchecked, true); } },
+            { text: 'Cancel', style: 'cancel', onPress: () => close(parts, 'List still open') },
+          ],
+          { icon: 'confirm' },
+        );
+        return;
+      }
+      close(parts);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {

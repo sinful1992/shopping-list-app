@@ -30,7 +30,7 @@ const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId, autoAddAll } = route.params;
+  const { listId, autoAddAll, completeOnApply } = route.params;
 
   const { shouldShowAds, showRewarded } = useAdMob();
   const { tier } = useRevenueCat();
@@ -211,7 +211,7 @@ const ReceiptCameraScreen = () => {
       ImageStorageManager.processUploadQueue()
         .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen receipt upload'));
 
-      navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
+      navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll, completeOnApply });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {

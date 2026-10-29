@@ -81,3 +81,19 @@ test('a double tap on Confirm creates one quick-scan list and opens it once', as
   expect(navigation.replace).toHaveBeenCalledTimes(1);
   expect(navigation.replace).toHaveBeenCalledWith('ReceiptMatch', { listId: 'new-list', autoAddAll: true });
 });
+
+test('a scan started on a list asks the match screen to finish the trip (task 99)', async () => {
+  const route = jest.requireMock('@react-navigation/native').useRoute();
+  route.params = { listId: 'list-1', completeOnApply: true };
+  navigation.replace.mockClear();
+  ShoppingListManager.getListById.mockResolvedValue({ id: 'list-1', storeName: 'Tesco' });
+  let renderer!: ReturnType<typeof create>;
+  await act(async () => {
+    renderer = create(<ReceiptCameraScreen />);
+  });
+  await act(async () => {
+    await renderer.root.findByType('ReceiptPreviewOverlay' as any).props.onConfirm();
+  });
+  expect(navigation.replace).toHaveBeenCalledWith('ReceiptMatch', { listId: 'list-1', completeOnApply: true });
+  expect(navigation.replace.mock.calls[0][1]).toHaveProperty('completeOnApply', true);
+});

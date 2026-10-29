@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.0] - 2026-10-29
+
+### Added
+- Scanning a receipt on a list now finishes the shopping: Apply on Receipt Match moves the list to History as completed, keeps the receipt's total and store, and releases shopping mode. Before, only the quick scan on Home did this, so a list scanned after shopping stayed active.
+- When the receipt leaves list items unchecked, Apply asks Full Shop / Partial Shop / Cancel like Done Shopping; Partial Shop moves those items to a new list with the same name. Match again on a completed list only corrects it.
+
 ## [1.52.1] - 2026-10-20
 
 ### Fixed
