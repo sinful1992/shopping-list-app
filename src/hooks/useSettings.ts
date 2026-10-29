@@ -7,7 +7,7 @@ import { useUser } from '../contexts/UserContext';
 import AuthenticationModule, { ReauthMethod } from '../services/AuthenticationModule';
 import CrashReporting from '../services/CrashReporting';
 import { loadFamilyMembers } from '../services/FamilyMembers';
-import NotificationManager from '../services/NotificationManager';
+import SyncEngine from '../services/SyncEngine';
 import ReceiptOCRService from '../services/ReceiptOCRService';
 
 // Role to avatar mapping
@@ -171,9 +171,22 @@ export function useSettings() {
     });
   }, [user]);
 
-  const logout = useCallback(async (): Promise<void> => {
-    await NotificationManager.clearToken();
+  /**
+   * Signing out deletes this phone's copy of the data, unsent changes included.
+   * Try to send them first; if some are still waiting, report how many and
+   * sign out only when called again with force (the user said yes).
+   */
+  const logout = useCallback(async (opts?: { force?: boolean }): Promise<{ signedOut: boolean; pending: number }> => {
+    if (!opts?.force) {
+      await SyncEngine.syncPendingChanges().catch(err =>
+        CrashReporting.recordError(err as Error, 'useSettings logout flush'));
+      // Not caught: if the queue can't even be read, failing the sign-out is
+      // safer than deleting changes nobody counted.
+      const { pendingOperations } = await SyncEngine.getSyncStatus();
+      if (pendingOperations > 0) return { signedOut: false, pending: pendingOperations };
+    }
     await AuthenticationModule.signOut();
+    return { signedOut: true, pending: 0 };
   }, []);
 
   const deleteAccount = useCallback(async (password?: string): Promise<boolean> => {

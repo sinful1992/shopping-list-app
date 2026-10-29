@@ -345,6 +345,14 @@ class ImageStorageManager {
     await this.mutateQueue(queue => queue.map((item) => (item.id === upload.id ? upload : item)));
   }
 
+  /**
+   * Drop every queued receipt upload. Called on sign-out: the queued files
+   * belong to the old account's lists and must not upload into the next one's.
+   */
+  async clearUploadQueue(): Promise<void> {
+    await this.mutateQueue(() => []);
+  }
+
   /** Read, change and write the stored queue, one change at a time. */
   private mutateQueue(change: (queue: QueuedUpload[]) => QueuedUpload[]): Promise<void> {
     const write = this.queueWrites.then(async () => {

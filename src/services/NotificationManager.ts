@@ -21,6 +21,7 @@ import CrashReporting from './CrashReporting';
  */
 class NotificationManager {
   private fcmToken: string | null = null;
+  private readonly STALE_TOKEN_KEY = '@fcm_token_stale';
   private readonly FCM_TOKEN_KEY = '@fcm_token';
 
   /**
@@ -52,6 +53,15 @@ class NotificationManager {
    */
   async getFCMToken(): Promise<string | null> {
     try {
+      // A sign-out that could not revoke the old token (offline) left it
+      // valid at FCM and still registered to the old account's family.
+      // Revoke it before anything is registered, or the next account on this
+      // phone shares it and gets the old family's pushes.
+      if (await SecureStorage.getItem(this.STALE_TOKEN_KEY)) {
+        await deleteToken(getMessaging());
+        await SecureStorage.removeItem(this.STALE_TOKEN_KEY);
+      }
+
       // Check if we already have a token cached
       if (this.fcmToken) {
         return this.fcmToken;
@@ -241,13 +251,17 @@ class NotificationManager {
    * Clear FCM token (on logout)
    */
   async clearToken(): Promise<void> {
+    // Forget the cached token first, whatever happens next: a cached copy
+    // would be handed straight back to the next account by getFCMToken.
+    this.fcmToken = null;
+    await SecureStorage.removeItem(this.FCM_TOKEN_KEY).catch(() => undefined);
+    await SecureStorage.removeItem('@fcm_token_data').catch(() => undefined);
     try {
       await deleteToken(getMessaging());
-      await SecureStorage.removeItem(this.FCM_TOKEN_KEY);
-      await SecureStorage.removeItem('@fcm_token_data');
-      this.fcmToken = null;
-    } catch {
-      // Token clear failed - not critical
+    } catch (err) {
+      // Usually offline. Mark it, so getFCMToken revokes it before reuse.
+      CrashReporting.recordError(err as Error, 'NotificationManager clearToken deleteToken');
+      await SecureStorage.setItem(this.STALE_TOKEN_KEY, '1').catch(() => undefined);
     }
   }
 }

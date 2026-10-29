@@ -43,6 +43,14 @@ jest.mock('../NotificationManager', () => ({
   __esModule: true,
   default: { clearToken: jest.fn(() => Promise.resolve()) },
 }));
+jest.mock('../FirebaseSyncListener', () => ({
+  __esModule: true,
+  default: { stopAllListeners: jest.fn() },
+}));
+jest.mock('../ImageStorageManager', () => ({
+  __esModule: true,
+  default: { clearUploadQueue: jest.fn(() => Promise.resolve()) },
+}));
 jest.mock('../CrashReporting', () => ({
   __esModule: true,
   default: { recordError: jest.fn(), log: jest.fn() },
