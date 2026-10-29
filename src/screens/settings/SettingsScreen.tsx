@@ -195,6 +195,30 @@ const SettingsScreen = () => {
     }
   };
 
+  // Signing out deletes this phone's copy, so changes that could not be sent
+  // (usually offline) would be lost: say so and let the user choose.
+  const confirmLogoutWithPending = (pending: number) => {
+    showAlert(
+      'Changes Not Sent',
+      `${pending} ${pending === 1 ? 'change has' : 'changes have'} not been sent yet and will be lost. Sign out anyway?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout({ force: true });
+            } catch (error: any) {
+              showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+            }
+          },
+        },
+      ],
+      { icon: 'warning' }
+    );
+  };
+
   const handleLogout = () => {
     showAlert(
       'Logout',
@@ -206,7 +230,8 @@ const SettingsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await logout();
+              const { signedOut, pending } = await logout();
+              if (!signedOut) confirmLogoutWithPending(pending);
             } catch (error: any) {
               showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
             }

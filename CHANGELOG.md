@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.9] - 2026-10-29
+
+### Fixed
+- Signing out now removes this phone's copy of the old account's lists, items and unsent changes, and its queued receipt uploads, so none of it reaches the next account. Changes not sent yet (offline) are tried once first; if some are still waiting, "Changes Not Sent" asks before they are lost. The push token is removed on every sign-out path (Terms decline too), and a token that couldn't be revoked offline is revoked before the next account registers, so it can't get the old family's notifications (review #2, #3).
+
 ## [1.53.8] - 2026-10-29
 
 ### Security
