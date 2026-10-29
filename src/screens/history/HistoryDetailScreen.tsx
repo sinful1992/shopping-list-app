@@ -24,6 +24,7 @@ import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryServ
 import { ListDetails, Item } from '../../models/types';
 import PriceEditModal from '../../components/PriceEditModal';
 import PriceHistoryModal from '../../components/PriceHistoryModal';
+import { calculateShoppingStats } from '../../utils/shoppingStats';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 /**
@@ -113,7 +114,7 @@ const HistoryDetailScreen = () => {
       // Backfill totalAmount from item prices when not yet saved (including zero)
       let resolvedList = details.list;
       if (details.list.totalAmount == null && loadedItems.length > 0) {
-        const calcTotal = loadedItems.reduce((sum, item) => sum + (item.price ?? 0), 0);
+        const calcTotal = calculateShoppingStats(loadedItems, null).total;
         await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
         resolvedList = { ...details.list, totalAmount: calcTotal };
       }
@@ -171,14 +172,14 @@ const HistoryDetailScreen = () => {
   ) => {
     await ItemManager.updateItem(itemId, updates);
 
-    // Recalculate total if price changed
+    // A scanned receipt's total is what was paid; only a trip without one takes its total from the items
     if (updates.price !== undefined && listDetails) {
       const newItems = items.map(item =>
         item.id === itemId ? { ...item, ...updates } : item
       );
-      const newTotal = newItems.reduce((sum, item) => sum + (item.price ?? 0), 0);
+      const newTotal = calculateShoppingStats(newItems, null).total;
 
-      if (newTotal > 0) {
+      if (!listDetails.list.receiptData && newTotal !== listDetails.list.totalAmount) {
         await ShoppingListManager.updateList(listId, { totalAmount: newTotal });
       }
 
@@ -189,8 +190,7 @@ const HistoryDetailScreen = () => {
 
   // Calculate total from item prices
   const calculatedTotal = useMemo(() => {
-    if (!items.length) return 0;
-    return items.reduce((sum, item) => sum + (item.price ?? 0), 0);
+    return calculateShoppingStats(items, null).total;
   }, [items]);
 
   const { uncheckedItems, checkedItems } = useMemo(() => ({

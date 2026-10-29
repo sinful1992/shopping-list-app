@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.4] - 2026-10-29
+
+### Fixed
+- Typing a missing price on a trip in History no longer replaces the scanned receipt's total. A trip without a receipt is now totalled like the running total: ticked items only, price times unit count (review #4).
+
 ## [1.53.3] - 2026-10-29
 
 ### Fixed
