@@ -50,6 +50,17 @@ const BudgetScreen = () => {
   const [weeklyLimitInput, setWeeklyLimitInput] = useState(budgetSettings.weeklyLimit?.toString() || '');
   const [showBudgetConfig, setShowBudgetConfig] = useState(false);
 
+  // The saved limits arrive after the first render, so the inputs' initial
+  // values are usually empty. Fill them from the saved settings each time the
+  // form opens, or saving one limit sends the other as null and wipes it.
+  const toggleBudgetConfig = () => {
+    if (!showBudgetConfig) {
+      setMonthlyLimitInput(budgetSettings.monthlyLimit?.toString() || '');
+      setWeeklyLimitInput(budgetSettings.weeklyLimit?.toString() || '');
+    }
+    setShowBudgetConfig(!showBudgetConfig);
+  };
+
   const handleSaveBudgetSettings = async () => {
     try {
       await saveBudgetSettingsHook({
@@ -259,7 +270,7 @@ const BudgetScreen = () => {
       <View style={styles.configContainer}>
         <TouchableOpacity
           style={styles.configToggle}
-          onPress={() => setShowBudgetConfig(!showBudgetConfig)}
+          onPress={toggleBudgetConfig}
         >
           <Text style={styles.configToggleText}>
             {showBudgetConfig ? 'Hide Budget Settings' : 'Set Budget Limits'}
