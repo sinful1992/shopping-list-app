@@ -165,6 +165,24 @@ class SyncEngine {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
     }
+    // Counted from the start, so the local read and the queue write are covered too
+    this.inFlight++;
+    try {
+      await this.sendOrQueue(entityType, entityId, operation, data);
+    } finally {
+      this.inFlight--;
+      if (this.inFlight === 0) {
+        this.inFlightWaiters.splice(0).forEach(resolve => resolve());
+      }
+    }
+  }
+
+  private async sendOrQueue(
+    entityType: EntityType,
+    entityId: string,
+    operation: Operation,
+    data?: ShoppingList | Item | StoreLayout | null
+  ): Promise<void> {
     const session = this.session;
 
     // Delete doesn't need data — syncToFirebase calls .remove()
@@ -181,7 +199,6 @@ class SyncEngine {
 
     if (this.isOnline) {
       const write = this.syncToFirebase(entityType, entityId, operation, syncData);
-      this.inFlight++;
       try {
         await this.withTimeout(write);
         if (session !== this.session) return;
@@ -191,11 +208,6 @@ class SyncEngine {
         if (session !== this.session) return;
         const queuedId = await this.queueOperation(entityType, entityId, operation, syncData);
         this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
-      } finally {
-        this.inFlight--;
-        if (this.inFlight === 0) {
-          this.inFlightWaiters.splice(0).forEach(resolve => resolve());
-        }
       }
     } else {
       await this.queueOperation(entityType, entityId, operation, syncData);

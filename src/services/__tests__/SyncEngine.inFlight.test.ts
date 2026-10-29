@@ -103,3 +103,15 @@ it('a send dropped by sign-out still leaves the in-flight count', async () => {
   expect(SyncEngine.getInFlightCount()).toBe(0);
   expect(mockQueue).toHaveLength(0);
 });
+
+it('counts a change from the start, while its data is still read locally', async () => {
+  const LocalStorageManager = jest.requireMock('../LocalStorageManager').default;
+  let readDone!: (v: unknown) => void;
+  LocalStorageManager.getItem = jest.fn(() => new Promise(resolve => { readDone = resolve; }));
+  SyncEngine.pushChange('item', 'i1', 'update');
+  await jest.advanceTimersByTimeAsync(0);
+  expect(SyncEngine.getInFlightCount()).toBe(1);
+  readDone(item);
+  await jest.advanceTimersByTimeAsync(31000);
+  expect(SyncEngine.getInFlightCount()).toBe(0);
+});

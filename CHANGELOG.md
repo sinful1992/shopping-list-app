@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.16] - 2026-10-29
+
+### Fixed
+- A change counts as being sent from the moment it is made, including the local read before the send and the queue write when offline, so Logout can't miss it in those few milliseconds (linus's review of 1.53.14).
+
 ## [1.53.15] - 2026-10-29
 
 ### Fixed
