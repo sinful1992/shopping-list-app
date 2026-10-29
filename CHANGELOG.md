@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.8] - 2026-10-29
+
+### Fixed
+- A change still being sent when someone signs out can no longer be queued afterwards and sent into the next account's family. Firebase data that arrives just after sign-out is no longer written back into the cleared phone (review #2, ada's break tests).
+
 ## [1.53.7] - 2026-10-29
 
 ### Fixed

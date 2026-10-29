@@ -29,6 +29,8 @@ interface QueueProcessResult {
 class SyncEngine {
   private isOnline: boolean = true;
   private familyGroupId: string | null = null;
+  // Bumped on sign-out: work started for the old account must not queue or send afterwards
+  private session = 0;
   private syncInProgress: boolean = false;
   private retryIntervalId: ReturnType<typeof setInterval> | null = null;
   private statusListeners = new Set<(status: SyncEngineStatus) => void>();
@@ -138,6 +140,16 @@ class SyncEngine {
   }
 
   /**
+   * Sign-out: forget the family, so a write still in flight can't be queued
+   * after the local data is cleared and replayed into the next account's family.
+   */
+  resetForSignOut(): void {
+    this.session++;
+    this.familyGroupId = null;
+    this.stopPeriodicRetry();
+  }
+
+  /**
    * Push a change to Firebase (or queue if offline)
    * Implements Req 4.1, 4.2, 4.3
    */
@@ -150,6 +162,7 @@ class SyncEngine {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
     }
+    const session = this.session;
 
     // Delete doesn't need data — syncToFirebase calls .remove()
     // For create/update: use provided data, fall back to DB read only if not provided
@@ -161,14 +174,17 @@ class SyncEngine {
     }
 
     const updatedAt = syncData && 'updatedAt' in syncData ? syncData.updatedAt : null;
+    if (session !== this.session) return;
 
     if (this.isOnline) {
       const write = this.syncToFirebase(entityType, entityId, operation, syncData);
       try {
         await this.withTimeout(write);
+        if (session !== this.session) return;
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
+        if (session !== this.session) return;
         const queuedId = await this.queueOperation(entityType, entityId, operation, syncData);
         this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
       }
@@ -193,6 +209,7 @@ class SyncEngine {
     }
 
     this.syncInProgress = true;
+    const session = this.session;
     let processed = 0;
     let deferred = 0;
 
@@ -201,6 +218,7 @@ class SyncEngine {
       const now = Date.now();
 
       for (const operation of queue) {
+        if (session !== this.session) break;
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
           deferred++;
           continue;
@@ -229,6 +247,7 @@ class SyncEngine {
           processed++;
         } catch (error) {
           CrashReporting.recordError(error as Error, `SyncEngine.processOperationQueue operation ${operation.id}`);
+          if (session !== this.session) break;
 
           const newRetryCount = operation.retryCount + 1;
           const refused = this.isRefusedByServer(error);
