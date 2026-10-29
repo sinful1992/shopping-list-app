@@ -30,6 +30,8 @@ import { safeJsonParse } from '../utils/safeJsonParse';
 import { isReceiptStoragePath } from '../utils/uri';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
+import FirebaseSyncListener from './FirebaseSyncListener';
+import ImageStorageManager from './ImageStorageManager';
 import CrashReporting from './CrashReporting';
 
 /** How an already signed-in account proves it is still present. */
@@ -244,6 +246,11 @@ class AuthenticationModule {
    */
   async signOut(): Promise<void> {
     try {
+      // Every sign-out path comes through here, so the push token is removed
+      // here too: left registered, the next account on this phone would get
+      // this family's notifications. Never throws (offline is handled inside).
+      await NotificationManager.clearToken();
+
       // Revoke Google access if signed in with Google
       try {
         this.ensureGoogleConfigured();
@@ -252,6 +259,14 @@ class AuthenticationModule {
       } catch {
         // Not a Google user or already signed out — ignore
       }
+
+      // This account's lists, items and unsent changes must not reach the next
+      // account: queued ops would sync into its family. Listeners stop first,
+      // so a late Firebase event can't write rows back into the cleared DB.
+      // A failed clear fails the sign-out, rather than leave the data behind.
+      FirebaseSyncListener.stopAllListeners();
+      await LocalStorageManager.clearAllData();
+      await ImageStorageManager.clearUploadQueue();
 
       await firebaseSignOut(getAuth());
       // Clear user data and token from encrypted storage
