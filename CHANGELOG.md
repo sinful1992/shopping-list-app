@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.12] - 2026-10-29
+
+### Fixed
+- Opening the app with no internet no longer locks free users out behind "Ads Required". Consent given before still counts offline; a refusal on record still shows the screen; with no answer yet the app opens without ads and asks again when it is back online (review #9).
+
 ## [1.53.11] - 2026-10-29
 
 ### Fixed
