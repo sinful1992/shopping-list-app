@@ -179,10 +179,15 @@ class FirebaseSyncListener {
       if (toSync.length > 0) {
         await LocalStorageManager.saveItemsBatchUpsert(toSync);
       }
-      const deletedRemotely = localItems
+      const missing = new Set(localItems
         .filter(i => i.syncStatus === 'synced' && syncedBeforeLoad.has(i.id) && !initialItemIds.has(i.id))
-        .map(i => i.id);
-      if (deletedRemotely.length > 0) {
+        .map(i => i.id));
+      if (missing.size > 0) {
+        // Re-read: an item ticked while the upsert ran is pending now and stays
+        const deletedRemotely = (await LocalStorageManager.getItemsForList(listId))
+          .filter(i => missing.has(i.id) && i.syncStatus === 'synced')
+          .map(i => i.id);
+        if (isCancelled || deletedRemotely.length === 0) return;
         await LocalStorageManager.deleteItemsBatch(deletedRemotely);
       }
     }).catch(err => {

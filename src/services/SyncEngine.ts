@@ -207,6 +207,7 @@ class SyncEngine {
         }
 
         if (await this.revivesDeletedList(operation)) {
+          CrashReporting.log(`Dropped sync operation ${operation.id} (list/${operation.entityId} ${operation.operation}): list deleted on this phone`);
           await LocalStorageManager.removeFromSyncQueue(operation.id);
           continue;
         }
@@ -236,7 +237,7 @@ class SyncEngine {
           if (refused || (!this.isNetworkError(error) && newRetryCount >= this.MAX_RETRIES)) {
             CrashReporting.log(
               `Dropped sync operation ${operation.id} (${operation.entityType}/${operation.entityId} ${operation.operation}) ` +
-              `after ${newRetryCount} tries: ${refused ? 'refused by server' : 'max retries'}: ${(error as Error)?.message}`
+              `after ${newRetryCount} tries: ${refused ? 'refused by server' : 'max retries'}: ${this.errorText(error)}`
             );
             if (operation.entityType === 'list') {
               await LocalStorageManager.updateList(operation.entityId, { syncStatus: 'failed' });
@@ -390,16 +391,20 @@ class SyncEngine {
   /** Firebase refuses the write (rules or validation): sending it again can't succeed. */
   private isRefusedByServer(error: unknown): boolean {
     const code = (error as { code?: string } | null)?.code ?? '';
-    const message = (error as Error | null)?.message ?? '';
+    const message = this.errorText(error);
     return code === 'database/permission-denied' || /permission[-_ ]denied/i.test(message);
   }
 
   /** The write did not reach Firebase: a timeout, or no connection. */
   private isNetworkError(error: unknown): boolean {
     const code = (error as { code?: string } | null)?.code ?? '';
-    const message = (error as Error | null)?.message ?? '';
+    const message = this.errorText(error);
     return /^database\/(network-error|disconnected|unavailable)$/.test(code) ||
-      /timed out|network|disconnected/i.test(message);
+      /timed out|network|disconnected|offline/i.test(message);
+  }
+
+  private errorText(error: unknown): string {
+    return typeof error === 'string' ? error : (error as Error | null)?.message ?? '';
   }
 
   /**

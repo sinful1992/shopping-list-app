@@ -172,14 +172,17 @@ const HistoryDetailScreen = () => {
   ) => {
     await ItemManager.updateItem(itemId, updates);
 
-    // A scanned receipt's total is what was paid; only a trip without one takes its total from the items
+    // A scanned receipt's total is what was paid; only a trip without one takes its total from the items.
+    // Done Shopping saves an empty receiptData placeholder, so that one is not a scan.
     if (updates.price !== undefined && listDetails) {
       const newItems = items.map(item =>
         item.id === itemId ? { ...item, ...updates } : item
       );
       const newTotal = calculateShoppingStats(newItems, null).total;
 
-      if (!listDetails.list.receiptData && newTotal !== listDetails.list.totalAmount) {
+      const { receiptUrl, receiptData } = listDetails.list;
+      const scanned = !!receiptUrl || (receiptData?.lineItems?.length ?? 0) > 0;
+      if (!scanned && newTotal !== listDetails.list.totalAmount) {
         await ShoppingListManager.updateList(listId, { totalAmount: newTotal });
       }
 

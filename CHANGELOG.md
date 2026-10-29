@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.7] - 2026-10-29
+
+### Fixed
+- A trip finished with Done Shopping (no receipt scanned) takes a price typed in History into its total again. 1.53.4 mistook the empty receipt that Done Shopping saves for a scanned one.
+- An item ticked while a list is first loading is never removed as deleted elsewhere. A change that fails with "Client is offline" stays queued, and dropping a write for a list deleted on this phone is logged (linus's break tests).
+
 ## [1.53.6] - 2026-10-29
 
 ### Fixed

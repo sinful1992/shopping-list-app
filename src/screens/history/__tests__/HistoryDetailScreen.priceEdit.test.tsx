@@ -75,7 +75,7 @@ async function typeMilkPrice(renderer: ReactTestRenderer, price: number) {
 beforeEach(() => jest.clearAllMocks());
 
 it('keeps the receipt total when a trip has a scanned receipt', async () => {
-  const renderer = await render({ totalAmount: 23.4, receiptData: { lineItems: [] } as never });
+  const renderer = await render({ totalAmount: 23.4, receiptData: { lineItems: [{ description: 'Milk', price: 1.2 }] } as never });
   await typeMilkPrice(renderer, 1.2);
   expect(ShoppingListManager.updateList).not.toHaveBeenCalled();
 });
