@@ -16,7 +16,7 @@ jest.mock('../../services/AuthenticationModule', () => ({
 }));
 jest.mock('../../services/SyncEngine', () => ({
   __esModule: true,
-  default: { syncPendingChanges: jest.fn(), getSyncStatus: jest.fn() },
+  default: { syncPendingChanges: jest.fn(), getSyncStatus: jest.fn(), waitForInFlight: jest.fn(), getInFlightCount: jest.fn(() => 0) },
 }));
 // Only so this file also runs against the old hook, which imported it.
 jest.mock('../../services/NotificationManager', () => ({ __esModule: true, default: { clearToken: jest.fn(async () => undefined) } }));
@@ -31,7 +31,7 @@ jest.mock('@react-native-firebase/database', () => ({
 }));
 
 const signOut = AuthenticationModule.signOut as jest.Mock;
-const sync = SyncEngine as unknown as { syncPendingChanges: jest.Mock; getSyncStatus: jest.Mock };
+const sync = SyncEngine as unknown as { syncPendingChanges: jest.Mock; getSyncStatus: jest.Mock; waitForInFlight: jest.Mock; getInFlightCount: jest.Mock };
 const pending = (n: number) => sync.getSyncStatus.mockResolvedValue({ isOnline: true, pendingOperations: n, lastSyncTimestamp: null });
 
 async function hook() {
@@ -44,6 +44,8 @@ async function hook() {
 beforeEach(() => {
   jest.clearAllMocks();
   sync.syncPendingChanges.mockResolvedValue({ success: true });
+  sync.waitForInFlight.mockResolvedValue(undefined);
+  sync.getInFlightCount.mockReturnValue(0);
 });
 
 describe('useSettings.logout (review #2)', () => {
@@ -94,6 +96,39 @@ describe('useSettings.logout (review #2)', () => {
       const done = r.current.logout();
       await act(async () => { jest.advanceTimersByTime(10000); });
       await expect(done).resolves.toEqual({ signedOut: false, pending: 2 });
+      expect(signOut).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  // Codex P2 on PR #54: an edit made just before Logout is still being sent,
+  // not queued, so the queue looked empty and the edit was lost unannounced.
+  it('waits for a change still being sent before counting what is left', async () => {
+    let finishSend!: () => void;
+    sync.waitForInFlight.mockReturnValue(new Promise<void>(r => { finishSend = () => { sync.getInFlightCount.mockReturnValue(0); r(); }; }));
+    sync.getInFlightCount.mockReturnValue(1);
+    pending(0);
+    const r = await hook();
+    let settled = false;
+    const done = r.current.logout().then(v => { settled = true; return v; });
+    await act(async () => { await Promise.resolve(); });
+    expect(settled).toBe(false);
+    expect(signOut).not.toHaveBeenCalled();
+    await act(async () => { finishSend(); });
+    await expect(done).resolves.toEqual({ signedOut: true, pending: 0 });
+  });
+
+  it('a send that never finishes is counted after 10 s and the user is asked', async () => {
+    jest.useFakeTimers();
+    try {
+      sync.waitForInFlight.mockReturnValue(new Promise(() => {}));
+      sync.getInFlightCount.mockReturnValue(1);
+      pending(0);
+      const r = await hook();
+      const done = r.current.logout();
+      await act(async () => { jest.advanceTimersByTime(10000); });
+      await expect(done).resolves.toEqual({ signedOut: false, pending: 1 });
       expect(signOut).not.toHaveBeenCalled();
     } finally {
       jest.useRealTimers();

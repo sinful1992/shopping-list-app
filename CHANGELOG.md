@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.15] - 2026-10-29
+
+### Fixed
+- An edit made seconds before Logout, while it is still being sent, is no longer lost without a word: logout waits for it (within the same 10 seconds) and, if it still hasn't gone through, counts it in "Changes Not Sent" (Codex review on PR #54).
+
 ## [1.53.14] - 2026-10-29
 
 ### Added
