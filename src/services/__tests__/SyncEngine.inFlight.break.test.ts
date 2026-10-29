@@ -7,7 +7,6 @@ const mockQueue: any[] = [];
 let mockWrite: () => Promise<void> = () => new Promise<void>(() => {});
 let mockGetItem: (id: string) => Promise<any> = async () => null;
 let mockAddToQueue: (op: any) => Promise<void> = async (op: any) => { mockQueue.push(op); };
-let mockNetListener: ((s: any) => void) | null = null;
 
 jest.mock('@react-native-firebase/database', () => ({
   getDatabase: jest.fn(() => ({})),
@@ -16,7 +15,7 @@ jest.mock('@react-native-firebase/database', () => ({
   remove: jest.fn(() => mockWrite()),
 }));
 jest.mock('@react-native-community/netinfo', () => ({
-  addEventListener: jest.fn((cb: any) => { mockNetListener = cb; return jest.fn(); }),
+  addEventListener: jest.fn(() => jest.fn()),
 }));
 jest.mock('../LocalStorageManager', () => ({
   __esModule: true,
