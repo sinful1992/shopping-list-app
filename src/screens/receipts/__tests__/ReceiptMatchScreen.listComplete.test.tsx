@@ -90,7 +90,7 @@ const receipt = {
 } as unknown as ReceiptData;
 
 const milk = { id: 'item-milk', listId: 'list-1', name: 'Milk 2L', checked: false, price: null, quantity: null, category: 'Dairy' };
-const eggs = { id: 'item-eggs', listId: 'list-1', name: 'Eggs', checked: false, price: null, quantity: '12', category: 'Dairy' };
+const eggs = { id: 'item-eggs', listId: 'list-1', name: 'Eggs', checked: false, price: null, quantity: '12', unitQty: 2, category: 'Dairy' };
 
 /**
  * The list holds `items` when the screen opens; Apply checks off what the
@@ -192,7 +192,7 @@ describe('a receipt scanned on a list', () => {
     expect(ShoppingListManager.createList).toHaveBeenCalledWith('Weekly shop', 'user-1', 'fam-1', expect.anything());
     expect(ItemManager.addItemsBatch).toHaveBeenCalledWith(
       'list-2',
-      [{ name: 'Eggs', quantity: '12', price: undefined, category: 'Dairy' }],
+      [{ name: 'Eggs', quantity: '12', price: undefined, unitQty: 2, category: 'Dairy' }],
       'user-1',
     );
     expect(lastAlert()[1]).toMatch(/1 item carried to a new list/);

@@ -398,6 +398,7 @@ const ReceiptMatchScreen = () => {
           name: i.name,
           quantity: i.quantity ?? undefined,
           price: i.price ?? undefined,
+          unitQty: i.unitQty ?? null,
           category: i.category,
         })),
         user.uid,

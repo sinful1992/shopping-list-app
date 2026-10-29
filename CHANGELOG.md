@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.3] - 2026-10-29
+
+### Fixed
+- Partial Shop keeps each carried-over item's unit count ("2 x Eggs" stayed "Eggs" on the new list), from Done Shopping and from a receipt scan alike (Codex review on PR #53).
+
 ## [1.53.2] - 2026-10-29
 
 ### Fixed
