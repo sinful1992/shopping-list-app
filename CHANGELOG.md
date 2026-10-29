@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.1] - 2026-10-29
+
+### Fixed
+- Tapping Apply again after the list could not be completed no longer adds the receipt's new items, or their prices, a second time.
+
 ## [1.53.0] - 2026-10-29
 
 ### Added

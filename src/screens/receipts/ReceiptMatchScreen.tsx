@@ -92,6 +92,8 @@ const ReceiptMatchScreen = () => {
   const user = useUser();
   const userId = user?.uid ?? null;
   const applyingRef = useRef(false);
+  const itemsAddedRef = useRef(false);
+  const writesDoneRef = useRef(false);
   // Set once the screen is left through Apply or Skip, which settle the
   // quick-scan list themselves; any other way out discards it.
   const settledRef = useRef(false);
@@ -438,42 +440,48 @@ const ReceiptMatchScreen = () => {
     applyingRef.current = true;
     setApplying(true);
     try {
-      // The fixed lines go back into the receipt, so Receipt Details, a
-      // later "Match again" and the rest of the family see them too.
-      if (hasCorrections && receiptData) {
-        await ShoppingListManager.updateList(listId, { receiptData: { ...receiptData, lineItems } });
-      }
-      const written: Item[] = [];
-      if (newItems.length > 0) {
-        if (!userId) throw new Error('User not authenticated');
-        // Filed under the category the family usually gives that name, the
-        // way an item added from Frequently Bought is.
-        const familyGroupId = shoppingList?.familyGroupId;
-        const categories = await Promise.all(newItems.map(n =>
-          familyGroupId
-            ? CategoryHistoryService.getSuggestedCategory(familyGroupId, n.name).catch(() => null)
-            : Promise.resolve(null)));
-        written.push(...await ItemManager.addItemsBatch(
-          listId,
-          newItems.map(({ name, price, unitQty, checked }, i) => ({
-            name, price, unitQty, checked, category: categories[i],
-          })),
-          userId,
-        ));
-      }
-      if (updates.length > 0) {
-        written.push(...await ItemManager.updateItemsBatch(updates));
-      }
-      // The receipt is the most exact price source the app gets; without this
-      // it never reached price history, only a check-off in the shop did.
-      // An item that was already checked had its category counted when it
-      // was, so a repeat Apply only corrects its price record.
-      written
-        .filter(i => i.checked)
-        .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
-      if (shoppingList?.familyGroupId) {
-        rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
-          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
+      // An Apply whose writes landed but whose completion failed is tapped
+      // again to retry: the items are not written, or priced, twice.
+      if (!writesDoneRef.current) {
+        // The fixed lines go back into the receipt, so Receipt Details, a
+        // later "Match again" and the rest of the family see them too.
+        if (hasCorrections && receiptData) {
+          await ShoppingListManager.updateList(listId, { receiptData: { ...receiptData, lineItems } });
+        }
+        const written: Item[] = [];
+        if (newItems.length > 0 && !itemsAddedRef.current) {
+          if (!userId) throw new Error('User not authenticated');
+          // Filed under the category the family usually gives that name, the
+          // way an item added from Frequently Bought is.
+          const familyGroupId = shoppingList?.familyGroupId;
+          const categories = await Promise.all(newItems.map(n =>
+            familyGroupId
+              ? CategoryHistoryService.getSuggestedCategory(familyGroupId, n.name).catch(() => null)
+              : Promise.resolve(null)));
+          written.push(...await ItemManager.addItemsBatch(
+            listId,
+            newItems.map(({ name, price, unitQty, checked }, i) => ({
+              name, price, unitQty, checked, category: categories[i],
+            })),
+            userId,
+          ));
+          itemsAddedRef.current = true;
+        }
+        if (updates.length > 0) {
+          written.push(...await ItemManager.updateItemsBatch(updates));
+        }
+        // The receipt is the most exact price source the app gets; without this
+        // it never reached price history, only a check-off in the shop did.
+        // An item that was already checked had its category counted when it
+        // was, so a repeat Apply only corrects its price record.
+        written
+          .filter(i => i.checked)
+          .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
+        if (shoppingList?.familyGroupId) {
+          rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
+            .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
+        }
+        writesDoneRef.current = true;
       }
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`);

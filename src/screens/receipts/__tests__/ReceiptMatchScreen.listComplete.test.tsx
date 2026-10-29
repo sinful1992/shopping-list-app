@@ -224,6 +224,20 @@ describe('a receipt scanned on a list', () => {
     expect(ShoppingListManager.deleteList).not.toHaveBeenCalled();
   });
 
+  test('Apply again after a failed completion retries it without writing the items twice', async () => {
+    route.params = { listId: 'list-1', autoAddAll: true };
+    ShoppingListManager.completeFromReceipt.mockRejectedValueOnce(new Error('db busy'));
+    ItemManager.addItemsBatch.mockResolvedValue([{ ...milk, id: 'new-1', checked: true }]);
+    const renderer = await render([], []);
+    await press(renderer, APPLY);
+    expect(navigation.goBack).not.toHaveBeenCalled();
+    await press(renderer, APPLY);
+    expect(ItemManager.addItemsBatch).toHaveBeenCalledTimes(1);
+    expect(ItemManager.recordPurchase).toHaveBeenCalledTimes(1);
+    expect(ShoppingListManager.completeFromReceipt).toHaveBeenCalledTimes(2);
+    expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
   test('Skip neither completes nor deletes the list', async () => {
     const renderer = await render([milk], [milk]);
     await press(renderer, /^Skip$/);
