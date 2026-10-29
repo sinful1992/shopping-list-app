@@ -140,7 +140,7 @@ const textOf = (node: ReactTestInstance): string =>
 const flush = async () => { for (let n = 0; n < 10; n++) await new Promise(r => setImmediate(r)); };
 
 function applyButton(renderer: ReactTestRenderer): ReactTestInstance {
-  const button = renderer.root.findAll(n => typeof n.props.onPress === 'function' && /^(Apply|Add |Update |Save corrections|Done$)/.test(textOf(n)))[0];
+  const button = renderer.root.findAll(n => typeof n.props.onPress === 'function' && /^(Apply|Add |Update |Save corrections|Done$|Try again$)/.test(textOf(n)))[0];
   if (!button) throw new Error('no Apply button');
   return button;
 }
