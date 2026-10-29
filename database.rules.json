@@ -75,7 +75,7 @@
               auth.uid == $userId ||
               (data.exists() && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid))
             )",
-            ".validate": "!newData.exists() || newData.hasChildren(['userId', 'groupId', 'displayName', 'email', 'requestedAt', 'status'])",
+            ".validate": "!newData.exists() || (newData.hasChildren(['userId', 'groupId', 'displayName', 'email', 'requestedAt', 'status']) && ($userId === auth.uid || data.exists()))",
 
             "userId": { ".validate": "newData.val() === $userId" },
             "groupId": { ".validate": "newData.val() === $groupId" },

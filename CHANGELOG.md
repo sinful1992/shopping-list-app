@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.8] - 2026-10-29
+
+### Security
+- Nobody can add another user to their own family and then read that user's email and name. A new family could carry a fake join request "from" someone else, which the approve step then accepted; a join request can now only be written by the person asking (review #1). Live only after the rules deploy on master.
+
 ## [1.53.7] - 2026-10-29
 
 ### Fixed
