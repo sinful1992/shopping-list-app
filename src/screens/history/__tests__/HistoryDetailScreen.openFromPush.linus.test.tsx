@@ -45,9 +45,17 @@ const flat = (c: unknown): string => Array.isArray(c) ? c.map(flat).join('') : (
 const allText = (r: ReactTestRenderer) => r.root.findAll(n => typeof n.type === 'string' || (n.type as unknown) === 'Text')
   .map(n => flat(n.props.children)).join('|');
 
+// Unmount every screen after its test: a screen left mounted keeps its
+// Firebase retries (1.5 s, 3 s) running into the next test's shared mocks.
+const mounted: ReactTestRenderer[] = [];
+afterEach(() => {
+  act(() => { mounted.splice(0).forEach(m => m.unmount()); });
+});
+
 async function render(): Promise<ReactTestRenderer> {
   let r!: ReactTestRenderer;
   await act(async () => { r = create(<HistoryDetailScreen />); });
+  mounted.push(r);
   // let the price-stats effect and any retry settle
   await act(async () => { await new Promise(res => setTimeout(res, 0)); });
   return r;

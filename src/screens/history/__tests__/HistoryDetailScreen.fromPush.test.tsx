@@ -59,15 +59,23 @@ const flat = (c: unknown): string => Array.isArray(c) ? c.map(flat).join('') : (
 const allText = (r: ReactTestRenderer) => r.root.findAll(n => typeof n.type === 'string' || (n.type as unknown) === 'Text')
   .map(n => flat(n.props.children)).join('|');
 
+let mounted: ReactTestRenderer[] = [];
 async function render(): Promise<ReactTestRenderer> {
   let r!: ReactTestRenderer;
   await act(async () => { r = create(<HistoryDetailScreen />); });
+  mounted.push(r);
   return r;
 }
 async function advance(ms: number) {
   await act(async () => { jest.advanceTimersByTime(ms); });
   await act(async () => { await Promise.resolve(); });
 }
+
+// Unmount so a screen still retrying can't call the next test's mocks.
+afterEach(async () => {
+  for (const r of mounted) await act(async () => { r.unmount(); });
+  mounted = [];
+});
 
 beforeEach(() => {
   jest.clearAllMocks();

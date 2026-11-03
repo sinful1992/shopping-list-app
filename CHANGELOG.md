@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.22] - 2026-11-03
+
+### Changed
+- Tests only: the task 121 History screen tests unmount every screen after each test, so a screen still retrying can't count against the next test on a slow CI runner. No app change.
+
 ## [1.53.21] - 2026-11-03
 
 ### Fixed
