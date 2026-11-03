@@ -53,9 +53,17 @@ const allText = (r: ReactTestRenderer) => r.root.findAll(n => typeof n.type === 
   .map(n => flat(n.props.children)).join('|');
 const genericShown = () => alertMock.mock.calls.some(c => c[1] === GENERIC);
 
+// Unmount every screen after its test: a screen left mounted keeps its
+// Firebase retries (1.5 s, 3 s) running into the next test's shared mocks.
+const mounted: ReactTestRenderer[] = [];
+afterEach(() => {
+  act(() => { mounted.splice(0).forEach(m => m.unmount()); });
+});
+
 async function render(): Promise<ReactTestRenderer> {
   let r!: ReactTestRenderer;
   await act(async () => { r = create(<HistoryDetailScreen />); });
+  mounted.push(r);
   return r;
 }
 async function advance(ms: number) {
