@@ -12,6 +12,9 @@ import { NUMERIC } from '../../styles/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
+import { useUser } from '../../contexts/UserContext';
+import CrashReporting from '../../services/CrashReporting';
+import LocalStorageManager from '../../services/LocalStorageManager';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -21,11 +24,36 @@ import ItemManager from '../../services/ItemManager';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ShoppingListManager from '../../services/ShoppingListManager';
 import PriceHistoryService, { PriceStats } from '../../services/PriceHistoryService';
-import { ListDetails, Item } from '../../models/types';
+import { ListDetails, Item, ShoppingList } from '../../models/types';
 import PriceEditModal from '../../components/PriceEditModal';
 import PriceHistoryModal from '../../components/PriceHistoryModal';
 import { calculateShoppingStats } from '../../utils/shoppingStats';
 import Icon from 'react-native-vector-icons/Ionicons';
+
+// A receipt push is sent as soon as the scanning phone completes the trip
+// locally, so the list can reach Firebase a moment after the push does.
+const LIST_RETRY_DELAYS_MS = [0, 1500, 3000];
+const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+// Synced data is not type-checked: a number can arrive as a string.
+function toAmount(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function normaliseList(list: ShoppingList): ShoppingList {
+  return { ...list, totalAmount: toAmount(list.totalAmount) };
+}
+
+function normaliseItem(item: Item): Item {
+  return { ...item, name: String(item.name ?? ''), price: toAmount(item.price) };
+}
+
+type Missing = 'notFound' | 'deleted';
 
 /**
  * HistoryDetailScreen
@@ -39,6 +67,8 @@ const HistoryDetailScreen = () => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { listId } = route.params;
+  const user = useUser();
+  const familyGroupId = user?.familyGroupId ?? null;
 
   const [loading, setLoading] = useState(true);
   const [listDetails, setListDetails] = useState<ListDetails | null>(null);
@@ -50,21 +80,48 @@ const HistoryDetailScreen = () => {
   const [priceStats, setPriceStats] = useState<Map<string, PriceStats>>(new Map());
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const priceStatsLoadedRef = useRef(false);
+  const [missing, setMissing] = useState<Missing | null>(null);
+  // Edits sync the whole list node, so they are only allowed on this phone's
+  // own copy of a finished trip: writing an active or Firebase-only copy could
+  // undo a checkout that has not reached this phone yet.
+  const [writable, setWritable] = useState(false);
+  const loadTokenRef = useRef(0);
 
   // Reload when listId changes, not just on mount: a deep link (e.g. a
   // receipt-scanned notification) can retarget this already-mounted screen at a
   // different list, and React Navigation reuses the instance rather than
   // remounting. Reset the price-stats guard so the new list recomputes its stats.
+  // Also reload when the family group arrives: a cold start from a push mounts
+  // this screen before the signed-in user is known, and the Firebase fallback
+  // below needs the group.
   useEffect(() => {
     priceStatsLoadedRef.current = false;
     loadListDetails();
+    // Unmount or a newer load ends any retries still waiting. The token is a
+    // counter, not a node, so reading it at cleanup time is the point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { loadTokenRef.current++; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId]);
+  }, [listId, familyGroupId]);
+
+  // A trip shown while still active (its completion has not synced here yet)
+  // reloads when the completion lands. The lists listener normally runs from
+  // Home, which a cold start from a push never mounts; starting it is a no-op
+  // when it already runs.
+  const shownStatus = listDetails?.list.status;
+  useEffect(() => {
+    if (!familyGroupId || shownStatus !== 'active') return;
+    FirebaseSyncListener.startListeningToLists(familyGroupId);
+    return LocalStorageManager.observeList(listId, (local) => {
+      if (local && local.status !== 'active') loadListDetails();
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyGroupId, listId, shownStatus]);
 
   // Load price stats once after items first arrive
   useEffect(() => {
-    const familyGroupId = listDetails?.list.familyGroupId;
-    if (!familyGroupId || items.length === 0 || priceStatsLoadedRef.current) return;
+    const listGroupId = listDetails?.list.familyGroupId;
+    if (!listGroupId || items.length === 0 || priceStatsLoadedRef.current) return;
     priceStatsLoadedRef.current = true;
 
     const loadPriceStats = async () => {
@@ -73,10 +130,10 @@ const HistoryDetailScreen = () => {
         const suggestionsMap = new Map<string, { bestStore: string; bestPrice: number; savings: number }>();
 
         const uniqueNames = [...new Set(items.map(item => item.name.toLowerCase()))];
-        const suggestions = await PriceHistoryService.getSmartSuggestions(familyGroupId, uniqueNames);
+        const suggestions = await PriceHistoryService.getSmartSuggestions(listGroupId, uniqueNames);
 
         await Promise.all(uniqueNames.map(async (name) => {
-          const stats = await PriceHistoryService.getPriceStats(familyGroupId!, name);
+          const stats = await PriceHistoryService.getPriceStats(listGroupId, name);
           if (stats) statsMap.set(name, stats);
           const suggestion = suggestions.get(name);
           if (suggestion) suggestionsMap.set(name, suggestion);
@@ -91,12 +148,66 @@ const HistoryDetailScreen = () => {
     loadPriceStats();
   }, [items, listDetails?.list.familyGroupId]);
 
+  /**
+   * The trip to show. The push is sent as soon as the scanning phone completes
+   * the trip locally, so this phone may not have it yet, or may still have it
+   * as active: then Firebase is read until it has the completed (or deleted)
+   * trip. 'wait' means the signed-in user is not known yet (cold start); the
+   * load runs again when the family group arrives.
+   */
+  const findListDetails = async (
+    isCurrent: () => boolean
+  ): Promise<{ details: ListDetails; local: boolean } | null | 'wait'> => {
+    let local: ListDetails | null = null;
+    let localError: unknown = null;
+    try {
+      local = await HistoryTracker.getListDetails(listId);
+    } catch (error) {
+      localError = error;
+    }
+    if (local && local.list.status !== 'active') return { details: local, local: true };
+    if (!familyGroupId) return local ? { details: local, local: true } : 'wait';
+
+    let latest: ShoppingList | null = null;
+    for (const delay of LIST_RETRY_DELAYS_MS) {
+      if (delay > 0) await wait(delay);
+      if (!isCurrent()) return null;
+      try {
+        latest = await FirebaseSyncListener.fetchListOnceForHistory(familyGroupId, listId);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'HistoryDetailScreen fetchListOnceForHistory');
+        break;
+      }
+      if (latest && latest.status !== 'active') break;
+    }
+    if (latest && latest.status !== 'active') {
+      return { details: { list: latest, items: local?.items ?? [], receiptData: latest.receiptData }, local: false };
+    }
+    // Still active everywhere: show this phone's copy, else Firebase's.
+    if (local) return { details: local, local: true };
+    if (latest) return { details: { list: latest, items: [], receiptData: latest.receiptData }, local: false };
+    if (localError) CrashReporting.recordError(localError as Error, 'HistoryDetailScreen list not found');
+    return null;
+  };
+
   const loadListDetails = async () => {
+    const token = ++loadTokenRef.current;
+    const isCurrent = () => token === loadTokenRef.current;
     try {
       setLoading(true);
-      const details = await HistoryTracker.getListDetails(listId);
+      const found = await findListDetails(isCurrent);
+      if (!isCurrent() || found === 'wait') return;
+      if (!found || found.details.list.status === 'deleted') {
+        setMissing(found ? 'deleted' : 'notFound');
+        setListDetails(null);
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+      setMissing(null);
+      const details = { ...found.details, list: normaliseList(found.details.list) };
 
-      let loadedItems = details.items;
+      let loadedItems = details.items.map(normaliseItem);
       if (details.list.familyGroupId) {
         try {
           const firebaseItems = await FirebaseSyncListener.fetchItemsOnceForHistory(
@@ -104,27 +215,37 @@ const HistoryDetailScreen = () => {
             listId
           );
           if (firebaseItems.length > 0) {
-            loadedItems = firebaseItems;
+            loadedItems = firebaseItems.map(normaliseItem);
           }
         } catch {
           // fall back to local items already in loadedItems
         }
       }
 
-      // Backfill totalAmount from item prices when not yet saved (including zero)
+      // Backfill totalAmount from item prices when not yet saved (including
+      // zero). Only on this phone's copy of a completed trip: updateList syncs
+      // the whole list node, so writing from an active or Firebase copy could
+      // undo a completion that has not reached this phone yet.
       let resolvedList = details.list;
       if (details.list.totalAmount == null && loadedItems.length > 0) {
         const calcTotal = calculateShoppingStats(loadedItems, null).total;
-        await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
+        if (found.local && details.list.status !== 'active') {
+          // Best effort: the page shows the computed total either way.
+          await ShoppingListManager.updateList(listId, { totalAmount: calcTotal }).catch((error: unknown) =>
+            CrashReporting.recordError(error as Error, 'HistoryDetailScreen total backfill'));
+        }
         resolvedList = { ...details.list, totalAmount: calcTotal };
       }
 
+      if (!isCurrent()) return;
+      setWritable(found.local && details.list.status !== 'active');
       setListDetails({ ...details, list: resolvedList });
       setItems(loadedItems);
+      setLoading(false);
     } catch (error: any) {
+      if (!isCurrent()) return;
+      CrashReporting.recordError(error as Error, 'HistoryDetailScreen loadListDetails');
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-      navigation.goBack();
-    } finally {
       setLoading(false);
     }
   };
@@ -162,6 +283,7 @@ const HistoryDetailScreen = () => {
       setPriceHistoryItem(item);
       return;
     }
+    if (!writable) return;
     setSelectedItem(item);
     setEditModalVisible(true);
   };
@@ -170,6 +292,7 @@ const HistoryDetailScreen = () => {
     itemId: string,
     updates: { price?: number | null }
   ) => {
+    if (!writable) return;
     await ItemManager.updateItem(itemId, updates);
 
     // A scanned receipt's total is what was paid; only a trip without one takes its total from the items.
@@ -213,12 +336,17 @@ const HistoryDetailScreen = () => {
   if (!listDetails) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Shopping trip not found</Text>
+        <Text style={styles.errorText}>
+          {missing === 'deleted'
+            ? 'This shopping trip was deleted'
+            : 'This shopping trip is not on this phone yet. Check your connection and open it again from History.'}
+        </Text>
       </View>
     );
   }
 
   const { list } = listDetails;
+  const stillSyncing = list.status === 'active';
 
   return (
     <View style={styles.container}>
@@ -227,13 +355,16 @@ const HistoryDetailScreen = () => {
       <View style={styles.header}>
         <Text style={styles.listName}>{list.name}</Text>
         <Text style={styles.listDate}>
-          {new Date(list.completedAt || 0).toLocaleDateString('en-GB', {
+          {new Date(list.completedAt || list.createdAt || 0).toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
           })}
           {list.storeName && ` / ${list.storeName}`}
         </Text>
+        {stillSyncing && (
+          <Text style={styles.listDate}>Still syncing: this trip's checkout hasn't reached this phone yet.</Text>
+        )}
         <Text style={styles.totalAmount}>
           Total: £{(list.totalAmount && list.totalAmount > 0
             ? list.totalAmount
@@ -280,7 +411,7 @@ const HistoryDetailScreen = () => {
                                 £{item.price!.toFixed(2)}
                               </Text>
                             ) : (
-                              <Text style={styles.addPricePrompt}>+ set price</Text>
+                              writable && <Text style={styles.addPricePrompt}>+ set price</Text>
                             )}
                           </View>
                         </View>
@@ -328,7 +459,7 @@ const HistoryDetailScreen = () => {
                             £{item.price!.toFixed(2)}
                           </Text>
                         ) : (
-                          <Text style={styles.addPricePrompt}>+ set price</Text>
+                          writable && <Text style={styles.addPricePrompt}>+ set price</Text>
                         )}
                         {priceChange !== null && priceChange !== 0 && (
                           <Text style={[
@@ -359,11 +490,13 @@ const HistoryDetailScreen = () => {
       )}
 
       {/* Delete Button */}
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteList}>
-          <Text style={styles.deleteButtonText}>Delete Shopping Trip</Text>
-        </TouchableOpacity>
-      </View>
+      {writable && (
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteList}>
+            <Text style={styles.deleteButtonText}>Delete Shopping Trip</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
     </ScrollView>
 

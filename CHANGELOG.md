@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.22] - 2026-11-03
+
+### Changed
+- Tests only: the task 121 History screen tests unmount every screen after each test, so a screen still retrying can't count against the next test on a slow CI runner. No app change.
+
+## [1.53.21] - 2026-11-03
+
+### Fixed
+- A trip shown as "Still syncing" (or read straight from the family's data) is read-only: no "+ set price" and no Delete until the checkout reaches this phone, so an edit can't undo the checkout (linus's review of 1.53.20).
+
+## [1.53.20] - 2026-11-03
+
+### Fixed
+- History's read of a trip that hasn't synced yet no longer saves it on this phone: the normal sync stays the only writer, so an older copy can't overwrite a newer one and the trip's items still arrive when its checkout syncs (linus's fresh review of 1.53.18).
+- A failed total backfill no longer shows "Something went wrong", leaving the trip page stops its retries, and an item name stored as a number no longer crashes the page.
+
+## [1.53.19] - 2026-11-03
+
+### Fixed
+- A trip opened from the receipt notification before its checkout reached this phone waits for the completed trip instead of showing it as still in progress; if it is still in progress after a few seconds it says "Still syncing" and updates by itself once the checkout arrives (Codex review on PR #60).
+- Opening such a trip never writes it back, so it can no longer undo the checkout on the other phones (linus's review of 1.53.18).
+
+## [1.53.18] - 2026-11-03
+
+### Fixed
+- Tapping a "receipt scanned" notification no longer shows "Something went wrong" when this phone hasn't synced that trip yet (a cold start from the notification, or the notification arriving before the trip's sync): History reads the trip from the family's data, waits a few seconds if it is still on its way, and otherwise says the trip isn't on this phone yet or was deleted (task 121).
+- A trip whose total or a price arrived as text, or an item without a name, no longer crashes the trip page.
+
 ## [1.53.17] - 2026-10-29
 
 ### Fixed
