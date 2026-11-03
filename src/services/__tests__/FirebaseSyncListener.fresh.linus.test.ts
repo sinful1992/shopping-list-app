@@ -56,17 +56,13 @@ beforeEach(() => {
   mockStore.clear();
 });
 
-it('F1 a newer listener write landing during the local check is not overwritten by the older snapshot', async () => {
-  // History read the list (total 10); the listener then saves the newer rescan (total 25)
-  // while fetchListOnceForHistory is between getList() and saveList().
+it('F1 (4cedcf5: read-only) a newer local copy is never overwritten by the Firebase read', async () => {
+  mockStore.set('list-1', { id: 'list-1', totalAmount: 25, status: 'completed' });
   mockGet.mockResolvedValueOnce({ val: () => remote({ totalAmount: 10 }) });
-  storage.getList.mockImplementationOnce(async () => {
-    const answer = null; // local check sees nothing yet
-    mockStore.set('list-1', { id: 'list-1', totalAmount: 25, status: 'completed' }); // listener write lands
-    return answer;
-  });
-  await FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
+  const l = await FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
+  expect(l?.totalAmount).toBe(10);
   expect(mockStore.get('list-1').totalAmount).toBe(25);
+  expect(storage.saveList).not.toHaveBeenCalled();
 });
 
 it('F2 after History saved the completed list, the listener still backfills its items when the list changes', async () => {
@@ -83,11 +79,13 @@ it('F2 after History saved the completed list, the listener still backfills its 
   expect(mockGet).toHaveBeenCalled();
 });
 
-it('F3 sign-out while the local check runs: nothing is saved for the old account', async () => {
+it('F3 (4cedcf5: read-only) sign-out around the read: nothing is saved for the old account', async () => {
   mockGet.mockResolvedValueOnce({ val: () => remote() });
-  storage.getList.mockImplementationOnce(async () => { FirebaseSyncListener.stopAllListeners(); return null; });
-  await FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
+  const p = FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
+  FirebaseSyncListener.stopAllListeners();
+  await p;
   expect(storage.saveList).not.toHaveBeenCalled();
+  expect(storage.saveListsBatch ?? jest.fn()).not.toHaveBeenCalled();
   FirebaseSyncListener.startListeningToLists('fam-1');
 });
 

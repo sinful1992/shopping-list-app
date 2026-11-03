@@ -89,14 +89,15 @@ it('S1 listId changes mid-retry (second push): the newer list wins, old retries 
   expect(FSL.fetchListOnceForHistory.mock.calls.filter((c: string[]) => c[1] === 'list-1')).toHaveLength(1);
 });
 
-it('S2 sign-out mid-retry (family group -> null): no alert, no crash, not-yet message', async () => {
+it('S2 sign-out mid-retry (family group -> null): no alert, no crash, no trip shown, retries stop', async () => {
   jest.useFakeTimers();
   FSL.fetchListOnceForHistory.mockResolvedValue(null);
   const r = await render();
   mockUser = null;
   await act(async () => { r.update(<HistoryDetailScreen />); });
   await advance(1500); await advance(3000); await advance(0);
-  expect(allText(r)).toContain('not on this phone yet');
+  // 4cedcf5 shows the spinner while the user is unknown (sign-out leaves the screen anyway)
+  expect(allText(r)).not.toContain('Total: £');
   expect(alertMock).not.toHaveBeenCalled();
   expect(FSL.fetchListOnceForHistory).toHaveBeenCalledTimes(1);
 });
