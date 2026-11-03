@@ -50,7 +50,7 @@ function normaliseList(list: ShoppingList): ShoppingList {
 }
 
 function normaliseItem(item: Item): Item {
-  return { ...item, name: item.name ?? '', price: toAmount(item.price) };
+  return { ...item, name: String(item.name ?? ''), price: toAmount(item.price) };
 }
 
 type Missing = 'notFound' | 'deleted';
@@ -93,6 +93,10 @@ const HistoryDetailScreen = () => {
   useEffect(() => {
     priceStatsLoadedRef.current = false;
     loadListDetails();
+    // Unmount or a newer load ends any retries still waiting. The token is a
+    // counter, not a node, so reading it at cleanup time is the point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { loadTokenRef.current++; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId, familyGroupId]);
 
@@ -222,7 +226,9 @@ const HistoryDetailScreen = () => {
       if (details.list.totalAmount == null && loadedItems.length > 0) {
         const calcTotal = calculateShoppingStats(loadedItems, null).total;
         if (found.local && details.list.status !== 'active') {
-          await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
+          // Best effort: the page shows the computed total either way.
+          await ShoppingListManager.updateList(listId, { totalAmount: calcTotal }).catch((error: unknown) =>
+            CrashReporting.recordError(error as Error, 'HistoryDetailScreen total backfill'));
         }
         resolvedList = { ...details.list, totalAmount: calcTotal };
       }

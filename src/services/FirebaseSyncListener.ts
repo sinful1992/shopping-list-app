@@ -347,23 +347,17 @@ class FirebaseSyncListener {
   }
 
   /**
-   * Read one list straight from Firebase and keep it locally. History uses it
+   * Read one list straight from Firebase, without saving it. History uses it
    * when a push opens a trip this device has not synced yet (cold start, or
-   * the push arrived before the list's sync write). Returns null if Firebase
-   * has no such list.
+   * the push arrived before the list's sync write). The lists listener stays
+   * the only writer, so an older read can never overwrite a newer sync, and the
+   * listener still sees the completion and fetches the trip's items. Returns
+   * null if Firebase has no such list.
    */
   async fetchListOnceForHistory(familyGroupId: string, listId: string): Promise<ShoppingList | null> {
-    const db = getDatabase();
-    const gen = this.generation;
-    const snapshot = await get(ref(db, `familyGroups/${familyGroupId}/lists/${listId}`));
+    const snapshot = await get(ref(getDatabase(), `familyGroups/${familyGroupId}/lists/${listId}`));
     const data: FirebaseListPayload | null = snapshot.val();
-    if (!data) return null;
-    const list = mapFirebaseList(listId, data, familyGroupId);
-    const existing = await LocalStorageManager.getList(listId);
-    if (gen === this.generation && !existing) {
-      await LocalStorageManager.saveList(list);
-    }
-    return list;
+    return data ? mapFirebaseList(listId, data, familyGroupId) : null;
   }
 
   /**

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.20] - 2026-11-03
+
+### Fixed
+- History's read of a trip that hasn't synced yet no longer saves it on this phone: the normal sync stays the only writer, so an older copy can't overwrite a newer one and the trip's items still arrive when its checkout syncs (linus's fresh review of 1.53.18).
+- A failed total backfill no longer shows "Something went wrong", leaving the trip page stops its retries, and an item name stored as a number no longer crashes the page.
+
 ## [1.53.19] - 2026-11-03
 
 ### Fixed

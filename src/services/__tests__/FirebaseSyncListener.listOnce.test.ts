@@ -35,35 +35,18 @@ const remote = { name: 'Tesco', createdBy: 'u1', createdAt: 1000, status: 'compl
 
 beforeEach(() => jest.clearAllMocks());
 
-it('reads the one list path and saves it locally when this phone lacks it', async () => {
+it('reads the one list path and maps it, without writing it locally', async () => {
   mockGet.mockResolvedValue({ val: () => remote });
-  storage.getList.mockResolvedValue(null);
   const list = await FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
   expect(ref).toHaveBeenCalledWith(expect.anything(), 'familyGroups/fam-1/lists/list-1');
   expect(list).toMatchObject({ id: 'list-1', name: 'Tesco', familyGroupId: 'fam-1', status: 'completed' });
-  expect(storage.saveList).toHaveBeenCalledWith(expect.objectContaining({ id: 'list-1' }));
+  // The lists listener stays the only writer: an older read can't overwrite a
+  // newer sync, and the listener still sees the completion and fetches items.
+  expect(storage.saveList).not.toHaveBeenCalled();
+  expect(storage.getList).not.toHaveBeenCalled();
 });
 
-it('returns null and saves nothing when Firebase has no such list', async () => {
+it('returns null when Firebase has no such list', async () => {
   mockGet.mockResolvedValue({ val: () => null });
   expect(await FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1')).toBeNull();
-  expect(storage.saveList).not.toHaveBeenCalled();
-});
-
-it('never overwrites a local copy (a list deleted here stays deleted)', async () => {
-  mockGet.mockResolvedValue({ val: () => remote });
-  storage.getList.mockResolvedValue({ id: 'list-1', status: 'deleted' } as never);
-  await FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
-  expect(storage.saveList).not.toHaveBeenCalled();
-});
-
-it('skips the save after sign-out started (listener generation moved on)', async () => {
-  let resolveGet!: (v: unknown) => void;
-  mockGet.mockReturnValue(new Promise(r => { resolveGet = r; }));
-  storage.getList.mockResolvedValue(null);
-  const pending = FirebaseSyncListener.fetchListOnceForHistory('fam-1', 'list-1');
-  FirebaseSyncListener.stopAllListeners();
-  resolveGet({ val: () => remote });
-  await pending;
-  expect(storage.saveList).not.toHaveBeenCalled();
 });
