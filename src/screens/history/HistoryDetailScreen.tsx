@@ -81,6 +81,10 @@ const HistoryDetailScreen = () => {
   const [smartSuggestions, setSmartSuggestions] = useState<Map<string, { bestStore: string; bestPrice: number; savings: number }>>(new Map());
   const priceStatsLoadedRef = useRef(false);
   const [missing, setMissing] = useState<Missing | null>(null);
+  // Edits sync the whole list node, so they are only allowed on this phone's
+  // own copy of a finished trip: writing an active or Firebase-only copy could
+  // undo a checkout that has not reached this phone yet.
+  const [writable, setWritable] = useState(false);
   const loadTokenRef = useRef(0);
 
   // Reload when listId changes, not just on mount: a deep link (e.g. a
@@ -234,6 +238,7 @@ const HistoryDetailScreen = () => {
       }
 
       if (!isCurrent()) return;
+      setWritable(found.local && details.list.status !== 'active');
       setListDetails({ ...details, list: resolvedList });
       setItems(loadedItems);
       setLoading(false);
@@ -278,6 +283,7 @@ const HistoryDetailScreen = () => {
       setPriceHistoryItem(item);
       return;
     }
+    if (!writable) return;
     setSelectedItem(item);
     setEditModalVisible(true);
   };
@@ -286,6 +292,7 @@ const HistoryDetailScreen = () => {
     itemId: string,
     updates: { price?: number | null }
   ) => {
+    if (!writable) return;
     await ItemManager.updateItem(itemId, updates);
 
     // A scanned receipt's total is what was paid; only a trip without one takes its total from the items.
@@ -404,7 +411,7 @@ const HistoryDetailScreen = () => {
                                 £{item.price!.toFixed(2)}
                               </Text>
                             ) : (
-                              <Text style={styles.addPricePrompt}>+ set price</Text>
+                              writable && <Text style={styles.addPricePrompt}>+ set price</Text>
                             )}
                           </View>
                         </View>
@@ -452,7 +459,7 @@ const HistoryDetailScreen = () => {
                             £{item.price!.toFixed(2)}
                           </Text>
                         ) : (
-                          <Text style={styles.addPricePrompt}>+ set price</Text>
+                          writable && <Text style={styles.addPricePrompt}>+ set price</Text>
                         )}
                         {priceChange !== null && priceChange !== 0 && (
                           <Text style={[
@@ -483,11 +490,13 @@ const HistoryDetailScreen = () => {
       )}
 
       {/* Delete Button */}
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteList}>
-          <Text style={styles.deleteButtonText}>Delete Shopping Trip</Text>
-        </TouchableOpacity>
-      </View>
+      {writable && (
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteList}>
+            <Text style={styles.deleteButtonText}>Delete Shopping Trip</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
     </ScrollView>
 

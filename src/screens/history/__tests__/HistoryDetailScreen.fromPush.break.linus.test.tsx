@@ -25,7 +25,12 @@ jest.mock('../../../services/HistoryTracker', () => ({ __esModule: true, default
 jest.mock('../../../services/ItemManager', () => ({ __esModule: true, default: { updateItem: jest.fn() } }));
 jest.mock('../../../services/FirebaseSyncListener', () => ({
   __esModule: true,
-  default: { fetchItemsOnceForHistory: jest.fn(), fetchListOnceForHistory: jest.fn() },
+  default: { fetchItemsOnceForHistory: jest.fn(), fetchListOnceForHistory: jest.fn(), startListeningToLists: jest.fn() },
+}));
+let mockLocalObserver: ((l: unknown) => void) | null = null;
+jest.mock('../../../services/LocalStorageManager', () => ({
+  __esModule: true,
+  default: { observeList: jest.fn((_id: string, cb: (l: unknown) => void) => { mockLocalObserver = cb; return jest.fn(); }) },
 }));
 jest.mock('../../../services/ShoppingListManager', () => ({ __esModule: true, default: { updateList: jest.fn(), deleteList: jest.fn() } }));
 jest.mock('../../../services/PriceHistoryService', () => ({
@@ -149,5 +154,41 @@ describe('Codex P2 on d397568: push beats the completion sync', () => {
     expect(FSL.fetchListOnceForHistory.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(allText(r)).toContain(new Date(completed).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }));
     expect(SLM.updateList).not.toHaveBeenCalled();
+  });
+});
+
+describe('re-review 4cedcf5: a still-syncing (active) trip is read-only', () => {
+  const activeLocal = () => ({
+    list: remoteList({ status: 'active', completedAt: null as unknown as number, totalAmount: 3 }),
+    items: [{ ...milk, id: 'm' }, { ...milk, id: 'e', name: 'Eggs', price: null }], receiptData: null,
+  });
+
+  it('BL10 pricing an item on the still-syncing copy never writes the stale list node', async () => {
+    jest.useFakeTimers();
+    HistoryTracker.getListDetails.mockResolvedValue(activeLocal());
+    FSL.fetchListOnceForHistory.mockResolvedValue(remoteList({ status: 'active', completedAt: null as unknown as number }));
+    FSL.fetchItemsOnceForHistory.mockResolvedValue(activeLocal().items);
+    const r = await render();
+    await act(async () => { await jest.advanceTimersByTimeAsync(5000); });
+    expect(allText(r)).toContain('Still syncing');
+    const modal = r.root.find(n => (n.type as unknown) === 'PriceEditModal');
+    let saved!: Promise<void>;
+    await act(async () => { saved = modal.props.onSave('e', { price: 2 }); });
+    // the save reloads the page, which retries Firebase while the trip is active
+    await act(async () => { await jest.advanceTimersByTimeAsync(5000); await saved; });
+    expect(SLM.updateList).not.toHaveBeenCalled();
+  });
+
+  it('BL11 still syncing, then the completion lands locally: reloads and drops the banner', async () => {
+    jest.useFakeTimers();
+    HistoryTracker.getListDetails.mockResolvedValue(activeLocal());
+    FSL.fetchListOnceForHistory.mockResolvedValue(remoteList({ status: 'active', completedAt: null as unknown as number }));
+    const r = await render();
+    await act(async () => { await jest.advanceTimersByTimeAsync(5000); });
+    expect(mockLocalObserver).not.toBeNull();
+    HistoryTracker.getListDetails.mockResolvedValue({ ...activeLocal(), list: remoteList({ totalAmount: 3 }) });
+    await act(async () => { mockLocalObserver!(remoteList()); });
+    await act(async () => { await jest.advanceTimersByTimeAsync(100); });
+    expect(allText(r)).not.toContain('Still syncing');
   });
 });

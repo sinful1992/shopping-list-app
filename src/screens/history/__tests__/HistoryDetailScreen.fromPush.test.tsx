@@ -166,12 +166,19 @@ it('still active everywhere: shows it as syncing, writes nothing, reloads when t
   expect(allText(r)).toContain('Still syncing');
   expect(ShoppingListManager.updateList).not.toHaveBeenCalled();
   expect(FSL.startListeningToLists).toHaveBeenCalledWith('fam-1');
+  // read-only while syncing: no price prompt, no Delete, a save is a no-op (linus BL10)
+  expect(allText(r)).not.toContain('+ set price');
+  expect(allText(r)).not.toContain('Delete Shopping Trip');
+  const modal = r.root.find(n => (n.type as unknown) === 'PriceEditModal');
+  await act(async () => { await modal.props.onSave('a', { price: 3.2 }); });
+  expect(ShoppingListManager.updateList).not.toHaveBeenCalled();
 
   HistoryTracker.getListDetails.mockResolvedValue({ list: remoteList(), items: [], receiptData: null });
   await act(async () => { mockLocalObserver!(remoteList()); });
   await advance(0);
   expect(allText(r)).not.toContain('Still syncing');
   expect(allText(r)).toContain('Total: £42.10');
+  expect(allText(r)).toContain('Delete Shopping Trip');
 });
 
 it('cold start: loads once the signed-in user (family group) arrives', async () => {

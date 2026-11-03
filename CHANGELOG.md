@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.21] - 2026-11-03
+
+### Fixed
+- A trip shown as "Still syncing" (or read straight from the family's data) is read-only: no "+ set price" and no Delete until the checkout reaches this phone, so an edit can't undo the checkout (linus's review of 1.53.20).
+
 ## [1.53.20] - 2026-11-03
 
 ### Fixed
