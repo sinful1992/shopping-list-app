@@ -35,7 +35,6 @@ jest.mock('../../../services/PriceHistoryService', () => ({
 
 const HistoryTracker = jest.requireMock('../../../services/HistoryTracker').default;
 const FSL = jest.requireMock('../../../services/FirebaseSyncListener').default;
-const CrashReporting = jest.requireMock('../../../services/CrashReporting').default;
 const alertMock = jest.requireMock('../../../contexts/AlertContext').useAlert().showAlert as jest.Mock;
 
 const NOT_LOCAL = new Error('Failed to get list details: List not found');
@@ -53,11 +52,6 @@ async function render(): Promise<ReactTestRenderer> {
   await act(async () => { r = create(<HistoryDetailScreen />); });
   return r;
 }
-async function advance(ms: number) {
-  await act(async () => { jest.advanceTimersByTime(ms); });
-  await act(async () => { await Promise.resolve(); });
-}
-
 const SLM = jest.requireMock('../../../services/ShoppingListManager').default;
 const GENERIC = 'Something went wrong. Please try again.';
 const milk = { id: 'a', listId: 'list-1', name: 'Milk', checked: true, price: 1.2, unitQty: null };
