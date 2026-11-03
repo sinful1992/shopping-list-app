@@ -135,3 +135,19 @@ describe('push-open edge cases', () => {
     expect(SLM.updateList).not.toHaveBeenCalled();
   });
 });
+
+describe('Codex P2 on d397568: push beats the completion sync', () => {
+  it('BL9 Firebase has it ACTIVE first, COMPLETED on the next try: keeps retrying and shows the completion date', async () => {
+    jest.useFakeTimers();
+    const created = 1_700_000_000_000; // 14/11/2023
+    const completed = 1_762_000_000_000; // 01/11/2025
+    FSL.fetchListOnceForHistory
+      .mockResolvedValueOnce(remoteList({ status: 'active', completedAt: null as unknown as number, createdAt: created } as never))
+      .mockResolvedValue(remoteList({ createdAt: created, completedAt: completed } as never));
+    const r = await render();
+    await act(async () => { await jest.advanceTimersByTimeAsync(10_000); });
+    expect(FSL.fetchListOnceForHistory.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(allText(r)).toContain(new Date(completed).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }));
+    expect(SLM.updateList).not.toHaveBeenCalled();
+  });
+});
