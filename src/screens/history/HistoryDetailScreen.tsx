@@ -14,6 +14,7 @@ import { useAlert } from '../../contexts/AlertContext';
 import { sanitizeError } from '../../utils/sanitize';
 import { useUser } from '../../contexts/UserContext';
 import CrashReporting from '../../services/CrashReporting';
+import LocalStorageManager from '../../services/LocalStorageManager';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -95,6 +96,20 @@ const HistoryDetailScreen = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId, familyGroupId]);
 
+  // A trip shown while still active (its completion has not synced here yet)
+  // reloads when the completion lands. The lists listener normally runs from
+  // Home, which a cold start from a push never mounts; starting it is a no-op
+  // when it already runs.
+  const shownStatus = listDetails?.list.status;
+  useEffect(() => {
+    if (!familyGroupId || shownStatus !== 'active') return;
+    FirebaseSyncListener.startListeningToLists(familyGroupId);
+    return LocalStorageManager.observeList(listId, (local) => {
+      if (local && local.status !== 'active') loadListDetails();
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyGroupId, listId, shownStatus]);
+
   // Load price stats once after items first arrive
   useEffect(() => {
     const listGroupId = listDetails?.list.familyGroupId;
@@ -126,29 +141,45 @@ const HistoryDetailScreen = () => {
   }, [items, listDetails?.list.familyGroupId]);
 
   /**
-   * The local trip, or the one in Firebase when this device has not synced it
-   * yet (a push opens this screen straight from a cold start). Null when
-   * neither has it.
+   * The trip to show. The push is sent as soon as the scanning phone completes
+   * the trip locally, so this phone may not have it yet, or may still have it
+   * as active: then Firebase is read until it has the completed (or deleted)
+   * trip. 'wait' means the signed-in user is not known yet (cold start); the
+   * load runs again when the family group arrives.
    */
-  const findListDetails = async (isCurrent: () => boolean): Promise<ListDetails | null> => {
+  const findListDetails = async (
+    isCurrent: () => boolean
+  ): Promise<{ details: ListDetails; local: boolean } | null | 'wait'> => {
+    let local: ListDetails | null = null;
+    let localError: unknown = null;
     try {
-      return await HistoryTracker.getListDetails(listId);
-    } catch (localError) {
-      if (!familyGroupId) return null;
-      for (const delay of LIST_RETRY_DELAYS_MS) {
-        if (delay > 0) await wait(delay);
-        if (!isCurrent()) return null;
-        try {
-          const list = await FirebaseSyncListener.fetchListOnceForHistory(familyGroupId, listId);
-          if (list) return { list, items: [], receiptData: list.receiptData };
-        } catch (error) {
-          CrashReporting.recordError(error as Error, 'HistoryDetailScreen fetchListOnceForHistory');
-          return null;
-        }
-      }
-      CrashReporting.recordError(localError as Error, 'HistoryDetailScreen list not found');
-      return null;
+      local = await HistoryTracker.getListDetails(listId);
+    } catch (error) {
+      localError = error;
     }
+    if (local && local.list.status !== 'active') return { details: local, local: true };
+    if (!familyGroupId) return local ? { details: local, local: true } : 'wait';
+
+    let latest: ShoppingList | null = null;
+    for (const delay of LIST_RETRY_DELAYS_MS) {
+      if (delay > 0) await wait(delay);
+      if (!isCurrent()) return null;
+      try {
+        latest = await FirebaseSyncListener.fetchListOnceForHistory(familyGroupId, listId);
+      } catch (error) {
+        CrashReporting.recordError(error as Error, 'HistoryDetailScreen fetchListOnceForHistory');
+        break;
+      }
+      if (latest && latest.status !== 'active') break;
+    }
+    if (latest && latest.status !== 'active') {
+      return { details: { list: latest, items: local?.items ?? [], receiptData: latest.receiptData }, local: false };
+    }
+    // Still active everywhere: show this phone's copy, else Firebase's.
+    if (local) return { details: local, local: true };
+    if (latest) return { details: { list: latest, items: [], receiptData: latest.receiptData }, local: false };
+    if (localError) CrashReporting.recordError(localError as Error, 'HistoryDetailScreen list not found');
+    return null;
   };
 
   const loadListDetails = async () => {
@@ -157,15 +188,16 @@ const HistoryDetailScreen = () => {
     try {
       setLoading(true);
       const found = await findListDetails(isCurrent);
-      if (!isCurrent()) return;
-      if (!found || found.list.status === 'deleted') {
+      if (!isCurrent() || found === 'wait') return;
+      if (!found || found.details.list.status === 'deleted') {
         setMissing(found ? 'deleted' : 'notFound');
         setListDetails(null);
         setItems([]);
+        setLoading(false);
         return;
       }
       setMissing(null);
-      const details = { ...found, list: normaliseList(found.list) };
+      const details = { ...found.details, list: normaliseList(found.details.list) };
 
       let loadedItems = details.items.map(normaliseItem);
       if (details.list.familyGroupId) {
@@ -182,23 +214,28 @@ const HistoryDetailScreen = () => {
         }
       }
 
-      // Backfill totalAmount from item prices when not yet saved (including zero)
+      // Backfill totalAmount from item prices when not yet saved (including
+      // zero). Only on this phone's copy of a completed trip: updateList syncs
+      // the whole list node, so writing from an active or Firebase copy could
+      // undo a completion that has not reached this phone yet.
       let resolvedList = details.list;
       if (details.list.totalAmount == null && loadedItems.length > 0) {
         const calcTotal = calculateShoppingStats(loadedItems, null).total;
-        await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
+        if (found.local && details.list.status !== 'active') {
+          await ShoppingListManager.updateList(listId, { totalAmount: calcTotal });
+        }
         resolvedList = { ...details.list, totalAmount: calcTotal };
       }
 
       if (!isCurrent()) return;
       setListDetails({ ...details, list: resolvedList });
       setItems(loadedItems);
+      setLoading(false);
     } catch (error: any) {
       if (!isCurrent()) return;
       CrashReporting.recordError(error as Error, 'HistoryDetailScreen loadListDetails');
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-    } finally {
-      if (isCurrent()) setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -296,6 +333,7 @@ const HistoryDetailScreen = () => {
   }
 
   const { list } = listDetails;
+  const stillSyncing = list.status === 'active';
 
   return (
     <View style={styles.container}>
@@ -311,6 +349,9 @@ const HistoryDetailScreen = () => {
           })}
           {list.storeName && ` / ${list.storeName}`}
         </Text>
+        {stillSyncing && (
+          <Text style={styles.listDate}>Still syncing: this trip's checkout hasn't reached this phone yet.</Text>
+        )}
         <Text style={styles.totalAmount}>
           Total: £{(list.totalAmount && list.totalAmount > 0
             ? list.totalAmount

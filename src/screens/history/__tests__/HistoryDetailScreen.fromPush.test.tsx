@@ -30,7 +30,12 @@ jest.mock('../../../services/HistoryTracker', () => ({ __esModule: true, default
 jest.mock('../../../services/ItemManager', () => ({ __esModule: true, default: { updateItem: jest.fn() } }));
 jest.mock('../../../services/FirebaseSyncListener', () => ({
   __esModule: true,
-  default: { fetchItemsOnceForHistory: jest.fn(), fetchListOnceForHistory: jest.fn() },
+  default: { fetchItemsOnceForHistory: jest.fn(), fetchListOnceForHistory: jest.fn(), startListeningToLists: jest.fn() },
+}));
+let mockLocalObserver: ((l: unknown) => void) | null = null;
+jest.mock('../../../services/LocalStorageManager', () => ({
+  __esModule: true,
+  default: { observeList: jest.fn((_id: string, cb: (l: unknown) => void) => { mockLocalObserver = cb; return jest.fn(); }) },
 }));
 jest.mock('../../../services/ShoppingListManager', () => ({ __esModule: true, default: { updateList: jest.fn(), deleteList: jest.fn() } }));
 jest.mock('../../../services/PriceHistoryService', () => ({
@@ -40,6 +45,7 @@ jest.mock('../../../services/PriceHistoryService', () => ({
 
 const HistoryTracker = jest.requireMock('../../../services/HistoryTracker').default;
 const FSL = jest.requireMock('../../../services/FirebaseSyncListener').default;
+const ShoppingListManager = jest.requireMock('../../../services/ShoppingListManager').default;
 const CrashReporting = jest.requireMock('../../../services/CrashReporting').default;
 const alertMock = jest.requireMock('../../../contexts/AlertContext').useAlert().showAlert as jest.Mock;
 
@@ -121,6 +127,51 @@ it('says a trip deleted on this phone was deleted', async () => {
   const r = await render();
   expect(allText(r)).toContain('This shopping trip was deleted');
   expect(FSL.fetchListOnceForHistory).not.toHaveBeenCalled();
+});
+
+it('cold start: keeps the spinner, not the not-found text, until the user is known', async () => {
+  mockUser = null;
+  const r = await render();
+  expect(allText(r)).toContain('Loading details');
+  expect(allText(r)).not.toContain('not on this phone yet');
+});
+
+it('push beat the completion: a local ACTIVE copy waits for the completed trip in Firebase (Codex P2)', async () => {
+  jest.useFakeTimers();
+  HistoryTracker.getListDetails.mockResolvedValue({
+    list: remoteList({ status: 'active', completedAt: null as never, totalAmount: null as never }), items: [], receiptData: null,
+  });
+  FSL.fetchListOnceForHistory
+    .mockResolvedValueOnce(remoteList({ status: 'active', completedAt: null as never }))
+    .mockResolvedValueOnce(remoteList({ totalAmount: null as never }));
+  const r = await render();
+  expect(allText(r)).toContain('Loading details');
+  await advance(1500);
+  await advance(0);
+  expect(allText(r)).toContain('Big shop');
+  expect(allText(r)).not.toContain('Still syncing');
+  // never written back from a copy this phone did not complete (linus BL1/BL2)
+  expect(ShoppingListManager.updateList).not.toHaveBeenCalled();
+});
+
+it('still active everywhere: shows it as syncing, writes nothing, reloads when the completion lands here', async () => {
+  jest.useFakeTimers();
+  const active = remoteList({ status: 'active', completedAt: null as never, totalAmount: null as never });
+  HistoryTracker.getListDetails.mockResolvedValue({ list: active, items: [], receiptData: null });
+  FSL.fetchListOnceForHistory.mockResolvedValue(active);
+  const r = await render();
+  await advance(1500);
+  await advance(3000);
+  await advance(0);
+  expect(allText(r)).toContain('Still syncing');
+  expect(ShoppingListManager.updateList).not.toHaveBeenCalled();
+  expect(FSL.startListeningToLists).toHaveBeenCalledWith('fam-1');
+
+  HistoryTracker.getListDetails.mockResolvedValue({ list: remoteList(), items: [], receiptData: null });
+  await act(async () => { mockLocalObserver!(remoteList()); });
+  await advance(0);
+  expect(allText(r)).not.toContain('Still syncing');
+  expect(allText(r)).toContain('Total: £42.10');
 });
 
 it('cold start: loads once the signed-in user (family group) arrives', async () => {

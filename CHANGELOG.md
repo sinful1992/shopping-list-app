@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.19] - 2026-11-03
+
+### Fixed
+- A trip opened from the receipt notification before its checkout reached this phone waits for the completed trip instead of showing it as still in progress; if it is still in progress after a few seconds it says "Still syncing" and updates by itself once the checkout arrives (Codex review on PR #60).
+- Opening such a trip never writes it back, so it can no longer undo the checkout on the other phones (linus's review of 1.53.18).
+
 ## [1.53.18] - 2026-11-03
 
 ### Fixed
