@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.18] - 2026-11-03
+
+### Fixed
+- Tapping a "receipt scanned" notification no longer shows "Something went wrong" when this phone hasn't synced that trip yet (a cold start from the notification, or the notification arriving before the trip's sync): History reads the trip from the family's data, waits a few seconds if it is still on its way, and otherwise says the trip isn't on this phone yet or was deleted (task 121).
+- A trip whose total or a price arrived as text, or an item without a name, no longer crashes the trip page.
+
 ## [1.53.17] - 2026-10-29
 
 ### Fixed
