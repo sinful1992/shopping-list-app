@@ -521,8 +521,14 @@ class AuthenticationModule {
         const userRef = ref(db, `/users/${firebaseUser.uid}`);
         const claimsRef = ref(db, `/users/${firebaseUser.uid}/claimsUpdatedAt`);
 
+        // Set by the first answer of the server, and by anything that ends
+        // this sign-in, so the saved profile below is never reported after it.
+        let serverAnswered = false;
+        const uid = firebaseUser.uid;
+
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
+          serverAnswered = true;
           const userData = snapshot.val() as User | null;
           if (!userData) {
             // A live session with no profile behind it. The callback only ever
@@ -593,8 +599,32 @@ class AuthenticationModule {
         const unsubClaims = onValue(claimsRef, onClaimsUpdated);
 
         // Store unsubscribe functions
-        userDataUnsubscribe = () => unsubUserData();
+        userDataUnsubscribe = () => {
+          serverAnswered = true;
+          unsubUserData();
+        };
         claimsUnsubscribe = () => unsubClaims();
+
+        // Slow start in low signal: the server's answer above can take many
+        // seconds or never come, and the splash screen waited for it. The
+        // profile saved on the phone at the last answer is reported at once;
+        // the server's answer replaces it when it arrives, and its bad news
+        // (profile gone, family taken away) still lands, only later.
+        //
+        // Only for this same account: sign-out removes the saved profile, and
+        // the uid check covers one left behind by another account. Nothing is
+        // reported once the server has answered or this sign-in has ended.
+        // Nothing saved (first sign-in) leaves the wait as it was.
+        SecureStorage.getItem(this.USER_KEY)
+          .catch(() => null)
+          .then(cached => {
+            if (serverAnswered || lastProcessedUid !== uid || this.deletionInProgress) return;
+            const cachedUser = safeJsonParse<User | null>(cached, null);
+            if (cachedUser && typeof cachedUser === 'object' && cachedUser.uid === uid) {
+              callback(cachedUser);
+            }
+          })
+          .catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule saved profile at start'));
       } else {
         callback(null);
       }
@@ -602,6 +632,8 @@ class AuthenticationModule {
 
     // Return combined unsubscribe function
     return () => {
+      // Also stops a saved profile still being read from being reported.
+      lastProcessedUid = null;
       authUnsubscribe();
       if (userDataUnsubscribe) {
         userDataUnsubscribe();
