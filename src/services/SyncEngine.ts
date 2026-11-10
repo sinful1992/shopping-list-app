@@ -35,6 +35,19 @@ class SyncEngine {
   private inFlight = 0;
   private inFlightWaiters: Array<() => void> = [];
   private syncInProgress: boolean = false;
+  // Order of writes per entity ("item/<id>"). Every write is the whole object, so the newest
+  // one replaces all before it: an older queued copy must never be sent after a newer write.
+  private writeSeq = 0;
+  private latestWrite = new Map<string, number>();
+  // Which write each queued operation of this run came from. One read from storage and not
+  // listed here was queued in an earlier run, so it is older than any write of this run.
+  private queuedSeq = new Map<string, number>();
+  // Entity of every queued operation this engine knows, so a write reads the stored queue only
+  // when an older operation of the same entity can be in it. Operations of an earlier run are
+  // unknown until the queue was read once (queueSeen).
+  private queuedKey = new Map<string, string>();
+  private queuedPerEntity = new Map<string, number>();
+  private queueSeen = false;
   private retryIntervalId: ReturnType<typeof setInterval> | null = null;
   private statusListeners = new Set<(status: SyncEngineStatus) => void>();
   private readonly SYNC_TIMEOUT_MS = 30000; // 30 second timeout for sync operations
@@ -149,6 +162,11 @@ class SyncEngine {
   resetForSignOut(): void {
     this.session++;
     this.familyGroupId = null;
+    this.latestWrite.clear();
+    this.queuedSeq.clear();
+    this.queuedKey.clear();
+    this.queuedPerEntity.clear();
+    this.queueSeen = false;
     this.stopPeriodicRetry();
   }
 
@@ -184,6 +202,10 @@ class SyncEngine {
     data?: ShoppingList | Item | StoreLayout | null
   ): Promise<void> {
     const session = this.session;
+    // Taken before the first await: the order of taps is the order of writes
+    const key = this.entityKey(entityType, entityId);
+    const seq = ++this.writeSeq;
+    this.latestWrite.set(key, seq);
 
     // Delete doesn't need data — syncToFirebase calls .remove()
     // For create/update: use provided data, fall back to DB read only if not provided
@@ -196,21 +218,95 @@ class SyncEngine {
 
     const updatedAt = syncData && 'updatedAt' in syncData ? syncData.updatedAt : null;
     if (session !== this.session) return;
+    // The read above can finish after a newer write of the same entity was made: that one
+    // carries the newer state, and sending this one now would put the old state over it.
+    if (this.latestWrite.get(key) !== seq) return;
 
     if (this.isOnline) {
       const write = this.syncToFirebase(entityType, entityId, operation, syncData);
       try {
         await this.withTimeout(write);
         if (session !== this.session) return;
+        await this.dropOlderQueued(key, seq);
+        if (session !== this.session) return;
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'SyncEngine.pushChange');
         if (session !== this.session) return;
-        const queuedId = await this.queueOperation(entityType, entityId, operation, syncData);
+        // A newer write of the same entity has started: it is sent or queued itself
+        if (this.latestWrite.get(key) !== seq) return;
+        const queuedId = await this.queueOperation(entityType, entityId, operation, syncData, seq);
         this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
+        if (session !== this.session) return;
+        await this.dropOlderQueued(key, seq, queuedId);
       }
     } else {
-      await this.queueOperation(entityType, entityId, operation, syncData);
+      const queuedId = await this.queueOperation(entityType, entityId, operation, syncData, seq);
+      if (session !== this.session) return;
+      await this.dropOlderQueued(key, seq, queuedId);
+    }
+  }
+
+  private entityKey(entityType: EntityType, entityId: string): string {
+    return `${entityType}/${entityId}`;
+  }
+
+  private rememberQueued(operationId: string, key: string): void {
+    if (this.queuedKey.has(operationId)) return;
+    this.queuedKey.set(operationId, key);
+    this.queuedPerEntity.set(key, (this.queuedPerEntity.get(key) ?? 0) + 1);
+  }
+
+  private forgetQueued(operationId: string): void {
+    const key = this.queuedKey.get(operationId);
+    if (key === undefined) return;
+    this.queuedKey.delete(operationId);
+    const left = (this.queuedPerEntity.get(key) ?? 1) - 1;
+    if (left > 0) this.queuedPerEntity.set(key, left);
+    else this.queuedPerEntity.delete(key);
+  }
+
+  /** The stored queue was read in full: operations queued by an earlier run are known from now on. */
+  private noteStoredQueue(queue: QueuedOperation[]): void {
+    for (const queued of queue) {
+      this.rememberQueued(queued.id, this.entityKey(queued.entityType, queued.entityId));
+    }
+    this.queueSeen = true;
+  }
+
+  /** Remove a queued operation that may already be gone (sent, or dropped by another path). */
+  private async removeQueued(operationId: string): Promise<void> {
+    this.queuedSeq.delete(operationId);
+    this.forgetQueued(operationId);
+    try {
+      await LocalStorageManager.removeFromSyncQueue(operationId);
+    } catch {
+      // Already removed
+    }
+  }
+
+  /**
+   * After write `seq` of an entity was sent or queued: take every older queued operation of
+   * the same entity out of the queue, so no retry can put an old value over the new one.
+   * A failure here is not a failed write; processOperationQueue checks again before each send.
+   */
+  private async dropOlderQueued(key: string, seq: number, keepId?: string): Promise<void> {
+    const own = keepId !== undefined && this.queuedKey.has(keepId) ? 1 : 0;
+    if (this.queueSeen && (this.queuedPerEntity.get(key) ?? 0) <= own) return;
+    try {
+      const queue = await LocalStorageManager.getSyncQueue();
+      this.noteStoredQueue(queue);
+      let dropped = 0;
+      for (const queued of queue) {
+        if (queued.id === keepId) continue;
+        if (this.entityKey(queued.entityType, queued.entityId) !== key) continue;
+        if ((this.queuedSeq.get(queued.id) ?? 0) >= seq) continue;
+        await this.removeQueued(queued.id);
+        dropped++;
+      }
+      if (dropped > 0) this.notifyStatus();
+    } catch (error) {
+      CrashReporting.recordError(error as Error, 'SyncEngine.dropOlderQueued');
     }
   }
 
@@ -236,10 +332,28 @@ class SyncEngine {
 
     try {
       const queue = await LocalStorageManager.getSyncQueue();
+      this.noteStoredQueue(queue);
       const now = Date.now();
+
+      // The newest queued operation per entity. The queue is oldest first by clock time, but two
+      // taps can share a millisecond, so the order of writes in this run decides before position.
+      const newestQueued = new Map<string, string>();
+      for (const operation of queue) {
+        const key = this.entityKey(operation.entityType, operation.entityId);
+        const current = newestQueued.get(key);
+        if (current === undefined || (this.queuedSeq.get(operation.id) ?? 0) >= (this.queuedSeq.get(current) ?? 0)) {
+          newestQueued.set(key, operation.id);
+        }
+      }
 
       for (const operation of queue) {
         if (session !== this.session) break;
+        const key = this.entityKey(operation.entityType, operation.entityId);
+        if (newestQueued.get(key) !== operation.id) {
+          CrashReporting.log(`Dropped sync operation ${operation.id} (${key} ${operation.operation}): a newer change of it is queued`);
+          await this.removeQueued(operation.id);
+          continue;
+        }
         if (operation.nextRetryAt && now < operation.nextRetryAt) {
           deferred++;
           continue;
@@ -247,7 +361,15 @@ class SyncEngine {
 
         if (await this.revivesDeletedList(operation)) {
           CrashReporting.log(`Dropped sync operation ${operation.id} (list/${operation.entityId} ${operation.operation}): list deleted on this phone`);
-          await LocalStorageManager.removeFromSyncQueue(operation.id);
+          await this.removeQueued(operation.id);
+          continue;
+        }
+
+        // Checked last, with no await before the send: a write started meanwhile wins
+        if (session !== this.session) break;
+        if (this.isSuperseded(operation)) {
+          CrashReporting.log(`Dropped sync operation ${operation.id} (${key} ${operation.operation}): a newer change of it was sent`);
+          await this.removeQueued(operation.id);
           continue;
         }
 
@@ -261,7 +383,7 @@ class SyncEngine {
             )
           );
 
-          await LocalStorageManager.removeFromSyncQueue(operation.id);
+          await this.removeQueued(operation.id);
 
           const queuedUpdatedAt = operation.data && 'updatedAt' in operation.data ? operation.data.updatedAt : null;
           await LocalStorageManager.markSyncedIfUnchanged(operation.entityType as 'list' | 'item' | 'storeLayout', operation.entityId, queuedUpdatedAt);
@@ -286,7 +408,10 @@ class SyncEngine {
             } else if (operation.entityType === 'storeLayout') {
               await LocalStorageManager.updateStoreLayout(operation.entityId, { syncStatus: 'failed' });
             }
-            await LocalStorageManager.removeFromSyncQueue(operation.id);
+            await this.removeQueued(operation.id);
+          } else if (this.isSuperseded(operation)) {
+            // A newer change started while this one was being sent: no retry for the old one
+            await this.removeQueued(operation.id);
           } else {
             // Exponential backoff with jitter prevents thundering herd on server recovery
             const baseDelay = 1000;
@@ -412,11 +537,8 @@ class SyncEngine {
   ): void {
     write
       .then(async () => {
-        try {
-          await LocalStorageManager.removeFromSyncQueue(queuedId);
-        } catch {
-          // processOperationQueue drained it first — nothing left to drop
-        }
+        // processOperationQueue may have drained it first — then nothing is left to drop
+        await this.removeQueued(queuedId);
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
         this.notifyStatus();
       })
@@ -432,6 +554,12 @@ class SyncEngine {
    * after it and turn the deleted list active again for the whole family.
    * A deleted list is never restored, so such a write is dropped.
    */
+  /** A newer write of the same entity has started since this operation was queued. */
+  private isSuperseded(operation: QueuedOperation): boolean {
+    const latest = this.latestWrite.get(this.entityKey(operation.entityType, operation.entityId)) ?? 0;
+    return latest > (this.queuedSeq.get(operation.id) ?? 0);
+  }
+
   private async revivesDeletedList(operation: QueuedOperation): Promise<boolean> {
     if (operation.entityType !== 'list' || operation.operation === 'delete') return false;
     if ((operation.data as ShoppingList | null)?.status === 'deleted') return false;
@@ -465,7 +593,8 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: ShoppingList | Item | StoreLayout | null
+    data: ShoppingList | Item | StoreLayout | null,
+    seq: number
   ): Promise<string> {
     // Single localized assertion: TS can't prove entityType/data pair up,
     // but callers always pass matching pairs.
@@ -479,6 +608,8 @@ class SyncEngine {
       retryCount: 0,
     } as QueuedOperation;
 
+    this.queuedSeq.set(queuedOp.id, seq);
+    this.rememberQueued(queuedOp.id, this.entityKey(entityType, entityId));
     await LocalStorageManager.addToSyncQueue(queuedOp);
     this.notifyStatus();
     return queuedOp.id;
