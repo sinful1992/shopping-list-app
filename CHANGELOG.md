@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.24] - 2026-11-10
+
+### Fixed
+- The app no longer waits on its start screen for the server when the signal is weak. It opens at once with the profile saved on the phone and takes the server's answer when it arrives. Before, the start screen stayed until the server answered, which in low signal took many seconds or never happened. A first sign-in on a phone, where nothing is saved yet, waits as before. If the server says the account is gone or was removed from the family, the app follows that as soon as the answer arrives.
+
 ## [1.53.23] - 2026-11-10
 
 ### Fixed
