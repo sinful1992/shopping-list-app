@@ -8,7 +8,7 @@
  */
 jest.useFakeTimers();
 
-type Phone = { lsm: any; queue: any[]; listRead: null | (() => Promise<any>); newestFirst: boolean; reads: number; fail: boolean; hold: Array<() => void> | null; removeThrows: boolean; readThrows: boolean };
+type Phone = { addThrows: boolean; lsm: any; queue: any[]; listRead: null | (() => Promise<any>); newestFirst: boolean; reads: number; fail: boolean; hold: Array<() => void> | null; removeThrows: boolean; readThrows: boolean };
 const mockPhones: Phone[] = [];
 let mockCurrent = 0; // which phone's module is being loaded
 const mockServer: Record<string, any> = {};
@@ -36,7 +36,10 @@ jest.mock('../LocalStorageManager', () => {
   return {
     __esModule: true,
     default: {
-      addToSyncQueue: jest.fn(async (op: any) => { p.queue.push(op); }),
+      addToSyncQueue: jest.fn(async (op: any) => {
+        if (p.addThrows) throw new Error('Failed to add to sync queue: disk full');
+        p.queue.push(op);
+      }),
       removeFromSyncQueue: jest.fn(async (id: string) => {
         const i = p.queue.findIndex(o => o.id === id);
         if (i < 0 || p.removeThrows) throw new Error('Failed to remove from sync queue: Record not found');
@@ -69,7 +72,7 @@ const engines: any[] = [];
 
 /** A fresh phone: its own engine, queue and connection, signed in to the same family. */
 function newPhone(stored: any[] = []): { engine: any; phone: Phone } {
-  const phone: Phone = { lsm: null, queue: [...stored], listRead: null, newestFirst: false, reads: 0, fail: false, hold: null, removeThrows: false, readThrows: false };
+  const phone: Phone = { addThrows: false, lsm: null, queue: [...stored], listRead: null, newestFirst: false, reads: 0, fail: false, hold: null, removeThrows: false, readThrows: false };
   mockPhones.push(phone);
   mockCurrent = mockPhones.length - 1;
   let engine: any;
@@ -466,6 +469,125 @@ describe('SH-1 a queue stored by an older build (1.53.22 format, several operati
     expect(phone.queue).toHaveLength(0);
     await engine.processOperationQueue();
     expect(mockWrites).toEqual([`set ${PATH} 20`]);
+  });
+});
+
+describe('SH-1 the newer change could not be stored (Codex review of PR #61)', () => {
+  // Phone has v10 waiting in the queue; v20 fails to send AND cannot be stored.
+  async function olderQueuedNewerUnsaved() {
+    const made = newPhone();
+    made.phone.fail = true;
+    await made.engine.pushChange('item', 'i1', 'update', item(10));
+    made.phone.addThrows = true;
+    await expect(made.engine.pushChange('item', 'i1', 'update', item(20))).rejects.toThrow('disk full');
+    return made;
+  }
+
+  it('the older stored change is kept, not removed, and not sent after the newer one', async () => {
+    const { engine, phone } = await olderQueuedNewerUnsaved();
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([10]);
+    await engine.processOperationQueue(); // network and storage still down
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([10]); // still the one durable copy
+    expect(mockWrites).toEqual([]);
+    expect((await engine.getSyncStatus()).pendingOperations).toBe(2);
+  });
+
+  it('storage works again: the newer change is stored at the next tick, sent, and the older one dropped', async () => {
+    const { engine, phone } = await olderQueuedNewerUnsaved();
+    phone.addThrows = false;
+    await engine.processOperationQueue(); // network still down: stored, send fails
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([20]);
+    phone.fail = false;
+    jest.advanceTimersByTime(10 * 60 * 1000);
+    await flush();
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 20`]);
+    expect(phone.queue).toHaveLength(0);
+    expect((await engine.getSyncStatus()).pendingOperations).toBe(0);
+  });
+
+  it('storage stays broken but the network returns: the newer change is sent from memory, the older never', async () => {
+    const { engine, phone } = await olderQueuedNewerUnsaved();
+    phone.fail = false;
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 20`]);
+    expect(phone.queue).toHaveLength(0);
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 20`]);
+  });
+
+  it('the app is closed before either works: the older change is still stored and is sent by the next run', async () => {
+    const first = await olderQueuedNewerUnsaved();
+    const next = newPhone(first.phone.queue); // a new run starts on what was stored
+    await next.engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 10`]);
+  });
+
+  it('the timed-out send of the unsaved change lands late: it counts as sent and the older one goes', async () => {
+    const { engine, phone } = newPhone();
+    phone.fail = true;
+    await engine.pushChange('item', 'i1', 'update', item(10));
+    phone.fail = false;
+    phone.hold = [];
+    phone.addThrows = true;
+    const newer = engine.pushChange('item', 'i1', 'update', item(20));
+    await flush();
+    jest.advanceTimersByTime(31000);
+    await expect(newer).rejects.toThrow('disk full');
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([10]);
+    phone.hold.splice(0).forEach(go => go()); // the send lands after all
+    await flush();
+    expect(mockWrites).toEqual([`set ${PATH} 20`]);
+    expect(phone.queue).toHaveLength(0);
+    phone.hold = null;
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 20`]);
+  });
+
+  it('a third change takes over from the unsaved one', async () => {
+    const { engine, phone } = await olderQueuedNewerUnsaved();
+    phone.addThrows = false;
+    phone.fail = false;
+    await engine.pushChange('item', 'i1', 'update', item(30));
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 30`]);
+    expect(phone.queue).toHaveLength(0);
+    expect((engine as any).unsaved.size).toBe(0);
+  });
+
+  it('offline, nothing stored before: the unsaved change is still sent when the phone is back', async () => {
+    const { engine, phone } = newPhone();
+    engine.isOnline = false;
+    phone.addThrows = true;
+    await expect(engine.pushChange('item', 'i1', 'delete')).rejects.toThrow('disk full');
+    engine.isOnline = true;
+    mockServer[PATH] = item(1);
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`remove ${PATH}`]);
+  });
+
+  it('while a newer change is only on its way, the tick holds the older stored one back without removing it', async () => {
+    const { engine, phone } = newPhone();
+    phone.fail = true;
+    await engine.pushChange('item', 'i1', 'update', item(10));
+    phone.fail = false;
+    phone.hold = [];
+    const newer = engine.pushChange('item', 'i1', 'update', item(20));
+    await flush();
+    const result = await engine.processOperationQueue();
+    expect(result.deferred).toBe(1);
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([10]); // kept until 20 is safe
+    expect(phone.hold).toHaveLength(1);                            // and not sent behind it
+    phone.hold.splice(0).forEach(go => go());
+    await newer;
+    expect(phone.queue).toHaveLength(0);
+  });
+
+  it('sign-out forgets unsaved changes', async () => {
+    const { engine } = await olderQueuedNewerUnsaved();
+    engine.resetForSignOut();
+    expect((engine as any).unsaved.size).toBe(0);
+    expect((engine as any).safeWrite.size).toBe(0);
   });
 });
 
