@@ -10,8 +10,11 @@ All notable changes to this project will be documented in this file.
 - A change that could not be sent and waits for a retry no longer overwrites a newer change of the same item, list or store layout. Before, ticking an item on weak shop Wi-Fi and changing it again within a minute could leave the family's list on the old value while this phone showed the new one (audit 137, SH-1).
 - The waiting queue keeps one change per item, the newest. A delete is no longer undone by an older waiting edit, and an edit is no longer undone by an older waiting delete. A queue saved by an earlier version is cleaned the same way the first time it is sent.
 
+- A change made while an older change of the same list or store layout was still being prepared is no longer followed by the older one (ada's review).
+
 ### Known limit
 - A phone that was offline and comes back still sends its one waiting change over a newer change made on another phone. That needs a compare on the server and is planned separately.
+- Two waiting changes of one item saved by an earlier version in the very same millisecond: which of the two is kept is not defined (the stored queue has no order beyond the clock time).
 
 ## [1.53.22] - 2026-11-03
 

@@ -8,7 +8,7 @@
  */
 jest.useFakeTimers();
 
-type Phone = { queue: any[]; newestFirst: boolean; reads: number; fail: boolean; hold: Array<() => void> | null; removeThrows: boolean; readThrows: boolean };
+type Phone = { lsm: any; queue: any[]; listRead: null | (() => Promise<any>); newestFirst: boolean; reads: number; fail: boolean; hold: Array<() => void> | null; removeThrows: boolean; readThrows: boolean };
 const mockPhones: Phone[] = [];
 let mockCurrent = 0; // which phone's module is being loaded
 const mockServer: Record<string, any> = {};
@@ -58,7 +58,7 @@ jest.mock('../LocalStorageManager', () => {
       updateList: jest.fn(async () => undefined),
       updateStoreLayout: jest.fn(async () => undefined),
       getItem: jest.fn(async () => null),
-      getList: jest.fn(async () => null),
+      getList: jest.fn(() => (p.listRead ? p.listRead() : Promise.resolve(null))),
       getStoreLayoutById: jest.fn(async () => null),
     },
   };
@@ -69,11 +69,11 @@ const engines: any[] = [];
 
 /** A fresh phone: its own engine, queue and connection, signed in to the same family. */
 function newPhone(stored: any[] = []): { engine: any; phone: Phone } {
-  const phone: Phone = { queue: [...stored], newestFirst: false, reads: 0, fail: false, hold: null, removeThrows: false, readThrows: false };
+  const phone: Phone = { lsm: null, queue: [...stored], listRead: null, newestFirst: false, reads: 0, fail: false, hold: null, removeThrows: false, readThrows: false };
   mockPhones.push(phone);
   mockCurrent = mockPhones.length - 1;
   let engine: any;
-  jest.isolateModules(() => { engine = require('../SyncEngine').default; });
+  jest.isolateModules(() => { engine = require('../SyncEngine').default; phone.lsm = require('../LocalStorageManager').default; });
   engine.setFamilyGroupId('famA');
   engine.isOnline = true;
   engines.push(engine);
@@ -309,20 +309,112 @@ describe('SH-1 one phone', () => {
     expect(phone.queue.map(o => o.data?.updatedAt)).toEqual([20]);
   });
 
-  it('with an empty queue a write reads the queue once, then not again until something is queued', async () => {
+  it('online, a write still reading its data when a newer one is sent does not send the old state after it (ada #9891)', async () => {
+    const { engine, phone } = newPhone();
+    const LIST = '/familyGroups/famA/lists/l1';
+    let release: (v: any) => void = () => undefined;
+    phone.listRead = () => new Promise(resolve => { release = resolve; });
+    const first = engine.pushChange('list', 'l1', 'create');          // no data: reads the list, gets the old one late
+    await flush();
+    await engine.pushChange('list', 'l1', 'update', { id: 'l1', name: 'Renamed', status: 'active', updatedAt: 20 } as any);
+    release({ id: 'l1', name: 'New list', status: 'active', updatedAt: 10 });
+    await first;
+    expect(mockWrites).toEqual([`set ${LIST} 20`]);
+    expect(mockServer[LIST].name).toBe('Renamed');
+    expect(phone.queue).toHaveLength(0);
+  });
+
+  it('a timed-out write that lands late does not remove the newer queued change or mark the item synced (ada case 1)', async () => {
+    const { engine, phone } = newPhone();
+    const LSM = phone.lsm;
+    phone.hold = [];
+    const first = engine.pushChange('item', 'i1', 'update', item(10));
+    await flush();
+    jest.advanceTimersByTime(31000);
+    await first;                                                       // queued, still pending in the SDK
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([10]);
+    engine.isOnline = false;
+    await engine.pushChange('item', 'i1', 'update', item(20));         // queued offline, drops the old one
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([20]);
+    LSM.markSyncedIfUnchanged.mockClear();
+    phone.hold.splice(0).forEach(go => go());                          // the late write lands
+    await flush();
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([20]);
+    // marked "synced" only for the value that landed (10); the store keeps 20 pending
+    expect(LSM.markSyncedIfUnchanged.mock.calls.every((c: any[]) => c[2] === 10)).toBe(true);
+  });
+
+  it('the tick is sending an old copy while a newer write fails and is queued: no throw, the newer one goes out next (ada case 2)', async () => {
+    const { engine, phone } = newPhone();
+    phone.fail = true;
+    await engine.pushChange('item', 'i1', 'update', item(10));
+    phone.fail = false;
+    phone.hold = [];
+    const tick = engine.processOperationQueue();                       // op1 on its way
+    await flush();
+    const held = phone.hold.splice(0);
+    phone.hold = null;
+    phone.fail = true;
+    await engine.pushChange('item', 'i1', 'update', item(20));         // fails, queued; op1 removed under the tick
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([20]);
+    phone.lsm.markSyncedIfUnchanged.mockClear();
+    held.forEach(go => go());                                          // op1's send succeeds after all
+    await expect(tick).resolves.toMatchObject({ skipReason: null });
+    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([20]);
+    expect(phone.lsm.markSyncedIfUnchanged.mock.calls.every((c: any[]) => c[2] === 10)).toBe(true);
+    phone.fail = false;
+    await engine.processOperationQueue();
+    expect(mockServer[PATH].updatedAt).toBe(20);
+    expect(phone.queue).toHaveLength(0);
+  });
+
+  it('300 offline changes of 300 items, then 500 of one item: quick, and one send per item (ada cases 3 and 4)', async () => {
+    const { engine, phone } = newPhone();
+    engine.isOnline = false;
+    const t0 = process.hrtime.bigint();
+    for (let i = 0; i < 300; i++) await engine.pushChange('item', `m${i}`, 'update', item(i + 1, { id: `m${i}` }));
+    const ms300 = Number(process.hrtime.bigint() - t0) / 1e6;
+    expect(phone.queue).toHaveLength(300);
+    for (let i = 0; i < 500; i++) await engine.pushChange('item', 'i1', 'update', item(1000 + i));
+    expect(phone.queue).toHaveLength(301);
+    expect(phone.reads).toBeLessThanOrEqual(500 + 1); // other items never read the queue: nothing older of theirs can be in it
+    expect(ms300).toBeLessThan(1000);
+    engine.isOnline = true;
+    await engine.processOperationQueue();
+    expect(mockWrites.filter(w => w.startsWith(`set ${PATH} `))).toEqual([`set ${PATH} 1499`]);
+    expect(mockWrites).toHaveLength(301);
+    expect(phone.queue).toHaveLength(0);
+  });
+
+  it('the stored queue is read once, then only when an older change of the same item can be in it', async () => {
     const { engine, phone } = newPhone();
     await engine.pushChange('item', 'i1', 'update', item(10));
-    expect(phone.reads).toBe(1);
+    expect(phone.reads).toBe(1); // first write: an earlier run may have left something
     await engine.pushChange('item', 'i1', 'update', item(20));
     await engine.pushChange('item', 'i2', 'update', item(21, { id: 'i2' }));
     expect(phone.reads).toBe(1);
     phone.fail = true;
-    await engine.pushChange('item', 'i1', 'update', item(30)); // queued: the queue is read again from now on
-    expect(phone.reads).toBe(2);
+    await engine.pushChange('item', 'i1', 'update', item(30)); // queued; nothing older of i1 is queued
+    expect(phone.reads).toBe(1);
     phone.fail = false;
-    await engine.pushChange('item', 'i2', 'update', item(31, { id: 'i2' }));
-    expect(phone.reads).toBe(3);
-    expect(phone.queue.map(o => o.data.updatedAt)).toEqual([30]);
+    await engine.pushChange('item', 'i2', 'update', item(31, { id: 'i2' })); // another item: no read
+    expect(phone.reads).toBe(1);
+    await engine.pushChange('item', 'i1', 'update', item(40)); // i1 has a queued older change: read and drop
+    expect(phone.reads).toBe(2);
+    expect(phone.queue).toHaveLength(0);
+    await engine.pushChange('item', 'i1', 'update', item(50));
+    expect(phone.reads).toBe(2);
+  });
+
+  it('a queue cleared behind the engine only costs one extra read', async () => {
+    const { engine, phone } = newPhone();
+    phone.fail = true;
+    await engine.pushChange('item', 'i1', 'update', item(10));
+    phone.queue.length = 0; // cleared by other code
+    phone.fail = false;
+    await engine.pushChange('item', 'i1', 'update', item(20));
+    await engine.processOperationQueue();
+    expect(mockWrites).toEqual([`set ${PATH} 20`]);
   });
 });
 
@@ -392,6 +484,9 @@ describe('SH-1 sign-out', () => {
     expect(phone.queue).toHaveLength(1); // left for the sign-out code, which clears the queue itself
     expect((engine as any).latestWrite.size).toBe(0);
     expect((engine as any).queuedSeq.size).toBe(0);
+    expect((engine as any).queuedKey.size).toBe(0);
+    expect((engine as any).queuedPerEntity.size).toBe(0);
+    expect((engine as any).queueSeen).toBe(false);
   });
 });
 
