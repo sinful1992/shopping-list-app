@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.22] - 2026-11-11
+
+### Fixed
+- A damaged saved price-prediction copy (no predictions object, or not an object) is recalculated instead of being handed to the open list, which reads prices out of it.
+
+### Tests
+- PricePredictionService (was 0 % covered): averages per name over completed trips only, skipped prices (0, negative, missing, no name), no trips, 30 min memory cache, saved copy fresh/stale, saved for next start, five damaged saved copies, storage error, families apart (2 of 9 fail on 1.54.21).
+
 ## [1.54.21] - 2026-11-11
 
 ### Fixed
