@@ -120,6 +120,9 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
         if (awayMs >= LISTENER_RESTART_AFTER_MS) startFirebaseListeners();
 
         fetchLists().catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists fetchLists on foreground'));
+        // A push that failed while the phone still counted as online (weak
+        // shop Wi-Fi) gets no reconnect event; a return to the app retries it.
+        flushUrgentOutbox();
       }
       appStateRef.current = nextAppState;
     };

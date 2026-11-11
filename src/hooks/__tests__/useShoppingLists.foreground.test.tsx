@@ -46,6 +46,7 @@ jest.mock('../../services/CrashReporting', () => ({ __esModule: true, default: {
 import { useShoppingLists, LISTENER_RESTART_AFTER_MS } from '../useShoppingLists';
 import FirebaseSyncListener from '../../services/FirebaseSyncListener';
 import ShoppingListManager from '../../services/ShoppingListManager';
+import { flushUrgentOutbox } from '../../services/UrgentNotifier';
 
 const startLists = FirebaseSyncListener.startListeningToLists as jest.Mock;
 const getActive = ShoppingListManager.getAllActiveLists as jest.Mock;
@@ -122,4 +123,11 @@ it('a short trip after a long one is measured on its own', async () => {
   await away(LISTENER_RESTART_AFTER_MS * 2);
   await away(1_000);
   expect(startLists).toHaveBeenCalledTimes(2);
+});
+
+it('every return to the app also retries waiting urgent pushes (Fable review)', async () => {
+  const before = (flushUrgentOutbox as jest.Mock).mock.calls.length;
+  await away(5_000);
+  await away(LISTENER_RESTART_AFTER_MS + 1);
+  expect((flushUrgentOutbox as jest.Mock).mock.calls.length - before).toBe(2);
 });

@@ -40,6 +40,7 @@ const mockRecordError = jest.fn();
 jest.mock('../CrashReporting', () => ({ __esModule: true, default: { recordError: (...a: unknown[]) => mockRecordError(...a) } }));
 
 import * as Notifier from '../UrgentNotifier';
+import { getIdToken } from '@react-native-firebase/auth';
 
 const { notifyItemUrgent } = Notifier;
 // On the old module these do not exist: the tests below must fail there.
@@ -140,10 +141,11 @@ it('older than 12 hours: dropped', async () => {
   expect(mockStore.has(OUTBOX_KEY)).toBe(false);
 });
 
-it('two markings offline, then one flush: both go out once each, nothing lost or doubled', async () => {
+it('two items marked offline, then one flush: both go out once each, nothing lost or doubled', async () => {
+  mockItems.set('item-10', { id: 'item-10', isUrgent: true });
   mockInvoke.mockResolvedValueOnce(offline()).mockResolvedValueOnce(offline());
   notifyItemUrgent(item);
-  notifyItemUrgent(item);
+  notifyItemUrgent({ ...item, id: 'item-10', name: 'Wipes' });
   await settle();
   expect(outbox()).toHaveLength(2);
   await Promise.all([flushUrgentOutbox(), flushUrgentOutbox()]);
@@ -152,9 +154,44 @@ it('two markings offline, then one flush: both go out once each, nothing lost or
   expect(new Set(sentIds).size).toBe(2);
 });
 
+it('a login token that cannot be refreshed offline keeps the marking (Fable review)', async () => {
+  const tokenOffline = () => Object.assign(new Error('[auth/network-request-failed] A network error'), { code: 'auth/network-request-failed' });
+  (getIdToken as jest.Mock).mockRejectedValueOnce(tokenOffline());
+  notifyItemUrgent(item);
+  await settle();
+  expect(outbox()).toHaveLength(1);
+  (getIdToken as jest.Mock).mockRejectedValueOnce(tokenOffline());
+  await flushUrgentOutbox();
+  expect(outbox()).toHaveLength(1);
+  await flushUrgentOutbox();
+  expect(mockStore.has(OUTBOX_KEY)).toBe(false);
+  expect(mockInvoke).toHaveBeenCalledTimes(1);
+});
+
+it('rate limited (429) is kept for later; another refusal is not', async () => {
+  const http = (status: number) => ({ error: Object.assign(new Error(String(status)), { name: 'FunctionsHttpError', context: { status } }) });
+  mockInvoke.mockResolvedValueOnce(http(429));
+  notifyItemUrgent(item);
+  await settle();
+  expect(outbox()).toHaveLength(1);
+  mockInvoke.mockResolvedValueOnce(http(401));
+  await flushUrgentOutbox();
+  expect(mockStore.has(OUTBOX_KEY)).toBe(false);
+});
+
+it('the same item marked urgent twice offline waits as one push', async () => {
+  mockInvoke.mockResolvedValue(offline());
+  notifyItemUrgent(item);
+  await settle();
+  notifyItemUrgent(item);
+  notifyItemUrgent({ ...item, id: 'item-10', name: 'Wipes' });
+  await settle();
+  expect(outbox().map((p: any) => p.itemId).sort()).toEqual(['item-10', 'item-9']);
+});
+
 it('the outbox keeps at most 20 markings (newest kept)', async () => {
   mockInvoke.mockResolvedValue(offline());
-  for (let i = 0; i < 25; i++) notifyItemUrgent({ ...item, name: `n${i}` });
+  for (let i = 0; i < 25; i++) notifyItemUrgent({ ...item, id: `item-n${i}`, name: `n${i}` });
   await settle();
   const names = outbox().map((p: any) => p.name);
   expect(names).toHaveLength(20);

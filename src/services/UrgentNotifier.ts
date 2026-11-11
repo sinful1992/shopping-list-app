@@ -21,8 +21,8 @@ import supabase from './SupabaseClient';
  * outbox kept on the phone and is sent when the connection returns or the app
  * next starts. It is sent only while it still means something: the same
  * account and family, the item still there and still urgent, and not older
- * than OUTBOX_MAX_AGE_MS. A call the server answered (refused, rate limited)
- * is not retried.
+ * than OUTBOX_MAX_AGE_MS, and one per item. A call the server refused is not
+ * retried; one it rate-limited (429) is.
  */
 
 export interface PendingUrgent {
@@ -78,10 +78,17 @@ async function build(item: Item): Promise<PendingUrgent | null> {
   };
 }
 
-/** True when the request never got an answer from the server. */
-function isNetworkFailure(error: unknown): boolean {
-  const name = (error as { name?: string } | null)?.name;
-  return name === 'FunctionsFetchError' || name === 'TypeError' || name === 'AbortError';
+/**
+ * Worth trying again later: the request never got an answer (offline, or the
+ * login token could not be refreshed offline), or the server asked us to slow
+ * down (429). Any other answer is final.
+ */
+function isRetryable(error: unknown): boolean {
+  const e = error as { name?: string; code?: string; context?: { status?: number } } | null;
+  if (!e) return false;
+  if (e.name === 'FunctionsFetchError' || e.name === 'TypeError' || e.name === 'AbortError') return true;
+  if (e.code === 'auth/network-request-failed') return true;
+  return e.name === 'FunctionsHttpError' && e.context?.status === 429;
 }
 
 async function send(pending: PendingUrgent): Promise<void> {
@@ -106,9 +113,10 @@ async function sendOrKeep(pending: PendingUrgent): Promise<void> {
   try {
     await send(pending);
   } catch (error) {
-    if (!isNetworkFailure(error)) throw error;
+    if (!isRetryable(error)) throw error;
     await serial(async () => {
-      const outbox = await readOutbox();
+      // One waiting push per item: marking it urgent again offline is the same news.
+      const outbox = (await readOutbox()).filter(p => p.itemId !== pending.itemId);
       outbox.push(pending);
       await writeOutbox(outbox.slice(-OUTBOX_MAX));
     });
@@ -159,7 +167,7 @@ export function flushUrgentOutbox(): Promise<void> {
         if (!(await stillWanted(pending, now))) continue;
         await send(pending);
       } catch (error) {
-        if (isNetworkFailure(error)) keep.push(pending);
+        if (isRetryable(error)) keep.push(pending);
         else CrashReporting.recordError(error as Error, 'UrgentNotifier.flushUrgentOutbox');
       }
     }

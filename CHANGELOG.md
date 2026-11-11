@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.32] - 2026-11-11
+
+### Fixed
+- Urgent pushes waiting offline (1.54.11), from the Fable 5.2 review: a login token that could not be refreshed offline (`auth/network-request-failed`) dropped the marking instead of keeping it; now it waits. A rate-limited send (429) waits for later instead of being dropped. The same item marked urgent twice offline sends one push, not two. A send that failed while the phone still counted as online (weak shop Wi-Fi) is retried on every return to the app, not only on a reconnect or the next start.
+
+### Tests
+- urgentFlag.outbox: token refresh offline at mark and at flush, 429 kept vs 401 dropped, one push per item; useShoppingLists.foreground: each return retries waiting pushes (4 of 26 fail on 1.54.31).
+
 ## [1.54.31] - 2026-11-11
 
 ### Fixed
