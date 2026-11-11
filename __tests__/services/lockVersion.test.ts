@@ -80,3 +80,36 @@ describe('sync-lock-version', () => {
     expect(read(d)).toBe('{"version": "0.9');
   });
 });
+
+// Codex review of PR #64: the hook commits the STAGED package.json, so the lock follows that version.
+describe('sync-lock-version follows the staged package.json', () => {
+  const { execFileSync } = require('child_process');
+  function repo(staged: string, working: string | null) {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-git-'));
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: d, stdio: 'ignore' });
+    git('init', '-q');
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x', version: staged }));
+    fs.writeFileSync(path.join(d, 'package-lock.json'), JSON.stringify({ version: '1.0.0', packages: { '': { version: '1.0.0' } } }, null, 2) + '\n');
+    git('add', 'package.json');
+    if (working) fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x', version: working }));
+    return d;
+  }
+
+  test('a later unstaged edit of package.json does not reach the lock', () => {
+    const d = repo('1.0.1', '1.0.2');
+    expect(syncLockVersion(d)).toEqual({ from: '1.0.0', to: '1.0.1' });
+    expect(JSON.parse(fs.readFileSync(path.join(d, 'package-lock.json'), 'utf8')).packages[''].version).toBe('1.0.1');
+  });
+
+  test('staged and working copy the same: that version', () => {
+    expect(syncLockVersion(repo('1.2.0', null))).toEqual({ from: '1.0.0', to: '1.2.0' });
+  });
+
+  test('a git repo where package.json is not staged at all falls back to the working copy', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-git-'));
+    execFileSync('git', ['init', '-q'], { cwd: d, stdio: 'ignore' });
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ version: '4.0.0' }));
+    fs.writeFileSync(path.join(d, 'package-lock.json'), JSON.stringify({ version: '1.0.0' }) + '\n');
+    expect(syncLockVersion(d)).toEqual({ from: '1.0.0', to: '4.0.0' });
+  });
+});

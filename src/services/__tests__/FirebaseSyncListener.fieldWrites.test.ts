@@ -35,6 +35,7 @@ jest.mock('../LocalStorageManager', () => ({
     saveItemsBatchUpsert: jest.fn(async (is: any[]) => { is.forEach(i => mockStore.set(i.id, i)); }),
     deleteItemsBatch: jest.fn(async () => undefined),
     deleteItem: jest.fn(async () => undefined),
+    markItemsSyncedIfBlank: jest.fn(async (ids: string[]) => { ids.forEach(id => { const r = mockStore.get(id); if (r && !r.syncStatus) r.syncStatus = 'synced'; }); }),
   },
 }));
 jest.mock('../CrashReporting', () => ({ __esModule: true, default: { recordError: jest.fn(), log: jest.fn() } }));
@@ -106,4 +107,35 @@ it('a snapshot from before sign-out (old generation) is not kept as a server cop
   ServerCopies.clear();
   await stale({ key: 'i1', val: () => server() });
   expect(ServerCopies.get('item/i1')).toBeUndefined();
+});
+
+// 1.54.3 (Codex review of PR #65): before 1.54.3 item rows never stored their sync state, so rows
+// already on phones read ''. Such a row is the server copy, not an unsent change.
+it('a row stored before 1.54.3 (syncStatus "") takes an older server copy, live and on the initial load', async () => {
+  mockStore.set('i1', local({ syncStatus: '' }));
+  mockStore.set('i2', local({ id: 'i2', syncStatus: '' }));
+  mockInitial = { i2: server({ name: 'Eggs' }) };
+  FirebaseSyncListener.startListeningToItems('fam', 'l1');
+  await flush(); await flush();
+  expect(mockStore.get('i2').name).toBe('Eggs');
+  await mockHandlers.changed({ key: 'i1', val: () => server() });
+  expect(mockStore.get('i1')).toMatchObject({ name: 'Bread', checked: true });
+});
+
+it('a failed local change that is newer is kept, like a pending one', async () => {
+  mockStore.set('i1', local({ syncStatus: 'failed', name: 'Oat milk' }));
+  FirebaseSyncListener.startListeningToItems('fam', 'l1');
+  await flush();
+  await mockHandlers.changed({ key: 'i1', val: () => server() });
+  expect(mockStore.get('i1').name).toBe('Oat milk');
+});
+
+it('an unchanged row stored before 1.54.3 is marked synced on the initial load; a pending one is not', async () => {
+  mockStore.set('i1', local({ syncStatus: '', name: 'Bread', checked: true, updatedAt: 10 }));
+  mockStore.set('i2', local({ id: 'i2', syncStatus: 'pending', name: 'Bread', checked: true, updatedAt: 10 }));
+  mockInitial = { i1: server(), i2: server() };
+  FirebaseSyncListener.startListeningToItems('fam', 'l1');
+  await flush(); await flush();
+  expect(mockStore.get('i1').syncStatus).toBe('synced');
+  expect(mockStore.get('i2').syncStatus).toBe('pending');
 });

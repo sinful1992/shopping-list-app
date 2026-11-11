@@ -1,4 +1,5 @@
 import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, child } from '@react-native-firebase/database';
+import { isUnsentLocalChange } from './storage/syncState';
 import { ShoppingList, Item, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import {
   mapFirebaseList,
@@ -178,16 +179,27 @@ class FirebaseSyncListener {
       if (isCancelled) return;
       const localMap = new Map(localItems.map(i => [i.id, i]));
       const toSync: Item[] = [];
+      const blank: string[] = []; // 1.54.3: rows stored before item rows kept their sync state
       for (const { id, data } of entries) {
         const item = mapFirebaseItem(id, listId, data);
         if (gen === this.generation) ServerCopies.note('item', id, item); // rank 20: base for field updates
         const existing = localMap.get(id);
-        if (existing && !this.hasItemChanged(existing, item)) continue;
+        if (existing && !this.hasItemChanged(existing, item)) {
+          if (!existing.syncStatus) blank.push(id);
+          continue;
+        }
         if (this.keepsLocal(existing, data.updatedAt)) continue;
         toSync.push(item);
       }
       if (toSync.length > 0 && !isCancelled && gen === this.generation) {
         await LocalStorageManager.saveItemsBatchUpsert(toSync);
+      }
+      if (blank.length > 0 && !isCancelled && gen === this.generation) {
+        try {
+          await LocalStorageManager.markItemsSyncedIfBlank(blank);
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'FirebaseSyncListener markItemsSyncedIfBlank');
+        }
       }
       const missing = new Set(localItems
         .filter(i => i.syncStatus === 'synced' && syncedBeforeLoad.has(i.id) && !initialItemIds.has(i.id))
@@ -318,7 +330,7 @@ class FirebaseSyncListener {
    * would leave this phone without the other phone's field for good.
    */
   private keepsLocal(existing: Item | null | undefined, incomingUpdatedAt: number | undefined): boolean {
-    return !!existing && existing.syncStatus !== 'synced' && existing.updatedAt > (incomingUpdatedAt || 0);
+    return !!existing && isUnsentLocalChange(existing.syncStatus) && existing.updatedAt > (incomingUpdatedAt || 0);
   }
 
   /**

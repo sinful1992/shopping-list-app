@@ -5,9 +5,22 @@
 // does the same. Prints "synced <old> -> <new>" when it changed the file, nothing otherwise.
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
+
+// Codex review of PR #64: the hook commits the staged package.json, so the lock must follow the
+// staged version, not a later unstaged edit of the working copy. Outside git (or with package.json
+// not in the index yet) the working copy is all there is.
+function packageVersion(dir) {
+  try {
+    const staged = execFileSync('git', ['show', ':package.json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return JSON.parse(staged).version;
+  } catch {
+    return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version;
+  }
+}
 
 function syncLockVersion(dir) {
-  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  const pkg = { version: packageVersion(dir) };
   const lockFile = path.join(dir, 'package-lock.json');
   if (!fs.existsSync(lockFile)) throw new Error(`no package-lock.json in ${dir}`);
   const text = fs.readFileSync(lockFile, 'utf8');
@@ -25,7 +38,7 @@ function syncLockVersion(dir) {
   return { from: old, to: pkg.version };
 }
 
-module.exports = { syncLockVersion };
+module.exports = { syncLockVersion, packageVersion };
 
 if (require.main === module) {
   try {
