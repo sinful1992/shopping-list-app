@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 - tsconfig `moduleDetection: "force"`: every file is a module, so test files without an import can no longer clash in one global scope (the 1.54.1 CI failure). ada found `SecureStorage.test.ts` was one of them (#10564).
 
 ### Tests
-- `saveItemsBatchUpsert.syncedOlder.test.ts` (11 cases), 3 new listener cases in `FirebaseSyncListener.fieldWrites.test.ts`, and 3 staged-version cases in `lockVersion.test.ts`. 9 of them fail on 1.54.2.
+- `saveItemsBatchUpsert.syncedOlder.test.ts` (11 cases), 3 new listener cases in `FirebaseSyncListener.fieldWrites.test.ts`, and 3 staged-version cases in `lockVersion.test.ts`. 11 of them fail on 1.54.2.
 
 ## [1.54.2] - 2026-11-11
 

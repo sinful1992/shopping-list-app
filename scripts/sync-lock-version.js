@@ -12,7 +12,7 @@ const { execFileSync } = require('child_process');
 // not in the index yet) the working copy is all there is.
 function packageVersion(dir) {
   try {
-    const staged = execFileSync('git', ['show', ':package.json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const staged = execFileSync('git', ['show', ':package.json'], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], env: process.env });
     return JSON.parse(staged).version;
   } catch {
     return JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version;
