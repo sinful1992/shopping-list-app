@@ -1,4 +1,4 @@
-import { getDatabase, ref, set, update, remove } from '@react-native-firebase/database';
+import { getDatabase, ref, set, update, remove, runTransaction } from '@react-native-firebase/database';
 import NetInfo from '@react-native-community/netinfo';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -16,6 +16,7 @@ import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { canonicalJson } from './storage/firebaseMappers';
 import { ServerCopies, Fields } from './storage/serverCopies';
+import { mergeQueued, transactionValue } from './storage/queuedMerge';
 
 /**
  * Rank 20 (audit 137, task 142/143): the fields of `next` that differ from `base`, the server
@@ -449,7 +450,8 @@ class SyncEngine {
               operation.entityId,
               operation.operation,
               operation.data,
-              this.queuedBase.get(operation.id) ?? null
+              this.queuedBase.get(operation.id) ?? null,
+              true
             )
           );
           if (!this.isSuperseded(operation)) this.noteLanded(key, operation.operation, sent.fields, sent.whole);
@@ -571,7 +573,8 @@ class SyncEngine {
     entityId: string,
     operation: Operation,
     data: ShoppingList | Item | StoreLayout | null,
-    base: Fields | null = null
+    base: Fields | null = null,
+    replay = false
   ): Promise<{ fields: Fields | null; whole: boolean }> {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
@@ -590,6 +593,21 @@ class SyncEngine {
     if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
     // Strip syncStatus before syncing to Firebase (keep it local-only)
     const { syncStatus: _, ...dataWithoutSyncStatus } = data;
+    if (replay && (entityType === 'item' || entityType === 'list')) {
+      // Left note 138 (task 145): a change queued offline is compared with what the server holds now,
+      // in one transaction, so a newer change another phone made meanwhile is not overwritten
+      // (queuedMerge.ts). Only an update keeps its base; a create is compared as a whole.
+      const fieldBase = operation === 'update' ? base : null;
+      const sent = fieldBase ? fieldPatch(dataWithoutSyncStatus as Fields, fieldBase) : (dataWithoutSyncStatus as Fields);
+      if (fieldBase && Object.keys(sent).length === 0) return { fields: {}, whole: false };
+      // applyLocally false: the listener must not see the handler's first guess (made over a cold,
+      // null cache) before the server has answered with its real copy (ada #10737)
+      const result = await runTransaction(ref(db, path), (current: Fields | null) =>
+        transactionValue(current ?? null, mergeQueued(current ?? null, sent, fieldBase)), { applyLocally: false });
+      if (!result?.committed) CrashReporting.log(`Queued ${entityType}/${entityId} ${operation} not written: the server's copy is newer`);
+      const value = result?.snapshot?.val?.() ?? null;
+      return { fields: value, whole: true };
+    }
     if (operation === 'update' && base) {
       // Rank 20: only the fields this change made; an unchanged entity sends nothing
       const patch = fieldPatch(dataWithoutSyncStatus as Fields, base);

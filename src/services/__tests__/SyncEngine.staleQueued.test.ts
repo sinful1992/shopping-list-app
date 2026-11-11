@@ -28,6 +28,18 @@ jest.mock('@react-native-firebase/database', () => {
     ref: jest.fn((_db: unknown, path: string) => ({ path })),
     set: jest.fn((r: { path: string }, data: any) => send(() => { mockServer[r.path] = data; mockWrites.push(`set ${r.path} ${data.updatedAt}`); })),
     remove: jest.fn((r: { path: string }) => send(() => { delete mockServer[r.path]; mockWrites.push(`remove ${r.path}`); })),
+    // RTDB transaction: the handler sees the server's value; undefined aborts, null removes (task 145)
+    runTransaction: jest.fn((r: { path: string }, fn: (current: any) => any) => {
+      let committed = false;
+      return send(() => {
+        const next = fn(mockServer[r.path] ?? null);
+        if (next === undefined) return;
+        committed = true;
+        if (next === null) { delete mockServer[r.path]; mockWrites.push(`remove ${r.path}`); return; }
+        mockServer[r.path] = next;
+        mockWrites.push(`set ${r.path} ${next.updatedAt}`);
+      }).then(() => ({ committed, snapshot: { val: () => mockServer[r.path] ?? null } }));
+    }),
   };
 });
 jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(() => jest.fn()) }));
@@ -515,9 +527,9 @@ describe('SH-1 two phones, one server', () => {
     expect(b.phone.queue).toHaveLength(0);
   });
 
-  // Not closed by SH-1 (plan rank 20, needs a compare on the server or field-level writes):
+  // Closed in task 145 (left note 138): the replay compares with the server's copy in a transaction.
   // A never wrote the item again, so on A the queued copy IS the newest; only B's is newer.
-  it.failing('KNOWN LIMIT: an offline phone\'s only queued change still lands over another phone\'s newer one', async () => {
+  it('an offline phone\'s only queued change does not land over another phone\'s newer one', async () => {
     const a = newPhone();
     const b = newPhone();
     a.engine.isOnline = false;

@@ -12,6 +12,7 @@ let mockCurrent = 0;
 const mockServer: Record<string, any> = {};
 const mockWrites: Array<{ op: string; path: string; data?: any }> = [];
 
+const mockTxnOptions: any[] = [];
 jest.mock('@react-native-firebase/database', () => {
   const me = mockCurrent;
   const send = (apply: () => void) => {
@@ -35,6 +36,25 @@ jest.mock('@react-native-firebase/database', () => {
       mockWrites.push({ op: 'update', path: r.path, data });
     })),
     remove: jest.fn((r: { path: string }) => send(() => { delete mockServer[r.path]; mockWrites.push({ op: 'remove', path: r.path }); })),
+    // task 145: a queued replay is a transaction on the server's copy; recorded as the fields it changed
+    runTransaction: jest.fn((r: { path: string }, fn: (current: any) => any, options?: any) => {
+      mockTxnOptions.push(options);
+      let committed = false;
+      return send(() => {
+        const before = mockServer[r.path] ?? null;
+        const next = fn(before === null ? null : JSON.parse(JSON.stringify(before)));
+        if (next === undefined) return;
+        committed = true;
+        if (next === null) { delete mockServer[r.path]; mockWrites.push({ op: 'remove', path: r.path }); return; }
+        mockServer[r.path] = JSON.parse(JSON.stringify(next));
+        if (before === null) { mockWrites.push({ op: 'set', path: r.path, data: next }); return; }
+        const diff: any = {};
+        for (const k of new Set([...Object.keys(before), ...Object.keys(next)])) {
+          if (JSON.stringify(before[k]) !== JSON.stringify(next[k])) diff[k] = next[k] === undefined ? null : next[k];
+        }
+        mockWrites.push({ op: 'update', path: r.path, data: diff });
+      }).then(() => ({ committed, snapshot: { val: () => mockServer[r.path] ?? null } }));
+    }),
   };
 });
 jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(() => jest.fn()) }));
@@ -233,3 +253,65 @@ describe('rank 20: what an update sends', () => {
 
 // A module, not a script: without this the two field-write test files share one global scope and tsc fails (TS2393).
 export {};
+
+describe('left note 138 (task 145): an offline change and a newer change of the SAME field', () => {
+  it('A sets quantity offline, B sets quantity later online: B\'s newer value stays when A comes back', async () => {
+    const a = newPhone(); const b = newPhone();
+    sees(a.engine, 'item', 'i1', PATH); sees(b.engine, 'item', 'i1', PATH);
+    a.engine.isOnline = false;
+    await a.engine.pushChange('item', 'i1', 'update', local({ quantity: '2', updatedAt: 10 }));
+    await b.engine.pushChange('item', 'i1', 'update', local({ quantity: '5', updatedAt: 30 }));
+    a.engine.isOnline = true;
+    await a.engine.processOperationQueue();
+    expect(mockServer[PATH]).toMatchObject({ quantity: '5', updatedAt: 30 });
+    expect(a.phone.queue).toHaveLength(0); // dropped, not retried for ever
+    // the replay's transaction never shows its first guess locally (ada #10737)
+    expect(mockTxnOptions.at(-1)).toEqual({ applyLocally: false });
+  });
+
+  it('same field AND another field: B keeps its quantity, A\'s tick still lands', async () => {
+    const a = newPhone(); const b = newPhone();
+    sees(a.engine, 'item', 'i1', PATH); sees(b.engine, 'item', 'i1', PATH);
+    a.engine.isOnline = false;
+    await a.engine.pushChange('item', 'i1', 'update', local({ quantity: '2', checked: true, updatedAt: 10 }));
+    await b.engine.pushChange('item', 'i1', 'update', local({ quantity: '5', updatedAt: 30 }));
+    a.engine.isOnline = true;
+    await a.engine.processOperationQueue();
+    expect(mockServer[PATH]).toMatchObject({ quantity: '5', checked: true, updatedAt: 30 });
+  });
+
+  it('nothing newer on the server: A\'s offline change lands as before', async () => {
+    const a = newPhone();
+    sees(a.engine, 'item', 'i1', PATH);
+    a.engine.isOnline = false;
+    await a.engine.pushChange('item', 'i1', 'update', local({ quantity: '2', updatedAt: 10 }));
+    a.engine.isOnline = true;
+    await a.engine.processOperationQueue();
+    expect(mockServer[PATH]).toMatchObject({ quantity: '2', updatedAt: 10 });
+  });
+
+  it('B deleted the item meanwhile: A\'s field change does not bring back half an item', async () => {
+    const a = newPhone(); const b = newPhone();
+    sees(a.engine, 'item', 'i1', PATH); sees(b.engine, 'item', 'i1', PATH);
+    a.engine.isOnline = false;
+    await a.engine.pushChange('item', 'i1', 'update', local({ checked: true, updatedAt: 10 }));
+    await b.engine.pushChange('item', 'i1', 'delete', null);
+    a.engine.isOnline = true;
+    await a.engine.processOperationQueue();
+    expect(mockServer[PATH]).toBeUndefined();
+    expect(a.phone.queue).toHaveLength(0);
+  });
+
+  it('a list: offline A renames, B renames later; B\'s name stays, A\'s other field lands', async () => {
+    const a = newPhone(); const b = newPhone();
+    const list = { id: 'l1', name: 'Weekly', createdBy: 'u', createdAt: 1, updatedAt: 5, status: 'active', familyGroupId: 'famA' };
+    mockServer[LPATH] = { ...list };
+    sees(a.engine, 'list', 'l1', LPATH); sees(b.engine, 'list', 'l1', LPATH);
+    a.engine.isOnline = false;
+    await a.engine.pushChange('list', 'l1', 'update', { ...list, name: 'Saturday', storeName: 'Tesco', updatedAt: 10, syncStatus: 'pending' } as any);
+    await b.engine.pushChange('list', 'l1', 'update', { ...list, name: 'Big shop', updatedAt: 30, syncStatus: 'pending' } as any);
+    a.engine.isOnline = true;
+    await a.engine.processOperationQueue();
+    expect(mockServer[LPATH]).toMatchObject({ name: 'Big shop', storeName: 'Tesco', updatedAt: 30 });
+  });
+});

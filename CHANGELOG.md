@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.7] - 2026-11-11
+
+### Fixed
+- A waiting offline change and another phone's change stamped in the same millisecond: the tie now counts as the server being newer, so a field the other phone changed keeps its value (before, every waiting field was written). Our own change that already landed is a tie too and is not written again. Found by the Codex review of PR #69.
+
+## [1.54.6] - 2026-11-11
+
+### Fixed
+- The transaction that sends a waiting offline change (1.54.5) no longer applies its first guess on this phone (`applyLocally: false`): over a cold cache that guess is the whole change, and the list could show it for a moment before the server's real copy came back (ada #10737).
+
+## [1.54.5] - 2026-11-11
+
+### Fixed
+- A change made while this phone was offline no longer overwrites a newer change another phone made to the same field meanwhile (audit 137 left note 138). When the waiting change is sent, it is compared with what the server holds at that moment, in one transaction: a field the other phone did not touch takes this phone's value, a field it changed later keeps the newer value, and if nothing of ours is left nothing is written. A waiting change from before an app restart (no copy to compare with) loses to a newer server copy as a whole. A field change of an item or list deleted on another phone meanwhile no longer brings back half of it. Changes sent straight away are unchanged. `queuedMerge.test.ts` 11 cases; 4 new two-phone cases in `SyncEngine.fieldWrites.test.ts` fail on 1.54.4, and the old KNOWN LIMIT test in `SyncEngine.staleQueued.test.ts` now passes.
+
 ## [1.54.4] - 2026-11-11
 
 ### Tests
