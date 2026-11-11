@@ -278,6 +278,11 @@ class SyncEngine {
     // carries the newer state, and sending this one now would put the old state over it.
     if (this.latestWrite.get(key) !== seq) return;
     const base = this.baseFor(key, entityType, operation);
+    // From now until this change lands, later edits are diffed against the same base: the listener
+    // may already show another phone's field that this phone's pending copy does not have, and a
+    // newer copy as the base would send this phone's stale value of it back (ada #10502). With no
+    // base (a whole write in flight) later edits are whole writes too.
+    if ((entityType === 'item' || entityType === 'list') && !this.pendingBase.has(key)) this.pendingBase.set(key, base);
 
     if (this.isOnline) {
       const write = this.syncToFirebase(entityType, entityId, operation, syncData, base);

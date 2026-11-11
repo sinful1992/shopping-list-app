@@ -6,7 +6,7 @@
  */
 jest.useFakeTimers();
 
-type Phone = { queue: any[]; fail: boolean };
+type Phone = { queue: any[]; fail: boolean; hold?: Array<() => void> };
 const mockPhones: Phone[] = [];
 let mockCurrent = 0;
 const mockServer: Record<string, any> = {};
@@ -16,6 +16,8 @@ jest.mock('@react-native-firebase/database', () => {
   const me = mockCurrent;
   const send = (apply: () => void) => {
     if (mockPhones[me].fail) return Promise.reject(new Error('network error'));
+    const h = mockPhones[me].hold;
+    if (h) return new Promise<void>(res => h.push(() => { apply(); res(); }));
     apply();
     return Promise.resolve();
   };
@@ -209,5 +211,22 @@ describe('rank 20: what an update sends', () => {
     sees(a.engine, 'item', 'i1', PATH);
     await a.engine.processOperationQueue();
     expect(mockServer[PATH]).toMatchObject({ checked: true, price: 2.5 });
+  });
+
+  it('a whole write still in flight (no copy known) keeps later edits whole too, so they cannot diff against a copy this phone never built on', async () => {
+    const a = newPhone(); const b = newPhone();
+    a.phone.hold = [];
+    const first = a.engine.pushChange('item', 'i1', 'update', local({ name: 'Semi', updatedAt: 20 })); // no copy: set, held
+    await Promise.resolve(); await Promise.resolve();
+    sees(b.engine, 'item', 'i1', PATH);
+    await b.engine.pushChange('item', 'i1', 'update', local({ checked: true, updatedAt: 15 }));
+    sees(a.engine, 'item', 'i1', PATH);                // A's listener now has B's tick
+    const second = a.engine.pushChange('item', 'i1', 'update', local({ name: 'Semi', quantity: '2', updatedAt: 21 }));
+    await Promise.resolve(); await Promise.resolve();
+    a.phone.hold.splice(0).forEach(go => go());
+    await first; await jest.advanceTimersByTimeAsync(0);
+    a.phone.hold.splice(0).forEach(go => go());
+    await second;
+    expect(mockWrites.filter(w => w.path === PATH && w.data?.updatedAt === 21).map(w => w.op)).toEqual(['set']);
   });
 });

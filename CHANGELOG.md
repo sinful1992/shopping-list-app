@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.1] - 2026-11-11
+
+### Fixed
+- Two quick edits of one item while the first was still on its way could send back a field another phone had just changed (a rename, then a quantity, undid the other phone's tick). Until a change has landed, later edits of the same item are now compared with the same server copy the first one was made on (ada's review of 1.54.0).
+
+### Changed
+- Editing an item that another phone has just deleted no longer brings it back: the partial write is refused by the server rules and dropped. Before, the whole-object write recreated it.
+
+### Tests
+- `SyncEngine.fieldWrites.ada.test.ts` (ada's break test: two edits in flight while another phone's tick lands) and a case for a whole write in flight; both fail on 1.54.0.
+
 ## [1.54.0] - 2026-11-11
 
 ### Changed
