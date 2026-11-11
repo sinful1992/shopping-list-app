@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.29] - 2026-11-11
+
+### Fixed
+- Price History shows a latest price of £0.00 as the current price; before it read as no current price (`|| null`). An item bought only for free shows a 0 % change instead of NaN %, and is left out of Analytics' most-volatile chart instead of topping it with an infinite swing.
+
+### Tests
+- PriceHistoryService (was 38 % covered): recordPrice local/Firebase and their failures, table points with sinceDate, empty after backfill, legacy rebuild before it, stats (up, down, stable, £0 latest, all free, none, error), per-store comparison, volatility (grouped names, all-free left out, limit, error), Smart Savings (cheapest store and saving, window, 5 min cache per family/window/items, clear, empty), tracked items, backfill (ticked priced items only, once, Firebase chunks of 500) (2 of 21 fail on 1.54.28).
+
 ## [1.54.28] - 2026-11-11
 
 ### Fixed
