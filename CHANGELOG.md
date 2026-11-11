@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.2] - 2026-11-11
+
+### Fixed
+- CI on dev was red since 1.54.1 (typecheck, TS2393): the two field-write test files had no import or export, so tsc read them as one global script and their helpers clashed. Both are now modules (`export {}`), and the break-test copy drops an unused `LPATH` that eslint would have failed next. Jest ran them fine, which is why the local test run missed it. No app change.
+
 ## [1.54.1] - 2026-11-11
 
 ### Fixed

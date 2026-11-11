@@ -77,7 +77,6 @@ function newPhone(): { engine: any; phone: Phone } {
 }
 
 const PATH = '/familyGroups/famA/items/i1';
-const LPATH = '/familyGroups/famA/lists/l1';
 const base = { id: 'i1', listId: 'l1', name: 'Milk', quantity: null, price: 1.2, checked: false, createdBy: 'u', createdAt: 1, updatedAt: 5,
   category: null, sortOrder: 1, unitQty: null, measurementUnit: null, measurementValue: null, isUrgent: false };
 const local = (extra: object) => ({ ...base, syncStatus: 'pending', ...extra } as any);
@@ -110,3 +109,6 @@ describe('ada break: two edits in flight before the first lands', () => {
     expect(mockServer[PATH]).toMatchObject({ name: 'Oat milk', quantity: '2', checked: true });
   });
 });
+
+// A module, not a script: without this the two field-write test files share one global scope and tsc fails (TS2393).
+export {};
