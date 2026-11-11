@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.25] - 2026-11-11
+
+### Fixed (server rules; they take effect when master is deployed)
+- A join request that was rejected can no longer be approved later by another member, and a member can no longer turn a rejected request back to pending or approved. The person can still ask again, and that new request can be approved as before (audit 137, SH-4).
+- Receipt pictures uploaded to the family folder must now be an image, more than 0 bytes and under 15 MB, at the app's own path `receipts/{family}/{list}/{file}`. Before, any file of any size or type could be stored there. Reading and deleting receipts is unchanged (audit 137, SH-5).
+- The storage rules are now deployed together with the database rules on a master build; before, `storage.rules` was never deployed by CI.
+
+### Tests
+- Rules tests run on the database and storage emulators (`npm run test:rules`): 12 new SH-4 tests, 10 new SH-5 tests; 71 in all.
+- SH-2 guard: resetting the free-limit counters by a new `lastResetDate` stays allowed, because no tier has a numeric cap and no server code reads the counters. A new unit test fails the day either changes, so the rule is tightened then.
+
 ## [1.53.24] - 2026-11-10
 
 ### Fixed
