@@ -1,6 +1,6 @@
 {
   "name": "FamilyShoppingList",
-  "version": "1.53.24",
+  "version": "1.53.25",
   "private": true,
   "license": "UNLICENSED",
   "author": "sinful1992",
@@ -9,7 +9,7 @@
     "ios": "react-native run-ios",
     "start": "react-native start",
     "test": "jest",
-    "test:rules": "firebase emulators:exec --only database --project demo-shopping-rules \"jest -c jest.rules.config.js --runInBand\"",
+    "test:rules": "firebase emulators:exec --only database,storage --project demo-shopping-rules \"jest -c jest.rules.config.js --runInBand\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "knip": "knip",

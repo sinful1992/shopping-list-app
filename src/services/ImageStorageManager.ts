@@ -86,7 +86,10 @@ class ImageStorageManager {
       // Create storage reference
       const reference = storageRef(getStorage(), storagePath);
 
-      await putFile(reference, filePath);
+      // The type is sent, not guessed from the local file name: the Storage
+      // rules accept images only (SH-5), and a capture path without ".jpg"
+      // would otherwise go up as application/octet-stream.
+      await putFile(reference, filePath, { contentType: 'image/jpeg' });
 
       await this.withListLock(listId, async () => {
         // Point the list at the upload only if it still wants this capture: a

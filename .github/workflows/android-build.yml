@@ -175,3 +175,14 @@ jobs:
 
           # Clean up
           rm /tmp/sa.json
+
+      # Its own step (SH-5, audit 137): storage.rules was never deployed before, and a
+      # refused storage deploy (the service account needs Firebase Rules Admin) must not
+      # stop the database rules above. A failure here still fails the run, visibly.
+      - name: Deploy Firebase Storage Rules
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          firebase deploy --only storage --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+          rm /tmp/sa.json

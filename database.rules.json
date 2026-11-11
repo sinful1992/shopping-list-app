@@ -57,6 +57,7 @@
               (auth.uid == $userId && data.parent().child($userId).exists()) ||
               (root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid) &&
                root.child('familyGroups').child($groupId).child('joinRequests').child($userId).exists() &&
+               root.child('familyGroups').child($groupId).child('joinRequests').child($userId).child('status').val() !== 'rejected' &&
                newData.val() === true)
             )",
             ".validate": "newData.isBoolean() && newData.val() === true &&
@@ -82,7 +83,7 @@
             "email": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
             "displayName": { ".validate": "newData.isString()" },
             "requestedAt": { ".validate": "newData.isNumber()" },
-            "status": { ".validate": "newData.val().matches(/^(pending|approved|rejected)$/)" }
+            "status": { ".validate": "newData.isString() && newData.val().matches(/^(pending|approved|rejected)$/) && (auth.uid === $userId ? newData.val() === 'pending' : (data.val() === 'pending' || newData.val() === data.val()))" }
           }
         },
 

@@ -91,6 +91,19 @@ describe('receipt upload queue', () => {
     expect(queued()).toEqual([]);
   });
 
+  // SH-5: the Storage rules accept only images, so the type is sent, not left to
+  // the native side to guess from the local file name (a capture without .jpg).
+  it('sends the receipt as image/jpeg, whatever the local file is called', async () => {
+    mockLists.l1 = { id: 'l1', familyGroupId: 'fg-1', status: 'completed', receiptUrl: 'file:///cache/capture-123' };
+    await ImageStorageManager.queueReceiptForUpload('file:///cache/capture-123', 'l1');
+
+    await ImageStorageManager.processUploadQueue();
+
+    expect(mockPutFile).toHaveBeenCalledTimes(1);
+    expect(mockPutFile.mock.calls[0][1]).toBe('file:///cache/capture-123');
+    expect(mockPutFile.mock.calls[0][2]).toEqual({ contentType: 'image/jpeg' });
+  });
+
   it('drops a capture whose list was discarded or rescanned, without uploading', async () => {
     mockLists.gone = { id: 'gone', familyGroupId: 'fg-1', status: 'deleted', receiptUrl: '/cache/a.jpg' };
     mockLists.rescanned = { id: 'rescanned', familyGroupId: 'fg-1', status: 'active', receiptUrl: '/cache/new.jpg' };

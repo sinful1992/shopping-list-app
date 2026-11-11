@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.25] - 2026-11-11
+
+### Fixed (server rules; they take effect when master is deployed)
+- A join request that was rejected can no longer be approved later by another member, and a member can no longer turn a rejected request back to pending or approved. The person can still ask again, and that new request can be approved as before (audit 137, SH-4).
+- Receipt pictures uploaded to the family folder must now be an image, more than 0 bytes and under 15 MB, at the app's own path `receipts/{family}/{list}/{file}`. Before, any file of any size or type could be stored there. Reading and deleting receipts is unchanged (audit 137, SH-5).
+- The requester of a join request can only ever set it to pending; before, he could mark his own request approved (no membership followed, but any screen trusting "approved" would have been fooled; ada's review).
+- The app now sends receipts as `image/jpeg` instead of leaving the type to the phone to guess from the local file name. Older app versions, which send no type, keep working: a receipt named like the app names it (`{milliseconds}.jpg`) is also accepted as `application/octet-stream` (ada's review).
+- Accepted photo types: JPEG, PNG, WebP, HEIC/HEIF (not SVG or GIF); at most 15 MB.
+- The storage rules are now deployed on a master build, in their own step after the database rules, so a refused storage deploy does not stop the database rules; before, `storage.rules` was never deployed by CI.
+
+### Tests
+- Rules tests run on the database and storage emulators (`npm run test:rules`): 16 new SH-4 tests, 15 new SH-5 tests; 80 in all. A unit test checks the upload sends `image/jpeg`.
+- SH-2 guard: resetting the free-limit counters by a new `lastResetDate` stays allowed, because no tier has a numeric cap and no server code reads the counters. A new unit test fails the day either changes, so the rule is tightened then.
+
 ## [1.53.24] - 2026-11-10
 
 ### Fixed
