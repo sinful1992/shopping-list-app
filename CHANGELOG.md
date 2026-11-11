@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.19] - 2026-11-11
+
+### Fixed
+- Budget's per-trip breakdown shows a £0.00 trip as £0.00, not as a trip with no amount (`totalAmount || null` treated 0 as missing).
+
+### Tests
+- BudgetTracker (was 0 % covered): totals with and without amounts, no trips, the £0 trip, missing values, per member, storage errors (1 of 9 fails on 1.54.18).
+
 ## [1.54.18] - 2026-11-11
 
 ### Performance
