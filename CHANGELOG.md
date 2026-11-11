@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.28] - 2026-11-11
+
+### Fixed
+- An item name with a '/' ("Bread/rolls") no longer plants a fake category in the family's category history. The Firebase key kept the '/', so the usage was written two levels deep and every phone read it as item "bread" with a category called "rolls", which could then appear in the "which category?" chooser. '/' now becomes '_' like '.', '#', '$', '[' and ']', and the reader skips any entry that is not a usage record, so ones already written that way are ignored. An empty name is not recorded.
+
+### Tests
+- CategoryHistoryService (was 25 % covered): first use, count up, nothing for no category or an empty name, four names to safe keys, the Firebase count, failures never thrown, one entry per category in order, suggestion, read errors; isCategoryUsageRecord (8 of 17 fail on 1.54.27).
+
 ## [1.54.27] - 2026-11-11
 
 ### Tests

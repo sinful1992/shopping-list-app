@@ -21,6 +21,16 @@ import { v4 as uuidv4 } from 'uuid';
  * This enables true real-time sync across devices
  * Implements Requirements: 4.4, 9.5
  */
+/**
+ * A category-history leaf is { usageCount, lastUsedAt, createdAt }. An item
+ * name with '/' in it was once written two levels deep, so under its first
+ * part sits an object of categories instead: that is not a category of this
+ * item and is skipped.
+ */
+export function isCategoryUsageRecord(data: unknown): boolean {
+  return !!data && typeof data === 'object' && typeof (data as { usageCount?: unknown }).usageCount === 'number';
+}
+
 class FirebaseSyncListener {
   private activeListeners: Map<string, () => void> = new Map();
   private itemListenerRefs: Map<string, number> = new Map();
@@ -447,6 +457,7 @@ class FirebaseSyncListener {
         const categoriesForItem = itemSnapshot.val();
         if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
+          if (!isCategoryUsageRecord(categoriesForItem[category])) continue;
           batch.push({ itemHash, category, data: categoriesForItem[category] });
         }
       });
@@ -465,6 +476,7 @@ class FirebaseSyncListener {
         const categoriesForItem = itemSnapshot.val();
         if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
+          if (!isCategoryUsageRecord(categoriesForItem[category])) continue;
           await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category], gen);
         }
       }
