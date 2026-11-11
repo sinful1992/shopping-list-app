@@ -16,7 +16,7 @@ SRC_STAGED=$(echo "$STAGED" | grep -cE '^(src/|supabase/|android/|ios/)')
 
 if [ "$PACKAGE_STAGED" -gt 0 ]; then
   # package.json is staged — validate the version was actually incremented
-  NEW_VERSION=$(git diff --cached -- package.json | grep '^+"version"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+  NEW_VERSION=$(git diff --cached -- package.json | grep -E '^\+[[:space:]]*"version"' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
   OLD_VERSION=$(git show HEAD:package.json 2>/dev/null | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))" 2>/dev/null)
 
   if [ -n "$NEW_VERSION" ] && [ -n "$OLD_VERSION" ]; then

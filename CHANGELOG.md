@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
 
 ### Build
 - `package-lock.json` now says the app's version (it said 1.48.13). The pre-commit hook keeps it in step on every version bump through `scripts/sync-lock-version.js`, and a unit test fails when the two differ (audit 137, SH-6).
+- The pre-commit hook's version check had never run: it looked for `+"version"` at the start of the diff line, but package.json indents it, so a missing or backwards bump and a missing changelog entry passed silently. It now reads the indented line (tried on a scratch repo: a bump prints `Version: 1.0.0 -> 1.0.1` and syncs the lock).
 
 ### Tests
 - `__tests__/services/listChanged.test.ts`: a list saved locally and compared with the same list from Firebase is unchanged, for 9 shapes; 8 failed before. `__tests__/services/lockVersion.test.ts`: the lock matches package.json, and the sync script sets both version fields, leaves a lock in step alone, and never overwrites a broken lock.
