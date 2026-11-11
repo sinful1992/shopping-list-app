@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.26] - 2026-11-11
+
+### Tests
+- ReceiptCaptureModule (was 0 %): camera permission on Android and iOS, scanner at quality 92 with file:// stripped and content:// kept, permission denied, cancel and empty scans, scanner errors; gallery pick capped at 4096 px, cancel/empty, picker errors. 12 tests.
+- receiptSyncBackfill (was 0 %, real in-memory DB): synced or failed lists with a receipt become pending, others untouched, done/failed flags respected, used-up or damaged flag, failing tries counted to failed. 4 tests. No behaviour change.
+
 ## [1.54.25] - 2026-11-11
 
 ### Tests
