@@ -65,12 +65,14 @@ describe('recordCategoryUsage', () => {
     expect(mockRef).toHaveBeenCalledWith(expect.anything(), `/familyGroups/fam/categoryHistory/${key}/dairy`);
   });
 
-  it('the Firebase count starts at 1 and then adds 1, keeping other fields', async () => {
+  it('the Firebase write: count starts at 1 then adds 1, createdAt always set', async () => {
     await CategoryHistoryService.recordCategoryUsage('fam', 'Milk', 'dairy');
     const update = mockTransaction.mock.calls[0][1];
+    // No `category` in the data (it is the node key); createdAt always a number for the rule.
     expect(update(null)).toEqual({ usageCount: 1, lastUsedAt: NOW, createdAt: NOW });
     expect(update({ usageCount: 2, createdAt: 5 })).toEqual({ usageCount: 3, lastUsedAt: NOW, createdAt: 5 });
     expect(update({ createdAt: 5 })).toEqual({ usageCount: 1, lastUsedAt: NOW, createdAt: 5 });
+    expect(update({ usageCount: 4 })).toEqual({ usageCount: 5, lastUsedAt: NOW, createdAt: NOW });
   });
 
   it('local or Firebase failures never throw (background work)', async () => {

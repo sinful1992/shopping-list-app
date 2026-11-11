@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.33] - 2026-11-11
+
+### Fixed
+- Category history reaches the family's other phones again (found by the Fable 5.2 review; broken since 4c98fde, 2026-05-18). That change stopped writing a `category` field into each entry (the category is the node key), but the database rule still required one, so every write was refused silently. The rule now requires only usageCount, lastUsedAt and createdAt, which every app version writes, Play 1.50 included. Live with the next master deploy of the rules. The app's write always sets createdAt.
+- The 1.54.28 filter that skips fake nested category entries also runs when a new item node arrives after start (it ran only on the first load and on changes).
+
+### Tests
+- rules/categoryHistory (CI, emulator): the shape every version writes and the app's transaction accepted, an older entry with `category` accepted, missing createdAt / non-number count / non-member refused. categoryHistory.listener: first load, a node added after start and a changed node all skip the nested entry (1 of 3 fails on 1.54.32). CategoryHistoryService: createdAt always set.
+
 ## [1.54.32] - 2026-11-11
 
 ### Fixed

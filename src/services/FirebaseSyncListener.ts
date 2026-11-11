@@ -446,6 +446,7 @@ class FirebaseSyncListener {
       const categoriesForItem = itemSnapshot.val();
       if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
       for (const category of Object.keys(categoriesForItem)) {
+        if (!isCategoryUsageRecord(categoriesForItem[category])) continue;
         await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category], gen);
       }
     });
