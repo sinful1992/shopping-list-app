@@ -230,3 +230,6 @@ describe('rank 20: what an update sends', () => {
     expect(mockWrites.filter(w => w.path === PATH && w.data?.updatedAt === 21).map(w => w.op)).toEqual(['set']);
   });
 });
+
+// A module, not a script: without this the two field-write test files share one global scope and tsc fails (TS2393).
+export {};
