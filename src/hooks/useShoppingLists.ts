@@ -6,6 +6,7 @@ import FirebaseSyncListener from '../services/FirebaseSyncListener';
 import ImageStorageManager from '../services/ImageStorageManager';
 import PriceHistoryService from '../services/PriceHistoryService';
 import CrashReporting from '../services/CrashReporting';
+import { flushUrgentOutbox } from '../services/UrgentNotifier';
 import { mergeWithPendingLists as mergePendingPure, PendingListEntry } from '../utils/pendingListsMerge';
 
 /**
@@ -62,6 +63,8 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
         // Receipt captures that could not upload when scanned (offline).
         ImageStorageManager.processUploadQueue()
           .catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists processUploadQueue'));
+        // Urgent markings made offline that never reached the server.
+        flushUrgentOutbox();
       })
       .catch(() => setLoading(false));
 

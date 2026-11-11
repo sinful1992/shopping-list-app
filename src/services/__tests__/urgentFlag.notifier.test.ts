@@ -16,6 +16,8 @@ jest.mock('../AuthenticationModule', () => ({
   __esModule: true,
   default: { getCurrentUser: jest.fn(async () => ({ familyGroupId: 'fam-1', displayName: 'Giedrius' })) },
 }));
+jest.mock('@react-native-community/netinfo', () => ({ __esModule: true, default: { addEventListener: jest.fn(() => () => {}) } }));
+jest.mock('../LocalStorageManager', () => ({ __esModule: true, default: { getItem: jest.fn(async () => null) } }));
 const mockRecordError = jest.fn();
 jest.mock('../CrashReporting', () => ({ __esModule: true, default: { recordError: (...a: unknown[]) => mockRecordError(...a) } }));
 

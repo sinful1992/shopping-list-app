@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.11] - 2026-11-11
+
+### Fixed
+- An item marked urgent while offline now still sends the family its push (Fable audit task 137, F2). Before, the call failed on the network, was reported and the marking was gone. Now it waits on the phone (at most 20) and goes out when the connection returns or the app next starts, with the same row id, so it pushes once. It is sent only while it still applies: same account and family, the item still there and still urgent, and under 12 hours old. A call the server answered (refused, rate limited) is not retried.
+
+### Tests
+- urgentFlag.outbox: offline then online, app start, still offline, server refusal, five reasons to drop, 12 h age, two markings with two flushes at once, the 20 cap, a broken stored outbox (12 of 14 fail on 1.54.10).
+
 ## [1.54.10] - 2026-11-11
 
 ### Fixed
