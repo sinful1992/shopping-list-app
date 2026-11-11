@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.16] - 2026-11-11
+
+### Fixed
+- The Archived tab no longer misses lists once a family has more than 200 completed lists, and History no longer misses non-archived lists past 200 (OPTIMISE P9, Fable audit task 137). Both took the newest 200 completed lists and filtered them afterwards, and archived lists are the oldest. The archived filter now runs in the database query (not archived = null or false), over all completed lists.
+
+### Tests
+- archive.past200 (real in-memory DB, 250 completed lists): all 50 archived shown newest first; all 200 non-archived (false and null) shown; a newer archived list; active/deleted/other family left out; empty family; storage failure gives an empty tab (3 of 5 fail on 1.54.15).
+
 ## [1.54.15] - 2026-11-11
 
 ### Performance
