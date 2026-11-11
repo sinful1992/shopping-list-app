@@ -11,6 +11,7 @@ import {
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
 import { hasListChanged, revivesDeletedList } from './storage/mappers';
+import { ServerCopies } from './storage/serverCopies';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -58,7 +59,9 @@ class FirebaseSyncListener {
         if (snap.key && snap.val()) {
           initialIds.add(snap.key);
           const data: FirebaseListPayload = snap.val();
-          lists.push(mapFirebaseList(snap.key, data, familyGroupId));
+          const list = mapFirebaseList(snap.key, data, familyGroupId);
+          if (gen === this.generation) ServerCopies.note('list', snap.key, list); // rank 20: base for field updates
+          lists.push(list);
         }
       });
       initialLoadDone = true;
@@ -83,6 +86,7 @@ class FirebaseSyncListener {
       const listId = snapshot.key;
 
       if (listId && gen === this.generation) {
+        ServerCopies.note('list', listId, null);
         try {
           await LocalStorageManager.updateList(listId, {
             status: 'deleted',
@@ -176,9 +180,10 @@ class FirebaseSyncListener {
       const toSync: Item[] = [];
       for (const { id, data } of entries) {
         const item = mapFirebaseItem(id, listId, data);
+        if (gen === this.generation) ServerCopies.note('item', id, item); // rank 20: base for field updates
         const existing = localMap.get(id);
         if (existing && !this.hasItemChanged(existing, item)) continue;
-        if (existing && existing.updatedAt > (data.updatedAt || 0)) continue;
+        if (this.keepsLocal(existing, data.updatedAt)) continue;
         toSync.push(item);
       }
       if (toSync.length > 0 && !isCancelled && gen === this.generation) {
@@ -214,6 +219,7 @@ class FirebaseSyncListener {
       try {
         const snap = await get(child(itemsRef, itemId));
         if (snap.exists() || gen !== this.generation) return;
+        ServerCopies.note('item', itemId, null);
         await LocalStorageManager.deleteItem(itemId);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'FirebaseSyncListener item deletion');
@@ -248,6 +254,7 @@ class FirebaseSyncListener {
         || familyGroupId;
 
       const incomingList = mapFirebaseList(listId, firebaseData, resolvedFamilyGroupId);
+      if (gen === this.generation) ServerCopies.note('list', listId, incomingList); // rank 20
 
       if (existingList && !hasListChanged(existingList, incomingList)) {
         return;
@@ -287,12 +294,13 @@ class FirebaseSyncListener {
     try {
       const existingItem = await LocalStorageManager.getItem(itemId);
       const item = mapFirebaseItem(itemId, listId, firebaseData);
+      if (gen === this.generation) ServerCopies.note('item', itemId, item); // rank 20: base for field updates
 
       if (existingItem && !this.hasItemChanged(existingItem, item)) {
         return;
       }
 
-      if (existingItem && existingItem.updatedAt > (firebaseData.updatedAt || 0)) {
+      if (this.keepsLocal(existingItem, firebaseData.updatedAt)) {
         return;
       }
       if (gen !== this.generation) return;
@@ -301,6 +309,16 @@ class FirebaseSyncListener {
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncItemToLocal');
     }
+  }
+
+  /**
+   * Rank 20: a snapshot older than the local copy is skipped only while the local copy has a change
+   * of its own still on its way. A synced local copy takes the server's: with field-level writes the
+   * server can hold a merge of two phones' edits under the older phone's updatedAt, and skipping it
+   * would leave this phone without the other phone's field for good.
+   */
+  private keepsLocal(existing: Item | null | undefined, incomingUpdatedAt: number | undefined): boolean {
+    return !!existing && existing.syncStatus !== 'synced' && existing.updatedAt > (incomingUpdatedAt || 0);
   }
 
   /**
@@ -337,7 +355,9 @@ class FirebaseSyncListener {
     const items: Item[] = [];
     snapshot.forEach(snap => {
       if (snap.key) {
-        items.push(mapFirebaseItem(snap.key, listId, snap.val()));
+        const item = mapFirebaseItem(snap.key, listId, snap.val());
+        if (gen === this.generation) ServerCopies.note('item', snap.key, item); // rank 20
+        items.push(item);
       }
     });
     if (items.length > 0 && gen === this.generation) {

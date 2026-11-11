@@ -45,7 +45,13 @@ if [ "$PACKAGE_STAGED" -gt 0 ]; then
 
     echo "Version: $OLD_VERSION -> $NEW_VERSION"
 
-    # SH-6 (task 142): package-lock.json carries the version too; keep it in step and stage it
+    # SH-6 (task 142): package-lock.json carries the version too; keep it in step and stage it.
+    # Not when the lock has edits of its own that are not staged: `git add` would commit them
+    # with the version sync without anyone choosing to (ada #10371).
+    if ! git diff --quiet -- package-lock.json; then
+      echo "ERROR: package-lock.json has unstaged changes. Stage them (git add package-lock.json) or drop them, then commit again."
+      exit 1
+    fi
     node scripts/sync-lock-version.js || exit 1
     git add package-lock.json
   fi

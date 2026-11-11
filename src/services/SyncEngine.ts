@@ -1,4 +1,4 @@
-import { getDatabase, ref, set, remove } from '@react-native-firebase/database';
+import { getDatabase, ref, set, update, remove } from '@react-native-firebase/database';
 import NetInfo from '@react-native-community/netinfo';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -14,6 +14,26 @@ import {
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
+import { canonicalJson } from './storage/firebaseMappers';
+import { ServerCopies, Fields } from './storage/serverCopies';
+
+/**
+ * Rank 20 (audit 137, task 142/143): the fields of `next` that differ from `base`, the server
+ * copy the change was made on. Only these are sent, so two phones editing different fields of
+ * one item no longer overwrite each other, and a tick does not re-send a list's receipt.
+ * A field set to null (or undefined) locally is sent as null, which removes it in RTDB; a field
+ * the local object does not carry at all is left alone. Values compare in RTDB's shape (null
+ * fields and empty arrays dropped, keys sorted), so a round trip is not a change.
+ */
+export function fieldPatch(next: Fields, base: Fields): Fields {
+  const patch: Fields = {};
+  for (const k of Object.keys(next)) {
+    if (k === 'syncStatus') continue;
+    const value = next[k] === undefined ? null : next[k];
+    if (JSON.stringify(canonicalJson(value)) !== JSON.stringify(canonicalJson(base[k]))) patch[k] = value;
+  }
+  return patch;
+}
 
 interface QueueProcessResult {
   processed: number;
@@ -48,6 +68,12 @@ class SyncEngine {
   private queuedKey = new Map<string, string>();
   private queuedPerEntity = new Map<string, number>();
   private queueSeen = false;
+  // While an entity has a change not yet on the server: the server copy that change was made on
+  // (null = none known: write the whole object). Kept until the change lands, so a later edit is
+  // diffed against the same base and cannot send back a field another phone changed meanwhile.
+  private pendingBase = new Map<string, Fields | null>();
+  // The base each queued operation of this run was made on; one read from storage has none.
+  private queuedBase = new Map<string, Fields | null>();
   private retryIntervalId: ReturnType<typeof setInterval> | null = null;
   private statusListeners = new Set<(status: SyncEngineStatus) => void>();
   private readonly SYNC_TIMEOUT_MS = 30000; // 30 second timeout for sync operations
@@ -167,7 +193,37 @@ class SyncEngine {
     this.queuedKey.clear();
     this.queuedPerEntity.clear();
     this.queueSeen = false;
+    ServerCopies.clear();
+    this.pendingBase.clear();
+    this.queuedBase.clear();
     this.stopPeriodicRetry();
+  }
+
+  /**
+   * Rank 20: what the server now holds for a list or item (null = gone), as FirebaseSyncListener
+   * saw it. An update is sent as the fields that differ from this copy.
+   */
+  noteServerCopy(entityType: 'list' | 'item', entityId: string, data: ShoppingList | Item | null): void {
+    ServerCopies.note(entityType, entityId, data);
+  }
+
+  /** The base for a change of `key` made now: the pending one, or today's server copy. */
+  private baseFor(key: string, entityType: EntityType, operation: Operation): Fields | null {
+    if (operation !== 'update' || (entityType !== 'item' && entityType !== 'list')) return null;
+    if (this.pendingBase.has(key)) return this.pendingBase.get(key) ?? null;
+    return ServerCopies.get(key) ?? null;
+  }
+
+  /** After a write of `key` landed: the server copy follows it; nothing of it is pending now. */
+  private noteLanded(key: string, operation: Operation, sent: Fields | null, whole: boolean): void {
+    this.pendingBase.delete(key);
+    if (operation === 'delete') { ServerCopies.delete(key); return; }
+    // Only an entity the listener is following keeps a copy: one it does not follow (an item of a
+    // list not open on this phone) is written whole, as before, rather than diffed against a copy
+    // that nothing keeps current.
+    const copy = ServerCopies.get(key);
+    if (!sent || !copy) return;
+    ServerCopies.set(key, whole ? { ...sent } : { ...copy, ...sent });
   }
 
   /**
@@ -221,12 +277,19 @@ class SyncEngine {
     // The read above can finish after a newer write of the same entity was made: that one
     // carries the newer state, and sending this one now would put the old state over it.
     if (this.latestWrite.get(key) !== seq) return;
+    const base = this.baseFor(key, entityType, operation);
+    // From now until this change lands, later edits are diffed against the same base: the listener
+    // may already show another phone's field that this phone's pending copy does not have, and a
+    // newer copy as the base would send this phone's stale value of it back (ada #10502). With no
+    // base (a whole write in flight) later edits are whole writes too.
+    if ((entityType === 'item' || entityType === 'list') && !this.pendingBase.has(key)) this.pendingBase.set(key, base);
 
     if (this.isOnline) {
-      const write = this.syncToFirebase(entityType, entityId, operation, syncData);
+      const write = this.syncToFirebase(entityType, entityId, operation, syncData, base);
       try {
-        await this.withTimeout(write);
+        const sent = await this.withTimeout(write);
         if (session !== this.session) return;
+        if (this.latestWrite.get(key) === seq) this.noteLanded(key, operation, sent.fields, sent.whole);
         await this.dropOlderQueued(key, seq);
         if (session !== this.session) return;
         await LocalStorageManager.markSyncedIfUnchanged(entityType as 'list' | 'item' | 'storeLayout', entityId, updatedAt);
@@ -235,13 +298,13 @@ class SyncEngine {
         if (session !== this.session) return;
         // A newer write of the same entity has started: it is sent or queued itself
         if (this.latestWrite.get(key) !== seq) return;
-        const queuedId = await this.queueOperation(entityType, entityId, operation, syncData, seq);
+        const queuedId = await this.queueOperation(entityType, entityId, operation, syncData, seq, base);
         this.dropQueuedOperationOnLateWrite(queuedId, write, entityType, entityId, updatedAt);
         if (session !== this.session) return;
         await this.dropOlderQueued(key, seq, queuedId);
       }
     } else {
-      const queuedId = await this.queueOperation(entityType, entityId, operation, syncData, seq);
+      const queuedId = await this.queueOperation(entityType, entityId, operation, syncData, seq, base);
       if (session !== this.session) return;
       await this.dropOlderQueued(key, seq, queuedId);
     }
@@ -277,7 +340,11 @@ class SyncEngine {
   /** Remove a queued operation that may already be gone (sent, or dropped by another path). */
   private async removeQueued(operationId: string): Promise<void> {
     this.queuedSeq.delete(operationId);
+    this.queuedBase.delete(operationId);
+    const key = this.queuedKey.get(operationId);
     this.forgetQueued(operationId);
+    // Rank 20: nothing of this entity left in the queue, so nothing of it is pending any more
+    if (key !== undefined && !this.queuedPerEntity.has(key)) this.pendingBase.delete(key);
     try {
       await LocalStorageManager.removeFromSyncQueue(operationId);
     } catch {
@@ -374,14 +441,18 @@ class SyncEngine {
         }
 
         try {
-          await this.withTimeout(
+          // A queued change of this run is diffed against the base it was made on; one from an
+          // earlier run has no base kept and is written whole, as before rank 20
+          const sent = await this.withTimeout(
             this.syncToFirebase(
               operation.entityType,
               operation.entityId,
               operation.operation,
-              operation.data
+              operation.data,
+              this.queuedBase.get(operation.id) ?? null
             )
           );
+          if (!this.isSuperseded(operation)) this.noteLanded(key, operation.operation, sent.fields, sent.whole);
 
           await this.removeQueued(operation.id);
 
@@ -499,8 +570,9 @@ class SyncEngine {
     entityType: EntityType,
     entityId: string,
     operation: Operation,
-    data: ShoppingList | Item | StoreLayout | null
-  ): Promise<void> {
+    data: ShoppingList | Item | StoreLayout | null,
+    base: Fields | null = null
+  ): Promise<{ fields: Fields | null; whole: boolean }> {
     if (!this.familyGroupId) {
       throw new Error('Family group ID not set');
     }
@@ -513,12 +585,19 @@ class SyncEngine {
     const db = getDatabase();
     if (operation === 'delete') {
       await remove(ref(db, path));
-    } else {
-      if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
-      // Strip syncStatus before syncing to Firebase (keep it local-only)
-      const { syncStatus: _, ...dataWithoutSyncStatus } = data;
-      await set(ref(db, path), dataWithoutSyncStatus);
+      return { fields: null, whole: true };
     }
+    if (data == null) throw new Error(`syncToFirebase: null payload for ${operation} on ${entityType}/${entityId}`);
+    // Strip syncStatus before syncing to Firebase (keep it local-only)
+    const { syncStatus: _, ...dataWithoutSyncStatus } = data;
+    if (operation === 'update' && base) {
+      // Rank 20: only the fields this change made; an unchanged entity sends nothing
+      const patch = fieldPatch(dataWithoutSyncStatus as Fields, base);
+      if (Object.keys(patch).length > 0) await update(ref(db, path), patch);
+      return { fields: patch, whole: false };
+    }
+    await set(ref(db, path), dataWithoutSyncStatus);
+    return { fields: dataWithoutSyncStatus as Fields, whole: true };
   }
 
   /**
@@ -530,7 +609,7 @@ class SyncEngine {
    */
   private dropQueuedOperationOnLateWrite(
     queuedId: string,
-    write: Promise<void>,
+    write: Promise<unknown>,
     entityType: EntityType,
     entityId: string,
     updatedAt: number | null
@@ -594,7 +673,8 @@ class SyncEngine {
     entityId: string,
     operation: Operation,
     data: ShoppingList | Item | StoreLayout | null,
-    seq: number
+    seq: number,
+    base: Fields | null = null
   ): Promise<string> {
     // Single localized assertion: TS can't prove entityType/data pair up,
     // but callers always pass matching pairs.
@@ -609,6 +689,9 @@ class SyncEngine {
     } as QueuedOperation;
 
     this.queuedSeq.set(queuedOp.id, seq);
+    this.queuedBase.set(queuedOp.id, base);
+    // The entity now has a change not on the server: later edits are diffed against this base
+    if (!this.pendingBase.has(this.entityKey(entityType, entityId))) this.pendingBase.set(this.entityKey(entityType, entityId), base);
     this.rememberQueued(queuedOp.id, this.entityKey(entityType, entityId));
     await LocalStorageManager.addToSyncQueue(queuedOp);
     this.notifyStatus();
