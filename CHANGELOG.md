@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.7] - 2026-11-11
+
+### Fixed
+- A waiting offline change and another phone's change stamped in the same millisecond: the tie now counts as the server being newer, so a field the other phone changed keeps its value (before, every waiting field was written). Our own change that already landed is a tie too and is not written again. Found by the Codex review of PR #69.
+
 ## [1.54.6] - 2026-11-11
 
 ### Fixed

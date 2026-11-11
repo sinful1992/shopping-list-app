@@ -10,7 +10,7 @@ import type { Fields } from './serverCopies';
  * `sent` is what this phone sends: the changed fields (`base` = the server copy the change was made
  * on) or, with no base, the whole object. Returns the value to write, or null to write nothing.
  *
- * - Nothing newer on the server (its updatedAt is not after ours): ours applies, as before.
+ * - Nothing newer on the server (its updatedAt is before ours): ours applies, as before.
  * - The server is newer and we have a base: a field the other phone did not touch (the server still
  *   has the base value) takes ours; a field it did touch keeps its newer value. Only our fields that
  *   are left are written; with none left, nothing is.
@@ -27,7 +27,10 @@ export function mergeQueued(current: Fields | null, sent: Fields, base: Fields |
   }
   const theirs = typeof current.updatedAt === 'number' ? current.updatedAt : null;
   const ours = typeof sent.updatedAt === 'number' ? sent.updatedAt : null;
-  const serverNewer = theirs != null && ours != null && theirs > ours;
+  // A tie counts as newer (Codex review of PR #69): two phones can stamp the same millisecond, and then
+  // only the base tells whose field it is. Our own write that already landed is a tie too; it then
+  // writes nothing, which is right, since the server already has it.
+  const serverNewer = theirs != null && ours != null && theirs >= ours;
   if (!base) return serverNewer ? null : { ...sent };
   const kept: Fields = {};
   for (const k of Object.keys(sent)) {

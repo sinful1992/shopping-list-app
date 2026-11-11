@@ -33,7 +33,7 @@ describe('mergeQueued', () => {
     const whole = { ...base, checked: true, updatedAt: 20 };
     expect(mergeQueued({ ...base, updatedAt: 30 }, whole, null)).toBeNull();
     expect(mergeQueued({ ...base, updatedAt: 15 }, whole, null)).toEqual(whole);
-    expect(mergeQueued({ ...base, updatedAt: 20 }, whole, null)).toEqual(whole); // a tie is not newer
+    expect(mergeQueued({ ...base, updatedAt: 20 }, whole, null)).toBeNull(); // a tie counts as newer (Codex, PR #69)
   });
 
   it('nothing on the server: a whole write creates it, a field change does not bring back half an object', () => {
@@ -51,6 +51,16 @@ describe('mergeQueued', () => {
     const b = { ...base, tags: ['a', 'b'], note: 'x' };
     const current = { ...b, tags: ['a', 'b'], updatedAt: 30 };
     expect(mergeQueued(current, { note: null, updatedAt: 20 }, b)).toEqual({ ...base, tags: ['a', 'b'], updatedAt: 30 });
+  });
+
+  it('equal stamps (two phones, same millisecond): a field the other phone changed keeps its value (Codex, PR #69)', () => {
+    const current = { ...base, quantity: 3, updatedAt: 20 };
+    expect(mergeQueued(current, { quantity: 2, updatedAt: 20 }, base)).toBeNull();
+    expect(mergeQueued(current, { quantity: 2, checked: true, updatedAt: 20 }, base)).toEqual({ ...base, quantity: 3, checked: true, updatedAt: 20 });
+  });
+
+  it('our own write already on the server (a late commit replayed): nothing is written again', () => {
+    expect(mergeQueued({ ...base, checked: true, updatedAt: 20 }, { checked: true, updatedAt: 20 }, base)).toBeNull();
   });
 
   it('only updatedAt in the patch writes nothing', () => {
