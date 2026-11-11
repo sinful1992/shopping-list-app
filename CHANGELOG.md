@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Tests
+- Coverage now counts every source file (`collectCoverageFrom`), not only the ones a test imports, so the 80 files no test loads count as 0 (Fable audit task 137). The honest figure is 43.63 % of lines (it read ~66 % before); the ratchet moves from 33 to 43. `testTimeout` is 30 s, as instrumenting every file slows a screen test's first render.
+
 ## [1.54.11] - 2026-11-11
 
 ### Fixed
