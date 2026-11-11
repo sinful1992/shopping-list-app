@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.27] - 2026-11-11
+
+### Tests
+- HistoryTracker, SearchService, FamilyMembers, StoreLayoutService and AnalyticsService (all were 0 %): pass-throughs and error context, search by list/store/item newest first with items read only where needed, member loading with missing/failed members, member names, layout create/update/empty refused/failing sync, analytics grouping, backfill of missing lists and its 3 s budget. 17 tests, no behaviour change.
+- Coverage gate raised from 43 to 50 % of lines (measured 50.27 %).
+
 ## [1.54.26] - 2026-11-11
 
 ### Tests

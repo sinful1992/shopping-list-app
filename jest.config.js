@@ -24,11 +24,11 @@ module.exports = {
     '!src/**/*.d.ts',
   ],
   // Ratchet, don't aspire: set to the actual number when introduced
-  // (lines 43.63 % of all source on 2026-11-11) — raise as coverage grows,
+  // (lines 43.63 % of all source on 2026-11-11, 50.27 % later that day) — raise as coverage grows,
   // never lower.
   coverageThreshold: {
     global: {
-      lines: 43,
+      lines: 50,
     },
   },
   // Instrumenting every file makes the first render of a screen test slow on
