@@ -59,8 +59,8 @@ class ShoppingListManager {
     // Save locally first (offline-first)
     await LocalStorageManager.saveList(list);
 
-    // Increment usage counter
-    await UsageTracker.incrementListCounter(userId);
+    // Usage counter: display only, never waited on (offline it would never finish)
+    UsageTracker.incrementListCounter(userId);
 
     // Trigger sync
     await SyncEngine.pushChange('list', list.id, 'create', list);
@@ -130,8 +130,8 @@ class ShoppingListManager {
       // Check usage limits (informational - list already created locally)
       await UsageTracker.canCreateList(user);
 
-      // Increment counter
-      await UsageTracker.incrementListCounter(userId);
+      // Increment counter (fire and forget)
+      UsageTracker.incrementListCounter(userId);
 
       // Sync to Firebase
       await SyncEngine.pushChange('list', listId, 'create');

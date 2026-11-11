@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.23] - 2026-11-11
+
+### Fixed
+- Partial Shop with no signal now carries the items not bought into the new list. Making that list (and the receipt screen's carry-over list) waited on a Firebase transaction for the usage counter, which offline never completes: the list was saved but stayed empty, and the spinner stayed on. The counter is display only and is no longer waited on; with no list cap on any tier (today) creating a list asks the server nothing; the monthly counter reset is not waited on either.
+- Reading the family's tier reads that one field, not the whole family group (every list in it), which ran on every list created. An unknown tier and a user with no saved counters fall back to free / fresh counters instead of crashing.
+
+### Tests
+- UsageTracker (was 0 % covered) and ShoppingListManager.createOffline: no server call without caps, offline answers, caps with admin and failing claims, tier field only and its fallbacks, reset same/new month/new year, failing reset write, no counters, counter not waited on and its failure, summary; createList returns with every Firebase call hanging (11 of 20 fail on 1.54.22).
+
 ## [1.54.22] - 2026-11-11
 
 ### Fixed

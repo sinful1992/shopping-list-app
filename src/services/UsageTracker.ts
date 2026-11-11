@@ -2,6 +2,18 @@ import { getDatabase, ref, get, set, runTransaction } from '@react-native-fireba
 import { getAuth, getIdTokenResult } from '@react-native-firebase/auth';
 import { User, UsageCounters, FamilyGroup, SubscriptionTier } from '../models/types';
 import { SUBSCRIPTION_LIMITS } from '../models/SubscriptionConfig';
+import CrashReporting from './CrashReporting';
+
+const EMPTY_COUNTERS: UsageCounters = { listsCreated: 0, ocrProcessed: 0, urgentItemsCreated: 0, lastResetDate: 0 };
+
+/** No tier has a numeric list cap: creating a list needs no server answer. */
+function noListCaps(): boolean {
+  return Object.values(SUBSCRIPTION_LIMITS).every(l => l.maxLists === null);
+}
+
+function limitsFor(tier: SubscriptionTier) {
+  return SUBSCRIPTION_LIMITS[tier] ?? SUBSCRIPTION_LIMITS.free;
+}
 
 /**
  * UsageTracker
@@ -45,9 +57,11 @@ class UsageTracker {
     }
 
     try {
-      const groupSnapshot = await get(ref(getDatabase(), `/familyGroups/${familyGroupId}`));
-      const familyGroup: FamilyGroup | null = groupSnapshot.val();
-      return familyGroup?.subscriptionTier || 'free';
+      // The one field, not the whole group: the group node holds every list
+      // of the family, and this ran on every list created.
+      const tierSnapshot = await get(ref(getDatabase(), `/familyGroups/${familyGroupId}/subscriptionTier`));
+      const tier = tierSnapshot.val() as FamilyGroup['subscriptionTier'] | null;
+      return tier && tier in SUBSCRIPTION_LIMITS ? tier : 'free';
     } catch {
       return 'free';
     }
@@ -58,7 +72,7 @@ class UsageTracker {
    */
   async checkAndResetIfNeeded(user: User): Promise<UsageCounters> {
     const now = Date.now();
-    const counters = user.usageCounters;
+    const counters = user.usageCounters ?? EMPTY_COUNTERS;
     const lastReset = new Date(counters.lastResetDate);
     const currentMonth = new Date(now);
 
@@ -74,8 +88,10 @@ class UsageTracker {
         lastResetDate: now,
       };
 
-      // Update Firebase
-      await set(ref(getDatabase(), `/users/${user.uid}/usageCounters`), resetCounters);
+      // Not awaited: offline, a Firebase write only resolves once the server
+      // has it, and nothing here needs to wait for that.
+      set(ref(getDatabase(), `/users/${user.uid}/usageCounters`), resetCounters)
+        .catch(err => CrashReporting.recordError(err as Error, 'UsageTracker monthly reset'));
 
       return resetCounters;
     }
@@ -90,6 +106,12 @@ class UsageTracker {
    * cap; it is a client-side UX gate only, never an enforcement boundary.
    */
   async canCreateList(user: User): Promise<{ allowed: boolean; reason?: string }> {
+    // With no cap on any tier the answer is always yes; asking the server
+    // first only made creating a list wait on the network (offline: forever).
+    if (noListCaps()) {
+      return { allowed: true };
+    }
+
     // Admin check via Firebase Custom Claims
     if (await this.isAdmin()) {
       return { allowed: true };
@@ -97,7 +119,7 @@ class UsageTracker {
 
     const counters = await this.checkAndResetIfNeeded(user);
     const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
-    const limits = SUBSCRIPTION_LIMITS[familyTier];
+    const limits = limitsFor(familyTier);
 
     if (limits.maxLists === null) {
       return { allowed: true };
@@ -117,8 +139,11 @@ class UsageTracker {
    * Increment list counter (drives the used/limit display on the subscription
    * screen; not an enforcement gate).
    */
-  async incrementListCounter(userId: string): Promise<void> {
-    await runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/listsCreated`), (current) => (current || 0) + 1);
+  incrementListCounter(userId: string): void {
+    // Fire and forget: a transaction only completes with the server, so
+    // awaiting it offline held list creation (Partial Shop's new list) forever.
+    runTransaction(ref(getDatabase(), `/users/${userId}/usageCounters/listsCreated`), (current) => (current || 0) + 1)
+      .catch(err => CrashReporting.recordError(err as Error, 'UsageTracker incrementListCounter'));
   }
 
   /**
@@ -131,7 +156,7 @@ class UsageTracker {
   }> {
     const counters = await this.checkAndResetIfNeeded(user);
     const familyTier = await this.getFamilySubscriptionTier(user.familyGroupId);
-    const limits = SUBSCRIPTION_LIMITS[familyTier];
+    const limits = limitsFor(familyTier);
 
     return {
       lists: {
