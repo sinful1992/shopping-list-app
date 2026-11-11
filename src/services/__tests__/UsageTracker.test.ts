@@ -58,11 +58,18 @@ afterEach(() => jest.restoreAllMocks());
 const withCap = (max: number) => { (SUBSCRIPTION_LIMITS as any).free = { ...SUBSCRIPTION_LIMITS.free, maxLists: max }; };
 
 describe('canCreateList', () => {
-  it('no tier has a cap (today): allowed at once, with no server call at all', async () => {
+  it('no tier has a cap (today): allowed at once, with no server read at all (same month: no write either)', async () => {
     expect(await UsageTracker.canCreateList(user())).toEqual({ allowed: true });
     expect(mockGet).not.toHaveBeenCalled();
     expect(mockClaims).not.toHaveBeenCalled();
     expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('a new month: creating a list still resets the counters, without waiting on the write (Fable review)', async () => {
+    mockSet.mockImplementation(never);
+    const r = await UsageTracker.canCreateList(user({ usageCounters: { ...user().usageCounters, lastResetDate: OCT } }));
+    expect(r).toEqual({ allowed: true });
+    expect(mockSet).toHaveBeenCalledWith({ path: '/users/u1/usageCounters' }, { listsCreated: 0, ocrProcessed: 0, urgentItemsCreated: 0, lastResetDate: NOV });
   });
 
   it('offline (every server call hangs): still answers', async () => {

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.35] - 2026-11-11
+
+### Fixed
+- Creating a list in a new month resets the monthly usage counters again (Fable 5.2 review of 1.54.23, which skipped the reset along with the server calls): lists made before opening the Subscription screen were counted onto last month's total. The reset's write is still not waited on.
+
+### Tests
+- UsageTracker: a new-month list creation resets without waiting (1 of 21 fails on 1.54.34).
+
 ## [1.54.34] - 2026-11-11
 
 ### Fixed

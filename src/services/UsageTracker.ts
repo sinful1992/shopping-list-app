@@ -109,6 +109,11 @@ class UsageTracker {
     // With no cap on any tier the answer is always yes; asking the server
     // first only made creating a list wait on the network (offline: forever).
     if (noListCaps()) {
+      // Still roll the month over here, as before 1.54.23: the counter this
+      // list bumps must start from 0 in a new month. No wait: the reset's
+      // write is not awaited (Fable 5.2 review).
+      await this.checkAndResetIfNeeded(user).catch(err =>
+        CrashReporting.recordError(err as Error, 'UsageTracker canCreateList reset'));
       return { allowed: true };
     }
 
