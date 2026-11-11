@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.5] - 2026-11-11
+
+### Fixed
+- A change made while this phone was offline no longer overwrites a newer change another phone made to the same field meanwhile (audit 137 left note 138). When the waiting change is sent, it is compared with what the server holds at that moment, in one transaction: a field the other phone did not touch takes this phone's value, a field it changed later keeps the newer value, and if nothing of ours is left nothing is written. A waiting change from before an app restart (no copy to compare with) loses to a newer server copy as a whole. A field change of an item or list deleted on another phone meanwhile no longer brings back half of it. Changes sent straight away are unchanged. `queuedMerge.test.ts` 11 cases; 4 new two-phone cases in `SyncEngine.fieldWrites.test.ts` fail on 1.54.4, and the old KNOWN LIMIT test in `SyncEngine.staleQueued.test.ts` now passes.
+
 ## [1.54.4] - 2026-11-11
 
 ### Tests

@@ -12,6 +12,8 @@ jest.mock('@react-native-firebase/database', () => ({
   getDatabase: jest.fn(() => ({})),
   ref: jest.fn((_db: unknown, path: string) => ({ path })),
   set: (...args: unknown[]) => mockSet(args[0], args[1]),
+  // task 145: a queued replay is a transaction; with nothing cached it writes like set
+  runTransaction: (r: unknown, fn: (current: unknown) => unknown) => { const next = fn(null); return mockSet(r, next).then(() => ({ committed: true, snapshot: { val: () => next } })); },
   remove: jest.fn(() => Promise.resolve()),
 }));
 jest.mock('@react-native-community/netinfo', () => ({
