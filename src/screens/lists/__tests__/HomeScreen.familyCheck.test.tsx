@@ -17,6 +17,7 @@ jest.mock('../../../services/AuthenticationModule', () => ({
     clearFamilyGroupReference: jest.fn(async () => {}),
   },
 }));
+jest.mock('../../../services/CrashReporting', () => ({ __esModule: true, default: { recordError: jest.fn() } }));
 jest.mock('../../../services/DatabaseMigration', () => ({
   __esModule: true,
   default: { needsMigration: jest.fn(async () => false), runAllMigrations: jest.fn(async () => {}) },
@@ -100,8 +101,16 @@ it('a migration that fails shows the notice; one that is not needed does not run
   expect(showAlert).toHaveBeenCalledWith('Migration Notice', expect.any(String), undefined, { icon: 'info' });
 });
 
-it('the check failing shows an error', async () => {
-  validate.mockRejectedValue(new Error('network'));
+it('a check that cannot be made (offline) neither alerts nor detaches the user', async () => {
+  validate.mockRejectedValue(Object.assign(new Error('client is offline'), { code: 'database/unavailable' }));
+  await render({ uid: 'u1', familyGroupId: 'fam-1' });
+  expect(showAlert).not.toHaveBeenCalled();
+  expect(clearRef).not.toHaveBeenCalled();
+  expect(needsMigration).not.toHaveBeenCalled();
+});
+
+it('a failing migration check still shows an error', async () => {
+  needsMigration.mockRejectedValue(new Error('db'));
   await render({ uid: 'u1', familyGroupId: 'fam-1' });
   expect(showAlert).toHaveBeenCalledWith('Error', expect.any(String), undefined, { icon: 'error' });
 });

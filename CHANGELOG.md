@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.31] - 2026-11-11
+
+### Fixed
+- Opening the app with no signal no longer says "Family Group Not Found" and detaches you from your family (found by the Fable 5.2 review of PR #71; the bug predates it). The family check answered "gone" on any read error, and the clearing write waited in the queue and landed once back online. Now only a refused read (no longer a member) means gone; offline or a timeout changes nothing and the next start asks again.
+
+### Tests
+- validateFamilyGroup.offline: present, absent, refused = gone, offline / network / no-code errors throw; HomeScreen.familyCheck: an offline check neither alerts nor detaches, a failing migration check still alerts (4 of 15 fail on 1.54.30).
+
 ## [1.54.30] - 2026-11-11
 
 ### Fixed

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import AuthenticationModule from '../../../services/AuthenticationModule';
 import DatabaseMigration from '../../../services/DatabaseMigration';
 import { sanitizeError } from '../../../utils/sanitize';
+import CrashReporting from '../../../services/CrashReporting';
 import type { useAlert } from '../../../contexts/AlertContext';
 
 type ShowAlert = ReturnType<typeof useAlert>['showAlert'];
@@ -21,8 +22,16 @@ export function useFamilyGroupCheck(uid: string | null, familyGroupId: string | 
     let cancelled = false;
 
     (async () => {
+      let groupExists: boolean;
       try {
-        const groupExists = await AuthenticationModule.validateFamilyGroupExists(familyGroupId);
+        groupExists = await AuthenticationModule.validateFamilyGroupExists(familyGroupId);
+      } catch (error) {
+        // Could not ask (offline, timeout): not a reason to tell the user their
+        // family is gone, nor to detach them. The next start asks again.
+        CrashReporting.recordError(error as Error, 'useFamilyGroupCheck validate');
+        return;
+      }
+      try {
         if (cancelled) return;
 
         if (!groupExists) {
