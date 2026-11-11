@@ -193,6 +193,7 @@ class ItemManager {
       category?: string | null;
       checked?: boolean;
       unitQty?: number | null;
+      isUrgent?: boolean;
     }>,
     userId: string
   ): Promise<Item[]> {
@@ -213,6 +214,7 @@ class ItemManager {
           syncStatus: 'pending' as SyncStatus,
           category: itemData.category != null ? sanitizeCategory(itemData.category) : null,
           unitQty: itemData.unitQty ?? null,
+          isUrgent: itemData.isUrgent === true,
         };
       })
       .filter(item => item !== null) as Item[];

@@ -44,6 +44,7 @@ import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
 import AddItemInput, { AddItemInputHandle } from '../../components/AddItemInput';
 import { stableGroups } from '../../utils/stableIdentity';
+import { carryOverFields } from '../../utils/carryOver';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
@@ -644,13 +645,7 @@ const ListDetailScreen = () => {
     try {
       await ItemManager.addItemsBatch(
         newList.id,
-        uncheckedItems.map(i => ({
-          name: i.name,
-          quantity: i.quantity ?? undefined,
-          price: i.price ?? undefined,
-          unitQty: i.unitQty ?? null,
-          category: i.category,
-        })),
+        uncheckedItems.map(carryOverFields),
         currentUserId!,
       );
     } catch {

@@ -34,6 +34,7 @@ const mockNotifyUrgent = jest.fn();
 jest.mock('../UrgentNotifier', () => ({ notifyItemUrgent: (...a: unknown[]) => mockNotifyUrgent(...a) }));
 
 import ItemManager from '../ItemManager';
+import type { Item } from '../../models/types';
 
 const settle = () => new Promise(r => setTimeout(r, 0));
 const item = (over: Record<string, unknown> = {}) => ({
@@ -211,6 +212,19 @@ describe('batches', () => {
     expect(mockLSM.saveItemsBatch).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledTimes(2);
     expect(new Set(items.map(i => i.id)).size).toBe(2);
+  });
+
+  it('addItemsBatch keeps urgent (Partial Shop carry-over) without a new urgent push; absent means not urgent', async () => {
+    const items = await ItemManager.addItemsBatch('l2', [
+      { name: 'Calpol', isUrgent: true },
+      { name: 'Milk' },
+      { name: 'Eggs', isUrgent: false },
+    ], 'u1');
+    expect(items.map(i => [i.name, i.isUrgent])).toEqual([['Calpol', true], ['Milk', false], ['Eggs', false]]);
+    const saved = (mockLSM.saveItemsBatch.mock.calls as unknown as Item[][][])[0][0];
+    expect(saved.map(i => i.isUrgent)).toEqual([true, false, false]);
+    await settle();
+    expect(mockNotifyUrgent).not.toHaveBeenCalled();
   });
 
   it('addItemsBatch: a failing sync of one item is reported', async () => {

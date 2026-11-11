@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.36] - 2026-11-11
+
+### Fixed
+- Partial Shop keeps the urgent mark on items not bought: they arrive urgent on the new list (list screen and receipt screen). Before, they became normal items (since urgent arrived in 1.51.0). Carrying them over sends no new urgent push. Found during the 1.54.35 emulator check.
+
+### Tests
+- carryOverFields (one helper for both Partial Shop paths): urgent kept, missing/false/stray value not urgent, exact fields, nulls, a £0 price. ItemManager.addItemsBatch keeps urgent without a push. ReceiptMatchScreen Partial Shop carries an urgent item urgent (7 of 63 fail on 1.54.35).
+
 ## [1.54.35] - 2026-11-11
 
 ### Fixed
