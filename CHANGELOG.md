@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.25] - 2026-11-11
+
+### Tests
+- ShoppingListManager (was 19 % covered): create refused with its reason, counted and synced; optimistic create (given or fresh id, background steps, failure reported); reads; update/rename/store (layout reset, blank clears)/lock; completeFromReceipt leaves receipt fields alone; completeShoppingFast with and without a total and count; shopping lock check (none, mine, others within 2 h, expired lock released, lock with no time). 18 tests, no behaviour change.
+
 ## [1.54.24] - 2026-11-11
 
 ### Tests
