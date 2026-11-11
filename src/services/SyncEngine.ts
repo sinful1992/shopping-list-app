@@ -714,6 +714,9 @@ class SyncEngine {
     seq: number,
     base: Fields | null = null
   ): Promise<string> {
+    // After a family change the old family's queue is being emptied: a change for the new family
+    // waits for that, or the clear would take it too (ada #10768)
+    await this.queueCleared;
     // Single localized assertion: TS can't prove entityType/data pair up,
     // but callers always pass matching pairs.
     const queuedOp = {

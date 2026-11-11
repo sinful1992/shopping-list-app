@@ -4,6 +4,7 @@
  */
 const mockSet = jest.fn((_ref: unknown, _data: unknown) => Promise.resolve());
 let mockQueue: any[] = [];
+let mockClearGate: Promise<void> = Promise.resolve();
 
 jest.mock('@react-native-firebase/database', () => ({
   getDatabase: jest.fn(() => ({})),
@@ -21,7 +22,7 @@ jest.mock('../LocalStorageManager', () => ({
   default: {
     addToSyncQueue: jest.fn(async (op: any) => { mockQueue.push(op); }),
     removeFromSyncQueue: jest.fn(async (id: string) => { mockQueue = mockQueue.filter(o => o.id !== id); }),
-    clearSyncQueue: jest.fn(async () => { mockQueue = []; }),
+    clearSyncQueue: jest.fn(async () => { await mockClearGate; mockQueue = []; }),
     markSyncedIfUnchanged: jest.fn(() => Promise.resolve()),
     getSyncQueue: jest.fn(async () => [...mockQueue]),
     updateSyncQueueOperation: jest.fn(() => Promise.resolve()),
@@ -83,4 +84,19 @@ it('a push to famB after the change goes to famB', async () => {
   SyncEngine.setFamilyGroupId('famB');
   await SyncEngine.pushChange('item', 'i1', 'update', item);
   expect(paths()).toEqual(['/familyGroups/famB/items/i1']);
+});
+
+it('a change for famB queued while famA\'s queue is still being cleared is kept (ada #10768)', async () => {
+  SyncEngine.setFamilyGroupId('famA');
+  engine.isOnline = false;
+  await SyncEngine.pushChange('item', 'i1', 'update', item);
+  let release!: () => void;
+  mockClearGate = new Promise<void>(r => { release = r; }); // a slow DB write
+  SyncEngine.setFamilyGroupId('famB');
+  const pushB = SyncEngine.pushChange('item', 'b1', 'update', { ...item, id: 'b1' });
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  release();
+  await pushB;
+  mockClearGate = Promise.resolve();
+  expect(mockQueue.map(o => o.entityId)).toEqual(['b1']);
 });

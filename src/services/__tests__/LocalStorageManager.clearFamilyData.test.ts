@@ -51,31 +51,34 @@ beforeEach(() => {
       row(t, `${t}-A`, { family_group_id: 'famA' }),
       row(t, `${t}-B`, { family_group_id: 'famB' }),
     ]),
-    row('sync_queue', 'q1', {}),
-    row('sync_queue', 'q2', {}),
+    row('sync_queue', 'qA-list', { entity_id: 'lA1' }),
+    row('sync_queue', 'qA-item', { entity_id: 'iA2' }),
+    row('sync_queue', 'qA-layout', { entity_id: 'store_layouts-A' }),
+    row('sync_queue', 'qB-item', { entity_id: 'iB1' }),
   );
 });
 
-it('removes famA\'s lists, their items, its histories, layouts, preferences, receipt names and the queue', async () => {
+it('removes famA\'s lists, their items, its histories, layouts, preferences, receipt names and their waiting changes', async () => {
   await LocalStorageManager.clearFamilyData('famA');
   expect(left('shopping_lists')).toEqual(['lB1']);
   expect(left('items')).toEqual(['iB1']);
   for (const t of ['price_history', 'category_history', 'store_layouts', 'item_preferences', 'receipt_aliases']) {
     expect(left(t)).toEqual([`${t}-B`]);
   }
-  expect(left('sync_queue')).toEqual([]);
+  // a change already waiting for famB stays (ada #10768)
+  expect(left('sync_queue')).toEqual(['qB-item']);
   expect(mockBatches).toBe(1);
 });
 
-it('a family with no rows here still empties the queue and touches nothing else', async () => {
+it('a family with no rows here touches nothing', async () => {
   await LocalStorageManager.clearFamilyData('famZ');
   expect(left('shopping_lists')).toEqual(['lA1', 'lA2', 'lB1']);
   expect(left('items')).toEqual(['iA1', 'iA2', 'iB1']);
-  expect(left('sync_queue')).toEqual([]);
+  expect(left('sync_queue')).toEqual(['qA-item', 'qA-layout', 'qA-list', 'qB-item']);
 });
 
 it('an empty family id does nothing at all', async () => {
   await LocalStorageManager.clearFamilyData('');
   expect(mockBatches).toBe(0);
-  expect(left('sync_queue')).toEqual(['q1', 'q2']);
+  expect(left('sync_queue')).toEqual(['qA-item', 'qA-layout', 'qA-list', 'qB-item']);
 });
