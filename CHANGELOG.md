@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.21] - 2026-11-11
+
+### Fixed
+- Budget alerts no longer switch themselves off when the saved settings lack `enableAlerts` (an older version's save, or a damaged one): a missing field now keeps its default, and anything saved that is not a settings object gives the defaults.
+
+### Tests
+- BudgetAlertService (was 0 % covered): settings defaults, save/read per family, older and damaged saves, wrong field types, failing save; 30/7-day windows, every alert level and message at the edges (49.99, 50, 75, 90, 100 %, over), alerts off / no limit / 0 or less, a failing total; colours, icons, show-from-50 %, capped progress (7 of 28 fail on 1.54.20).
+
 ## [1.54.20] - 2026-11-11
 
 ### Fixed

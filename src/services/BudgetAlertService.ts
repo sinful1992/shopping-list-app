@@ -45,7 +45,16 @@ class BudgetAlertService {
   async getBudgetSettings(familyGroupId: string): Promise<BudgetSettings> {
     const defaultSettings: BudgetSettings = { monthlyLimit: null, weeklyLimit: null, enableAlerts: true };
     const data = await AsyncStorage.getItem(`budget_settings_${familyGroupId}`);
-    return safeJsonParse<BudgetSettings>(data, defaultSettings);
+    const saved = safeJsonParse<unknown>(data, null);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return defaultSettings;
+    // Saved settings missing a field (an older version, a damaged write) keep
+    // the default for it: a missing enableAlerts turned the alerts off.
+    const s = saved as Partial<BudgetSettings>;
+    return {
+      monthlyLimit: typeof s.monthlyLimit === 'number' ? s.monthlyLimit : null,
+      weeklyLimit: typeof s.weeklyLimit === 'number' ? s.weeklyLimit : null,
+      enableAlerts: typeof s.enableAlerts === 'boolean' ? s.enableAlerts : true,
+    };
   }
 
   /**
