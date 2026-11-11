@@ -105,8 +105,10 @@ export function hasListChanged(local: ShoppingList, incoming: ShoppingList): boo
     local.completedAt !== incoming.completedAt ||
     local.completedBy !== incoming.completedBy ||
     local.budget !== incoming.budget ||
-    local.storeName !== incoming.storeName ||
-    local.archived !== incoming.archived ||
+    // SH-3 (task 142): the local row keeps null for "not archived" and for no store, Firebase gives
+    // false and may give "": the same list must not look changed on every listener start
+    (local.storeName || null) !== (incoming.storeName || null) ||
+    (local.archived ?? false) !== (incoming.archived ?? false) ||
     local.receiptUrl !== incoming.receiptUrl ||
     (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
     local.totalAmount !== incoming.totalAmount ||

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.53.26] - 2026-11-11
+
+### Fixed
+- Opening the app no longer rewrites every shopping list in the phone's own database. A list that is not archived (or has an empty shop name) was stored as "not set" on the phone but came from the server as "no", so each list looked changed every time the app came to the front and was saved again. Now the two count as the same; a real change (archiving, a shop name, any other field) is still seen (audit 137, SH-3).
+
+### Build
+- `package-lock.json` now says the app's version (it said 1.48.13). The pre-commit hook keeps it in step on every version bump through `scripts/sync-lock-version.js`, and a unit test fails when the two differ (audit 137, SH-6).
+
+### Tests
+- `__tests__/services/listChanged.test.ts`: a list saved locally and compared with the same list from Firebase is unchanged, for 9 shapes; 8 failed before. `__tests__/services/lockVersion.test.ts`: the lock matches package.json, and the sync script sets both version fields, leaves a lock in step alone, and never overwrites a broken lock.
+
 ## [1.53.25] - 2026-11-11
 
 ### Fixed (server rules; they take effect when master is deployed)

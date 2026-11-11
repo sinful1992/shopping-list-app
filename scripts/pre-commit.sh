@@ -44,6 +44,10 @@ if [ "$PACKAGE_STAGED" -gt 0 ]; then
     fi
 
     echo "Version: $OLD_VERSION -> $NEW_VERSION"
+
+    # SH-6 (task 142): package-lock.json carries the version too; keep it in step and stage it
+    node scripts/sync-lock-version.js || exit 1
+    git add package-lock.json
   fi
 
   # --- Changelog check ---
