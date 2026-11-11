@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.30] - 2026-11-11
+
+### Fixed
+- A store's aisle order rearranged on this phone and not sent yet (offline) is no longer undone by an older server copy. Both the start/return-to-app load and another phone's change overwrote it and marked it synced, so the queued send then carried the old order back up. Lists and items already had this guard; layouts now share it (`keepsLocalLayout`). A newer server copy still wins.
+
+### Tests
+- storeLayouts.storage (storage was 32 % covered; real in-memory DB): save/update/read/delete and their errors, server load creates and updates, an unsent rearrangement kept against an older copy, a newer copy still wins, empty load, the listener path both ways, keepsLocalLayout cases (9 of 16 fail on 1.54.29).
+
 ## [1.54.29] - 2026-11-11
 
 ### Fixed

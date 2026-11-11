@@ -1,5 +1,6 @@
 import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, child } from '@react-native-firebase/database';
 import { isUnsentLocalChange } from './storage/syncState';
+import { keepsLocalLayout } from './storage/storeLayouts';
 import { ShoppingList, Item, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import {
   mapFirebaseList,
@@ -716,6 +717,7 @@ class FirebaseSyncListener {
 
       const incomingLayout = mapFirebaseStoreLayout(layoutId, firebaseData, familyGroupId);
 
+      if (keepsLocalLayout(existing, incomingLayout.updatedAt)) return;
       if (existing) {
         await LocalStorageManager.updateStoreLayout(layoutId, {
           categoryOrder: incomingLayout.categoryOrder,

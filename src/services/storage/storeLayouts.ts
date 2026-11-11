@@ -4,6 +4,20 @@ import { safeJsonParse } from '../../utils/safeJsonParse';
 import { CategoryType } from '../CategoryService';
 import CrashReporting from '../CrashReporting';
 import StoreLayoutModel from '../../database/models/StoreLayout';
+import { isUnsentLocalChange } from './syncState';
+
+/**
+ * A layout changed on this phone and not sent yet (rearranged offline) is not
+ * overwritten by an older server copy, as items and lists already are not.
+ * Without this a return to the app put the server's older aisle order back,
+ * marked it synced, and the queued send then carried that old order up.
+ */
+export function keepsLocalLayout(
+  local: { syncStatus: string; updatedAt: number } | null | undefined,
+  incomingUpdatedAt: number | undefined,
+): boolean {
+  return !!local && isUnsentLocalChange(local.syncStatus) && local.updatedAt > (incomingUpdatedAt ?? 0);
+}
 
 /**
  * Store-layouts storage domain. Receives the shared WatermelonDB handle from
@@ -141,6 +155,7 @@ export class StoreLayoutsStorage {
       const ops: any[] = [];
       for (const { layoutId, data } of entries) {
         const existing = existingMap.get(layoutId);
+        if (existing && keepsLocalLayout(existing, data.updatedAt)) continue;
         if (existing) {
           // Every foreground return re-reads the whole node; a layout that is
           // already synced with this content is left alone.
