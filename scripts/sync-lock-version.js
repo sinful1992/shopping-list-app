@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+// SH-6 (audit 137, task 142): package-lock.json carries the app version twice (top-level "version" and
+// packages[""].version). The version bump never touched it, so it said 1.48.13 while package.json said
+// 1.53.x. The pre-commit hook runs this on every version bump; `node scripts/sync-lock-version.js` by hand
+// does the same. Prints "synced <old> -> <new>" when it changed the file, nothing otherwise.
+const fs = require('fs');
+const path = require('path');
+
+function syncLockVersion(dir) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  const lockFile = path.join(dir, 'package-lock.json');
+  const text = fs.readFileSync(lockFile, 'utf8');
+  const lock = JSON.parse(text);
+  const old = lock.version;
+  const root = lock.packages && lock.packages[''];
+  if (lock.version === pkg.version && (!root || root.version === pkg.version)) return null;
+  lock.version = pkg.version;
+  if (root) root.version = pkg.version;
+  // npm writes 2-space JSON with a trailing newline; keep the file byte-for-byte otherwise
+  fs.writeFileSync(lockFile, JSON.stringify(lock, null, 2) + (text.endsWith('\n') ? '\n' : ''));
+  return { from: old, to: pkg.version };
+}
+
+module.exports = { syncLockVersion };
+
+if (require.main === module) {
+  const r = syncLockVersion(process.cwd());
+  if (r) console.log(`synced package-lock.json ${r.from} -> ${r.to}`);
+}
