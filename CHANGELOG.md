@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.24] - 2026-11-11
+
+### Tests
+- ItemManager (was 28 % covered): add (cleaned fields, blank refused, bad price dropped, urgent push once, sync not waited on, failing sync reported), update (cleaning, blank rename refused, untouched fields left out, urgent once, failing sync), tick and recordPurchase (category + price keyed by list and item, untick records nothing, missing item, nothing to record, price correction, no store, no family, failure reported), delete, read, subscribe, the three batches and reorder. 25 tests, no behaviour change.
+
 ## [1.54.23] - 2026-11-11
 
 ### Fixed
