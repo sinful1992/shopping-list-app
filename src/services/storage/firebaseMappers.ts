@@ -142,7 +142,7 @@ export function mapFirebaseStoreLayout(
  * the same receipt read back from Firebase differ as raw JSON. Comparing this
  * form tells a real edit from a round trip.
  */
-function canonicalJson(value: unknown): unknown {
+export function canonicalJson(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.length === 0 ? undefined : value.map(canonicalJson);
   }

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.0] - 2026-11-11
+
+### Changed
+- Two phones editing the same item at once no longer undo each other. A change now sends only the fields it changed (a tick sends `checked`, a rename sends `name`), compared with the copy of the item the phone last saw from the server, instead of writing the whole item over whatever is there. So a tick on one phone and a rename on another both stay, also when one phone was offline at the time. Renaming or ticking a list no longer re-sends its whole receipt (audit 137, rank 20).
+- A phone whose copy of an item is up to date now always takes the server's copy, even when it carries an older time. With field-level writes the server can hold both phones' changes under the earlier phone's time, and skipping it would leave this phone without the other phone's change. A change of its own that is still on its way is protected as before.
+- Still whole-object writes: creating and deleting, store layouts, and an item the phone has not seen from the server since the app started (for example after a restart, until its list is opened). Two phones changing the same field at the same time is still last-writer-wins.
+
+### Build
+- The pre-commit hook stops when `package-lock.json` has unstaged edits on a version bump, instead of committing them with the version sync. A missing lock file gives one clear line instead of a stack trace, and a lock with CRLF line ends keeps them (ada's review of 1.53.26).
+
+### Tests
+- `src/services/__tests__/SyncEngine.fieldWrites.test.ts` (13): two phones on one fake RTDB (set / update / remove): tick + rename both survive, offline tick + rename, offline rename then tick with another phone's quantity in between, only changed fields sent, a cleared field sent as null, an unknown field left alone, no copy known means a whole write, create/delete unchanged, nothing changed sends nothing, a list rename skips an equal receipt, the next edit diffs against its own landed write, sign-out forgets the copies, a queued change keeps its base. 12 fail on 1.53.26.
+- `src/services/__tests__/FirebaseSyncListener.fieldWrites.test.ts` (5): a synced copy takes an older merged snapshot, a pending newer change is kept, the same on the initial load, snapshots become the server copy and a removal forgets it, a snapshot from before sign-out is not kept.
+- `__tests__/rules/fieldWrites.test.js` (7, rules emulator): a member's partial update of an item and a list passes and keeps the other fields; a null removes a field; a non-member, a write to a deleted item, a nulled required field and a wrong type are refused.
+
 ## [1.53.26] - 2026-11-11
 
 ### Fixed

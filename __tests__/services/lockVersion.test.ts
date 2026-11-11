@@ -51,6 +51,27 @@ describe('sync-lock-version', () => {
     expect(read(d2).endsWith('\n')).toBe(false);
   });
 
+  test('no lock file: one clear error, no stack (ada #10371)', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-'));
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ version: '1.0.0' }));
+    expect(() => syncLockVersion(d)).toThrow(/no package-lock\.json in /);
+    const { spawnSync } = require('child_process');
+    const r = spawnSync(process.execPath, [path.join(root, 'scripts', 'sync-lock-version.js')], { cwd: d, encoding: 'utf8' });
+    expect(r.status).toBe(1);
+    expect(r.stderr.trim()).toBe(`sync-lock-version: no package-lock.json in ${d}`);
+  });
+
+  test('CRLF line ends stay CRLF (ada #10371)', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-'));
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ version: '1.1.0' }));
+    fs.writeFileSync(path.join(d, 'package-lock.json'), JSON.stringify({ version: '1.0.0', packages: { '': { version: '1.0.0' } } }, null, 2).replace(/\n/g, '\r\n') + '\r\n');
+    syncLockVersion(d);
+    const out = read(d);
+    expect(out.endsWith('}\r\n')).toBe(true);
+    expect(out.replace(/\r\n/g, '').includes('\n')).toBe(false);
+    expect(JSON.parse(out).version).toBe('1.1.0');
+  });
+
   test('a broken lock file throws instead of being overwritten', () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-'));
     fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ version: '1.0.0' }));

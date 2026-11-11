@@ -9,6 +9,7 @@ const path = require('path');
 function syncLockVersion(dir) {
   const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
   const lockFile = path.join(dir, 'package-lock.json');
+  if (!fs.existsSync(lockFile)) throw new Error(`no package-lock.json in ${dir}`);
   const text = fs.readFileSync(lockFile, 'utf8');
   const lock = JSON.parse(text);
   const old = lock.version;
@@ -16,14 +17,22 @@ function syncLockVersion(dir) {
   if (lock.version === pkg.version && (!root || root.version === pkg.version)) return null;
   lock.version = pkg.version;
   if (root) root.version = pkg.version;
-  // npm writes 2-space JSON with a trailing newline; keep the file byte-for-byte otherwise
-  fs.writeFileSync(lockFile, JSON.stringify(lock, null, 2) + (text.endsWith('\n') ? '\n' : ''));
+  // npm writes 2-space JSON with a trailing newline; keep the file byte-for-byte otherwise,
+  // CRLF line ends included (a Windows clone without autocrlf, ada #10371)
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const body = JSON.stringify(lock, null, 2).replace(/\n/g, eol);
+  fs.writeFileSync(lockFile, body + (text.endsWith('\n') ? eol : ''));
   return { from: old, to: pkg.version };
 }
 
 module.exports = { syncLockVersion };
 
 if (require.main === module) {
-  const r = syncLockVersion(process.cwd());
-  if (r) console.log(`synced package-lock.json ${r.from} -> ${r.to}`);
+  try {
+    const r = syncLockVersion(process.cwd());
+    if (r) console.log(`synced package-lock.json ${r.from} -> ${r.to}`);
+  } catch (e) {
+    console.error(`sync-lock-version: ${e.message}`);
+    process.exit(1);
+  }
 }
