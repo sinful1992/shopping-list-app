@@ -43,6 +43,7 @@ import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
 import AddItemInput, { AddItemInputHandle } from '../../components/AddItemInput';
+import { stableGroups } from '../../utils/stableIdentity';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
@@ -771,6 +772,9 @@ const ListDetailScreen = () => {
   // All display code must group by category first, then sort by sortOrder within groups.
   // Unchecked urgent items are pulled out of their categories and pinned on
   // top, oldest first; once checked they go back to Completed like any item.
+  // The previous grouping, so a category whose items did not change keeps its
+  // array and its memo'd CategoryItemList skips re-rendering (OPTIMISE P6).
+  const prevGroupsRef = useRef<{ unchecked: { [cat: string]: Item[] }; checked: { [cat: string]: Item[] } } | null>(null);
   const { urgentItems, uncheckedGrouped, checkedGrouped } = useMemo(() => {
     if (!optimisticItems || optimisticItems.length === 0) {
       return { urgentItems: [] as Item[], uncheckedGrouped: {} as { [cat: string]: Item[] }, checkedGrouped: {} as { [cat: string]: Item[] } };
@@ -800,10 +804,15 @@ const ListDetailScreen = () => {
       return grouped;
     };
 
+    const groups = {
+      unchecked: stableGroups(prevGroupsRef.current?.unchecked ?? null, groupByCategory(unchecked)),
+      checked: stableGroups(prevGroupsRef.current?.checked ?? null, groupByCategory(checked)),
+    };
+    prevGroupsRef.current = groups;
     return {
       urgentItems: urgent,
-      uncheckedGrouped: groupByCategory(unchecked),
-      checkedGrouped: groupByCategory(checked),
+      uncheckedGrouped: groups.unchecked,
+      checkedGrouped: groups.checked,
     };
   }, [optimisticItems]);
 

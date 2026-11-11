@@ -1,4 +1,5 @@
 import { Database, Q } from '@nozbe/watermelondb';
+import { reuseById } from '../../utils/stableIdentity';
 import { Item } from '../../models/types';
 import CrashReporting from '../CrashReporting';
 import { ItemModel } from '../../database/models/Item';
@@ -339,9 +340,11 @@ export class ItemsStorage {
 
     // Use observeWithColumns to trigger on field changes (category, checked, etc.)
     // Without this, observer only fires on record add/delete, not field updates
+    // Unchanged rows keep the object the last emission gave, so memo'd rows
+    // can skip re-rendering (OPTIMISE P6).
+    const previous = new Map<string, Item>();
     const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value', 'is_urgent']).subscribe((itemModels) => {
-      // Convert to Item types
-      let items = itemModels.map((model) => itemModelToType(model));
+      let items = reuseById(previous, itemModels.map((model) => itemModelToType(model)));
 
       // Sort by sortOrder when available, falling back to createdAt
       items = items.sort((a, b) => {

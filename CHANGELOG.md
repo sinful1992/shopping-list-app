@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.18] - 2026-11-11
+
+### Performance
+- Ticking or changing one item in an open list no longer re-renders every category (OPTIMISE P6 step 2, Fable audit task 137). The item observer keeps the previous object for every item that did not change, and the screen keeps a category's previous array when its items are the same, so the memo'd category lists that did not change skip their render (`utils/stableIdentity`).
+
+### Tests
+- stableIdentity (shallowEqual, reuseById, stableGroups: 13 cases) and itemsObserver.identity (real in-memory DB: one tick gives a new object for that item only; two observers of one list both see the change) (14 of 15 fail on 1.54.17).
+
 ## [1.54.17] - 2026-11-11
 
 ### Performance
