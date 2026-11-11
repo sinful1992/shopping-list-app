@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.8] - 2026-11-11
+
+### Fixed
+- An account that left its family on another phone (or is in another family now) no longer keeps the old family on this phone (audit 137 left note 139). When the server's profile names a different family than the one saved on the phone, that family's lists, their items, its price and category history, store layouts, item preferences and receipt names are removed, and so is the queue of changes still waiting to send. Before, they stayed: hidden once the family changed, but on the phone. A change waiting in the queue was also sent into the NEW family's lists when the phone moved to another family; now the queue is emptied first. A first sign-in, a join from no family, another account's saved profile and the same family again clear nothing. A keystore read that never answers no longer holds up later profile saves (2 s limit).
+
+### Tests
+- `AuthenticationModule.familyLeft.test.ts` (7, 3 fail on 1.54.7), `SyncEngine.familyChange.test.ts` (4, the cross-family send fails on 1.54.7), `LocalStorageManager.clearFamilyData.test.ts` (3). `AuthenticationModule.slowStart.test.ts`: the server profile is saved after the old one is read, so the check waits 1 ms.
+
 ## [1.54.7] - 2026-11-11
 
 ### Fixed

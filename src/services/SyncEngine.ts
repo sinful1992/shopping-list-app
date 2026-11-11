@@ -56,6 +56,8 @@ class SyncEngine {
   private inFlight = 0;
   private inFlightWaiters: Array<() => void> = [];
   private syncInProgress: boolean = false;
+  // The old family's queue being emptied after a family change (setFamilyGroupId)
+  private queueCleared: Promise<void> = Promise.resolve();
   // Order of writes per entity ("item/<id>"). Every write is the whole object, so the newest
   // one replaces all before it: an older queued copy must never be sent after a newer write.
   private writeSeq = 0;
@@ -178,6 +180,23 @@ class SyncEngine {
    * Set family group ID for syncing (first real use — starts periodic retry)
    */
   setFamilyGroupId(groupId: string) {
+    // Left note 139 (task 145): another family than the one the waiting changes were made in. They
+    // must not be sent into this one: work in flight for the old family stops (session), and the
+    // stored queue is emptied before the next run reads it.
+    if (this.familyGroupId && this.familyGroupId !== groupId) {
+      this.session++;
+      this.latestWrite.clear();
+      this.queuedSeq.clear();
+      this.queuedKey.clear();
+      this.queuedPerEntity.clear();
+      this.queueSeen = false;
+      ServerCopies.clear();
+      this.pendingBase.clear();
+      this.queuedBase.clear();
+      this.queueCleared = Promise.resolve().then(() => LocalStorageManager.clearSyncQueue())
+        .catch(err => CrashReporting.recordError(err as Error, 'SyncEngine clear queue on family change'))
+        .then(() => this.notifyStatus());
+    }
     this.familyGroupId = groupId;
     this.startPeriodicRetry();
   }
@@ -386,6 +405,7 @@ class SyncEngine {
    * Includes jitter (random 0-1000ms) to prevent thundering herd
    */
   async processOperationQueue(): Promise<QueueProcessResult> {
+    await this.queueCleared;
     if (this.syncInProgress) {
       return { processed: 0, deferred: 0, skipReason: 'busy' };
     }

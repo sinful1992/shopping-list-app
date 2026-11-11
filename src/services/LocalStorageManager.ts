@@ -1,4 +1,4 @@
-import { Database } from '@nozbe/watermelondb';
+import { Database, Q } from '@nozbe/watermelondb';
 import { ShoppingList, Item, QueuedOperation, ReceiptData, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
 import { createDatabase } from './storage/database';
 import { ListsStorage } from './storage/lists';
@@ -287,6 +287,35 @@ class LocalStorageManager {
     forget?: string[],
   ): Promise<void> {
     return this.receiptAliases.saveReceiptAliases(familyGroupId, entries, forget);
+  }
+
+  /**
+   * Left note 139 (task 145): the server says this account is no longer in `familyGroupId` (it left on
+   * another phone, or moved to another family). That family's lists, their items, its histories,
+   * layouts, preferences and receipt names leave this phone, and so does the sync queue: every change
+   * waiting in it was made in that family, and sent now it would land in the next one. Rows of any
+   * other family stay.
+   */
+  async clearFamilyData(familyGroupId: string): Promise<void> {
+    if (!familyGroupId) return;
+    try {
+      await this.database.write(async () => {
+        const of = (table: string) =>
+          this.database.collections.get(table).query(Q.where('family_group_id', familyGroupId)).fetch();
+        const lists = await of('shopping_lists');
+        const listIds = lists.map((r: any) => r.id);
+        const items = listIds.length
+          ? await this.database.collections.get('items').query(Q.where('list_id', Q.oneOf(listIds))).fetch()
+          : [];
+        const rest = await Promise.all(['price_history', 'category_history', 'store_layouts', 'item_preferences', 'receipt_aliases'].map(of));
+        const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
+        const ops = [...lists, ...items, ...rest.flat(), ...syncQueue].map((r: any) => r.prepareMarkAsDeleted());
+        if (ops.length > 0) await this.database.batch(ops);
+      }, 'clearFamilyData');
+      this.history.clearPriceVariantCache();
+    } catch (error: any) {
+      throw new Error(`Failed to clear the old family's local data: ${error.message}`);
+    }
   }
 
   /**

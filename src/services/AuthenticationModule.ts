@@ -53,6 +53,8 @@ class AuthenticationModule {
    */
   private deletionInProgress = false;
   private signOutInFlight: Promise<void> | null = null;
+  // Server answers about the profile, saved one after another (see saveServerProfile)
+  private profileSaves: Promise<void> = Promise.resolve();
   // clearToken caps its own FCM call; this is the backstop for the whole step.
   private readonly CLEAR_TOKEN_TIMEOUT_MS = 1500;
 
@@ -255,6 +257,33 @@ class AuthenticationModule {
       this.signOutInFlight = this.runSignOut().finally(() => { this.signOutInFlight = null; });
     }
     return this.signOutInFlight;
+  }
+
+  /**
+   * Saves the server's answer as the profile kept on the phone. Left note 139 (task 145): when the
+   * saved profile of this same account was in a family the server no longer puts it in (it left on
+   * another phone, or it is in another family now), that family's lists and the changes still waiting
+   * for it leave the phone. Before, they stayed: hidden once the family changed, but on the phone, and
+   * the waiting changes could be sent into the next family. Saves run one at a time, so each answer is
+   * compared with the one before it.
+   */
+  private saveServerProfile(userData: User): void {
+    this.profileSaves = this.profileSaves
+      .then(async () => {
+        // A keystore read that never answers must not hold up every later save: after 2 s it counts as nothing saved
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const read = SecureStorage.getItem(this.USER_KEY).catch(() => null);
+        const savedText = await Promise.race([read, new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 2000); })])
+          .finally(() => clearTimeout(timer));
+        const saved = safeJsonParse<User | null>(savedText, null);
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+        const old = saved && typeof saved === 'object' && saved.uid === userData.uid ? saved.familyGroupId : null;
+        if (old && old !== userData.familyGroupId && !this.deletionInProgress) {
+          CrashReporting.log(`Family ${old} left on the server: its local data is cleared`);
+          await LocalStorageManager.clearFamilyData(old);
+        }
+      })
+      .catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule saveServerProfile'));
   }
 
   /**
@@ -487,6 +516,8 @@ class AuthenticationModule {
    * Implements Req 1.2
    */
   onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe {
+    // A new watch starts its own run of profile saves: one stuck in an earlier one must not hold it up
+    this.profileSaves = Promise.resolve();
     let userDataUnsubscribe: (() => void) | null = null;
     let claimsUnsubscribe: (() => void) | null = null;
     let lastClaimsUpdatedAt: number | null = null;
@@ -557,7 +588,7 @@ class AuthenticationModule {
             return;
           }
 
-          SecureStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+          this.saveServerProfile(userData);
           callback(userData);
 
           // Once per sign-in: an approval that landed while this account was
