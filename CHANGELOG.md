@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.10] - 2026-11-11
+
+### Fixed
+- Price History opens with its content showing. The sheet's scroll area had `flex: 1` inside a sheet sized only by its max height, so it came out 0 tall and only the header showed (Fable audit, task 137). The scroll area now takes its content height and scrolls once the sheet reaches 85 % of the screen.
+
+### Tests
+- PriceHistoryModal.layout: the scroll area has no zero-basis flex, the sheet keeps maxHeight 85 % and can shrink, padding stays, the empty state has no scroll area (1 of 5 fails on 1.54.9).
+
 ## [1.54.9] - 2026-11-11
 
 ### Fixed
