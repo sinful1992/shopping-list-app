@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.20] - 2026-11-11
+
+### Fixed
+- A storage error or a damaged store history no longer fails a receipt scan's save. Naming the shop from the receipt reads the store history; that read threw on a storage error or anything stored that was not a list, and crashed on an entry missing its fields. It now gives an empty history, skips damaged entries, and adding a store starts fresh.
+
+### Tests
+- StoreHistoryService (was 14 % covered): empty, trimmed add, blank ignored, case-insensitive count, frequency then recency order, 20 cap, search, three kinds of damaged storage, damaged entries, failing storage (4 of 12 fail on 1.54.19).
+
 ## [1.54.19] - 2026-11-11
 
 ### Fixed
