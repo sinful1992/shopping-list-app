@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.34] - 2026-11-11
+
+### Fixed
+- Edge functions (Fable 5.2 review of 1.54.12): a reused database token the database now rejects (401/403) is replaced and the membership check tried once more within the same request, so that request no longer fails (an urgent push treated the failure as final). A freshly minted token that is rejected is not retried. The shared auth file's header names its real drift test.
+
+### Tests
+- firebaseAuth: a rejected reused token is replaced within the request; a rejected fresh one is not retried in a loop (1 of 32 fails on 1.54.33).
+
 ## [1.54.33] - 2026-11-11
 
 ### Fixed

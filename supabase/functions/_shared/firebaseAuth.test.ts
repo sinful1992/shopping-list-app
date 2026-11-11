@@ -154,6 +154,25 @@ describe('database token reuse', () => {
     expect(seenTokens).toEqual(['tok-1', 'tok-2']);
   });
 
+  it('a reused token the database now rejects is replaced within the same request (Fable review)', async () => {
+    await auth.assertGroupMember('user-1', 'fam-1');
+    let first = true;
+    dbReply = () => {
+      if (first) { first = false; return { status: 401, body: { error: 'Unauthorized' } }; }
+      return { status: 200, body: true };
+    };
+    await expect(auth.assertGroupMember('user-1', 'fam-1')).resolves.toBeUndefined();
+    expect(seenTokens).toEqual(['tok-1', 'tok-1', 'tok-2']);
+  });
+
+  it('a fresh token that is rejected is not retried in a loop', async () => {
+    dbReply = () => ({ status: 403, body: null });
+    await expect(auth.assertGroupMember('user-1', 'fam-1')).rejects.toThrow('Membership check failed');
+    expect(seenTokens).toEqual(['tok-1']);
+    await expect(auth.assertGroupMember('user-1', 'fam-1')).rejects.toThrow('Membership check failed');
+    expect(seenTokens).toEqual(['tok-1', 'tok-2']);
+  });
+
   it('a short expires_in from Google is honoured', async () => {
     oauthReply = () => ({ access_token: `tok-${++mints}`, expires_in: 600 });
     await auth.assertGroupMember('user-1', 'fam-1');

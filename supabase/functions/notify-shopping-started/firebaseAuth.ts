@@ -8,7 +8,7 @@
 // each function's own folder as firebaseAuth.ts, which the function imports
 // from './firebaseAuth.ts' (the same-folder import ocr-proxy already deploys
 // with). Edit this file and re-run the script; the jest test
-// `edgeAuth.sync.test.ts` fails when a copy differs.
+// `supabase/functions/_shared/firebaseAuth.test.ts` fails when a copy differs.
 
 const JWK_URL =
   'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
@@ -166,11 +166,17 @@ export async function dbAccessToken(): Promise<string> {
 
 export async function assertGroupMember(uid: string, familyGroupId: unknown): Promise<void> {
   if (typeof familyGroupId !== 'string' || !familyGroupId) throw new Error('Missing family group ID')
-  const token = await dbAccessToken()
-  const res = await fetch(`${env('FIREBASE_DATABASE_URL')}/familyGroups/${familyGroupId}/memberIds/${uid}.json?access_token=${token}`)
+  const url = (token: string) =>
+    `${env('FIREBASE_DATABASE_URL')}/familyGroups/${familyGroupId}/memberIds/${uid}.json?access_token=${token}`
+  const cached = _dbToken?.token
+  let res = await fetch(url(await dbAccessToken()))
+  if ((res.status === 401 || res.status === 403) && cached !== undefined) {
+    // A reused token the database no longer accepts (key rotated, revoked):
+    // drop it and try once with a fresh one, so this request does not fail.
+    _dbToken = null
+    res = await fetch(url(await dbAccessToken()))
+  }
   if (!res.ok) {
-    // A cached token the database no longer accepts (key rotated, revoked)
-    // must not fail every request until it would have expired.
     if (res.status === 401 || res.status === 403) _dbToken = null
     throw new Error('Membership check failed')
   }
