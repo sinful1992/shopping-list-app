@@ -53,41 +53,19 @@ class ArchiveService {
     }
   }
 
-  /**
-   * Get all archived lists
-   */
+  /** Every archived completed list, newest completion first. */
   async getArchivedLists(familyGroupId: string): Promise<ShoppingList[]> {
     try {
-      // TODO: replace with a dedicated archived=true DB query when an archived-list UI screen exists
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, 200);
-
-      return completedLists
-        .filter(list => list.archived === true)
-        .sort((a, b) => {
-          const dateA = a.completedAt || 0;
-          const dateB = b.completedAt || 0;
-          return dateB - dateA;
-        });
+      return await LocalStorageManager.getCompletedListsByArchived(familyGroupId, true);
     } catch {
       return [];
     }
   }
 
-  /**
-   * Get all non-archived completed lists
-   */
+  /** Every completed list that is not archived, newest completion first. */
   async getNonArchivedLists(familyGroupId: string): Promise<ShoppingList[]> {
     try {
-      // TODO: replace with a dedicated archived=false DB query when non-archived list pagination is needed
-      const completedLists = await LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, 200);
-
-      return completedLists
-        .filter(list => !list.archived)
-        .sort((a, b) => {
-          const dateA = a.completedAt || 0;
-          const dateB = b.completedAt || 0;
-          return dateB - dateA;
-        });
+      return await LocalStorageManager.getCompletedListsByArchived(familyGroupId, false);
     } catch {
       return [];
     }

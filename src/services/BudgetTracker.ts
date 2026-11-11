@@ -74,7 +74,8 @@ class BudgetTracker {
         listName: list.name,
         completedAt: list.completedAt || 0,
         merchantName: list.merchantName || null,
-        totalAmount: list.totalAmount || null,
+        // ?? not ||: a £0.00 trip has an amount, it is not "no amount".
+        totalAmount: list.totalAmount ?? null,
         createdBy: list.createdBy,
         hasReceipt: list.receiptUrl !== null,
       }));

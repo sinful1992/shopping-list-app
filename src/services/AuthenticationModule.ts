@@ -383,8 +383,13 @@ class AuthenticationModule {
       // would download every list, item and price record of the family.
       const createdAt = await get(ref(getDatabase(), `/familyGroups/${groupId}/createdAt`));
       return createdAt.exists();
-    } catch {
-      return false;
+    } catch (error: any) {
+      // Refused: this user is no longer a member, so for them it is gone.
+      if (error?.code === 'database/permission-denied') return false;
+      // Anything else (offline, timeout) says nothing about the group. Answering
+      // "gone" here made Home detach the user from their family on an offline
+      // start: the clearing write waited in the queue and landed once online.
+      throw error;
     }
   }
 

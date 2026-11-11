@@ -131,19 +131,23 @@ export class SyncQueueStorage {
         if (entityType === 'item') {
           const collection = this.database.get<ItemModel>('items');
           const record = await collection.find(entityId);
-          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
+          if (record.syncStatus !== 'synced' && (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt)) {
             await record.update(r => { r.syncStatus = 'synced'; });
           }
         } else if (entityType === 'storeLayout') {
           const collection = this.database.get<StoreLayoutModel>('store_layouts');
           const record = await collection.find(entityId);
-          if (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt) {
+          if (record.syncStatus !== 'synced' && (expectedUpdatedAt === null || record.updatedAt === expectedUpdatedAt)) {
             await record.update(r => { r.syncStatus = 'synced'; });
           }
         } else {
           const collection = this.database.get<ShoppingListModel>('shopping_lists');
           const record = await collection.find(entityId);
-          await record.update(r => { r.syncStatus = 'synced'; });
+          // Already synced: no write, so no emission to every list observer
+          // (OPTIMISE P3).
+          if (record.syncStatus !== 'synced') {
+            await record.update(r => { r.syncStatus = 'synced'; });
+          }
         }
       }, 'markSyncedIfUnchanged');
     } catch {

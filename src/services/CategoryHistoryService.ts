@@ -20,6 +20,7 @@ class CategoryHistoryService {
     if (!category) return; // Don't track items without categories
 
     const normalized = itemName.toLowerCase().trim();
+    if (!normalized) return; // an empty name has no Firebase key
 
     try {
       // Find existing record
@@ -72,6 +73,8 @@ class CategoryHistoryService {
       );
 
       // Atomic increment transaction
+      // No `category` in the data: it is the node key, and readers take it
+      // from there (4c98fde). createdAt is kept, as the rule needs a number.
       await runTransaction(categoryRef, (current) => {
         if (current === null) {
           return {
@@ -84,6 +87,7 @@ class CategoryHistoryService {
           ...current,
           usageCount: (current.usageCount || 0) + 1,
           lastUsedAt: Date.now(),
+          createdAt: typeof current.createdAt === 'number' ? current.createdAt : Date.now(),
         };
       });
     } catch {
@@ -96,7 +100,10 @@ class CategoryHistoryService {
    * Replaces characters that are invalid in Firebase keys
    */
   private hashItemName(name: string): string {
-    return name.replace(/[.#$[\]]/g, '_');
+    // '/' too: it is a path separator, so "bread/rolls" wrote a node two
+    // levels deep that every phone then read as item "bread" with a category
+    // "rolls". '_' reads back as '.' on every app version.
+    return name.replace(/[.#$[\]/]/g, '_');
   }
 
   /**

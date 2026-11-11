@@ -4,6 +4,226 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.37] - 2026-11-11
+
+### Tests
+- carryOver.wiring: both Partial Shop paths (list screen, receipt screen) hand their items to addItemsBatch through carryOverFields. The list screen has no render test, so a revert there passed every test (Fable 5.2 review of 1.54.36). 1 of 2 fails on 1.54.35. No behaviour change.
+
+## [1.54.36] - 2026-11-11
+
+### Fixed
+- Partial Shop keeps the urgent mark on items not bought: they arrive urgent on the new list (list screen and receipt screen). Before, they became normal items (since urgent arrived in 1.51.0). Carrying them over sends no new urgent push. Found during the 1.54.35 emulator check.
+
+### Tests
+- carryOverFields (one helper for both Partial Shop paths): urgent kept, missing/false/stray value not urgent, exact fields, nulls, a £0 price. ItemManager.addItemsBatch keeps urgent without a push. ReceiptMatchScreen Partial Shop carries an urgent item urgent (7 of 63 fail on 1.54.35).
+
+## [1.54.35] - 2026-11-11
+
+### Fixed
+- Creating a list in a new month resets the monthly usage counters again (Fable 5.2 review of 1.54.23, which skipped the reset along with the server calls): lists made before opening the Subscription screen were counted onto last month's total. The reset's write is still not waited on.
+
+### Tests
+- UsageTracker: a new-month list creation resets without waiting (1 of 21 fails on 1.54.34).
+
+## [1.54.34] - 2026-11-11
+
+### Fixed
+- Edge functions (Fable 5.2 review of 1.54.12): a reused database token the database now rejects (401/403) is replaced and the membership check tried once more within the same request, so that request no longer fails (an urgent push treated the failure as final). A freshly minted token that is rejected is not retried. The shared auth file's header names its real drift test.
+
+### Tests
+- firebaseAuth: a rejected reused token is replaced within the request; a rejected fresh one is not retried in a loop (1 of 32 fails on 1.54.33).
+
+## [1.54.33] - 2026-11-11
+
+### Fixed
+- Category history reaches the family's other phones again (found by the Fable 5.2 review; broken since 4c98fde, 2026-05-18). That change stopped writing a `category` field into each entry (the category is the node key), but the database rule still required one, so every write was refused silently. The rule now requires only usageCount, lastUsedAt and createdAt, which every app version writes, Play 1.50 included. Live with the next master deploy of the rules. The app's write always sets createdAt.
+- The 1.54.28 filter that skips fake nested category entries also runs when a new item node arrives after start (it ran only on the first load and on changes).
+
+### Tests
+- rules/categoryHistory (CI, emulator): the shape every version writes and the app's transaction accepted, an older entry with `category` accepted, missing createdAt / non-number count / non-member refused. categoryHistory.listener: first load, a node added after start and a changed node all skip the nested entry (1 of 3 fails on 1.54.32). CategoryHistoryService: createdAt always set.
+
+## [1.54.32] - 2026-11-11
+
+### Fixed
+- Urgent pushes waiting offline (1.54.11), from the Fable 5.2 review: a login token that could not be refreshed offline (`auth/network-request-failed`) dropped the marking instead of keeping it; now it waits. A rate-limited send (429) waits for later instead of being dropped. The same item marked urgent twice offline sends one push, not two. A send that failed while the phone still counted as online (weak shop Wi-Fi) is retried on every return to the app, not only on a reconnect or the next start.
+
+### Tests
+- urgentFlag.outbox: token refresh offline at mark and at flush, 429 kept vs 401 dropped, one push per item; useShoppingLists.foreground: each return retries waiting pushes (4 of 26 fail on 1.54.31).
+
+## [1.54.31] - 2026-11-11
+
+### Fixed
+- Opening the app with no signal no longer says "Family Group Not Found" and detaches you from your family (found by the Fable 5.2 review of PR #71; the bug predates it). The family check answered "gone" on any read error, and the clearing write waited in the queue and landed once back online. Now only a refused read (no longer a member) means gone; offline or a timeout changes nothing and the next start asks again.
+
+### Tests
+- validateFamilyGroup.offline: present, absent, refused = gone, offline / network / no-code errors throw; HomeScreen.familyCheck: an offline check neither alerts nor detaches, a failing migration check still alerts (4 of 15 fail on 1.54.30).
+
+## [1.54.30] - 2026-11-11
+
+### Fixed
+- A store's aisle order rearranged on this phone and not sent yet (offline) is no longer undone by an older server copy. Both the start/return-to-app load and another phone's change overwrote it and marked it synced, so the queued send then carried the old order back up. Lists and items already had this guard; layouts now share it (`keepsLocalLayout`). A newer server copy still wins.
+
+### Tests
+- storeLayouts.storage (storage was 32 % covered; real in-memory DB): save/update/read/delete and their errors, server load creates and updates, an unsent rearrangement kept against an older copy, a newer copy still wins, empty load, the listener path both ways, keepsLocalLayout cases (9 of 16 fail on 1.54.29).
+
+## [1.54.29] - 2026-11-11
+
+### Fixed
+- Price History shows a latest price of £0.00 as the current price; before it read as no current price (`|| null`). An item bought only for free shows a 0 % change instead of NaN %, and is left out of Analytics' most-volatile chart instead of topping it with an infinite swing.
+
+### Tests
+- PriceHistoryService (was 38 % covered): recordPrice local/Firebase and their failures, table points with sinceDate, empty after backfill, legacy rebuild before it, stats (up, down, stable, £0 latest, all free, none, error), per-store comparison, volatility (grouped names, all-free left out, limit, error), Smart Savings (cheapest store and saving, window, 5 min cache per family/window/items, clear, empty), tracked items, backfill (ticked priced items only, once, Firebase chunks of 500) (2 of 21 fail on 1.54.28).
+
+## [1.54.28] - 2026-11-11
+
+### Fixed
+- An item name with a '/' ("Bread/rolls") no longer plants a fake category in the family's category history. The Firebase key kept the '/', so the usage was written two levels deep and every phone read it as item "bread" with a category called "rolls", which could then appear in the "which category?" chooser. '/' now becomes '_' like '.', '#', '$', '[' and ']', and the reader skips any entry that is not a usage record, so ones already written that way are ignored. An empty name is not recorded.
+
+### Tests
+- CategoryHistoryService (was 25 % covered): first use, count up, nothing for no category or an empty name, four names to safe keys, the Firebase count, failures never thrown, one entry per category in order, suggestion, read errors; isCategoryUsageRecord (8 of 17 fail on 1.54.27).
+
+## [1.54.27] - 2026-11-11
+
+### Tests
+- HistoryTracker, SearchService, FamilyMembers, StoreLayoutService and AnalyticsService (all were 0 %): pass-throughs and error context, search by list/store/item newest first with items read only where needed, member loading with missing/failed members, member names, layout create/update/empty refused/failing sync, analytics grouping, backfill of missing lists and its 3 s budget. 17 tests, no behaviour change.
+- Coverage gate raised from 43 to 50 % of lines (measured 50.27 %).
+
+## [1.54.26] - 2026-11-11
+
+### Tests
+- ReceiptCaptureModule (was 0 %): camera permission on Android and iOS, scanner at quality 92 with file:// stripped and content:// kept, permission denied, cancel and empty scans, scanner errors; gallery pick capped at 4096 px, cancel/empty, picker errors. 12 tests.
+- receiptSyncBackfill (was 0 %, real in-memory DB): synced or failed lists with a receipt become pending, others untouched, done/failed flags respected, used-up or damaged flag, failing tries counted to failed. 4 tests. No behaviour change.
+
+## [1.54.25] - 2026-11-11
+
+### Tests
+- ShoppingListManager (was 19 % covered): create refused with its reason, counted and synced; optimistic create (given or fresh id, background steps, failure reported); reads; update/rename/store (layout reset, blank clears)/lock; completeFromReceipt leaves receipt fields alone; completeShoppingFast with and without a total and count; shopping lock check (none, mine, others within 2 h, expired lock released, lock with no time). 18 tests, no behaviour change.
+
+## [1.54.24] - 2026-11-11
+
+### Tests
+- ItemManager (was 28 % covered): add (cleaned fields, blank refused, bad price dropped, urgent push once, sync not waited on, failing sync reported), update (cleaning, blank rename refused, untouched fields left out, urgent once, failing sync), tick and recordPurchase (category + price keyed by list and item, untick records nothing, missing item, nothing to record, price correction, no store, no family, failure reported), delete, read, subscribe, the three batches and reorder. 25 tests, no behaviour change.
+
+## [1.54.23] - 2026-11-11
+
+### Fixed
+- Partial Shop with no signal now carries the items not bought into the new list. Making that list (and the receipt screen's carry-over list) waited on a Firebase transaction for the usage counter, which offline never completes: the list was saved but stayed empty, and the spinner stayed on. The counter is display only and is no longer waited on; with no list cap on any tier (today) creating a list asks the server nothing; the monthly counter reset is not waited on either.
+- Reading the family's tier reads that one field, not the whole family group (every list in it), which ran on every list created. An unknown tier and a user with no saved counters fall back to free / fresh counters instead of crashing.
+
+### Tests
+- UsageTracker (was 0 % covered) and ShoppingListManager.createOffline: no server call without caps, offline answers, caps with admin and failing claims, tier field only and its fallbacks, reset same/new month/new year, failing reset write, no counters, counter not waited on and its failure, summary; createList returns with every Firebase call hanging (11 of 20 fail on 1.54.22).
+
+## [1.54.22] - 2026-11-11
+
+### Fixed
+- A damaged saved price-prediction copy (no predictions object, or not an object) is recalculated instead of being handed to the open list, which reads prices out of it.
+
+### Tests
+- PricePredictionService (was 0 % covered): averages per name over completed trips only, skipped prices (0, negative, missing, no name), no trips, 30 min memory cache, saved copy fresh/stale, saved for next start, five damaged saved copies, storage error, families apart (2 of 9 fail on 1.54.21).
+
+## [1.54.21] - 2026-11-11
+
+### Fixed
+- Budget alerts no longer switch themselves off when the saved settings lack `enableAlerts` (an older version's save, or a damaged one): a missing field now keeps its default, and anything saved that is not a settings object gives the defaults.
+
+### Tests
+- BudgetAlertService (was 0 % covered): settings defaults, save/read per family, older and damaged saves, wrong field types, failing save; 30/7-day windows, every alert level and message at the edges (49.99, 50, 75, 90, 100 %, over), alerts off / no limit / 0 or less, a failing total; colours, icons, show-from-50 %, capped progress (7 of 28 fail on 1.54.20).
+
+## [1.54.20] - 2026-11-11
+
+### Fixed
+- A storage error or a damaged store history no longer fails a receipt scan's save. Naming the shop from the receipt reads the store history; that read threw on a storage error or anything stored that was not a list, and crashed on an entry missing its fields. It now gives an empty history, skips damaged entries, and adding a store starts fresh.
+
+### Tests
+- StoreHistoryService (was 14 % covered): empty, trimmed add, blank ignored, case-insensitive count, frequency then recency order, 20 cap, search, three kinds of damaged storage, damaged entries, failing storage (4 of 12 fail on 1.54.19).
+
+## [1.54.19] - 2026-11-11
+
+### Fixed
+- Budget's per-trip breakdown shows a £0.00 trip as £0.00, not as a trip with no amount (`totalAmount || null` treated 0 as missing).
+
+### Tests
+- BudgetTracker (was 0 % covered): totals with and without amounts, no trips, the £0 trip, missing values, per member, storage errors (1 of 9 fails on 1.54.18).
+
+## [1.54.18] - 2026-11-11
+
+### Performance
+- Ticking or changing one item in an open list no longer re-renders every category (OPTIMISE P6 step 2, Fable audit task 137). The item observer keeps the previous object for every item that did not change, and the screen keeps a category's previous array when its items are the same, so the memo'd category lists that did not change skip their render (`utils/stableIdentity`).
+
+### Tests
+- stableIdentity (shallowEqual, reuseById, stableGroups: 13 cases) and itemsObserver.identity (real in-memory DB: one tick gives a new object for that item only; two observers of one list both see the change) (14 of 15 fail on 1.54.17).
+
+## [1.54.17] - 2026-11-11
+
+### Performance
+- Typing in an open list's "Add item…" field no longer re-renders the whole list screen and every card on it at each keystroke (OPTIMISE P6 step 1, Fable audit task 137). The field (`AddItemInput`) keeps its own text; the screen empties it once the item is added, or after the category choice. The Add button sends the same text as the keyboard's submit; blank text is never sent.
+
+### Tests
+- AddItemInput: typing doesn't re-render the screen, trimmed submit, cleared by the screen, blank not sent, Add button path, read-only when locked, ListDetailScreen keeps no text state (6 of 6 fail on 1.54.16).
+
+## [1.54.16] - 2026-11-11
+
+### Fixed
+- The Archived tab no longer misses lists once a family has more than 200 completed lists, and History no longer misses non-archived lists past 200 (OPTIMISE P9, Fable audit task 137). Both took the newest 200 completed lists and filtered them afterwards, and archived lists are the oldest. The archived filter now runs in the database query (not archived = null or false), over all completed lists.
+
+### Tests
+- archive.past200 (real in-memory DB, 250 completed lists): all 50 archived shown newest first; all 200 non-archived (false and null) shown; a newer archived list; active/deleted/other family left out; empty family; storage failure gives an empty tab (3 of 5 fail on 1.54.15).
+
+## [1.54.15] - 2026-11-11
+
+### Performance
+- Home's list observer asks the database for active lists only (OPTIMISE P3, Fable audit task 137). Before, it read every non-deleted list, history included, mapped each one (parsing its receipt) on every change, and then dropped the completed ones. Home stays mounted under an open list, so this ran while shopping too.
+- Marking a list or item synced makes no database write when it is already synced. Every list push wrote it, and each write woke the list observers.
+
+### Tests
+- homeObserver.activeOnly (real in-memory DB): only active lists of the family; 20 completed lists with receipts are never mapped; completing a list removes it, a new one arrives; already-synced list or item: no write at all (Model.update spy) and no emission; pending ones still marked; an item with a newer updatedAt stays pending. homeObserver.sort: active lists, newest first, input untouched (6 of 8 fail on 1.54.14).
+
+## [1.54.14] - 2026-11-11
+
+### Performance
+- Home no longer opens a second login/profile subscription of its own next to App's, and no longer re-runs its "does the family still exist" check on every profile change (OPTIMISE P2, Fable audit task 137). The user object is new on every profile write, and creating a list bumps a usage counter, so every new list re-ran the check. Home now reads App's user, and the check runs once per account and family (`useFamilyGroupCheck`). The unused `useAuth` hook is removed.
+
+### Tests
+- HomeScreen.familyCheck: counter ticks don't re-run the check; a new family or account does; no user; family gone (alert + reference cleared); migration notice; check error; a stale check after a family switch stays quiet; HomeScreen has no auth subscription of its own (9 of 9 fail on 1.54.13).
+
+## [1.54.13] - 2026-11-11
+
+### Performance
+- Coming back to the app after less than a minute no longer downloads every list of the family again (Fable audit task 137, F1). Each return used to restart the lists, category and store-layout listeners, and a restart re-downloads all lists, history included. Now they restart only after a minute or more away; a short trip (a message, the notification shade) keeps the live listeners, which deliver changes themselves. The local lists are still re-read on every return. Not done: downloading only the changes since last time needs an `updatedAt` on lists that every app version writes, which the Play 1.50 build does not.
+
+### Tests
+- useShoppingLists.foreground: mount, 10 s away, just under and at the limit, 30 min away, notification shade only, local re-read each return, two background events, a short trip after a long one (4 of 8 fail on 1.54.12).
+
+## [1.54.12] - 2026-11-11
+
+### Performance
+- Edge functions (notify-receipt-scanned, notify-shopping-started, register-device-token, upsert-urgent-item) reuse their Firebase database access token across requests on a warm instance instead of minting one per request (one RSA sign + a round trip to Google), until 5 min before it expires; requests arriving together share one mint, a failed mint is not kept, and a token the database rejects (401/403) is dropped (Fable audit task 137). Goes live with the next master deploy of the functions.
+
+### Changed
+- The Firebase login and membership check those 4 functions had pasted in (identical 123 lines each) now has one source, `supabase/functions/_shared/firebaseAuth.ts`, copied into each function's folder by `node scripts/sync-edge-auth.mjs` (same-folder import, as ocr-proxy deploys). The ID token checks are unchanged.
+
+### Tests
+- firebaseAuth.test.ts (jest, real RSA keys): copies match the source and no function keeps its own auth code; token reuse, shared mint, under/over 5 min left, failed mint, 401 drop, short expires_in, non-member, the JWT signed by the service account; 11 bad ID tokens refused (30 of 30 fail on dev).
+
+### Tests
+- Coverage now counts every source file (`collectCoverageFrom`), not only the ones a test imports, so the 80 files no test loads count as 0 (Fable audit task 137). The honest figure is 43.63 % of lines (it read ~66 % before); the ratchet moves from 33 to 43. `testTimeout` is 30 s, as instrumenting every file slows a screen test's first render.
+
+## [1.54.11] - 2026-11-11
+
+### Fixed
+- An item marked urgent while offline now still sends the family its push (Fable audit task 137, F2). Before, the call failed on the network, was reported and the marking was gone. Now it waits on the phone (at most 20) and goes out when the connection returns or the app next starts, with the same row id, so it pushes once. It is sent only while it still applies: same account and family, the item still there and still urgent, and under 12 hours old. A call the server answered (refused, rate limited) is not retried.
+
+### Tests
+- urgentFlag.outbox: offline then online, app start, still offline, server refusal, five reasons to drop, 12 h age, two markings with two flushes at once, the 20 cap, a broken stored outbox (12 of 14 fail on 1.54.10).
+
+## [1.54.10] - 2026-11-11
+
+### Fixed
+- Price History opens with its content showing. The sheet's scroll area had `flex: 1` inside a sheet sized only by its max height, so it came out 0 tall and only the header showed (Fable audit, task 137). The scroll area now takes its content height and scrolls once the sheet reaches 85 % of the screen.
+
+### Tests
+- PriceHistoryModal.layout: the scroll area has no zero-basis flex, the sheet keeps maxHeight 85 % and can shrink, padding stays, the empty state has no scroll area (1 of 5 fails on 1.54.9).
+
 ## [1.54.9] - 2026-11-11
 
 ### Fixed

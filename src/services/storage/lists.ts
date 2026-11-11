@@ -142,6 +142,33 @@ export class ListsStorage {
   }
 
   /**
+   * Completed lists that are archived, or not archived, newest completion
+   * first, all of them. The filter runs in the query: taking the newest 200
+   * completed lists and filtering after missed every archived list once a
+   * family had more than 200 (archived ones are the oldest), and every
+   * non-archived list past 200 (OPTIMISE P9, Fable audit task 137).
+   * Not archived is stored as null as well as false.
+   */
+  async getCompletedListsByArchived(familyGroupId: string, archived: boolean): Promise<ShoppingList[]> {
+    try {
+      const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
+      const lists = await listsCollection
+        .query(
+          Q.where('family_group_id', familyGroupId),
+          Q.where('status', 'completed'),
+          archived
+            ? Q.where('archived', true)
+            : Q.or(Q.where('archived', null), Q.where('archived', false)),
+          Q.sortBy('completed_at', Q.desc),
+        )
+        .fetch();
+      return lists.map((list) => listModelToType(list));
+    } catch (error: any) {
+      throw new Error(`Failed to get completed lists: ${error.message}`);
+    }
+  }
+
+  /**
    * Get completed lists with optional date range
    * Implements Req 8.1
    */
@@ -306,14 +333,15 @@ export class ListsStorage {
   }
 
   /**
-   * Observe all lists for a family group (returns WatermelonDB observable)
-   * Use this instead of polling for real-time updates
+   * Observe the active lists of a family group (Home). Completed and deleted
+   * lists are left out by the query itself: Home dropped them anyway, after
+   * mapping every one, receipt JSON included, on each emission (OPTIMISE P3).
    */
-  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+  observeActiveLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
     const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
     const query = listsCollection.query(
       Q.where('family_group_id', familyGroupId),
-      Q.where('status', Q.notEq('deleted')),
+      Q.where('status', 'active'),
     );
 
     // Observe key fields so status/sync changes update the UI without a manual refresh.

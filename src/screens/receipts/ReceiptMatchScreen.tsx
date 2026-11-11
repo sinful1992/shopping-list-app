@@ -32,6 +32,7 @@ import CategoryHistoryService from '../../services/CategoryHistoryService';
 import { useUser } from '../../contexts/UserContext';
 import { matchReceiptToList, receiptAliasKey, withLineEdit } from '../../utils/receiptMatcher';
 import { stripRetailer } from '../../utils/stripRetailer';
+import { carryOverFields } from '../../utils/carryOver';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
   discountsByLine, formatLineQty, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
@@ -394,13 +395,7 @@ const ReceiptMatchScreen = () => {
       const newList = await ShoppingListManager.createList(shoppingList.name, user.uid, shoppingList.familyGroupId, user);
       await ItemManager.addItemsBatch(
         newList.id,
-        unchecked.map(i => ({
-          name: i.name,
-          quantity: i.quantity ?? undefined,
-          price: i.price ?? undefined,
-          unitQty: i.unitQty ?? null,
-          category: i.category,
-        })),
+        unchecked.map(carryOverFields),
         user.uid,
       );
     } catch {

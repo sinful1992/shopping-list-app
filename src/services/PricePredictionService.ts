@@ -41,10 +41,15 @@ class PricePredictionService {
     // Check persistent storage cache
     const storedData = await AsyncStorage.getItem(this.STORAGE_KEY_PREFIX + familyGroupId);
     const cachedStorage = safeJsonParse<{ predictions: any; timestamp: number } | null>(storedData, null);
-    if (cachedStorage && Date.now() - cachedStorage.timestamp < this.CACHE_TTL) {
-      this.predictionCache.set(familyGroupId, cachedStorage.predictions);
-      this.cacheTimestamps.set(familyGroupId, cachedStorage.timestamp);
-      return cachedStorage.predictions;
+    // A damaged saved copy (no predictions object) is recalculated, never
+    // handed to the list, which reads prices out of it.
+    const usable = !!cachedStorage && typeof cachedStorage === 'object'
+      && !!cachedStorage.predictions && typeof cachedStorage.predictions === 'object'
+      && !Array.isArray(cachedStorage.predictions) && typeof cachedStorage.timestamp === 'number';
+    if (usable && Date.now() - cachedStorage!.timestamp < this.CACHE_TTL) {
+      this.predictionCache.set(familyGroupId, cachedStorage!.predictions);
+      this.cacheTimestamps.set(familyGroupId, cachedStorage!.timestamp);
+      return cachedStorage!.predictions;
     }
 
     // Calculate fresh predictions

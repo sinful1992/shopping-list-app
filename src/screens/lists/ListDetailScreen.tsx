@@ -42,6 +42,9 @@ import PriceHistoryModal from '../../components/PriceHistoryModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
+import AddItemInput, { AddItemInputHandle } from '../../components/AddItemInput';
+import { stableGroups } from '../../utils/stableIdentity';
+import { carryOverFields } from '../../utils/carryOver';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
@@ -89,7 +92,7 @@ const ListDetailScreen = () => {
     (state, payload: { id: string; checked: boolean }) =>
       state.map(item => item.id === payload.id ? { ...item, checked: payload.checked } : item),
   );
-  const [newItemName, setNewItemName] = useState('');
+  const addInputRef = useRef<AddItemInputHandle>(null);
   // Applies to the next item added, then resets: urgent is the exception.
   const [newItemUrgent, setNewItemUrgent] = useState(false);
   const [list, setList] = useState<ShoppingList | null>(null);
@@ -342,8 +345,8 @@ const ListDetailScreen = () => {
     setRefreshing(false);
   };
 
-  const handleAddItem = async () => {
-    if (!newItemName.trim()) return;
+  const handleAddItem = async (name: string) => {
+    if (!name) return;
     if (!currentUserId) return;
 
     if (!list) {
@@ -358,12 +361,12 @@ const ListDetailScreen = () => {
       if (list.familyGroupId) {
         const categories = await CategoryHistoryService.getCategoriesForItem(
           list.familyGroupId,
-          newItemName.trim()
+          name
         );
 
         if (categories.length >= 2) {
           // Show conflict resolution modal
-          setPendingItemName(newItemName.trim());
+          setPendingItemName(name);
           setConflictCategories(categories);
           setConflictModalVisible(true);
           return; // Exit early - modal will handle adding the item
@@ -373,8 +376,8 @@ const ListDetailScreen = () => {
       }
 
       // No conflict - add item with suggested category (if any)
-      await addItemWithCategory(newItemName.trim(), suggestedCategory);
-      setNewItemName('');
+      await addItemWithCategory(name, suggestedCategory);
+      addInputRef.current?.clear();
       setNewItemUrgent(false);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -390,7 +393,7 @@ const ListDetailScreen = () => {
     await addItemWithCategory(pendingItemName, selectedCategory);
     setConflictModalVisible(false);
     setPendingItemName('');
-    setNewItemName('');
+    addInputRef.current?.clear();
     setNewItemUrgent(false);
   };
 
@@ -642,13 +645,7 @@ const ListDetailScreen = () => {
     try {
       await ItemManager.addItemsBatch(
         newList.id,
-        uncheckedItems.map(i => ({
-          name: i.name,
-          quantity: i.quantity ?? undefined,
-          price: i.price ?? undefined,
-          unitQty: i.unitQty ?? null,
-          category: i.category,
-        })),
+        uncheckedItems.map(carryOverFields),
         currentUserId!,
       );
     } catch {
@@ -770,6 +767,9 @@ const ListDetailScreen = () => {
   // All display code must group by category first, then sort by sortOrder within groups.
   // Unchecked urgent items are pulled out of their categories and pinned on
   // top, oldest first; once checked they go back to Completed like any item.
+  // The previous grouping, so a category whose items did not change keeps its
+  // array and its memo'd CategoryItemList skips re-rendering (OPTIMISE P6).
+  const prevGroupsRef = useRef<{ unchecked: { [cat: string]: Item[] }; checked: { [cat: string]: Item[] } } | null>(null);
   const { urgentItems, uncheckedGrouped, checkedGrouped } = useMemo(() => {
     if (!optimisticItems || optimisticItems.length === 0) {
       return { urgentItems: [] as Item[], uncheckedGrouped: {} as { [cat: string]: Item[] }, checkedGrouped: {} as { [cat: string]: Item[] } };
@@ -799,10 +799,15 @@ const ListDetailScreen = () => {
       return grouped;
     };
 
+    const groups = {
+      unchecked: stableGroups(prevGroupsRef.current?.unchecked ?? null, groupByCategory(unchecked)),
+      checked: stableGroups(prevGroupsRef.current?.checked ?? null, groupByCategory(checked)),
+    };
+    prevGroupsRef.current = groups;
     return {
       urgentItems: urgent,
-      uncheckedGrouped: groupByCategory(unchecked),
-      checkedGrouped: groupByCategory(checked),
+      uncheckedGrouped: groups.unchecked,
+      checkedGrouped: groups.checked,
     };
   }, [optimisticItems]);
 
@@ -1067,7 +1072,8 @@ const ListDetailScreen = () => {
       )}
 
       <View style={styles.addItemContainer}>
-        <TextInput
+        <AddItemInput
+          ref={addInputRef}
           style={styles.input}
           placeholder={
             isListLocked
@@ -1076,10 +1082,7 @@ const ListDetailScreen = () => {
               ? "List is completed..."
               : "Add item..."
           }
-          placeholderTextColor="#6E6E73"
-          value={newItemName}
-          onChangeText={setNewItemName}
-          onSubmitEditing={handleAddItem}
+          onSubmit={handleAddItem}
           editable={canAddItems}
         />
         <TouchableOpacity
@@ -1105,7 +1108,7 @@ const ListDetailScreen = () => {
             color={newItemUrgent ? theme.accent.red : theme.text.secondary}
           />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
+        <TouchableOpacity style={styles.addButton} onPress={() => addInputRef.current?.submit()} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>

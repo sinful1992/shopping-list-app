@@ -308,12 +308,14 @@ class PriceHistoryService {
       const lowestPrice = Math.min(...prices);
       const highestPrice = Math.max(...prices);
       const averagePrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-      const currentPrice = priceHistory[priceHistory.length - 1]?.price || null;
+      // ?? not ||: a latest price of 0.00 is a price, not "none".
+      const currentPrice = priceHistory[priceHistory.length - 1]?.price ?? null;
 
       let trend: 'up' | 'down' | 'stable' = 'stable';
       let percentageChange = 0;
 
-      if (currentPrice !== null) {
+      // An average of 0 (only free purchases) has no percentage to change by.
+      if (currentPrice !== null && averagePrice > 0) {
         percentageChange = ((currentPrice - averagePrice) / averagePrice) * 100;
 
         if (percentageChange > 5) {
@@ -423,6 +425,8 @@ class PriceHistoryService {
           const lowest = Math.min(...prices);
           const highest = Math.max(...prices);
           const average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+          // All free: no swing to rank (it would divide by 0 and top the chart).
+          if (average <= 0) continue;
 
           const volatility = ((highest - lowest) / average) * 100;
           const priceRange = highest - lowest;

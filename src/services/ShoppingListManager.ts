@@ -59,8 +59,8 @@ class ShoppingListManager {
     // Save locally first (offline-first)
     await LocalStorageManager.saveList(list);
 
-    // Increment usage counter
-    await UsageTracker.incrementListCounter(userId);
+    // Usage counter: display only, never waited on (offline it would never finish)
+    UsageTracker.incrementListCounter(userId);
 
     // Trigger sync
     await SyncEngine.pushChange('list', list.id, 'create', list);
@@ -130,8 +130,8 @@ class ShoppingListManager {
       // Check usage limits (informational - list already created locally)
       await UsageTracker.canCreateList(user);
 
-      // Increment counter
-      await UsageTracker.incrementListCounter(userId);
+      // Increment counter (fire and forget)
+      UsageTracker.incrementListCounter(userId);
 
       // Sync to Firebase
       await SyncEngine.pushChange('list', listId, 'create');
@@ -354,12 +354,9 @@ class ShoppingListManager {
     callback: (lists: ShoppingList[]) => void
   ): Unsubscribe {
     // Use WatermelonDB observers for true real-time updates (no polling!)
-    return LocalStorageManager.observeAllLists(familyGroupId, (lists) => {
-      // Filter out completed lists (shown in HistoryScreen); deleted rows excluded at DB level
-      const visibleLists = lists
-        .filter(list => list.status !== 'completed')
-        .sort((a, b) => b.createdAt - a.createdAt);
-      callback(visibleLists);
+    // Active lists only, filtered in the DB; completed ones live in History.
+    return LocalStorageManager.observeActiveLists(familyGroupId, (lists) => {
+      callback([...lists].sort((a, b) => b.createdAt - a.createdAt));
     });
   }
 

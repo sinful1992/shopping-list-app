@@ -135,7 +135,7 @@
             "$category": {
               ".read": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
               ".write": "auth != null && root.child('familyGroups').child($groupId).child('memberIds').hasChild(auth.uid)",
-              ".validate": "newData.hasChildren(['category', 'usageCount', 'lastUsedAt', 'createdAt']) && newData.child('usageCount').isNumber() && newData.child('lastUsedAt').isNumber() && newData.child('createdAt').isNumber()"
+              ".validate": "newData.hasChildren(['usageCount', 'lastUsedAt', 'createdAt']) && newData.child('usageCount').isNumber() && newData.child('lastUsedAt').isNumber() && newData.child('createdAt').isNumber()"
             }
           }
         }

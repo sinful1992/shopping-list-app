@@ -192,11 +192,23 @@ describe('a receipt scanned on a list', () => {
     expect(ShoppingListManager.createList).toHaveBeenCalledWith('Weekly shop', 'user-1', 'fam-1', expect.anything());
     expect(ItemManager.addItemsBatch).toHaveBeenCalledWith(
       'list-2',
-      [{ name: 'Eggs', quantity: '12', price: undefined, unitQty: 2, category: 'Dairy' }],
+      [{ name: 'Eggs', quantity: '12', price: undefined, unitQty: 2, category: 'Dairy', isUrgent: false }],
       'user-1',
     );
     expect(lastAlert()[1]).toMatch(/1 item carried to a new list/);
     expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  });
+
+  test('Partial Shop keeps an urgent item urgent on the new list', async () => {
+    const urgentEggs = { ...eggs, isUrgent: true };
+    const renderer = await render([milk, urgentEggs], [{ ...milk, checked: true }, urgentEggs]);
+    await press(renderer, APPLY);
+    await choose('Partial Shop');
+    expect(ItemManager.addItemsBatch).toHaveBeenCalledWith(
+      'list-2',
+      [expect.objectContaining({ name: 'Eggs', isUrgent: true })],
+      'user-1',
+    );
   });
 
   test('Cancel keeps the list open and leaves the screen', async () => {

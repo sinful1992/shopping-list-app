@@ -25,11 +25,25 @@ class StoreHistoryService {
    * Returns stores sorted by frequency and recency
    */
   async getStoreHistory(): Promise<string[]> {
-    const historyJson = await AsyncStorage.getItem(this.STORAGE_KEY);
-    const history = safeJsonParse<StoreEntry[]>(historyJson, []);
-    return history
-      .sort((a, b) => a.frequency !== b.frequency ? b.frequency - a.frequency : b.lastUsed - a.lastUsed)
-      .map(entry => entry.name);
+    // Never throws: a receipt scan reads this while saving its result, and
+    // a storage error or a damaged entry must not fail the scan.
+    try {
+      return (await this.readHistory())
+        .sort((a, b) => a.frequency !== b.frequency ? b.frequency - a.frequency : b.lastUsed - a.lastUsed)
+        .map(entry => entry.name);
+    } catch {
+      return [];
+    }
+  }
+
+  /** The stored entries; anything that is not a well-formed entry is skipped. */
+  private async readHistory(): Promise<StoreEntry[]> {
+    const parsed = safeJsonParse<unknown>(await AsyncStorage.getItem(this.STORAGE_KEY), []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((e): e is StoreEntry =>
+      !!e && typeof e.name === 'string' && e.name.trim() !== ''
+      && typeof e.frequency === 'number' && Number.isFinite(e.frequency)
+      && typeof e.lastUsed === 'number' && Number.isFinite(e.lastUsed));
   }
 
   /**
@@ -42,8 +56,7 @@ class StoreHistoryService {
 
     try {
       const normalized = storeName.trim();
-      const historyJson = await AsyncStorage.getItem(this.STORAGE_KEY);
-      let history = safeJsonParse<StoreEntry[]>(historyJson, []);
+      let history = await this.readHistory();
 
       // Find existing entry (case-insensitive)
       const existingIndex = history.findIndex(

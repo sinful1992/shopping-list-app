@@ -360,8 +360,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.secondary,
     textAlign: 'center',
   },
+  // No flex here: flex 1 is "basis 0, grow", and a sheet sized only by
+  // maxHeight has no free space to grow into, so the scroll area came out
+  // 0 tall. Without it the ScrollView takes its content height and shrinks
+  // against the sheet's maxHeight (same as FrequentlyBoughtModal).
   content: {
-    flex: 1,
     padding: SPACING.xl,
   },
   itemNameContainer: {

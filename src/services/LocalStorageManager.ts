@@ -59,6 +59,10 @@ class LocalStorageManager {
     return this.lists.getActiveLists(familyGroupId);
   }
 
+  async getCompletedListsByArchived(familyGroupId: string, archived: boolean): Promise<ShoppingList[]> {
+    return this.lists.getCompletedListsByArchived(familyGroupId, archived);
+  }
+
   async getCompletedLists(familyGroupId: string, startDate?: number, endDate?: number, limit?: number, offset?: number): Promise<ShoppingList[]> {
     return this.lists.getCompletedLists(familyGroupId, startDate, endDate, limit, offset);
   }
@@ -91,8 +95,8 @@ class LocalStorageManager {
     return this.lists.getListsWithReceiptsInDateRange(familyGroupId, startDate, endDate);
   }
 
-  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
-    return this.lists.observeAllLists(familyGroupId, callback);
+  observeActiveLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+    return this.lists.observeActiveLists(familyGroupId, callback);
   }
 
   observeList(listId: string, callback: (list: ShoppingList | null) => void): () => void {
