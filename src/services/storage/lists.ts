@@ -306,14 +306,15 @@ export class ListsStorage {
   }
 
   /**
-   * Observe all lists for a family group (returns WatermelonDB observable)
-   * Use this instead of polling for real-time updates
+   * Observe the active lists of a family group (Home). Completed and deleted
+   * lists are left out by the query itself: Home dropped them anyway, after
+   * mapping every one, receipt JSON included, on each emission (OPTIMISE P3).
    */
-  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+  observeActiveLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
     const listsCollection = this.database.get<ShoppingListModel>('shopping_lists');
     const query = listsCollection.query(
       Q.where('family_group_id', familyGroupId),
-      Q.where('status', Q.notEq('deleted')),
+      Q.where('status', 'active'),
     );
 
     // Observe key fields so status/sync changes update the UI without a manual refresh.

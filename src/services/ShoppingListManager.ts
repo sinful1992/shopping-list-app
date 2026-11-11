@@ -354,12 +354,9 @@ class ShoppingListManager {
     callback: (lists: ShoppingList[]) => void
   ): Unsubscribe {
     // Use WatermelonDB observers for true real-time updates (no polling!)
-    return LocalStorageManager.observeAllLists(familyGroupId, (lists) => {
-      // Filter out completed lists (shown in HistoryScreen); deleted rows excluded at DB level
-      const visibleLists = lists
-        .filter(list => list.status !== 'completed')
-        .sort((a, b) => b.createdAt - a.createdAt);
-      callback(visibleLists);
+    // Active lists only, filtered in the DB; completed ones live in History.
+    return LocalStorageManager.observeActiveLists(familyGroupId, (lists) => {
+      callback([...lists].sort((a, b) => b.createdAt - a.createdAt));
     });
   }
 

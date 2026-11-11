@@ -91,8 +91,8 @@ class LocalStorageManager {
     return this.lists.getListsWithReceiptsInDateRange(familyGroupId, startDate, endDate);
   }
 
-  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
-    return this.lists.observeAllLists(familyGroupId, callback);
+  observeActiveLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+    return this.lists.observeActiveLists(familyGroupId, callback);
   }
 
   observeList(listId: string, callback: (list: ShoppingList | null) => void): () => void {

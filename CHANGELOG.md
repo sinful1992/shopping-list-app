@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.15] - 2026-11-11
+
+### Performance
+- Home's list observer asks the database for active lists only (OPTIMISE P3, Fable audit task 137). Before, it read every non-deleted list, history included, mapped each one (parsing its receipt) on every change, and then dropped the completed ones. Home stays mounted under an open list, so this ran while shopping too.
+- Marking a list or item synced makes no database write when it is already synced. Every list push wrote it, and each write woke the list observers.
+
+### Tests
+- homeObserver.activeOnly (real in-memory DB): only active lists of the family; 20 completed lists with receipts are never mapped; completing a list removes it, a new one arrives; already-synced list or item: no write at all (Model.update spy) and no emission; pending ones still marked; an item with a newer updatedAt stays pending. homeObserver.sort: active lists, newest first, input untouched (6 of 8 fail on 1.54.14).
+
 ## [1.54.14] - 2026-11-11
 
 ### Performance
