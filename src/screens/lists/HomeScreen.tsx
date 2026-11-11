@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,9 +22,9 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { ListsStackParamList } from '../../types/navigation';
-import AuthenticationModule from '../../services/AuthenticationModule';
-import DatabaseMigration from '../../services/DatabaseMigration';
-import { useAuth, useShoppingLists } from '../../hooks';
+import { useShoppingLists } from '../../hooks';
+import { useUser } from '../../contexts/UserContext';
+import { useFamilyGroupCheck } from './hooks/useFamilyGroupCheck';
 import { useFamilyMemberNames } from '../../hooks/useFamilyMemberNames';
 import { useUrgentCounts } from '../../hooks/useUrgentCounts';
 import { useActiveListItemsSync } from '../../hooks/useActiveListItemsSync';
@@ -63,7 +63,10 @@ const HomeScreen = () => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const { user, familyGroupId } = useAuth();
+  // The live user App already holds, not a second auth subscription of our
+  // own (OPTIMISE P2).
+  const user = useUser();
+  const familyGroupId = user?.familyGroupId ?? null;
   const { lists, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
   const memberNames = useFamilyMemberNames(familyGroupId, user?.uid ?? null);
   const urgentCounts = useUrgentCounts();
@@ -74,49 +77,7 @@ const HomeScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showIOSPicker, setShowIOSPicker] = useState(false);
 
-  useEffect(() => {
-    if (user && familyGroupId) {
-      loadInitialData();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, familyGroupId]);
-
-  const loadInitialData = async () => {
-    try {
-      if (!user || !familyGroupId) return;
-
-      const groupExists = await AuthenticationModule.validateFamilyGroupExists(familyGroupId);
-
-      if (!groupExists) {
-        showAlert(
-          'Family Group Not Found',
-          'Your family group no longer exists. Please create or join a new group.',
-          [{ text: 'OK' }],
-          { icon: 'warning' }
-        );
-
-        await AuthenticationModule.clearFamilyGroupReference(user.uid, familyGroupId);
-
-        return;
-      }
-
-      const needsMigration = await DatabaseMigration.needsMigration(familyGroupId);
-      if (needsMigration) {
-        try {
-          await DatabaseMigration.runAllMigrations(familyGroupId);
-        } catch {
-          showAlert(
-            'Migration Notice',
-            'Database migration in progress. Please restart the app if lists do not appear.',
-            undefined,
-            { icon: 'info' }
-          );
-        }
-      }
-    } catch (error: any) {
-      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-    }
-  };
+  useFamilyGroupCheck(user?.uid ?? null, familyGroupId, showAlert);
 
   const handleRefresh = async () => {
     setRefreshing(true);

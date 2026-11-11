@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.14] - 2026-11-11
+
+### Performance
+- Home no longer opens a second login/profile subscription of its own next to App's, and no longer re-runs its "does the family still exist" check on every profile change (OPTIMISE P2, Fable audit task 137). The user object is new on every profile write, and creating a list bumps a usage counter, so every new list re-ran the check. Home now reads App's user, and the check runs once per account and family (`useFamilyGroupCheck`). The unused `useAuth` hook is removed.
+
+### Tests
+- HomeScreen.familyCheck: counter ticks don't re-run the check; a new family or account does; no user; family gone (alert + reference cleared); migration notice; check error; a stale check after a family switch stays quiet; HomeScreen has no auth subscription of its own (9 of 9 fail on 1.54.13).
+
 ## [1.54.13] - 2026-11-11
 
 ### Performance

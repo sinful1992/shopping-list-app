@@ -5,7 +5,6 @@
  * These hooks extract business logic from screens for better testability and reusability.
  */
 
-export { useAuth } from './useAuth';
 export { useShoppingLists } from './useShoppingLists';
 export { useBudgetData } from './useBudgetData';
 export { useSettings } from './useSettings';
