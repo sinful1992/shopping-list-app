@@ -92,6 +92,8 @@ describe('sync-lock-version', () => {
 
 // Codex review of PR #64: the hook commits the STAGED package.json, so the lock follows that version.
 describe('sync-lock-version follows the staged package.json', () => {
+  // git init + add per test: slow on a cold Windows run (ada #10585 saw 2 unexplained failures there)
+  const GIT_TEST_MS = 30000;
   const { execFileSync } = require('child_process');
   function repo(staged: string, working: string | null) {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-git-'));
@@ -109,11 +111,11 @@ describe('sync-lock-version follows the staged package.json', () => {
     const d = repo('1.0.1', '1.0.2');
     expect(syncLockVersion(d)).toEqual({ from: '1.0.0', to: '1.0.1' });
     expect(JSON.parse(fs.readFileSync(path.join(d, 'package-lock.json'), 'utf8')).packages[''].version).toBe('1.0.1');
-  });
+  }, GIT_TEST_MS);
 
   test('staged and working copy the same: that version', () => {
     expect(syncLockVersion(repo('1.2.0', null))).toEqual({ from: '1.0.0', to: '1.2.0' });
-  });
+  }, GIT_TEST_MS);
 
   test('a git repo where package.json is not staged at all falls back to the working copy', () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-git-'));
@@ -121,5 +123,5 @@ describe('sync-lock-version follows the staged package.json', () => {
     fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ version: '4.0.0' }));
     fs.writeFileSync(path.join(d, 'package-lock.json'), JSON.stringify({ version: '1.0.0' }) + '\n');
     expect(syncLockVersion(d)).toEqual({ from: '1.0.0', to: '4.0.0' });
-  });
+  }, GIT_TEST_MS);
 });
