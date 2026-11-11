@@ -52,9 +52,36 @@ describe('SH-5: receipt uploads have a size and type limit', () => {
     await assertFails(put(member(), RECEIPT, 50 * MB, 'image/jpeg'));
   });
 
-  it('denies an upload just over 15 MB and allows one just under', async () => {
+  it('denies an upload just over 15 MB and allows exactly 15 MB', async () => {
     await assertFails(put(member(), RECEIPT, 15 * MB + 1, 'image/jpeg'));
-    await assertSucceeds(put(member(), RECEIPT, 15 * MB - 1, 'image/jpeg'));
+    await assertSucceeds(put(member(), RECEIPT, 15 * MB, 'image/jpeg'));
+  });
+
+  it('allows the other photo types a phone may send', async () => {
+    for (const t of ['image/png', 'image/webp', 'image/heic', 'image/heif']) {
+      await assertSucceeds(put(member(), RECEIPT, 1000, t));
+    }
+  });
+
+  it('denies image/svg+xml and image/gif', async () => {
+    await assertFails(put(member(), RECEIPT, 1000, 'image/svg+xml'));
+    await assertFails(put(member(), RECEIPT, 1000, 'image/gif'));
+  });
+
+  // Builds before 1.53.25 send no type (ada #10233): accepted for the app's own name only.
+  it('allows application/octet-stream for the app\'s {ms}.jpg name (old builds)', async () => {
+    await assertSucceeds(put(member(), RECEIPT, 1000, 'application/octet-stream'));
+  });
+
+  it('denies application/octet-stream for any other name', async () => {
+    await assertFails(put(member(), `receipts/${G}/list-1/1731300000000.zip`, 1000, 'application/octet-stream'));
+    await assertFails(put(member(), `receipts/${G}/list-1/evil.jpg`, 1000, 'application/octet-stream'));
+    await assertFails(put(member(), `receipts/${G}/list-1/1731300000000.jpg.exe`, 1000, 'application/octet-stream'));
+    await assertFails(put(member(), `receipts/${G}/list-1/1731300000000xjpg`, 1000, 'application/octet-stream'));
+  });
+
+  it('still caps old-build uploads at 15 MB', async () => {
+    await assertFails(put(member(), RECEIPT, 15 * MB + 1, 'application/octet-stream'));
   });
 
   it('denies a zip', async () => {

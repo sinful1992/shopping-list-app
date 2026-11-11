@@ -98,6 +98,27 @@ describe('SH-4: a rejected request stays rejected', () => {
     await assertSucceeds(set(ref(alice(), REQ), null));
   });
 
+  // ada #10233: the requester may only ever say "pending".
+  it('denies the requester approving his own request', async () => {
+    await seed('pending');
+    await assertFails(set(ref(bob(), `${REQ}/status`), 'approved'));
+  });
+
+  it('denies the requester creating his request as approved', async () => {
+    await seed(null);
+    await assertFails(set(ref(bob(), REQ), makeJoinRequest(BOB, GROUP, BOB_EMAIL, 'Bob', 'approved')));
+  });
+
+  it('denies the requester turning a rejection into approved', async () => {
+    await seed('rejected');
+    await assertFails(set(ref(bob(), `${REQ}/status`), 'approved'));
+  });
+
+  it('still allows the requester to create a pending request', async () => {
+    await seed(null);
+    await assertSucceeds(set(ref(bob(), REQ), makeJoinRequest(BOB, GROUP, BOB_EMAIL, 'Bob', 'pending')));
+  });
+
   it('denies a status outside pending/approved/rejected', async () => {
     await seed('pending');
     await assertFails(set(ref(alice(), `${REQ}/status`), 'admitted'));

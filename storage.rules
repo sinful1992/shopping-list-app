@@ -9,13 +9,18 @@ service firebase.storage {
     }
 
     // Uploads (SH-5, audit 137): only the app's shape receipts/{group}/{list}/{file},
-    // an image, more than 0 bytes and under 15 MB (the app's captures are a few MB).
+    // a photo type, more than 0 bytes and at most 15 MB (the app's captures are a
+    // few MB). App builds before 1.53.25 send no type, so the native side may send
+    // application/octet-stream; that is accepted only for the app's own file name
+    // ({milliseconds}.jpg), so old phones keep uploading.
     match /receipts/{familyGroupId}/{listId}/{fileName} {
       allow create, update: if request.auth != null
         && request.auth.token.familyGroupId == familyGroupId
         && request.resource.size > 0
-        && request.resource.size < 15 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.size <= 15 * 1024 * 1024
+        && (request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)')
+            || (request.resource.contentType == 'application/octet-stream'
+                && fileName.matches('[0-9]+[.]jpg')));
     }
 
     // Default deny all
