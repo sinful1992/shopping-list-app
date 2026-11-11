@@ -176,6 +176,7 @@ describe('start with a saved profile and a slow server', () => {
     await jest.advanceTimersByTimeAsync(50);
     expect(SecureStorage.setItem).not.toHaveBeenCalled();
     serverAnswers(BOB, bob({ displayName: 'New name' }));
+    await jest.advanceTimersByTimeAsync(1); // saved after the old copy is read (task 145, saveServerProfile)
     expect(SecureStorage.setItem).toHaveBeenCalledWith('@user', JSON.stringify(bob({ displayName: 'New name' })));
   });
 });
