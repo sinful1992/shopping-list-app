@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.12] - 2026-11-11
+
+### Performance
+- Edge functions (notify-receipt-scanned, notify-shopping-started, register-device-token, upsert-urgent-item) reuse their Firebase database access token across requests on a warm instance instead of minting one per request (one RSA sign + a round trip to Google), until 5 min before it expires; requests arriving together share one mint, a failed mint is not kept, and a token the database rejects (401/403) is dropped (Fable audit task 137). Goes live with the next master deploy of the functions.
+
+### Changed
+- The Firebase login and membership check those 4 functions had pasted in (identical 123 lines each) now has one source, `supabase/functions/_shared/firebaseAuth.ts`, copied into each function's folder by `node scripts/sync-edge-auth.mjs` (same-folder import, as ocr-proxy deploys). The ID token checks are unchanged.
+
+### Tests
+- firebaseAuth.test.ts (jest, real RSA keys): copies match the source and no function keeps its own auth code; token reuse, shared mint, under/over 5 min left, failed mint, 401 drop, short expires_in, non-member, the JWT signed by the service account; 11 bad ID tokens refused (30 of 30 fail on dev).
+
 ### Tests
 - Coverage now counts every source file (`collectCoverageFrom`), not only the ones a test imports, so the 80 files no test loads count as 0 (Fable audit task 137). The honest figure is 43.63 % of lines (it read ~66 % before); the ratchet moves from 33 to 43. `testTimeout` is 30 s, as instrumenting every file slows a screen test's first render.
 
