@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.37] - 2026-11-11
+
+### Tests
+- carryOver.wiring: both Partial Shop paths (list screen, receipt screen) hand their items to addItemsBatch through carryOverFields. The list screen has no render test, so a revert there passed every test (Fable 5.2 review of 1.54.36). 1 of 2 fails on 1.54.35. No behaviour change.
+
 ## [1.54.36] - 2026-11-11
 
 ### Fixed
