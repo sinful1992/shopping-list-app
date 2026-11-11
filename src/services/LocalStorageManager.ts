@@ -141,6 +141,10 @@ class LocalStorageManager {
     return this.items.updateItemsBatch(updates);
   }
 
+  async markItemsSyncedIfBlank(ids: string[]): Promise<void> {
+    return this.items.markItemsSyncedIfBlank(ids);
+  }
+
   async deleteItem(itemId: string): Promise<void> {
     return this.items.deleteItem(itemId);
   }

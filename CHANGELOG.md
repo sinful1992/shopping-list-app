@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.3] - 2026-11-11
+
+### Fixed
+- Opening a list could keep this phone's own older copy of an item that another phone had just changed (a tick, a rename), until the next live change of that item. It happened when the other phone's clock was behind. Item rows now record their sync state, as lists already did (before, every item row was stored with an empty state). A server copy now replaces the local row unless a change of ours is still waiting to send (pending or failed), on the first load and on live updates alike. Rows stored by older versions count as server copies, and an unchanged one is marked synced on the next list load, so the check for items deleted on another phone covers it too. Found by the Codex review of PR #65; Fable 5.2 checked the fix (USER #10579).
+- The pre-commit hook now syncs package-lock.json to the staged package.json version, not to a later unstaged edit of it. Found by the Codex review of PR #64.
+
+### Changed
+- tsconfig `moduleDetection: "force"`: every file is a module, so test files without an import can no longer clash in one global scope (the 1.54.1 CI failure). ada found `SecureStorage.test.ts` was one of them (#10564).
+
+### Tests
+- `saveItemsBatchUpsert.syncedOlder.test.ts` (11 cases), 3 new listener cases in `FirebaseSyncListener.fieldWrites.test.ts`, and 3 staged-version cases in `lockVersion.test.ts`. 11 of them fail on 1.54.2.
+
 ## [1.54.2] - 2026-11-11
 
 ### Fixed

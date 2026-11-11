@@ -3,15 +3,24 @@
   "compilerOptions": {
     "jsx": "react-native",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
     "resolveJsonModule": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "skipLibCheck": true,
-    "types": ["jest", "node"]
+    "types": [
+      "jest",
+      "node"
+    ],
+    "moduleDetection": "force"
   },
-  "include": ["src/**/*", "shared/**/*"],
+  "include": [
+    "src/**/*",
+    "shared/**/*"
+  ],
   "exclude": [
     "node_modules",
     "babel.config.js",

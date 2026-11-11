@@ -7,6 +7,15 @@ import path from 'path';
 const root = path.join(__dirname, '..', '..');
 const { syncLockVersion } = require('../../scripts/sync-lock-version.js');
 
+// Under the pre-commit hook git exports GIT_INDEX_FILE (and may export GIT_DIR). Inherited by the git
+// calls in these tests and in the script, they would read or write the real repo's index instead of
+// the temp dirs (it replaced package.json in the index once). Every git call passes this cleaned env.
+const savedGitEnv: Record<string, string | undefined> = {};
+beforeAll(() => {
+  for (const k of Object.keys(process.env)) if (k.startsWith('GIT_')) { savedGitEnv[k] = process.env[k]; delete process.env[k]; }
+});
+afterAll(() => { Object.assign(process.env, savedGitEnv); });
+
 test('package-lock.json version matches package.json', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
@@ -78,5 +87,39 @@ describe('sync-lock-version', () => {
     fs.writeFileSync(path.join(d, 'package-lock.json'), '{"version": "0.9');
     expect(() => syncLockVersion(d)).toThrow();
     expect(read(d)).toBe('{"version": "0.9');
+  });
+});
+
+// Codex review of PR #64: the hook commits the STAGED package.json, so the lock follows that version.
+describe('sync-lock-version follows the staged package.json', () => {
+  const { execFileSync } = require('child_process');
+  function repo(staged: string, working: string | null) {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-git-'));
+    // env: process.env passes this sandbox's cleaned env (a bare call would use the real one)
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: d, stdio: 'ignore', env: process.env });
+    git('init', '-q');
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x', version: staged }));
+    fs.writeFileSync(path.join(d, 'package-lock.json'), JSON.stringify({ version: '1.0.0', packages: { '': { version: '1.0.0' } } }, null, 2) + '\n');
+    git('add', 'package.json');
+    if (working) fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'x', version: working }));
+    return d;
+  }
+
+  test('a later unstaged edit of package.json does not reach the lock', () => {
+    const d = repo('1.0.1', '1.0.2');
+    expect(syncLockVersion(d)).toEqual({ from: '1.0.0', to: '1.0.1' });
+    expect(JSON.parse(fs.readFileSync(path.join(d, 'package-lock.json'), 'utf8')).packages[''].version).toBe('1.0.1');
+  });
+
+  test('staged and working copy the same: that version', () => {
+    expect(syncLockVersion(repo('1.2.0', null))).toEqual({ from: '1.0.0', to: '1.2.0' });
+  });
+
+  test('a git repo where package.json is not staged at all falls back to the working copy', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lockver-git-'));
+    execFileSync('git', ['init', '-q'], { cwd: d, stdio: 'ignore', env: process.env });
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ version: '4.0.0' }));
+    fs.writeFileSync(path.join(d, 'package-lock.json'), JSON.stringify({ version: '1.0.0' }) + '\n');
+    expect(syncLockVersion(d)).toEqual({ from: '1.0.0', to: '4.0.0' });
   });
 });

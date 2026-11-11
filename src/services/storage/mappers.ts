@@ -71,6 +71,9 @@ export function applyItemCreate(record: ItemModel, item: Item): void {
   record.measurementUnit = item.measurementUnit ?? null;
   record.measurementValue = item.measurementValue ?? null;
   record.isUrgent = item.isUrgent === true;
+  // Rank 20 follow-up (Codex, PR #65): store the sync state like lists do. Before this every item
+  // row was '' and the keep-local guards took a server-born row for an unsent local change.
+  record.syncStatus = item.syncStatus || 'pending';
 }
 
 export function applyItemFullUpdate(record: ItemModel, item: Item): void {
@@ -85,6 +88,9 @@ export function applyItemFullUpdate(record: ItemModel, item: Item): void {
   record.measurementUnit = item.measurementUnit ?? null;
   record.measurementValue = item.measurementValue ?? null;
   record.isUrgent = item.isUrgent === true;
+  // Rank 20 follow-up (Codex, PR #65): store the sync state like lists do. Before this every item
+  // row was '' and the keep-local guards took a server-born row for an unsent local change.
+  record.syncStatus = item.syncStatus || 'pending';
 }
 
 /**
