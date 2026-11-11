@@ -12,6 +12,7 @@ let mockCurrent = 0;
 const mockServer: Record<string, any> = {};
 const mockWrites: Array<{ op: string; path: string; data?: any }> = [];
 
+const mockTxnOptions: any[] = [];
 jest.mock('@react-native-firebase/database', () => {
   const me = mockCurrent;
   const send = (apply: () => void) => {
@@ -36,7 +37,8 @@ jest.mock('@react-native-firebase/database', () => {
     })),
     remove: jest.fn((r: { path: string }) => send(() => { delete mockServer[r.path]; mockWrites.push({ op: 'remove', path: r.path }); })),
     // task 145: a queued replay is a transaction on the server's copy; recorded as the fields it changed
-    runTransaction: jest.fn((r: { path: string }, fn: (current: any) => any) => {
+    runTransaction: jest.fn((r: { path: string }, fn: (current: any) => any, options?: any) => {
+      mockTxnOptions.push(options);
       let committed = false;
       return send(() => {
         const before = mockServer[r.path] ?? null;
@@ -263,6 +265,8 @@ describe('left note 138 (task 145): an offline change and a newer change of the 
     await a.engine.processOperationQueue();
     expect(mockServer[PATH]).toMatchObject({ quantity: '5', updatedAt: 30 });
     expect(a.phone.queue).toHaveLength(0); // dropped, not retried for ever
+    // the replay's transaction never shows its first guess locally (ada #10737)
+    expect(mockTxnOptions.at(-1)).toEqual({ applyLocally: false });
   });
 
   it('same field AND another field: B keeps its quantity, A\'s tick still lands', async () => {

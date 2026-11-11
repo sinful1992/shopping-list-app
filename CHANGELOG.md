@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.6] - 2026-11-11
+
+### Fixed
+- The transaction that sends a waiting offline change (1.54.5) no longer applies its first guess on this phone (`applyLocally: false`): over a cold cache that guess is the whole change, and the list could show it for a moment before the server's real copy came back (ada #10737).
+
 ## [1.54.5] - 2026-11-11
 
 ### Fixed

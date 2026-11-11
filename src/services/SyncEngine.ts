@@ -600,8 +600,10 @@ class SyncEngine {
       const fieldBase = operation === 'update' ? base : null;
       const sent = fieldBase ? fieldPatch(dataWithoutSyncStatus as Fields, fieldBase) : (dataWithoutSyncStatus as Fields);
       if (fieldBase && Object.keys(sent).length === 0) return { fields: {}, whole: false };
+      // applyLocally false: the listener must not see the handler's first guess (made over a cold,
+      // null cache) before the server has answered with its real copy (ada #10737)
       const result = await runTransaction(ref(db, path), (current: Fields | null) =>
-        transactionValue(current ?? null, mergeQueued(current ?? null, sent, fieldBase)));
+        transactionValue(current ?? null, mergeQueued(current ?? null, sent, fieldBase)), { applyLocally: false });
       if (!result?.committed) CrashReporting.log(`Queued ${entityType}/${entityId} ${operation} not written: the server's copy is newer`);
       const value = result?.snapshot?.val?.() ?? null;
       return { fields: value, whole: true };
