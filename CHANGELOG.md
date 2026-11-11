@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.4] - 2026-11-11
+
+### Tests
+- ada's break tests for 1.54.3 (`ada.r67break.test.ts`): a tick racing the first-load upsert (30 races, both orders), a legacy blank row ticked locally, `markItemsSyncedIfBlank` racing an edit, a batch-added item stored pending, our own echo marks pending synced. 3 of 5 fail on 1.54.2.
+- The three git-repo cases in `lockVersion.test.ts` get a 30 s timeout (git init + add is slow on a cold Windows run, ada #10585).
+
 ## [1.54.3] - 2026-11-11
 
 ### Fixed
