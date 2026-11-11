@@ -42,6 +42,7 @@ import PriceHistoryModal from '../../components/PriceHistoryModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
+import AddItemInput, { AddItemInputHandle } from '../../components/AddItemInput';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
@@ -89,7 +90,7 @@ const ListDetailScreen = () => {
     (state, payload: { id: string; checked: boolean }) =>
       state.map(item => item.id === payload.id ? { ...item, checked: payload.checked } : item),
   );
-  const [newItemName, setNewItemName] = useState('');
+  const addInputRef = useRef<AddItemInputHandle>(null);
   // Applies to the next item added, then resets: urgent is the exception.
   const [newItemUrgent, setNewItemUrgent] = useState(false);
   const [list, setList] = useState<ShoppingList | null>(null);
@@ -342,8 +343,8 @@ const ListDetailScreen = () => {
     setRefreshing(false);
   };
 
-  const handleAddItem = async () => {
-    if (!newItemName.trim()) return;
+  const handleAddItem = async (name: string) => {
+    if (!name) return;
     if (!currentUserId) return;
 
     if (!list) {
@@ -358,12 +359,12 @@ const ListDetailScreen = () => {
       if (list.familyGroupId) {
         const categories = await CategoryHistoryService.getCategoriesForItem(
           list.familyGroupId,
-          newItemName.trim()
+          name
         );
 
         if (categories.length >= 2) {
           // Show conflict resolution modal
-          setPendingItemName(newItemName.trim());
+          setPendingItemName(name);
           setConflictCategories(categories);
           setConflictModalVisible(true);
           return; // Exit early - modal will handle adding the item
@@ -373,8 +374,8 @@ const ListDetailScreen = () => {
       }
 
       // No conflict - add item with suggested category (if any)
-      await addItemWithCategory(newItemName.trim(), suggestedCategory);
-      setNewItemName('');
+      await addItemWithCategory(name, suggestedCategory);
+      addInputRef.current?.clear();
       setNewItemUrgent(false);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
@@ -390,7 +391,7 @@ const ListDetailScreen = () => {
     await addItemWithCategory(pendingItemName, selectedCategory);
     setConflictModalVisible(false);
     setPendingItemName('');
-    setNewItemName('');
+    addInputRef.current?.clear();
     setNewItemUrgent(false);
   };
 
@@ -1067,7 +1068,8 @@ const ListDetailScreen = () => {
       )}
 
       <View style={styles.addItemContainer}>
-        <TextInput
+        <AddItemInput
+          ref={addInputRef}
           style={styles.input}
           placeholder={
             isListLocked
@@ -1076,10 +1078,7 @@ const ListDetailScreen = () => {
               ? "List is completed..."
               : "Add item..."
           }
-          placeholderTextColor="#6E6E73"
-          value={newItemName}
-          onChangeText={setNewItemName}
-          onSubmitEditing={handleAddItem}
+          onSubmit={handleAddItem}
           editable={canAddItems}
         />
         <TouchableOpacity
@@ -1105,7 +1104,7 @@ const ListDetailScreen = () => {
             color={newItemUrgent ? theme.accent.red : theme.text.secondary}
           />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
+        <TouchableOpacity style={styles.addButton} onPress={() => addInputRef.current?.submit()} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>

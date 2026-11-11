@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.17] - 2026-11-11
+
+### Performance
+- Typing in an open list's "Add item…" field no longer re-renders the whole list screen and every card on it at each keystroke (OPTIMISE P6 step 1, Fable audit task 137). The field (`AddItemInput`) keeps its own text; the screen empties it once the item is added, or after the category choice. The Add button sends the same text as the keyboard's submit; blank text is never sent.
+
+### Tests
+- AddItemInput: typing doesn't re-render the screen, trimmed submit, cleared by the screen, blank not sent, Add button path, read-only when locked, ListDetailScreen keeps no text state (6 of 6 fail on 1.54.16).
+
 ## [1.54.16] - 2026-11-11
 
 ### Fixed
