@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.13] - 2026-11-11
+
+### Performance
+- Coming back to the app after less than a minute no longer downloads every list of the family again (Fable audit task 137, F1). Each return used to restart the lists, category and store-layout listeners, and a restart re-downloads all lists, history included. Now they restart only after a minute or more away; a short trip (a message, the notification shade) keeps the live listeners, which deliver changes themselves. The local lists are still re-read on every return. Not done: downloading only the changes since last time needs an `updatedAt` on lists that every app version writes, which the Play 1.50 build does not.
+
+### Tests
+- useShoppingLists.foreground: mount, 10 s away, just under and at the limit, 30 min away, notification shade only, local re-read each return, two background events, a short trip after a long one (4 of 8 fail on 1.54.12).
+
 ## [1.54.12] - 2026-11-11
 
 ### Performance

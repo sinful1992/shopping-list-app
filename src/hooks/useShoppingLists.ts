@@ -23,6 +23,9 @@ import { mergeWithPendingLists as mergePendingPure, PendingListEntry } from '../
  * Usage:
  *   const { lists, loading, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
  */
+/** Away from the app at least this long: the Firebase listeners restart on return. */
+export const LISTENER_RESTART_AFTER_MS = 60_000;
+
 export function useShoppingLists(familyGroupId: string | null, user: User | null) {
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,13 +100,24 @@ export function useShoppingLists(familyGroupId: string | null, user: User | null
       }
     );
 
-    // Restart Firebase listeners and refresh lists when app returns to foreground
+    // Back in the app: refresh the lists from the local DB every time, and
+    // restart the Firebase listeners only after a long time away. A restart
+    // downloads every list of the family again (history included), so doing
+    // it on each return cost a full download per glance at another app
+    // (Fable audit task 137, F1). After a short trip the connection and its
+    // listeners are still live and deliver changes themselves.
+    let backgroundedAt: number | null = null;
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'background' && backgroundedAt === null) {
+        backgroundedAt = Date.now();
+      }
       if (
         appStateRef.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        startFirebaseListeners();
+        const awayMs = backgroundedAt === null ? 0 : Date.now() - backgroundedAt;
+        backgroundedAt = null;
+        if (awayMs >= LISTENER_RESTART_AFTER_MS) startFirebaseListeners();
 
         fetchLists().catch(err => CrashReporting.recordError(err as Error, 'useShoppingLists fetchLists on foreground'));
       }
