@@ -74,6 +74,13 @@ gitignored, so they have to be copied in from a machine that already has them
 Auth/RTDB/Storage setup, the signing keystore — already exists and is not
 something anyone sets up again.
 
+A **local release build** (`./gradlew assembleRelease`) needs the real RevenueCat
+Android key (`goog_…`) in `.env`. With a `test_…` key it opens a "Wrong API Key"
+dialog and closes on start: RevenueCat allows test keys in debug builds only.
+CI writes the real key from GitHub secrets, so CI builds are not affected. An
+empty key also builds and opens fine: the app then skips RevenueCat entirely
+(`RevenueCatContext`), which is why builds from a worktree without `.env` worked.
+
 Most of the behaviour lives in `src/services/`. `SyncEngine`,
 `LocalStorageManager` and `ShoppingListManager` are the three to read first.
 

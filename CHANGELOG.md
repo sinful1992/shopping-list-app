@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Docs
+- README + `.env.example`: a local release build needs the RevenueCat `goog_` key (a `test_` key closes the app on start, task 158); `.env.example` now lists every key CI writes (SUPABASE_URL, SUPABASE_ANON_KEY, REVENUECAT_ANDROID_API_KEY were missing). 1.54.38 entry corrected: that release was CI-built, not built locally.
+
+## [1.54.42] - 2026-11-14
+
+### Fixed
+- Sign-in fix, part 2 (task 159): category history clears a leftover deleted row with the same id before saving. Saving over one threw "Not allowed to change deleted record", because `find()` also returns deleted rows (store layouts already got this in 1.54.41).
+
+## [1.54.41] - 2026-11-14
+
+### Fixed
+- Sign out and back in (or leave and rejoin a family) on the same phone: the old lists, their items, store layouts and price history come back again (task 159). Signing out marked those rows deleted but kept them in the local database under their ids, so the copies from the server could not be stored ("Duplicate key for property id") and only new lists showed. `clearAllData` and `clearFamilyData` now remove the rows for good, and the list, item, layout and price-history saves first remove leftover deleted rows with the same id, so phones that signed out on an older version heal on the next sign-in.
+- An item deleted on this phone whose delete has not reached the server yet no longer comes back when the server's older copy arrives. The cleanup above skips a deleted row while its delete is still waiting to be sent; before, the item save removed it blindly.
+
 ## [1.54.40] - 2026-11-14
 
 ### Fixed
@@ -20,7 +34,7 @@ All notable changes to this project will be documented in this file.
 ## [1.54.38] - 2026-11-14
 
 ### Release
-- dev (1.54.37) goes to master for the first time since 1.47.18: every change from 1.47.19 to 1.54.37 below ships in this release. master's own two commits (v1.41.3, the 1.47.18 merge) were already in dev, so merging master in changes no files. Built locally and tested on the emulator before the merge (task 157).
+- dev (1.54.37) goes to master for the first time since 1.47.18: every change from 1.47.19 to 1.54.37 below ships in this release. master's own two commits (v1.41.3, the 1.47.18 merge) were already in dev, so merging master in changes no files. Built by CI from the release branch and tested on the emulator before the merge (tasks 157/158; the local release build closed on start because the laptop's `.env` had a RevenueCat test key).
 
 ### Changed
 - The master build no longer deploys `storage.rules` (step kept, `if: false`). Those rules would go live for the first time and need the `familyGroupId` token claim from the `setFamilyGroupClaim` Cloud Function, which CI never deploys and nobody has confirmed live; without it, receipt photos could stop for every app version. Database rules and edge functions still deploy. Follow-up: deploy the function, check the claim, then turn the step back on.

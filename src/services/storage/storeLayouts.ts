@@ -5,6 +5,7 @@ import { CategoryType } from '../CategoryService';
 import CrashReporting from '../CrashReporting';
 import StoreLayoutModel from '../../database/models/StoreLayout';
 import { isUnsentLocalChange } from './syncState';
+import { purgeStaleTombstones } from './tombstones';
 
 /**
  * A layout changed on this phone and not sent yet (rearranged offline) is not
@@ -31,7 +32,12 @@ export class StoreLayoutsStorage {
       const collection = this.database.get<StoreLayoutModel>('store_layouts');
       let record: StoreLayoutModel | undefined;
 
+      let deletedHere = false;
       await this.database.write(async () => {
+        if ((await purgeStaleTombstones(this.database, 'store_layouts', [layout.id])).has(layout.id)) {
+          deletedHere = true;
+          return;
+        }
         let existing: StoreLayoutModel | null = null;
         try {
           existing = await collection.find(layout.id);
@@ -61,6 +67,8 @@ export class StoreLayoutsStorage {
         }
       }, 'saveStoreLayout');
 
+      // Deleted on this phone with the delete not sent yet: nothing is stored.
+      if (deletedHere) return layout;
       if (!record) throw new Error('Failed to save store layout record');
       return this.storeLayoutModelToType(record);
     } catch (error: any) {
@@ -152,8 +160,11 @@ export class StoreLayoutsStorage {
     };
 
     await this.database.write(async () => {
+      // Layouts of a family this phone left (or signed out of) before 1.54.41 are still tombstones.
+      const deletedHere = await purgeStaleTombstones(this.database, 'store_layouts', entries.map(e => e.layoutId));
       const ops: any[] = [];
       for (const { layoutId, data } of entries) {
+        if (deletedHere.has(layoutId)) continue;
         const existing = existingMap.get(layoutId);
         if (existing && keepsLocalLayout(existing, data.updatedAt)) continue;
         if (existing) {
@@ -175,6 +186,7 @@ export class StoreLayoutsStorage {
       } catch (error) {
         CrashReporting.recordError(error as Error, 'saveStoreLayoutsBatch batch failed, falling back to individual writes');
         for (const { layoutId, data } of entries) {
+          if (deletedHere.has(layoutId)) continue;
           try {
             const records = await collection.query(Q.where('id', layoutId)).fetch();
             const rec = records[0];

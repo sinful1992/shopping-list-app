@@ -319,7 +319,7 @@ class LocalStorageManager {
         const syncQueue = ownIds.length
           ? await this.database.collections.get('sync_queue').query(Q.where('entity_id', Q.oneOf(ownIds))).fetch()
           : [];
-        const ops = [...lists, ...items, ...rest.flat(), ...syncQueue].map((r: any) => r.prepareMarkAsDeleted());
+        const ops = [...lists, ...items, ...rest.flat(), ...syncQueue].map((r: any) => r.prepareDestroyPermanently());
         if (ops.length > 0) await this.database.batch(ops);
       }, 'clearFamilyData');
       this.history.clearPriceVariantCache();
@@ -345,14 +345,14 @@ class LocalStorageManager {
         const receiptAliases = await this.database.collections.get('receipt_aliases').query().fetch();
 
         const ops = [
-          ...lists.map((r: any) => r.prepareMarkAsDeleted()),
-          ...items.map((r: any) => r.prepareMarkAsDeleted()),
-          ...syncQueue.map((r: any) => r.prepareMarkAsDeleted()),
-          ...priceHistory.map((r: any) => r.prepareMarkAsDeleted()),
-          ...categoryHistory.map((r: any) => r.prepareMarkAsDeleted()),
-          ...storeLayouts.map((r: any) => r.prepareMarkAsDeleted()),
-          ...itemPreferences.map((r: any) => r.prepareMarkAsDeleted()),
-          ...receiptAliases.map((r: any) => r.prepareMarkAsDeleted()),
+          ...lists.map((r: any) => r.prepareDestroyPermanently()),
+          ...items.map((r: any) => r.prepareDestroyPermanently()),
+          ...syncQueue.map((r: any) => r.prepareDestroyPermanently()),
+          ...priceHistory.map((r: any) => r.prepareDestroyPermanently()),
+          ...categoryHistory.map((r: any) => r.prepareDestroyPermanently()),
+          ...storeLayouts.map((r: any) => r.prepareDestroyPermanently()),
+          ...itemPreferences.map((r: any) => r.prepareDestroyPermanently()),
+          ...receiptAliases.map((r: any) => r.prepareDestroyPermanently()),
         ];
         if (ops.length > 0) {
           await this.database.batch(ops);
