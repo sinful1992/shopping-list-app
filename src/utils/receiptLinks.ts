@@ -35,13 +35,14 @@ export function groupLinesByItem(links: ReceiptLinks): Map<string, number[]> {
 }
 
 /**
- * The count an item takes from its receipt lines, or null to leave it: only an
- * item with no count of its own (empty or 1) takes the units the receipt
- * shows, so a count the user typed is kept.
+ * The count an item takes from its receipt lines, or null to leave it. What
+ * was bought wins over what the list asked for (USER, task 27) whenever the
+ * receipt shows more than one unit. A single line of one unit does not say
+ * enough to override a typed count: the OCR can miss a leading "2".
  */
 export function unitQtyFromLines(lines: ReceiptLineItem[], item: Item): number | null {
   const units = unitsFromLines(lines);
-  return units != null && units > 1 && (item.unitQty ?? 1) <= 1 ? units : null;
+  return units != null && units > 1 && item.unitQty !== units ? units : null;
 }
 
 /**
@@ -71,14 +72,27 @@ export function planItemUpdates(
   return updates;
 }
 
+/** A whole count above one, or null: one unit, no count, or a weight. */
+const countAboveOne = (q: number | null | undefined): number | null =>
+  q != null && Number.isInteger(q) && q > 1 ? q : null;
+
+/**
+ * The count printed before a receipt line's description ("2 ×"), or null when
+ * the line is one unit, has no count, or is weighed (its weight is already in
+ * the description).
+ */
+export function formatLineQty(line: Pick<ReceiptLineItem, 'quantity'>): string | null {
+  const q = countAboveOne(line.quantity);
+  return q != null ? `${q} ×` : null;
+}
+
 /**
  * How a receipt line becomes a new list item: the units it counted (only a
  * whole count above one — a weight such as 0.456 kg is one unit), and the
  * per-unit price, since Item.price is per unit app-wide.
  */
 export function newItemFromLine(line: ReceiptLineItem): { unitQty: number | null; price: number | null } {
-  const q = line.quantity;
-  const unitQty = q != null && Number.isInteger(q) && q > 1 ? q : null;
+  const unitQty = countAboveOne(line.quantity);
   return { unitQty, price: sanitizePrice(unitPriceFromLines([line], unitQty ?? 1)) };
 }
 

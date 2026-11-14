@@ -2,7 +2,6 @@ import {
   mapFirebaseList,
   sameReceiptData,
   mapFirebaseItem,
-  mapFirebaseUrgentItem,
   mapFirebaseStoreLayout,
 } from '../storage/firebaseMappers';
 
@@ -101,32 +100,6 @@ describe('firebaseMappers', () => {
       const item = mapFirebaseItem('i', 'l', { createdAt: 111, updatedAt: 222 });
       expect(item.createdAt).toBe(111);
       expect(item.updatedAt).toBe(222);
-    });
-  });
-
-  describe('mapFirebaseUrgentItem', () => {
-    it('fills defaults for an empty payload', () => {
-      const urgent = mapFirebaseUrgentItem('u-1', {}, 'fg-1');
-      expect(urgent).toMatchObject({
-        id: 'u-1',
-        name: '',
-        familyGroupId: 'fg-1',
-        createdBy: '',
-        createdByName: '',
-        resolvedBy: null,
-        resolvedByName: null,
-        resolvedAt: null,
-        price: null,
-        status: 'active',
-        syncStatus: 'synced',
-      });
-    });
-
-    it('preserves 0 price and resolved fields', () => {
-      const urgent = mapFirebaseUrgentItem('u', { price: 0, resolvedAt: 123, resolvedBy: 'x' }, 'fg');
-      expect(urgent.price).toBe(0);
-      expect(urgent.resolvedAt).toBe(123);
-      expect(urgent.resolvedBy).toBe('x');
     });
   });
 

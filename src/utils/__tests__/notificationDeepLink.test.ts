@@ -1,8 +1,8 @@
 import { notificationToDeepLink } from '../notificationDeepLink';
-import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
+import type { RemoteMessage } from '@react-native-firebase/messaging';
 
 const msg = (data: Record<string, string> | undefined) =>
-  ({ data } as unknown as FirebaseMessagingTypes.RemoteMessage);
+  ({ data } as unknown as RemoteMessage);
 
 const LIST_ID = '4f9a2c1e-8b3d-4e5f-9a1b-2c3d4e5f6a7b';
 
@@ -19,9 +19,9 @@ describe('notificationToDeepLink', () => {
     expect(notificationToDeepLink(msg({ type: 'something_else' }))).toBeNull();
   });
 
-  it('maps urgent_item to the urgent tab', () => {
+  it('maps urgent_item to Home', () => {
     expect(notificationToDeepLink(msg({ type: 'urgent_item' }))).toBe(
-      'familyshoppinglist://urgent'
+      'familyshoppinglist://home'
     );
   });
 

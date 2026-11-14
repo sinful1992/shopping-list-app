@@ -7,6 +7,8 @@
 > what shipped, where the audit turned out to be wrong, and what is left.
 > Contrast figures are now regression-tested in
 > `src/styles/__tests__/contrast.test.ts`.
+> `UrgentItemsScreen` was removed in 1.51.1 (urgent is now an item flag), so the
+> rows citing it (`Urgent:NNN`) no longer point at live code.
 
 This is a **design** audit, companion to the internal improvement plan (which covers structure,
 types, and tests). It looks only at what the user sees: colour, contrast, hierarchy,

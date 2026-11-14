@@ -9,9 +9,9 @@ import ShoppingListManager from './ShoppingListManager';
 import ImageStorageManager from './ImageStorageManager';
 import { sanitizeText } from '../utils/sanitize';
 import { isReceiptStoragePath, toFileUri } from '../utils/uri';
+import { buildOcrHints, OcrHints } from './ocrHints';
 
 const OCR_SERVER_URL_KEY = '@ocr_server_url';
-const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 
 // Scans go through the ocr-proxy edge function, which holds the Space's
 // shared secret server-side and admits the request on a Firebase ID token.
@@ -20,9 +20,6 @@ const DEFAULT_OCR_SERVER_URL = 'https://sinful1-receipt-ocr.hf.space';
 const OCR_PROXY_URL = `${(SUPABASE_URL || '').replace(/\/+$/, '')}/functions/v1/ocr-proxy`;
 
 const DEFAULT_CURRENCY = 'GBP';
-
-/** Health probes should answer fast; don't let a dead server hang the UI. */
-const HEALTH_CHECK_TIMEOUT_MS = 10_000;
 
 /**
  * Upper bound on the server round-trip. PaddleOCR cold-start can take
@@ -59,6 +56,8 @@ interface OCRServerResponse {
     total_price: string;
     discount: string | null;
     needs_review?: boolean;
+    needs_check?: boolean;
+    corrected_from?: string | null;
   }>;
   subtotal: string | null;
   savings: string | null;
@@ -66,6 +65,10 @@ interface OCRServerResponse {
   // Receipt-level anomalies (item_index: null) alongside the per-item
   // needs_review flags above — e.g. no_items, no_total.
   anomalies?: Array<{ type: string; item_index: number | null }>;
+  // The server's sum check (receipt-ocr >= 1.2.0): item prices against the
+  // printed subtotal. residual is null when the receipt prints nothing to
+  // check against.
+  arithmetic?: { closes: boolean; residual: number | null; corrections: number };
 }
 
 /**
@@ -76,14 +79,6 @@ interface OCRServerResponse {
  * no cloud costs, runs on Oracle Cloud free tier or local network.
  */
 class ReceiptOCRService {
-  /**
-   * Get the configured OCR server URL.
-   */
-  async getServerUrl(): Promise<string> {
-    const stored = await AsyncStorage.getItem(OCR_SERVER_URL_KEY);
-    return stored ?? DEFAULT_OCR_SERVER_URL;
-  }
-
   /**
    * Return the raw stored URL without falling back to the default.
    * Returns null when the user hasn't overridden the default.
@@ -107,40 +102,6 @@ class ReceiptOCRService {
     await AsyncStorage.setItem(OCR_SERVER_URL_KEY, cleaned);
   }
 
-  /**
-   * Check if the OCR server is reachable and the model is loaded.
-   */
-  async checkHealth(): Promise<{ ok: boolean; modelLoaded: boolean }> {
-    const serverUrl = await this.getServerUrl();
-    if (!serverUrl) {
-      return { ok: false, modelLoaded: false };
-    }
-
-    // RN's fetch never times out on its own — a dead server would hang
-    // the settings screen's health check indefinitely.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(`${serverUrl}/health`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        return { ok: false, modelLoaded: false };
-      }
-
-      const data = await response.json();
-      return { ok: true, modelLoaded: data.model_loaded === true };
-    } catch {
-      return { ok: false, modelLoaded: false };
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
   /** Empty OCRResult carrying an error message. */
   private failure(error: string): OCRResult {
     return {
@@ -160,7 +121,11 @@ class ReceiptOCRService {
    * Extract receipt data from an image without persisting.
    * Forwards AbortSignal to fetch for cancellation support.
    */
-  async extractReceipt(localFilePath: string, signal?: AbortSignal): Promise<OCRResult> {
+  async extractReceipt(
+    localFilePath: string,
+    signal?: AbortSignal,
+    hints?: OcrHints | null,
+  ): Promise<OCRResult> {
     // A user-set server URL is the local-dev path: talk to that server
     // directly, since a dev instance runs without OCR_SHARED_SECRET and is
     // not reachable from the deployed proxy anyway. Otherwise go through
@@ -210,6 +175,9 @@ class ReceiptOCRService {
       } as any);
       if (proxyIdToken) {
         formData.append('idToken', proxyIdToken);
+      }
+      if (hints && hints.items.length > 0) {
+        formData.append('hints', JSON.stringify(hints));
       }
 
       const response = await fetch(requestUrl, {
@@ -284,7 +252,8 @@ class ReceiptOCRService {
    * Process a receipt image: extract OCR data and persist to the list.
    */
   async processReceipt(localFilePath: string, listId: string): Promise<OCRResult> {
-    const result = await this.extractReceipt(localFilePath);
+    const hints = await buildOcrHints(listId).catch(() => null);
+    const result = await this.extractReceipt(localFilePath, undefined, hints);
 
     if (result.receiptData) {
       const list = await ShoppingListManager.getListById(listId);
@@ -341,10 +310,12 @@ class ReceiptOCRService {
       };
     }
 
-    // After upload, receiptUrl holds the Cloud Storage path
+    // A rescan still uploading is the receipt the list's data came from,
+    // though the list may show the image it replaces until then. After
+    // upload, receiptUrl holds the Cloud Storage path
     // ("receipts/{group}/{list}/...") instead of the local capture file —
     // fetch it back to cache before re-running OCR.
-    let filePath = list.receiptUrl;
+    let filePath = (await ImageStorageManager.pendingCapture(listId).catch(() => null)) ?? list.receiptUrl;
     if (isReceiptStoragePath(filePath)) {
       try {
         filePath = await ImageStorageManager.downloadReceiptToCache(filePath, listId);
@@ -383,6 +354,8 @@ class ReceiptOCRService {
         price: parseNumber(item.total_price),
         vatCode: null,
         needsReview: item.needs_review === true,
+        needsCheck: item.needs_check === true,
+        correctedFrom: parseNumber(item.corrected_from ?? null),
       }));
 
     const totalAmount = parseNumber(data.total);
@@ -417,11 +390,13 @@ class ReceiptOCRService {
     // Mirror the server's is_complete_parse arithmetic gate: line items net of
     // their discounts must sum to the printed total. When both sides exist and
     // the sum doesn't verify, cap below the "please verify" threshold.
-    if (
-      totalAmount !== null &&
-      lineItems.length > 0 &&
-      !this.itemsSumMatchesTotal(data.line_items, totalAmount)
-    ) {
+    // A server new enough to check its own sum says so in `arithmetic`; its
+    // check knows subtotals and savings blocks, which this one doesn't. With
+    // nothing printed to check against (residual null) fall back to ours.
+    const verified = data.arithmetic && data.arithmetic.residual !== null
+      ? data.arithmetic.closes
+      : totalAmount === null || this.itemsSumMatchesTotal(data.line_items, totalAmount);
+    if (lineItems.length > 0 && !verified) {
       confidence = Math.min(confidence, 50);
     }
 

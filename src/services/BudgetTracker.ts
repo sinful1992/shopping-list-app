@@ -1,4 +1,4 @@
-import { ExpenditureSummary, ExpenditureBreakdownItem, ShoppingList } from '../models/types';
+import { ExpenditureSummary, ExpenditureBreakdownItem } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 
 /**
@@ -23,13 +23,6 @@ class BudgetTracker {
         endDate
       );
 
-      // Get resolved urgent items in date range
-      const urgentItems = await LocalStorageManager.getResolvedUrgentItems(
-        familyGroupId,
-        startDate,
-        endDate
-      );
-
       let totalAmount = 0;
       let listsWithReceipts = 0;
       let listsWithoutReceipts = 0;
@@ -41,13 +34,6 @@ class BudgetTracker {
           listsWithReceipts++;
         } else {
           listsWithoutReceipts++;
-        }
-      }
-
-      // Add urgent items with prices
-      for (const item of urgentItems) {
-        if (item.price) {
-          totalAmount += item.price;
         }
       }
 
@@ -88,7 +74,8 @@ class BudgetTracker {
         listName: list.name,
         completedAt: list.completedAt || 0,
         merchantName: list.merchantName || null,
-        totalAmount: list.totalAmount || null,
+        // ?? not ||: a £0.00 trip has an amount, it is not "no amount".
+        totalAmount: list.totalAmount ?? null,
         createdBy: list.createdBy,
         hasReceipt: list.receiptUrl !== null,
       }));
@@ -114,16 +101,8 @@ class BudgetTracker {
         endDate
       );
 
-      // Get resolved urgent items
-      const urgentItems = await LocalStorageManager.getResolvedUrgentItems(
-        familyGroupId,
-        startDate,
-        endDate
-      );
-
       // Filter by user
       const userLists = lists.filter((list) => list.createdBy === userId);
-      const userUrgentItems = urgentItems.filter((item) => item.resolvedBy === userId);
 
       let totalAmount = 0;
       let listsWithReceipts = 0;
@@ -135,13 +114,6 @@ class BudgetTracker {
           listsWithReceipts++;
         } else {
           listsWithoutReceipts++;
-        }
-      }
-
-      // Add urgent items resolved by this user
-      for (const item of userUrgentItems) {
-        if (item.price) {
-          totalAmount += item.price;
         }
       }
 
@@ -158,28 +130,6 @@ class BudgetTracker {
       };
     } catch (error: any) {
       throw new Error(`Failed to calculate member expenditure: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get lists without receipts
-   * Implements Req 7.5
-   */
-  async getListsWithoutReceipts(
-    familyGroupId: string,
-    startDate: number,
-    endDate: number
-  ): Promise<ShoppingList[]> {
-    try {
-      const lists = await LocalStorageManager.getCompletedLists(
-        familyGroupId,
-        startDate,
-        endDate
-      );
-
-      return lists.filter((list) => list.receiptUrl === null);
-    } catch (error: any) {
-      throw new Error(`Failed to get lists without receipts: ${error.message}`);
     }
   }
 }

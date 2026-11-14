@@ -432,11 +432,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   closeButton: {
     padding: SPACING.xs,
   },
-  closeButtonText: {
-    fontSize: 24,
-    color: theme.text.tertiary,
-    fontWeight: '300',
-  },
   content: {
     padding: SPACING.xl,
   },

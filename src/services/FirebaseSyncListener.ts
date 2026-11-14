@@ -1,18 +1,19 @@
 import { getDatabase, ref, get, query, orderByChild, equalTo, startAt, onChildAdded, onChildChanged, onChildRemoved, child } from '@react-native-firebase/database';
-import { ShoppingList, Item, UrgentItem, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
+import { isUnsentLocalChange } from './storage/syncState';
+import { keepsLocalLayout } from './storage/storeLayouts';
+import { ShoppingList, Item, CategoryHistory, PriceHistoryRecord, Unsubscribe } from '../models/types';
 import {
   mapFirebaseList,
-  sameReceiptData,
   mapFirebaseItem,
-  mapFirebaseUrgentItem,
   mapFirebaseStoreLayout,
   FirebaseListPayload,
   FirebaseItemPayload,
-  FirebaseUrgentItemPayload,
   FirebaseStoreLayoutPayload,
 } from './storage/firebaseMappers';
 import LocalStorageManager from './LocalStorageManager';
 import CrashReporting from './CrashReporting';
+import { hasListChanged, revivesDeletedList } from './storage/mappers';
+import { ServerCopies } from './storage/serverCopies';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -21,8 +22,22 @@ import { v4 as uuidv4 } from 'uuid';
  * This enables true real-time sync across devices
  * Implements Requirements: 4.4, 9.5
  */
+/**
+ * A category-history leaf is { usageCount, lastUsedAt, createdAt }. An item
+ * name with '/' in it was once written two levels deep, so under its first
+ * part sits an object of categories instead: that is not a category of this
+ * item and is skipped.
+ */
+export function isCategoryUsageRecord(data: unknown): boolean {
+  return !!data && typeof data === 'object' && typeof (data as { usageCount?: unknown }).usageCount === 'number';
+}
+
 class FirebaseSyncListener {
   private activeListeners: Map<string, () => void> = new Map();
+  private itemListenerRefs: Map<string, number> = new Map();
+  // Bumped by stopAllListeners (sign-out): a write already under way for the
+  // old account checks it and is dropped, so cleared data isn't written back.
+  private generation = 0;
 
   /**
    * Start listening to all lists for a family group
@@ -35,6 +50,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
+    const gen = this.generation;
     const db = getDatabase();
     const listsRef = ref(db, `familyGroups/${familyGroupId}/lists`);
     const initialIds = new Set<string>();
@@ -45,7 +61,7 @@ class FirebaseSyncListener {
       if (!snapshot.key || !snapshot.val()) return;
       if (!initialLoadDone) return;
       if (initialIds.has(snapshot.key)) return;
-      await this.syncListToLocal(snapshot.key, snapshot.val(), familyGroupId);
+      await this.syncListToLocal(snapshot.key, snapshot.val(), familyGroupId, gen);
     });
 
     // once('value'): sole initial load path
@@ -55,11 +71,13 @@ class FirebaseSyncListener {
         if (snap.key && snap.val()) {
           initialIds.add(snap.key);
           const data: FirebaseListPayload = snap.val();
-          lists.push(mapFirebaseList(snap.key, data, familyGroupId));
+          const list = mapFirebaseList(snap.key, data, familyGroupId);
+          if (gen === this.generation) ServerCopies.note('list', snap.key, list); // rank 20: base for field updates
+          lists.push(list);
         }
       });
       initialLoadDone = true;
-      if (lists.length > 0) {
+      if (lists.length > 0 && gen === this.generation) {
         await LocalStorageManager.saveListsBatch(lists);
       }
     }).catch(err => {
@@ -72,14 +90,15 @@ class FirebaseSyncListener {
       const listData = snapshot.val();
 
       if (listId && listData) {
-        await this.syncListToLocal(listId, listData, familyGroupId);
+        await this.syncListToLocal(listId, listData, familyGroupId, gen);
       }
     });
 
     const unsubChildRemoved = onChildRemoved(listsRef, async (snapshot) => {
       const listId = snapshot.key;
 
-      if (listId) {
+      if (listId && gen === this.generation) {
+        ServerCopies.note('list', listId, null);
         try {
           await LocalStorageManager.updateList(listId, {
             status: 'deleted',
@@ -103,16 +122,39 @@ class FirebaseSyncListener {
   }
 
   /**
-   * Start listening to items for a specific list
+   * Start listening to items for a specific list. Home (for the urgent count
+   * on active lists) and the open list share one listener, so it is counted:
+   * each caller's unsubscribe releases its own hold, and the Firebase
+   * listener stops when the last one is released.
    */
   startListeningToItems(familyGroupId: string, listId: string): Unsubscribe {
     const key = `items_${familyGroupId}_${listId}`;
-    if (this.activeListeners.has(key)) {
-      return this.activeListeners.get(key)!;
+    if (!this.activeListeners.has(key)) {
+      this.activeListeners.set(key, this.openItemsListener(familyGroupId, listId, key));
     }
+    this.itemListenerRefs.set(key, (this.itemListenerRefs.get(key) ?? 0) + 1);
+    // stopAllListeners can tear this one down and a later call open a fresh
+    // one under the same key; a stale hold must not release the new one.
+    const teardown = this.activeListeners.get(key);
 
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      if (this.activeListeners.get(key) !== teardown) return;
+      const refs = (this.itemListenerRefs.get(key) ?? 1) - 1;
+      if (refs > 0) {
+        this.itemListenerRefs.set(key, refs);
+        return;
+      }
+      teardown?.();
+    };
+  }
+
+  private openItemsListener(familyGroupId: string, listId: string, key: string): Unsubscribe {
     const db = getDatabase();
     const itemsRef = ref(db, `familyGroups/${familyGroupId}/items`);
+    const gen = this.generation;
     let isCancelled = false;
     const initialItemIds = new Set<string>();
 
@@ -124,11 +166,16 @@ class FirebaseSyncListener {
       if (!snap.key) return;
       if (!initialLoadDone) return;
       if (initialItemIds.has(snap.key)) return;
-      await this.syncItemToLocal(listId, snap.key, snap.val());
+      await this.syncItemToLocal(listId, snap.key, snap.val(), gen);
     });
 
-    // once('value'): sole initial load path
-    get(filteredRef).then(async (snapshot) => {
+    // once('value'): sole initial load path. The local read comes first: an item
+    // already synced before the server read and missing from it was deleted remotely.
+    LocalStorageManager.getItemsForList(listId).then(async (itemsBeforeLoad) => {
+      const syncedBeforeLoad = new Set(
+        itemsBeforeLoad.filter(i => i.syncStatus === 'synced').map(i => i.id)
+      );
+      const snapshot = await get(filteredRef);
       if (isCancelled) return;
       const entries: { id: string; data: any }[] = [];
       snapshot.forEach(snap => {
@@ -143,15 +190,38 @@ class FirebaseSyncListener {
       if (isCancelled) return;
       const localMap = new Map(localItems.map(i => [i.id, i]));
       const toSync: Item[] = [];
+      const blank: string[] = []; // 1.54.3: rows stored before item rows kept their sync state
       for (const { id, data } of entries) {
         const item = mapFirebaseItem(id, listId, data);
+        if (gen === this.generation) ServerCopies.note('item', id, item); // rank 20: base for field updates
         const existing = localMap.get(id);
-        if (existing && !this.hasItemChanged(existing, item)) continue;
-        if (existing && existing.updatedAt > (data.updatedAt || 0)) continue;
+        if (existing && !this.hasItemChanged(existing, item)) {
+          if (!existing.syncStatus) blank.push(id);
+          continue;
+        }
+        if (this.keepsLocal(existing, data.updatedAt)) continue;
         toSync.push(item);
       }
-      if (toSync.length > 0) {
+      if (toSync.length > 0 && !isCancelled && gen === this.generation) {
         await LocalStorageManager.saveItemsBatchUpsert(toSync);
+      }
+      if (blank.length > 0 && !isCancelled && gen === this.generation) {
+        try {
+          await LocalStorageManager.markItemsSyncedIfBlank(blank);
+        } catch (error) {
+          CrashReporting.recordError(error as Error, 'FirebaseSyncListener markItemsSyncedIfBlank');
+        }
+      }
+      const missing = new Set(localItems
+        .filter(i => i.syncStatus === 'synced' && syncedBeforeLoad.has(i.id) && !initialItemIds.has(i.id))
+        .map(i => i.id));
+      if (missing.size > 0) {
+        // Re-read: an item ticked while the upsert ran is pending now and stays
+        const deletedRemotely = (await LocalStorageManager.getItemsForList(listId))
+          .filter(i => missing.has(i.id) && i.syncStatus === 'synced')
+          .map(i => i.id);
+        if (isCancelled || gen !== this.generation || deletedRemotely.length === 0) return;
+        await LocalStorageManager.deleteItemsBatch(deletedRemotely);
       }
     }).catch(err => {
       initialLoadDone = true;
@@ -162,7 +232,7 @@ class FirebaseSyncListener {
       const itemId = snapshot.key;
       const itemData = snapshot.val();
       if (itemId && itemData) {
-        await this.syncItemToLocal(listId, itemId, itemData);
+        await this.syncItemToLocal(listId, itemId, itemData, gen);
       }
     });
 
@@ -171,23 +241,22 @@ class FirebaseSyncListener {
       if (!itemId) return;
       try {
         const snap = await get(child(itemsRef, itemId));
-        if (snap.exists()) return;
+        if (snap.exists() || gen !== this.generation) return;
+        ServerCopies.note('item', itemId, null);
         await LocalStorageManager.deleteItem(itemId);
       } catch (error) {
         CrashReporting.recordError(error as Error, 'FirebaseSyncListener item deletion');
       }
     });
 
-    const unsubscribe = () => {
+    return () => {
       isCancelled = true;
       unsubChildAdded();
       unsubChildChanged();
       unsubChildRemoved();
       this.activeListeners.delete(key);
+      this.itemListenerRefs.delete(key);
     };
-
-    this.activeListeners.set(key, unsubscribe);
-    return unsubscribe;
   }
 
   /**
@@ -198,7 +267,8 @@ class FirebaseSyncListener {
   private async syncListToLocal(
     listId: string,
     firebaseData: FirebaseListPayload,
-    familyGroupId: string
+    familyGroupId: string,
+    gen: number
   ): Promise<void> {
     try {
       const existingList = await LocalStorageManager.getList(listId);
@@ -207,10 +277,18 @@ class FirebaseSyncListener {
         || familyGroupId;
 
       const incomingList = mapFirebaseList(listId, firebaseData, resolvedFamilyGroupId);
+      if (gen === this.generation) ServerCopies.note('list', listId, incomingList); // rank 20
 
-      if (existingList && !this.hasListChanged(existingList, incomingList)) {
+      if (existingList && !hasListChanged(existingList, incomingList)) {
         return;
       }
+      // A deleted list is never restored. An older snapshot or a late echo
+      // (a quick scan's receipt write landing after Skip) must not bring it
+      // back as an empty active list.
+      if (revivesDeletedList(existingList, incomingList)) {
+        return;
+      }
+      if (gen !== this.generation) return;
 
       await LocalStorageManager.saveList(incomingList);
 
@@ -231,53 +309,39 @@ class FirebaseSyncListener {
   }
 
   /**
-   * Compare local and incoming list data to detect meaningful changes.
-   * Returns true if any user-visible field differs.
-   */
-  private hasListChanged(local: ShoppingList, incoming: ShoppingList): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.isLocked !== incoming.isLocked ||
-      local.lockedBy !== incoming.lockedBy ||
-      local.completedAt !== incoming.completedAt ||
-      local.completedBy !== incoming.completedBy ||
-      local.budget !== incoming.budget ||
-      local.storeName !== incoming.storeName ||
-      local.archived !== incoming.archived ||
-      local.receiptUrl !== incoming.receiptUrl ||
-      (local.layoutApplied ?? false) !== (incoming.layoutApplied ?? false) ||
-      local.totalAmount !== incoming.totalAmount ||
-      local.merchantName !== incoming.merchantName ||
-      local.purchaseDate !== incoming.purchaseDate ||
-      local.currency !== incoming.currency ||
-      // A receipt corrected on another device changes only its lines.
-      !sameReceiptData(local.receiptData, incoming.receiptData)
-    );
-  }
-
-  /**
    * Sync an item from Firebase to local WatermelonDB
    * Skips the write if the item already exists locally with identical data,
    * preventing observer flicker from echo-back writes.
    */
-  private async syncItemToLocal(listId: string, itemId: string, firebaseData: FirebaseItemPayload): Promise<void> {
+  private async syncItemToLocal(listId: string, itemId: string, firebaseData: FirebaseItemPayload, gen: number): Promise<void> {
     try {
       const existingItem = await LocalStorageManager.getItem(itemId);
       const item = mapFirebaseItem(itemId, listId, firebaseData);
+      if (gen === this.generation) ServerCopies.note('item', itemId, item); // rank 20: base for field updates
 
       if (existingItem && !this.hasItemChanged(existingItem, item)) {
         return;
       }
 
-      if (existingItem && existingItem.updatedAt > (firebaseData.updatedAt || 0)) {
+      if (this.keepsLocal(existingItem, firebaseData.updatedAt)) {
         return;
       }
+      if (gen !== this.generation) return;
 
       await LocalStorageManager.saveItem(item);
     } catch (error) {
       CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncItemToLocal');
     }
+  }
+
+  /**
+   * Rank 20: a snapshot older than the local copy is skipped only while the local copy has a change
+   * of its own still on its way. A synced local copy takes the server's: with field-level writes the
+   * server can hold a merge of two phones' edits under the older phone's updatedAt, and skipping it
+   * would leave this phone without the other phone's field for good.
+   */
+  private keepsLocal(existing: Item | null | undefined, incomingUpdatedAt: number | undefined): boolean {
+    return !!existing && isUnsentLocalChange(existing.syncStatus) && existing.updatedAt > (incomingUpdatedAt || 0);
   }
 
   /**
@@ -294,7 +358,8 @@ class FirebaseSyncListener {
       local.sortOrder !== incoming.sortOrder ||
       local.unitQty !== incoming.unitQty ||
       local.measurementUnit !== incoming.measurementUnit ||
-      local.measurementValue !== incoming.measurementValue
+      local.measurementValue !== incoming.measurementValue ||
+      (local.isUrgent === true) !== (incoming.isUrgent === true)
     );
   }
 
@@ -308,23 +373,42 @@ class FirebaseSyncListener {
     const db = getDatabase();
     const itemsRef = ref(db, `familyGroups/${familyGroupId}/items`);
     const filteredRef = query(itemsRef, orderByChild('listId'), equalTo(listId));
+    const gen = this.generation;
     const snapshot = await get(filteredRef);
     const items: Item[] = [];
     snapshot.forEach(snap => {
       if (snap.key) {
-        items.push(mapFirebaseItem(snap.key, listId, snap.val()));
+        const item = mapFirebaseItem(snap.key, listId, snap.val());
+        if (gen === this.generation) ServerCopies.note('item', snap.key, item); // rank 20
+        items.push(item);
       }
     });
-    if (items.length > 0) {
+    if (items.length > 0 && gen === this.generation) {
       await LocalStorageManager.saveItemsBatchUpsert(items);
     }
     return items;
   }
 
   /**
+   * Read one list straight from Firebase, without saving it. History uses it
+   * when a push opens a trip this device has not synced yet (cold start, or
+   * the push arrived before the list's sync write). The lists listener stays
+   * the only writer, so an older read can never overwrite a newer sync, and the
+   * listener still sees the completion and fetches the trip's items. Returns
+   * null if Firebase has no such list.
+   */
+  async fetchListOnceForHistory(familyGroupId: string, listId: string): Promise<ShoppingList | null> {
+    const snapshot = await get(ref(getDatabase(), `familyGroups/${familyGroupId}/lists/${listId}`));
+    const data: FirebaseListPayload | null = snapshot.val();
+    return data ? mapFirebaseList(listId, data, familyGroupId) : null;
+  }
+
+  /**
    * Stop all active listeners
+   * @internal test seam
    */
   stopAllListeners(): void {
+    this.generation++;
     this.activeListeners.forEach((unsubscribe) => unsubscribe());
     this.activeListeners.clear();
   }
@@ -334,143 +418,6 @@ class FirebaseSyncListener {
    */
   stopListeningToLists(familyGroupId: string): void {
     const key = `lists_${familyGroupId}`;
-    const unsubscribe = this.activeListeners.get(key);
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  }
-
-  /**
-   * Stop listening to items for a list
-   */
-  stopListeningToItems(familyGroupId: string, listId: string): void {
-    const key = `items_${familyGroupId}_${listId}`;
-    const unsubscribe = this.activeListeners.get(key);
-    if (unsubscribe) {
-      unsubscribe();
-    }
-  }
-
-  /**
-   * Start listening to urgent items for a family group
-   */
-  startListeningToUrgentItems(familyGroupId: string): Unsubscribe {
-    const key = `urgent_items_${familyGroupId}`;
-
-    if (this.activeListeners.has(key)) {
-      return this.activeListeners.get(key)!;
-    }
-
-    const urgentItemsRef = ref(getDatabase(), `urgentItems/${familyGroupId}`);
-    const initialBuffer: { itemId: string; data: any }[] = [];
-    let initialLoadDone = false;
-
-    // Buffer events that arrive while get() is in-flight so items created
-    // during the initial load window are not silently dropped.
-    const flushBuffer = async () => {
-      if (initialLoadDone) return;
-      initialLoadDone = true;
-      if (initialBuffer.length === 0) return;
-      const urgentItems: UrgentItem[] = initialBuffer.map(({ itemId, data }) =>
-        mapFirebaseUrgentItem(itemId, data, familyGroupId)
-      );
-      await LocalStorageManager.saveUrgentItemsBatch(urgentItems);
-    };
-
-    const safeFlush = async () => {
-      try { await flushBuffer(); }
-      catch (e) { CrashReporting.recordError(e as Error, 'FirebaseSyncListener urgentItems flush'); }
-    };
-
-    const unsubChildAdded = onChildAdded(urgentItemsRef, async (snapshot) => {
-      const itemId = snapshot.key;
-      const itemData = snapshot.val();
-      if (!itemId || !itemData) return;
-      if (!initialLoadDone) {
-        initialBuffer.push({ itemId, data: itemData });
-        return;
-      }
-      await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
-    });
-
-    get(urgentItemsRef).then(safeFlush, async (err) => {
-      CrashReporting.recordError(err as Error, 'FirebaseSyncListener urgentItems value sentinel');
-      await safeFlush();
-    });
-
-    const unsubChildChanged = onChildChanged(urgentItemsRef, async (snapshot) => {
-      const itemId = snapshot.key;
-      const itemData = snapshot.val();
-
-      if (itemId && itemData) {
-        await this.syncUrgentItemToLocal(familyGroupId, itemId, itemData);
-      }
-    });
-
-    const unsubChildRemoved = onChildRemoved(urgentItemsRef, async (snapshot) => {
-      const itemId = snapshot.key;
-
-      if (itemId) {
-        try {
-          await LocalStorageManager.deleteUrgentItem(itemId);
-        } catch (error) {
-          CrashReporting.recordError(error as Error, 'FirebaseSyncListener urgent item deletion');
-        }
-      }
-    });
-
-    const unsubscribe = () => {
-      unsubChildAdded();
-      unsubChildChanged();
-      unsubChildRemoved();
-      this.activeListeners.delete(key);
-    };
-
-    this.activeListeners.set(key, unsubscribe);
-    return unsubscribe;
-  }
-
-  /**
-   * Sync an urgent item from Firebase to local WatermelonDB
-   * Skips the write if the item already exists locally with identical data,
-   * preventing observer flicker from echo-back writes.
-   */
-  private async syncUrgentItemToLocal(familyGroupId: string, itemId: string, firebaseData: FirebaseUrgentItemPayload): Promise<void> {
-    try {
-      const existingItem = await LocalStorageManager.getUrgentItem(itemId);
-
-      const urgentItem = mapFirebaseUrgentItem(itemId, firebaseData, familyGroupId);
-
-      if (existingItem && !this.hasUrgentItemChanged(existingItem, urgentItem)) {
-        return;
-      }
-
-      await LocalStorageManager.saveUrgentItem(urgentItem);
-    } catch (error) {
-      CrashReporting.recordError(error as Error, 'FirebaseSyncListener syncUrgentItemToLocal');
-    }
-  }
-
-  /**
-   * Compare local and incoming urgent item data to detect meaningful changes.
-   * Returns true if any user-visible field differs.
-   */
-  private hasUrgentItemChanged(local: UrgentItem, incoming: UrgentItem): boolean {
-    return (
-      local.name !== incoming.name ||
-      local.status !== incoming.status ||
-      local.resolvedBy !== incoming.resolvedBy ||
-      local.resolvedByName !== incoming.resolvedByName ||
-      local.resolvedAt !== incoming.resolvedAt ||
-      local.price !== incoming.price
-    );
-  }
-
-  /**
-   * Stop listening to urgent items for a family group
-   */
-  stopListeningToUrgentItems(familyGroupId: string): void {
-    const key = `urgent_items_${familyGroupId}`;
     const unsubscribe = this.activeListeners.get(key);
     if (unsubscribe) {
       unsubscribe();
@@ -488,6 +435,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
+    const gen = this.generation;
     const categoryHistoryRef = ref(getDatabase(), `familyGroups/${familyGroupId}/categoryHistory`);
     let initialLoadDone = false;
 
@@ -498,7 +446,8 @@ class FirebaseSyncListener {
       const categoriesForItem = itemSnapshot.val();
       if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
       for (const category of Object.keys(categoriesForItem)) {
-        await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category]);
+        if (!isCategoryUsageRecord(categoriesForItem[category])) continue;
+        await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category], gen);
       }
     });
 
@@ -510,10 +459,11 @@ class FirebaseSyncListener {
         const categoriesForItem = itemSnapshot.val();
         if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
+          if (!isCategoryUsageRecord(categoriesForItem[category])) continue;
           batch.push({ itemHash, category, data: categoriesForItem[category] });
         }
       });
-      if (batch.length > 0) {
+      if (batch.length > 0 && gen === this.generation) {
         await LocalStorageManager.saveCategoryHistoryBatch(familyGroupId, batch);
       }
       initialLoadDone = true;
@@ -528,7 +478,8 @@ class FirebaseSyncListener {
         const categoriesForItem = itemSnapshot.val();
         if (!categoriesForItem || typeof categoriesForItem !== 'object') return;
         for (const category of Object.keys(categoriesForItem)) {
-          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category]);
+          if (!isCategoryUsageRecord(categoriesForItem[category])) continue;
+          await this.syncCategoryHistoryToLocal(familyGroupId, itemHash, category, categoriesForItem[category], gen);
         }
       }
     });
@@ -550,7 +501,8 @@ class FirebaseSyncListener {
     familyGroupId: string,
     itemHash: string,
     category: string,
-    firebaseData: any
+    firebaseData: any,
+    gen: number
   ): Promise<void> {
     try {
       const itemNameNormalized = itemHash.replace(/_/g, '.');
@@ -561,6 +513,7 @@ class FirebaseSyncListener {
       );
 
       const existing = existingRecords.find((record) => record.category === category);
+      if (gen !== this.generation) return;
 
       if (existing) {
         await LocalStorageManager.updateCategoryHistory(existing.id, {
@@ -634,6 +587,7 @@ class FirebaseSyncListener {
     const db = getDatabase();
     const baseRef = ref(db, `familyGroups/${familyGroupId}/priceHistory`);
     const sessionStart = Date.now();
+    const gen = this.generation;
 
     // Delta sync: only fetch records newer than what's already cached locally.
     // Falls back to a full fetch on first install (latestLocal === null).
@@ -650,7 +604,7 @@ class FirebaseSyncListener {
             if (record) records.push(record);
           }
         });
-        if (records.length > 0) {
+        if (records.length > 0 && gen === this.generation) {
           await LocalStorageManager.savePriceHistoryBatch(records);
         }
       });
@@ -662,7 +616,7 @@ class FirebaseSyncListener {
         const data = snapshot.val();
         if (data) {
           const record = this.mapToPriceRecord(data);
-          if (record) await LocalStorageManager.savePriceHistoryRecord(record);
+          if (record && gen === this.generation) await LocalStorageManager.savePriceHistoryRecord(record);
         }
       } catch (err) {
         CrashReporting.recordError(err as Error, `FirebaseSyncListener priceHistory ${event}`);
@@ -692,6 +646,7 @@ class FirebaseSyncListener {
       return this.activeListeners.get(key)!;
     }
 
+    const gen = this.generation;
     const layoutsRef = ref(getDatabase(), `familyGroups/${familyGroupId}/storeLayouts`);
     let initialLoadDone = false;
 
@@ -700,7 +655,7 @@ class FirebaseSyncListener {
       const layoutId = snapshot.key;
       const data = snapshot.val();
       if (!layoutId || !data) return;
-      await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
+      await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data, gen);
     });
 
     get(layoutsRef).then(async (snapshot) => {
@@ -712,7 +667,7 @@ class FirebaseSyncListener {
           batch.push({ layoutId, data });
         }
       });
-      if (batch.length > 0) {
+      if (batch.length > 0 && gen === this.generation) {
         await LocalStorageManager.saveStoreLayoutsBatch(familyGroupId, batch);
       }
       initialLoadDone = true;
@@ -725,13 +680,13 @@ class FirebaseSyncListener {
       const layoutId = snapshot.key;
       const data = snapshot.val();
       if (layoutId && data) {
-        await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data);
+        await this.syncStoreLayoutToLocal(familyGroupId, layoutId, data, gen);
       }
     });
 
     const unsubChildRemoved = onChildRemoved(layoutsRef, async (snapshot) => {
       const layoutId = snapshot.key;
-      if (layoutId) {
+      if (layoutId && gen === this.generation) {
         try {
           await LocalStorageManager.deleteStoreLayout(layoutId);
         } catch (error) {
@@ -754,13 +709,16 @@ class FirebaseSyncListener {
   private async syncStoreLayoutToLocal(
     familyGroupId: string,
     layoutId: string,
-    firebaseData: FirebaseStoreLayoutPayload
+    firebaseData: FirebaseStoreLayoutPayload,
+    gen: number
   ): Promise<void> {
     try {
       const existing = await LocalStorageManager.getStoreLayoutById(layoutId);
+      if (gen !== this.generation) return;
 
       const incomingLayout = mapFirebaseStoreLayout(layoutId, firebaseData, familyGroupId);
 
+      if (keepsLocalLayout(existing, incomingLayout.updatedAt)) return;
       if (existing) {
         await LocalStorageManager.updateStoreLayout(layoutId, {
           categoryOrder: incomingLayout.categoryOrder,
@@ -796,7 +754,6 @@ class FirebaseSyncListener {
       unsubscribe();
     }
   }
-
 }
 
 export default new FirebaseSyncListener();

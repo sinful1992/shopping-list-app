@@ -1,10 +1,9 @@
-import { Database } from '@nozbe/watermelondb';
-import { ShoppingList, Item, QueuedOperation, ReceiptData, UrgentItem, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
+import { Database, Q } from '@nozbe/watermelondb';
+import { ShoppingList, Item, QueuedOperation, ReceiptData, CategoryHistory, PriceHistoryRecord, StoreLayout } from '../models/types';
 import { createDatabase } from './storage/database';
 import { ListsStorage } from './storage/lists';
 import { ItemsStorage } from './storage/items';
 import { SyncQueueStorage } from './storage/syncQueue';
-import { UrgentItemsStorage } from './storage/urgentItems';
 import { HistoryStorage } from './storage/history';
 import { StoreLayoutsStorage } from './storage/storeLayouts';
 import { ReceiptAliasesStorage } from './storage/receiptAliases';
@@ -19,7 +18,6 @@ class LocalStorageManager {
   private lists: ListsStorage;
   private items: ItemsStorage;
   private syncQueue: SyncQueueStorage;
-  private urgentItems: UrgentItemsStorage;
   private history: HistoryStorage;
   private storeLayouts: StoreLayoutsStorage;
   private receiptAliases: ReceiptAliasesStorage;
@@ -29,7 +27,6 @@ class LocalStorageManager {
     this.lists = new ListsStorage(this.database);
     this.items = new ItemsStorage(this.database);
     this.syncQueue = new SyncQueueStorage(this.database);
-    this.urgentItems = new UrgentItemsStorage(this.database);
     this.history = new HistoryStorage(this.database);
     this.storeLayouts = new StoreLayoutsStorage(this.database);
     this.receiptAliases = new ReceiptAliasesStorage(this.database);
@@ -60,6 +57,10 @@ class LocalStorageManager {
 
   async getActiveLists(familyGroupId: string): Promise<ShoppingList[]> {
     return this.lists.getActiveLists(familyGroupId);
+  }
+
+  async getCompletedListsByArchived(familyGroupId: string, archived: boolean): Promise<ShoppingList[]> {
+    return this.lists.getCompletedListsByArchived(familyGroupId, archived);
   }
 
   async getCompletedLists(familyGroupId: string, startDate?: number, endDate?: number, limit?: number, offset?: number): Promise<ShoppingList[]> {
@@ -94,8 +95,8 @@ class LocalStorageManager {
     return this.lists.getListsWithReceiptsInDateRange(familyGroupId, startDate, endDate);
   }
 
-  observeAllLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
-    return this.lists.observeAllLists(familyGroupId, callback);
+  observeActiveLists(familyGroupId: string, callback: (lists: ShoppingList[]) => void): () => void {
+    return this.lists.observeActiveLists(familyGroupId, callback);
   }
 
   observeList(listId: string, callback: (list: ShoppingList | null) => void): () => void {
@@ -144,6 +145,10 @@ class LocalStorageManager {
     return this.items.updateItemsBatch(updates);
   }
 
+  async markItemsSyncedIfBlank(ids: string[]): Promise<void> {
+    return this.items.markItemsSyncedIfBlank(ids);
+  }
+
   async deleteItem(itemId: string): Promise<void> {
     return this.items.deleteItem(itemId);
   }
@@ -162,6 +167,10 @@ class LocalStorageManager {
 
   observeItemsForList(listId: string, callback: (items: Item[]) => void): () => void {
     return this.items.observeItemsForList(listId, callback);
+  }
+
+  observeUrgentCounts(callback: (counts: Map<string, number>) => void): () => void {
+    return this.items.observeUrgentCounts(callback);
   }
 
   // ===== SYNC QUEUE METHODS (delegated to SyncQueueStorage) =====
@@ -188,48 +197,6 @@ class LocalStorageManager {
 
   async markSyncedIfUnchanged(entityType: 'list' | 'item' | 'storeLayout', entityId: string, expectedUpdatedAt: number | null): Promise<void> {
     return this.syncQueue.markSyncedIfUnchanged(entityType, entityId, expectedUpdatedAt);
-  }
-
-  // ===== URGENT ITEM METHODS (delegated to UrgentItemsStorage) =====
-
-  async saveUrgentItem(urgentItem: UrgentItem): Promise<UrgentItem> {
-    return this.urgentItems.saveUrgentItem(urgentItem);
-  }
-
-  async saveUrgentItemsBatch(urgentItems: UrgentItem[]): Promise<void> {
-    return this.urgentItems.saveUrgentItemsBatch(urgentItems);
-  }
-
-  async getUrgentItem(itemId: string): Promise<UrgentItem | null> {
-    return this.urgentItems.getUrgentItem(itemId);
-  }
-
-  async getActiveUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
-    return this.urgentItems.getActiveUrgentItems(familyGroupId);
-  }
-
-  async getResolvedUrgentItems(familyGroupId: string, startDate?: number, endDate?: number): Promise<UrgentItem[]> {
-    return this.urgentItems.getResolvedUrgentItems(familyGroupId, startDate, endDate);
-  }
-
-  async getAllUrgentItems(familyGroupId: string): Promise<UrgentItem[]> {
-    return this.urgentItems.getAllUrgentItems(familyGroupId);
-  }
-
-  async updateUrgentItem(itemId: string, updates: Partial<UrgentItem>): Promise<UrgentItem> {
-    return this.urgentItems.updateUrgentItem(itemId, updates);
-  }
-
-  async deleteUrgentItem(itemId: string): Promise<void> {
-    return this.urgentItems.deleteUrgentItem(itemId);
-  }
-
-  observeActiveUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
-    return this.urgentItems.observeActiveUrgentItems(familyGroupId, callback);
-  }
-
-  observeResolvedUrgentItems(familyGroupId: string, callback: (items: UrgentItem[]) => void): () => void {
-    return this.urgentItems.observeResolvedUrgentItems(familyGroupId, callback);
   }
 
   // ===== TRANSACTION SUPPORT =====
@@ -327,6 +294,41 @@ class LocalStorageManager {
   }
 
   /**
+   * Left note 139 (task 145): the server says this account is no longer in `familyGroupId` (it left on
+   * another phone, or moved to another family). That family's lists, their items, its histories,
+   * layouts, preferences and receipt names leave this phone, and so do the waiting changes of those
+   * lists, items and layouts: sent now they would land in the next family. Rows of any other family,
+   * and changes waiting for it, stay.
+   */
+  async clearFamilyData(familyGroupId: string): Promise<void> {
+    if (!familyGroupId) return;
+    try {
+      await this.database.write(async () => {
+        const of = (table: string) =>
+          this.database.collections.get(table).query(Q.where('family_group_id', familyGroupId)).fetch();
+        const lists = await of('shopping_lists');
+        const listIds = lists.map((r: any) => r.id);
+        const items = listIds.length
+          ? await this.database.collections.get('items').query(Q.where('list_id', Q.oneOf(listIds))).fetch()
+          : [];
+        const rest = await Promise.all(['price_history', 'category_history', 'store_layouts', 'item_preferences', 'receipt_aliases'].map(of));
+        // Only the waiting changes of this family's lists, items and layouts: one already queued for
+        // the next family must stay (ada #10768). SyncEngine empties the rest at the family change.
+        const layoutIds = rest[2].map((r: any) => r.id);
+        const ownIds = [...listIds, ...items.map((r: any) => r.id), ...layoutIds];
+        const syncQueue = ownIds.length
+          ? await this.database.collections.get('sync_queue').query(Q.where('entity_id', Q.oneOf(ownIds))).fetch()
+          : [];
+        const ops = [...lists, ...items, ...rest.flat(), ...syncQueue].map((r: any) => r.prepareMarkAsDeleted());
+        if (ops.length > 0) await this.database.batch(ops);
+      }, 'clearFamilyData');
+      this.history.clearPriceVariantCache();
+    } catch (error: any) {
+      throw new Error(`Failed to clear the old family's local data: ${error.message}`);
+    }
+  }
+
+  /**
    * Clear ALL local WatermelonDB data
    * WARNING: This is irreversible! Used for account deletion.
    */
@@ -337,7 +339,6 @@ class LocalStorageManager {
         const items = await this.database.collections.get('items').query().fetch();
         const syncQueue = await this.database.collections.get('sync_queue').query().fetch();
         const priceHistory = await this.database.collections.get('price_history').query().fetch();
-        const urgentItems = await this.database.collections.get('urgent_items').query().fetch();
         const categoryHistory = await this.database.collections.get('category_history').query().fetch();
         const storeLayouts = await this.database.collections.get('store_layouts').query().fetch();
         const itemPreferences = await this.database.collections.get('item_preferences').query().fetch();
@@ -348,7 +349,6 @@ class LocalStorageManager {
           ...items.map((r: any) => r.prepareMarkAsDeleted()),
           ...syncQueue.map((r: any) => r.prepareMarkAsDeleted()),
           ...priceHistory.map((r: any) => r.prepareMarkAsDeleted()),
-          ...urgentItems.map((r: any) => r.prepareMarkAsDeleted()),
           ...categoryHistory.map((r: any) => r.prepareMarkAsDeleted()),
           ...storeLayouts.map((r: any) => r.prepareMarkAsDeleted()),
           ...itemPreferences.map((r: any) => r.prepareMarkAsDeleted()),

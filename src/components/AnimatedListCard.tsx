@@ -26,6 +26,11 @@ interface AnimatedListCardProps {
   lockedByName?: string | null;
   storeName?: string | null;
   formattedDate: string;
+  createdByName?: string | null;
+  createdByInitial?: string | null;
+  accessibilityDate?: string;
+  /** Unchecked urgent items on this list. */
+  urgentCount?: number;
   syncStatus: SyncStatus;
   onPress: () => void;
   onDelete: () => void;
@@ -43,6 +48,10 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
   lockedByName,
   storeName,
   formattedDate,
+  createdByName,
+  createdByInitial,
+  accessibilityDate,
+  urgentCount = 0,
   syncStatus,
   onPress,
   onDelete,
@@ -70,6 +79,18 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
           </Text>
         </View>
         <View style={staticStyles.listBadges}>
+          {urgentCount > 0 && (
+            <View
+              style={[staticStyles.urgentBadge, { backgroundColor: theme.accent.redSubtle }]}
+              accessible
+              accessibilityLabel={`${urgentCount} urgent item${urgentCount === 1 ? '' : 's'}`}
+            >
+              <Icon name="flame" size={12} color={theme.accent.red} />
+              <Text style={[staticStyles.urgentBadgeText, { color: theme.accent.red }]}>
+                {urgentCount} urgent
+              </Text>
+            </View>
+          )}
           {isLocked && (
             <Text style={[staticStyles.shoppingBadge, { color: theme.accent.orange, backgroundColor: theme.accent.orangeSubtle }]}>
               <Icon name="cart" size={11} color={theme.accent.orange} /> {lockedByRole || lockedByName || 'Shopping'}
@@ -95,18 +116,43 @@ const AnimatedListCard: React.FC<AnimatedListCardProps> = ({
         </View>
       </View>
 
-      <Text style={[staticStyles.listDateFormatted, { color: theme.text.secondary }, isCompleted && { color: theme.text.tertiary }]}>
-        {formattedDate}
-      </Text>
-      {isCompleted && storeName && (
-        <Text style={[staticStyles.storeName, { color: theme.text.secondary }]}>
-          {storeName}
-        </Text>
-      )}
-      {!isCompleted && (
-        <Text style={[staticStyles.listDateSecondary, { color: theme.text.tertiary }]}>
-          Created {formattedDate}
-        </Text>
+      {isCompleted ? (
+        <>
+          <Text style={[staticStyles.listDateFormatted, { color: theme.text.tertiary }]}>
+            {formattedDate}
+          </Text>
+          {storeName && (
+            <Text style={[staticStyles.storeName, { color: theme.text.secondary }]}>
+              {storeName}
+            </Text>
+          )}
+        </>
+      ) : (
+        <View
+          style={staticStyles.creatorRow}
+          accessible
+          accessibilityLabel={createdByName
+            ? `Created by ${createdByName} on ${accessibilityDate ?? formattedDate}`
+            : `Created on ${accessibilityDate ?? formattedDate}`}
+        >
+          {createdByName && createdByInitial && (
+            <View
+              style={[staticStyles.creatorAvatar, { backgroundColor: theme.accent.blueSubtle }]}
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Text style={[staticStyles.creatorInitial, { color: theme.accent.blue }]}>{createdByInitial}</Text>
+            </View>
+          )}
+          <Text style={[staticStyles.creatorText, { color: theme.text.tertiary }]} numberOfLines={1}>
+            {createdByName ? (
+              <>
+                Created by <Text style={[staticStyles.creatorName, { color: theme.text.secondary }]}>{createdByName}</Text> on {formattedDate}
+              </>
+            ) : (
+              `Created on ${formattedDate}`
+            )}
+          </Text>
+        </View>
       )}
     </AnimatedTouchableOpacity>
   );
@@ -143,6 +189,18 @@ const staticStyles = {
     paddingVertical: 3,
     borderRadius: 10,
   },
+  urgentBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  urgentBadgeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
   completedBadge: {
     fontSize: 12,
     paddingHorizontal: 8,
@@ -159,9 +217,29 @@ const staticStyles = {
     fontSize: 14,
     marginTop: 4,
   },
-  listDateSecondary: {
+  creatorRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    marginTop: 6,
+  },
+  creatorAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  creatorInitial: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+  },
+  creatorText: {
+    flexShrink: 1,
     fontSize: 12,
-    marginTop: 2,
+  },
+  creatorName: {
+    fontWeight: '600' as const,
   },
   storeName: {
     fontSize: 14,

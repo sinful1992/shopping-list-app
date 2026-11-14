@@ -18,7 +18,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import Icon from 'react-native-vector-icons/Ionicons';
 import { getDatabase, ref, update, onValue } from '@react-native-firebase/database';
 import { getMessaging, getInitialNotification, onNotificationOpenedApp } from '@react-native-firebase/messaging';
-import SplashScreen from 'react-native-splash-screen';
+import BootSplash from 'react-native-bootsplash';
 import AuthenticationModule from './src/services/AuthenticationModule';
 import SyncEngine from './src/services/SyncEngine';
 import { runReceiptSyncBackfill } from './src/services/receiptSyncBackfill';
@@ -78,7 +78,6 @@ const linking = {
               ListDetail: 'list/:listId',
             },
           },
-          Urgent: 'urgent',
           History: {
             screens: {
               HistoryHome: 'history',
@@ -140,7 +139,6 @@ import ReceiptMatchScreen from './src/screens/receipts/ReceiptMatchScreen';
 import ReceiptViewScreen from './src/screens/receipts/ReceiptViewScreen';
 import SettingsScreen from './src/screens/settings/SettingsScreen';
 import LegalDocumentScreen from './src/screens/settings/LegalDocumentScreen';
-import UrgentItemsScreen from './src/screens/urgent/UrgentItemsScreen';
 import { SubscriptionScreen } from './src/screens/subscription/SubscriptionScreen';
 import AnalyticsScreen from './src/screens/analytics/AnalyticsScreen';
 import TermsAcceptanceScreen from './src/screens/auth/TermsAcceptanceScreen';
@@ -271,16 +269,6 @@ function MainTabNavigator() {
               <Icon name="list-outline" size={size} color={color} />
             ),
           };
-        }}
-      />
-      <Tab.Screen
-        name="Urgent"
-        component={UrgentItemsScreen}
-        options={{
-          title: 'Urgent',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="flame" size={size} color={color} />
-          ),
         }}
       />
       <Tab.Screen
@@ -459,7 +447,7 @@ function App(): JSX.Element {
   // Hide splash screen when app is ready
   useEffect(() => {
     if (!loading) {
-      SplashScreen.hide();
+      BootSplash.hide().catch(err => CrashReporting.recordError(err as Error, 'App BootSplash hide'));
     }
   }, [loading]);
 

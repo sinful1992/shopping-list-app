@@ -30,10 +30,12 @@ import NotificationManager from '../../services/NotificationManager';
 import CrashReporting from '../../services/CrashReporting';
 import CategoryHistoryService from '../../services/CategoryHistoryService';
 import { useUser } from '../../contexts/UserContext';
-import { matchReceiptToList, receiptAliasKey } from '../../utils/receiptMatcher';
+import { matchReceiptToList, receiptAliasKey, withLineEdit } from '../../utils/receiptMatcher';
+import { stripRetailer } from '../../utils/stripRetailer';
+import { carryOverFields } from '../../utils/carryOver';
 import LocalStorageManager from '../../services/LocalStorageManager';
 import {
-  discountsByLine, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
+  discountsByLine, formatLineQty, groupLinesByItem, netLines, newItemFromLine, planItemUpdates, priceFromLines, unitQtyFromLines,
   ReceiptLink as Link, ReceiptLinks,
 } from '../../utils/receiptLinks';
 import { Item, ReceiptData, ReceiptLineItem, ShoppingList } from '../../models/types';
@@ -42,9 +44,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/** A line the family renamed before is offered under that name again. */
+/**
+ * A line the family renamed before is offered under that name again. Any
+ * other line is offered without the shop's name the till prints in front of
+ * own-brand products, so "Tesco Whole Milk" and "Sainsbury's Whole Milk"
+ * become the same item and their prices can be compared.
+ */
 const suggestedName = (aliases: ReadonlyMap<string, string>, line: ReceiptLineItem) =>
-  aliases.get(receiptAliasKey(line.description)) ?? line.description;
+  aliases.get(receiptAliasKey(line.description)) ?? stripRetailer(line.description);
 
 /**
  * A callback whose identity never changes but always runs the latest `fn`,
@@ -62,7 +69,7 @@ const ReceiptMatchScreen = () => {
   const { showAlert } = useAlert();
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { listId, autoAddAll } = route.params;
+  const { listId, autoAddAll, completeOnApply } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -86,6 +93,13 @@ const ReceiptMatchScreen = () => {
   const user = useUser();
   const userId = user?.uid ?? null;
   const applyingRef = useRef(false);
+  // Apply's writes that have landed. Once any has, the rows are frozen:
+  // a retry after a failure must not see a plan the first tap never wrote.
+  const writeStepsRef = useRef({ corrections: false, added: false, updated: false, remembered: false });
+  const [frozen, setFrozen] = useState(false);
+  // Set once the screen is left through Apply or Skip, which settle the
+  // quick-scan list themselves; any other way out discards it.
+  const settledRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -165,7 +179,7 @@ const ReceiptMatchScreen = () => {
   const [lineEdits, setLineEdits] = useState<Record<number, Partial<ReceiptLineItem>>>({});
   const lineItems = useMemo(
     () => (receiptData?.lineItems ?? []).map((line, i) =>
-      lineEdits[i] ? { ...line, ...lineEdits[i], needsReview: false } : line),
+      lineEdits[i] ? withLineEdit(line, lineEdits[i]) : line),
     [receiptData, lineEdits],
   );
   // Savings printed under a line are taken off it: an item is priced at what
@@ -246,7 +260,7 @@ const ReceiptMatchScreen = () => {
    * the matcher straight away against the items no line has claimed yet.
    */
   const correctLine = (index: number, patch: Partial<ReceiptLineItem>) => {
-    const fixed = { ...lineItems[index], ...patch, needsReview: false };
+    const fixed = withLineEdit(lineItems[index], patch);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setLineEdits(prev => ({ ...prev, [index]: { ...prev[index], ...patch } }));
     if (fixed.price == null || !fixed.description.trim()) return;
@@ -330,6 +344,75 @@ const ReceiptMatchScreen = () => {
     });
   };
 
+  const close = (parts: string[], outcome?: string) => {
+    const shown = outcome ? [...parts, outcome] : parts;
+    if (shown.length === 0) shown.push('Your list already matches this receipt');
+    showAlert('Done', shown.join(' · '), undefined, { icon: 'success' });
+    settledRef.current = true;
+    navigation.goBack();
+  };
+
+  /** Complete the list and tell the family what was just bought. */
+  const finishTrip = async (uncheckedCount: number, itemCount: number) => {
+    if (!userId) throw new Error('User not authenticated');
+    await ShoppingListManager.completeFromReceipt(listId, userId, uncheckedCount);
+    // Fire-and-forget; the notification tap deep-links to this now-completed
+    // list in History.
+    if (shoppingList?.familyGroupId) {
+      NotificationManager.notifyReceiptScanned({
+        familyGroupId: shoppingList.familyGroupId,
+        userId,
+        userName: user?.displayName || user?.email || 'A family member',
+        listId,
+        storeName: shoppingList.merchantName,
+        listName: shoppingList.name,
+        itemCount,
+        totalAmount: shoppingList.totalAmount,
+        currency: shoppingList.currency,
+      }).catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen notifyReceiptScanned'));
+    }
+  };
+
+  /**
+   * Full Shop or Partial Shop after a list's receipt left items unchecked.
+   * Partial carries them to a new list under the old name, as Done Shopping
+   * does; the trip is completed either way.
+   */
+  const finishFromChoice = async (parts: string[], itemCount: number, unchecked: Item[], carryOver: boolean) => {
+    try {
+      await finishTrip(unchecked.length, itemCount);
+    } catch (error: any) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+      navigation.goBack();
+      return;
+    }
+    if (!carryOver) {
+      close(parts, 'Shopping completed');
+      return;
+    }
+    try {
+      if (!user || !shoppingList) throw new Error('User not authenticated');
+      const newList = await ShoppingListManager.createList(shoppingList.name, user.uid, shoppingList.familyGroupId, user);
+      await ItemManager.addItemsBatch(
+        newList.id,
+        unchecked.map(carryOverFields),
+        user.uid,
+      );
+    } catch {
+      const names = unchecked.map(i => `• ${i.name}`).join('\n');
+      showAlert(
+        'Partial Save',
+        `Your list was completed, but the items not bought could not be moved to a new list (you may be at your list limit):\n\n${names}`,
+        undefined,
+        { icon: 'warning' },
+      );
+      navigation.goBack();
+      return;
+    }
+    const n = unchecked.length;
+    close(parts, `Shopping completed · ${n} item${n === 1 ? '' : 's'} carried to a new list`);
+  };
+
   const handleApply = async () => {
     if (applyingRef.current) return;
 
@@ -338,7 +421,7 @@ const ReceiptMatchScreen = () => {
     const newItems = addIndices
       .map(idx => {
         const line = lineItems[idx];
-        const name = (editingNames[idx] ?? line.description).trim();
+        const name = (editingNames[idx] ?? stripRetailer(line.description)).trim();
         if (!name) return null;
         const { price, unitQty } = newItemFromLine(paidLines[idx]);
         return { index: idx, name, price: price ?? undefined, unitQty, checked: true as const };
@@ -355,13 +438,24 @@ const ReceiptMatchScreen = () => {
     applyingRef.current = true;
     setApplying(true);
     try {
+      // Each write is a step that runs once. When one fails after another
+      // landed, the screen freezes (see `frozen`) so a retry writes what the
+      // first tap planned: the remaining steps, then the completion.
+      const done = writeStepsRef.current;
       // The fixed lines go back into the receipt, so Receipt Details, a
       // later "Match again" and the rest of the family see them too.
-      if (hasCorrections && receiptData) {
+      if (hasCorrections && receiptData && !done.corrections) {
         await ShoppingListManager.updateList(listId, { receiptData: { ...receiptData, lineItems } });
+        done.corrections = true;
       }
-      const written: Item[] = [];
-      if (newItems.length > 0) {
+      // The receipt is the most exact price source the app gets; without the
+      // recordPurchase calls it never reached price history, only a check-off
+      // in the shop did. An item that was already checked had its category
+      // counted when it was, so a repeat Apply only corrects its price record.
+      const record = (written: Item[]) => written
+        .filter(i => i.checked)
+        .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
+      if (newItems.length > 0 && !done.added) {
         if (!userId) throw new Error('User not authenticated');
         // Filed under the category the family usually gives that name, the
         // way an item added from Frequently Bought is.
@@ -370,63 +464,67 @@ const ReceiptMatchScreen = () => {
           familyGroupId
             ? CategoryHistoryService.getSuggestedCategory(familyGroupId, n.name).catch(() => null)
             : Promise.resolve(null)));
-        written.push(...await ItemManager.addItemsBatch(
+        const added = await ItemManager.addItemsBatch(
           listId,
           newItems.map(({ name, price, unitQty, checked }, i) => ({
             name, price, unitQty, checked, category: categories[i],
           })),
           userId,
-        ));
+        );
+        done.added = true;
+        record(added);
       }
-      if (updates.length > 0) {
-        written.push(...await ItemManager.updateItemsBatch(updates));
+      if (updates.length > 0 && !done.updated) {
+        const updated = await ItemManager.updateItemsBatch(updates);
+        done.updated = true;
+        record(updated);
       }
-      // The receipt is the most exact price source the app gets; without this
-      // it never reached price history, only a check-off in the shop did.
-      // An item that was already checked had its category counted when it
-      // was, so a repeat Apply only corrects its price record.
-      written
-        .filter(i => i.checked)
-        .forEach(i => ItemManager.recordPurchase(i, !itemsById.get(i.id)?.checked));
-      if (shoppingList?.familyGroupId) {
+      if (shoppingList?.familyGroupId && !done.remembered) {
+        done.remembered = true;
         rememberLinks(shoppingList.familyGroupId, newItems.map(n => n.index))
           .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen rememberLinks'));
-      }
-      // Quick-scan is a post-shop flow: everything applied from the receipt is
-      // already bought, so finish the trip instead of leaving an active list.
-      // The receipt total/merchant were attached to the list at confirm time.
-      if (autoAddAll) {
-        await ShoppingListManager.updateList(listId, {
-          status: 'completed',
-          completedAt: Date.now(),
-          completedBy: userId,
-          uncheckedItemsCount: 0,
-        });
-        // Tell the family what was just bought (fire-and-forget); the
-        // notification tap deep-links to this now-completed list in History.
-        if (shoppingList?.familyGroupId && userId) {
-          NotificationManager.notifyReceiptScanned({
-            familyGroupId: shoppingList.familyGroupId,
-            userId,
-            userName: user?.displayName || user?.email || 'A family member',
-            listId,
-            storeName: shoppingList.merchantName,
-            listName: shoppingList.name,
-            itemCount: updates.length + newItems.length,
-            totalAmount: shoppingList.totalAmount,
-            currency: shoppingList.currency,
-          }).catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen notifyReceiptScanned'));
-        }
       }
       const parts: string[] = [];
       if (updates.length > 0) parts.push(`Updated ${updates.length} item${updates.length === 1 ? '' : 's'}`);
       if (newItems.length > 0) parts.push(`Added ${newItems.length} item${newItems.length === 1 ? '' : 's'}`);
       if (hasCorrections && parts.length === 0) parts.push('Receipt corrected');
-      if (autoAddAll) parts.push('Shopping completed');
-      if (parts.length === 0) parts.push('Your list already matches this receipt');
-      showAlert('Done', parts.join(' · '), undefined, { icon: 'success' });
-      navigation.goBack();
+      const itemCount = updates.length + newItems.length;
+
+      // A receipt is the end of a trip: a quick scan, or a scan attached to
+      // a list still being shopped, finishes it. A list already completed
+      // (Match again from Receipt View) is only corrected.
+      if (autoAddAll) {
+        await finishTrip(0, itemCount);
+        close(parts, 'Shopping completed');
+        return;
+      }
+      if (completeOnApply && shoppingList?.status !== 'completed') {
+        const unchecked = (await ItemManager.getItemsForList(listId)).filter(i => !i.checked);
+        if (unchecked.length === 0) {
+          await finishTrip(0, itemCount);
+          close(parts, 'Shopping completed');
+          return;
+        }
+        // The same choice Done Shopping offers. The items are already
+        // written, so every answer leaves the screen.
+        settledRef.current = true;
+        const n = unchecked.length;
+        showAlert(
+          'Items Not Bought',
+          `${n} item${n === 1 ? '' : 's'} weren't on the receipt or checked. What would you like to do?`,
+          [
+            { text: 'Full Shop', style: 'default', onPress: () => { finishFromChoice(parts, itemCount, unchecked, false); } },
+            { text: 'Partial Shop', style: 'default', onPress: () => { finishFromChoice(parts, itemCount, unchecked, true); } },
+            { text: 'Cancel', style: 'cancel', onPress: () => close(parts, 'List still open') },
+          ],
+          { icon: 'confirm' },
+        );
+        return;
+      }
+      close(parts);
     } catch (error: any) {
+      const steps = writeStepsRef.current;
+      if (steps.corrections || steps.added || steps.updated) setFrozen(true);
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
       applyingRef.current = false;
@@ -451,7 +549,10 @@ const ReceiptMatchScreen = () => {
     addedIndices.forEach(idx => {
       const line = lineItems[idx];
       const name = (editingNames[idx] ?? '').trim();
-      if (line && name && name !== line.description.trim()) {
+      // Only a name other than the one offered is remembered: the offer comes
+      // back anyway, while a typed name, including a store-free one over a
+      // wrong remembered name, has to be learnt.
+      if (line && name && name !== suggestedName(aliases, line).trim()) {
         entries.push({ receiptKey: receiptAliasKey(line.description), itemName: name });
       }
     });
@@ -474,6 +575,14 @@ const ReceiptMatchScreen = () => {
     setEditingNames(prev => ({ ...prev, [index]: name })));
   const onCorrect = useStableCallback(correctLine);
 
+  // What decides is what the list holds, not the way out: an Apply that
+  // wrote the receipt's items and then failed (completing the list, say)
+  // leaves a list worth keeping, however the screen is left afterwards.
+  const discardIfEmpty = useCallback(async () => {
+    if ((await ItemManager.getItemsForList(listId)).length > 0) return;
+    await ShoppingListManager.deleteList(listId);
+  }, [listId]);
+
   const handleSkip = async () => {
     if (applyingRef.current || skipping) return;
     // Quick-scan created the list solely for this receipt; skipping means the
@@ -482,15 +591,26 @@ const ReceiptMatchScreen = () => {
     if (autoAddAll) {
       setSkipping(true);
       try {
-        await ShoppingListManager.deleteList(listId);
+        await discardIfEmpty();
       } catch (error: any) {
         showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
         setSkipping(false);
         return;
       }
     }
+    settledRef.current = true;
     navigation.goBack();
   };
+
+  // Leaving by the header back, the hardware back or the swipe gesture is an
+  // abandon too, the same as Skip: without this a quick scan left that way
+  // stayed on Home as an empty active list.
+  useEffect(() => navigation.addListener('beforeRemove', () => {
+    if (!autoAddAll || settledRef.current || applyingRef.current) return;
+    settledRef.current = true;
+    discardIfEmpty()
+      .catch(err => CrashReporting.recordError(err as Error, 'ReceiptMatchScreen discard on leave'));
+  }), [navigation, autoAddAll, listId, discardIfEmpty]);
 
   if (loading) {
     return (
@@ -542,6 +662,7 @@ const ReceiptMatchScreen = () => {
     if (parts.length === 0 && linesByItem.size > 0) parts.push('Done');
     return parts.length ? parts.join(' · ') : 'Apply';
   })();
+  const applyText = frozen ? 'Try again' : applyLabel;
 
   const pickerLink = pickerReceiptIndex != null ? links[pickerReceiptIndex] ?? null : null;
 
@@ -559,6 +680,7 @@ const ReceiptMatchScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View pointerEvents={frozen ? 'none' : 'auto'}>
         <ReceiptCard>
           <Text style={styles.merchant}>
             {shoppingList?.merchantName || 'RECEIPT'}
@@ -687,6 +809,7 @@ const ReceiptMatchScreen = () => {
             ))}
           </ReceiptCard>
         )}
+        </View>
       </ScrollView>
 
       <AssignPickerModal
@@ -741,7 +864,7 @@ const ReceiptMatchScreen = () => {
             {applying ? (
               <ActivityIndicator color={theme.text.onAccent} />
             ) : (
-              <Text style={styles.applyText}>{applyLabel}</Text>
+              <Text style={styles.applyText}>{applyText}</Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -808,6 +931,7 @@ const ReconciledLine = React.memo(({
   const pick = onPick ? () => onPick(index) : undefined;
 
   const price = item.price ?? item.unitPrice;
+  const qty = formatLineQty(item);
   const ignored = link?.ignored ?? false;
   const linked = link != null && linkedItem != null;
 
@@ -837,6 +961,11 @@ const ReconciledLine = React.memo(({
   return (
     <View style={styles.line}>
       <View style={styles.lineTop}>
+        {qty != null && (
+          <Text testID={`receipt-line-qty-${index}`} style={[styles.lineQty, ignored && styles.struck]}>
+            {qty}
+          </Text>
+        )}
         <Text
           style={[styles.lineDesc, ignored && styles.struck]}
           numberOfLines={3}
@@ -847,6 +976,16 @@ const ReconciledLine = React.memo(({
           {price != null ? `${currency}${price.toFixed(2)}` : '—'}
         </Text>
       </View>
+
+      {item.needsCheck ? (
+        <Text style={styles.lineCheck} accessibilityRole="text">
+          Check this price on the paper: the receipt doesn't add up without it
+        </Text>
+      ) : item.correctedFrom != null && price != null ? (
+        <Text style={styles.lineCorrected} accessibilityRole="text">
+          {`Read as ${currency}${item.correctedFrom.toFixed(2)}, fixed by the receipt's total`}
+        </Text>
+      ) : null}
 
       {saving != null && (
         <View style={styles.lineTop}>
@@ -1185,6 +1324,12 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.text.primary,
     fontFamily: RECEIPT_FONT,
   },
+  lineQty: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: theme.text.primary,
+    fontFamily: RECEIPT_FONT,
+  },
   linePrice: {
     ...NUMERIC,
     fontSize: 12,
@@ -1264,6 +1409,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   lineSaving: {
     color: theme.accent.orange,
+  },
+  // Under the printed line, like a pencil mark on the till roll: the sum
+  // check either corrected this price or could not tell it from another.
+  lineCheck: {
+    fontSize: 12,
+    color: theme.accent.yellow,
+    marginTop: 2,
+  },
+  lineCorrected: {
+    fontSize: 12,
+    color: theme.text.tertiary,
+    marginTop: 2,
   },
   savingsLabel: {
     fontSize: 12,

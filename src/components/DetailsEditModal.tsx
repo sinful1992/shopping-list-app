@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Switch,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import LinearGradient from 'react-native-linear-gradient';
 import { Item } from '../models/types';
 import CategoryService, { Category, CategoryGroup, CategoryType } from '../services/CategoryService';
@@ -22,7 +24,7 @@ interface DetailsEditModalProps {
   onClose: () => void;
   onSave: (
     itemId: string,
-    updates: { name?: string; category?: string | null }
+    updates: { name?: string; category?: string | null; isUrgent?: boolean }
   ) => Promise<void>;
   onDelete?: (itemId: string) => Promise<void>;
 }
@@ -39,6 +41,7 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<CategoryType | null>(null);
+  const [isUrgent, setIsUrgent] = useState(false);
 
   // Retired categories are deliberately absent: existing items keep theirs, but
   // nothing new gets filed under a bucket that has since been split up.
@@ -65,6 +68,7 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
     if (item) {
       setName(item.name || '');
       setCategory((item.category as CategoryType) || null);
+      setIsUrgent(item.isUrgent === true);
     }
   }, [item]);
 
@@ -75,7 +79,12 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
       return;
     }
     try {
-      await onSave(item.id, { name: name.trim(), category });
+      await onSave(item.id, {
+        name: name.trim(),
+        category,
+        // Only a change is written, so saving a rename never re-sends urgent.
+        ...(isUrgent !== (item.isUrgent === true) && { isUrgent }),
+      });
       onClose();
     } catch (error: any) {
       showAlert('Error', error.message || 'Failed to save item', undefined, { icon: 'error' });
@@ -148,6 +157,27 @@ const DetailsEditModal: React.FC<DetailsEditModalProps> = ({
           placeholder="Item name"
           placeholderTextColor={theme.text.tertiary}
         />
+
+        <View style={[styles.urgentRow, isUrgent && styles.urgentRowOn]}>
+          <Icon
+            name={isUrgent ? 'flame' : 'flame-outline'}
+            size={22}
+            color={isUrgent ? theme.accent.red : theme.text.secondary}
+          />
+          <View style={styles.urgentText}>
+            <Text style={styles.urgentTitle}>Urgent</Text>
+            <Text style={styles.urgentHint}>
+              {item.isUrgent ? 'Shown at the top of the list' : 'Your family gets a notification'}
+            </Text>
+          </View>
+          <Switch
+            value={isUrgent}
+            onValueChange={setIsUrgent}
+            trackColor={{ false: theme.border.medium, true: theme.accent.redDim }}
+            thumbColor={isUrgent ? theme.accent.red : theme.text.tertiary}
+            accessibilityLabel="Urgent"
+          />
+        </View>
 
         <Text style={styles.categoryLabel}>Category</Text>
         <View style={styles.categoryGrid}>
@@ -233,6 +263,35 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: RADIUS.large,
     padding: 14,
     marginBottom: SPACING.xl,
+  },
+  urgentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: theme.glass.subtle,
+    borderWidth: 1,
+    borderColor: theme.border.medium,
+    borderRadius: RADIUS.large,
+    paddingHorizontal: 14,
+    paddingVertical: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  urgentRowOn: {
+    backgroundColor: theme.accent.redSubtle,
+    borderColor: theme.accent.redDim,
+  },
+  urgentText: {
+    flex: 1,
+  },
+  urgentTitle: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: theme.text.primary,
+  },
+  urgentHint: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: theme.text.secondary,
+    marginTop: 2,
   },
   categoryLabel: {
     fontSize: TYPOGRAPHY.fontSize.md,

@@ -45,7 +45,16 @@ class BudgetAlertService {
   async getBudgetSettings(familyGroupId: string): Promise<BudgetSettings> {
     const defaultSettings: BudgetSettings = { monthlyLimit: null, weeklyLimit: null, enableAlerts: true };
     const data = await AsyncStorage.getItem(`budget_settings_${familyGroupId}`);
-    return safeJsonParse<BudgetSettings>(data, defaultSettings);
+    const saved = safeJsonParse<unknown>(data, null);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return defaultSettings;
+    // Saved settings missing a field (an older version, a damaged write) keep
+    // the default for it: a missing enableAlerts turned the alerts off.
+    const s = saved as Partial<BudgetSettings>;
+    return {
+      monthlyLimit: typeof s.monthlyLimit === 'number' ? s.monthlyLimit : null,
+      weeklyLimit: typeof s.weeklyLimit === 'number' ? s.weeklyLimit : null,
+      enableAlerts: typeof s.enableAlerts === 'boolean' ? s.enableAlerts : true,
+    };
   }
 
   /**
@@ -180,13 +189,6 @@ class BudgetAlertService {
   }
 
   /**
-   * Format currency for display
-   */
-  formatCurrency(amount: number): string {
-    return `£${amount.toFixed(2)}`;
-  }
-
-  /**
    * Get alert icon based on level
    */
   getAlertIcon(level: AlertLevel): string {
@@ -201,32 +203,6 @@ class BudgetAlertService {
         return '🚨';
       default:
         return '✅';
-    }
-  }
-
-  /**
-   * Check if budget is available for a period
-   */
-  async hasBudgetForPeriod(
-    familyGroupId: string,
-    period: BudgetPeriod
-  ): Promise<boolean> {
-    const settings = await this.getBudgetSettings(familyGroupId);
-    const limit = period === 'monthly'
-      ? settings.monthlyLimit
-      : settings.weeklyLimit;
-    return limit !== null && limit > 0;
-  }
-
-  /**
-   * Clear budget settings (for testing or reset)
-   */
-  async clearBudgetSettings(familyGroupId: string): Promise<void> {
-    try {
-      const key = `budget_settings_${familyGroupId}`;
-      await AsyncStorage.removeItem(key);
-    } catch (error) {
-      throw error;
     }
   }
 }

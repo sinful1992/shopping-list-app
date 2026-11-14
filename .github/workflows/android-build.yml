@@ -175,3 +175,18 @@ jobs:
 
           # Clean up
           rm /tmp/sa.json
+
+      # Its own step (SH-5, audit 137): storage.rules was never deployed before, and a
+      # refused storage deploy (the service account needs Firebase Rules Admin) must not
+      # stop the database rules above. A failure here still fails the run, visibly.
+      # OFF for 1.54.38 (task 157): these rules need the familyGroupId token claim, set
+      # only by the setFamilyGroupClaim Cloud Function, which CI never deploys and nobody
+      # has confirmed live. Deploying them first could stop receipt photos for every app
+      # version. Turn back on (the master/main condition) after the function is live.
+      - name: Deploy Firebase Storage Rules
+        if: false
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          firebase deploy --only storage --project "${{ secrets.FIREBASE_PROJECT_ID }}"
+          rm /tmp/sa.json

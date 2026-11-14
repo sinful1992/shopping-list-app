@@ -16,7 +16,7 @@ import {
 import { getDatabase, ref, get, set, update, remove, runTransaction, push, query, orderByChild, equalTo, onValue } from '@react-native-firebase/database';
 import { getStorage, ref as storageRef, deleteObject } from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import SecureStorage from './SecureStorage';
 import {
   GoogleSignin,
   isSuccessResponse,
@@ -30,6 +30,9 @@ import { safeJsonParse } from '../utils/safeJsonParse';
 import { isReceiptStoragePath } from '../utils/uri';
 import LocalStorageManager from './LocalStorageManager';
 import NotificationManager from './NotificationManager';
+import FirebaseSyncListener from './FirebaseSyncListener';
+import ImageStorageManager from './ImageStorageManager';
+import SyncEngine from './SyncEngine';
 import CrashReporting from './CrashReporting';
 
 /** How an already signed-in account proves it is still present. */
@@ -49,6 +52,11 @@ class AuthenticationModule {
    * does not treat the profile it deletes as a session to repair.
    */
   private deletionInProgress = false;
+  private signOutInFlight: Promise<void> | null = null;
+  // Server answers about the profile, saved one after another (see saveServerProfile)
+  private profileSaves: Promise<void> = Promise.resolve();
+  // clearToken caps its own FCM call; this is the backstop for the whole step.
+  private readonly CLEAR_TOKEN_TIMEOUT_MS = 1500;
 
   /**
    * Sign up new user with email and password
@@ -243,7 +251,65 @@ class AuthenticationModule {
    * Implements Req 1.6
    */
   async signOut(): Promise<void> {
+    // A double tap must not run it twice: the second Firebase sign-out finds
+    // no user and would report a failure after a good sign-out.
+    if (!this.signOutInFlight) {
+      this.signOutInFlight = this.runSignOut().finally(() => { this.signOutInFlight = null; });
+    }
+    return this.signOutInFlight;
+  }
+
+  /**
+   * Saves the server's answer as the profile kept on the phone. Left note 139 (task 145): when the
+   * saved profile of this same account was in a family the server no longer puts it in (it left on
+   * another phone, or it is in another family now), that family's lists and the changes still waiting
+   * for it leave the phone. Before, they stayed: hidden once the family changed, but on the phone, and
+   * the waiting changes could be sent into the next family. Saves run one at a time, so each answer is
+   * compared with the one before it.
+   */
+  private saveServerProfile(userData: User): void {
+    this.profileSaves = this.profileSaves
+      .then(async () => {
+        // A keystore read that never answers must not hold up every later save: after 2 s it counts as nothing saved
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const read = SecureStorage.getItem(this.USER_KEY).catch(() => null);
+        const savedText = await Promise.race([read, new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 2000); })])
+          .finally(() => clearTimeout(timer));
+        const saved = safeJsonParse<User | null>(savedText, null);
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+        const old = saved && typeof saved === 'object' && saved.uid === userData.uid ? saved.familyGroupId : null;
+        if (old && old !== userData.familyGroupId && !this.deletionInProgress) {
+          CrashReporting.log(`Family ${old} left on the server: its local data is cleared`);
+          await LocalStorageManager.clearFamilyData(old);
+        }
+      })
+      .catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule saveServerProfile'));
+  }
+
+  /**
+   * Remove everything of this account from the phone: listeners and the sync
+   * engine first (a late Firebase event or an in-flight push must not write
+   * after the clear, nor replay into the next account's family), then the
+   * local DB with its sync queue, then queued receipt uploads.
+   */
+  private async clearLocalSession(): Promise<void> {
+    FirebaseSyncListener.stopAllListeners();
+    SyncEngine.resetForSignOut();
+    await LocalStorageManager.clearAllData();
+    await ImageStorageManager.clearUploadQueue();
+  }
+
+  private async runSignOut(): Promise<void> {
     try {
+      // Every sign-out path comes through here, so the push token is removed
+      // here too: left registered, the next account on this phone would get
+      // this family's notifications. Best effort: it must not block sign-out.
+      await Promise.race([
+        NotificationManager.clearToken().catch(err =>
+          CrashReporting.recordError(err as Error, 'AuthenticationModule signOut clearToken')),
+        new Promise(resolve => setTimeout(resolve, this.CLEAR_TOKEN_TIMEOUT_MS)),
+      ]);
+
       // Revoke Google access if signed in with Google
       try {
         this.ensureGoogleConfigured();
@@ -253,10 +319,15 @@ class AuthenticationModule {
         // Not a Google user or already signed out — ignore
       }
 
+      // This account's lists, items and unsent changes must not reach the next
+      // account: queued ops would sync into its family. A failed clear fails
+      // the sign-out, rather than leave the data behind.
+      await this.clearLocalSession();
+
       await firebaseSignOut(getAuth());
       // Clear user data and token from encrypted storage
-      await EncryptedStorage.removeItem(this.USER_KEY);
-      await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
+      await SecureStorage.removeItem(this.USER_KEY);
+      await SecureStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
     } catch (error: unknown) {
@@ -278,12 +349,27 @@ class AuthenticationModule {
         return null;
       }
 
-      const groupSnapshot = await get(ref(db, `/familyGroups/${user.familyGroupId}`));
-
-      return groupSnapshot.val();
+      return await this.readFamilyGroupMeta(user.familyGroupId);
     } catch (error: unknown) {
       throw new Error(`Failed to get family group: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  /**
+   * The group's own fields, read one by one: the group node also holds the
+   * family's lists, items and price history, so a read of the node downloads
+   * all of it. Null when the group is gone.
+   */
+  private async readFamilyGroupMeta(groupId: string): Promise<FamilyGroup | null> {
+    const db = getDatabase();
+    const fields = ['name', 'invitationCode', 'createdBy', 'memberIds', 'createdAt', 'subscriptionTier'] as const;
+    const snaps = await Promise.all(fields.map(f => get(ref(db, `/familyGroups/${groupId}/${f}`))));
+    if (!snaps.some(snap => snap.exists())) return null;
+    const group: Record<string, unknown> = { id: groupId };
+    fields.forEach((f, i) => {
+      if (snaps[i].exists()) group[f] = snaps[i].val();
+    });
+    return group as unknown as FamilyGroup;
   }
 
   /**
@@ -292,10 +378,18 @@ class AuthenticationModule {
    */
   async validateFamilyGroupExists(groupId: string): Promise<boolean> {
     try {
-      const groupSnapshot = await get(ref(getDatabase(), `/familyGroups/${groupId}`));
-      return groupSnapshot.exists();
-    } catch {
-      return false;
+      // createdAt is written with the group and never removed, the field the
+      // App's deletion listener watches too. Reading the group node itself
+      // would download every list, item and price record of the family.
+      const createdAt = await get(ref(getDatabase(), `/familyGroups/${groupId}/createdAt`));
+      return createdAt.exists();
+    } catch (error: any) {
+      // Refused: this user is no longer a member, so for them it is gone.
+      if (error?.code === 'database/permission-denied') return false;
+      // Anything else (offline, timeout) says nothing about the group. Answering
+      // "gone" here made Home detach the user from their family on an offline
+      // start: the clearing write waited in the queue and landed once online.
+      throw error;
     }
   }
 
@@ -376,7 +470,7 @@ class AuthenticationModule {
       const userSnapshot = await get(ref(db, `/users/${userId}`));
       const updatedUser = userSnapshot.val();
       if (updatedUser) {
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
       }
 
       return { group: familyGroup, invitationCode };
@@ -404,7 +498,7 @@ class AuthenticationModule {
 
       if (userData) {
         // Update cache with fresh data
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(userData));
         return userData;
       }
     } catch (error) {
@@ -414,7 +508,7 @@ class AuthenticationModule {
     // Offline / read failed → serve last-known user instead of "logged out".
     // Sign-out removes USER_KEY, so this cannot resurrect a signed-out user;
     // guard against a stale cache from a different account on the same device.
-    const cached = await EncryptedStorage.getItem(this.USER_KEY).catch(() => null);
+    const cached = await SecureStorage.getItem(this.USER_KEY).catch(() => null);
     const cachedUser = safeJsonParse<User | null>(cached, null);
     if (cachedUser && cachedUser.uid !== currentUser.uid) {
       return null;
@@ -423,46 +517,12 @@ class AuthenticationModule {
   }
 
   /**
-   * Get authentication token
-   * Implements Req 1.2
-   * SECURITY: Token is stored in encrypted storage (EncryptedSharedPreferences on Android, Keychain on iOS)
-   */
-  async getAuthToken(): Promise<string | null> {
-    try {
-      // Try encrypted storage first
-      const token = await EncryptedStorage.getItem(this.AUTH_TOKEN_KEY);
-      if (token) {
-        return token;
-      }
-
-      // Migration: Check if token exists in old AsyncStorage
-      const oldToken = await AsyncStorage.getItem(this.AUTH_TOKEN_KEY);
-      if (oldToken) {
-        // Migrate to encrypted storage
-        await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, oldToken);
-        await AsyncStorage.removeItem(this.AUTH_TOKEN_KEY);
-        return oldToken;
-      }
-
-      // Get fresh token from Firebase
-      const currentUser = getAuth().currentUser;
-      if (currentUser) {
-        const freshToken = await getIdToken(currentUser);
-        await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, freshToken);
-        return freshToken;
-      }
-
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
    * Listen for authentication state changes
    * Implements Req 1.2
    */
   onAuthStateChanged(callback: (user: User | null) => void): Unsubscribe {
+    // A new watch starts its own run of profile saves: one stuck in an earlier one must not hold it up
+    this.profileSaves = Promise.resolve();
     let userDataUnsubscribe: (() => void) | null = null;
     let claimsUnsubscribe: (() => void) | null = null;
     let lastClaimsUpdatedAt: number | null = null;
@@ -497,8 +557,14 @@ class AuthenticationModule {
         const userRef = ref(db, `/users/${firebaseUser.uid}`);
         const claimsRef = ref(db, `/users/${firebaseUser.uid}/claimsUpdatedAt`);
 
+        // Set by the first answer of the server, and by anything that ends
+        // this sign-in, so the saved profile below is never reported after it.
+        let serverAnswered = false;
+        const uid = firebaseUser.uid;
+
         // Listen for user data changes in real-time
         const onUserDataChanged = (snapshot: any) => {
+          serverAnswered = true;
           const userData = snapshot.val() as User | null;
           if (!userData) {
             // A live session with no profile behind it. The callback only ever
@@ -527,7 +593,7 @@ class AuthenticationModule {
             return;
           }
 
-          EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+          this.saveServerProfile(userData);
           callback(userData);
 
           // Once per sign-in: an approval that landed while this account was
@@ -569,8 +635,32 @@ class AuthenticationModule {
         const unsubClaims = onValue(claimsRef, onClaimsUpdated);
 
         // Store unsubscribe functions
-        userDataUnsubscribe = () => unsubUserData();
+        userDataUnsubscribe = () => {
+          serverAnswered = true;
+          unsubUserData();
+        };
         claimsUnsubscribe = () => unsubClaims();
+
+        // Slow start in low signal: the server's answer above can take many
+        // seconds or never come, and the splash screen waited for it. The
+        // profile saved on the phone at the last answer is reported at once;
+        // the server's answer replaces it when it arrives, and its bad news
+        // (profile gone, family taken away) still lands, only later.
+        //
+        // Only for this same account: sign-out removes the saved profile, and
+        // the uid check covers one left behind by another account. Nothing is
+        // reported once the server has answered or this sign-in has ended.
+        // Nothing saved (first sign-in) leaves the wait as it was.
+        SecureStorage.getItem(this.USER_KEY)
+          .catch(() => null)
+          .then(cached => {
+            if (serverAnswered || lastProcessedUid !== uid || this.deletionInProgress) return;
+            const cachedUser = safeJsonParse<User | null>(cached, null);
+            if (cachedUser && typeof cachedUser === 'object' && cachedUser.uid === uid) {
+              callback(cachedUser);
+            }
+          })
+          .catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule saved profile at start'));
       } else {
         callback(null);
       }
@@ -578,6 +668,8 @@ class AuthenticationModule {
 
     // Return combined unsubscribe function
     return () => {
+      // Also stops a saved profile still being read from being reported.
+      lastProcessedUid = null;
       authUnsubscribe();
       if (userDataUnsubscribe) {
         userDataUnsubscribe();
@@ -893,18 +985,18 @@ class AuthenticationModule {
         });
       }
 
-      // Step 5: Clear FCM token (revokes device token + cleans EncryptedStorage)
+      // Step 5: Clear FCM token (revokes device token + cleans SecureStorage)
       await NotificationManager.clearToken();
 
       // Step 6: Delete user profile from Realtime Database
       await remove(ref(db, `/users/${userId}`));
 
-      // Step 7: Clear all local WatermelonDB data
-      await LocalStorageManager.clearAllData();
+      // Step 7: Clear all local data, the same way sign-out does
+      await this.clearLocalSession();
 
       // Step 8: Clear storage (user data and token from encrypted storage)
-      await EncryptedStorage.removeItem(this.USER_KEY);
-      await EncryptedStorage.removeItem(this.AUTH_TOKEN_KEY);
+      await SecureStorage.removeItem(this.USER_KEY);
+      await SecureStorage.removeItem(this.AUTH_TOKEN_KEY);
       // Migration cleanup: remove any legacy plaintext copy
       await AsyncStorage.removeItem(this.USER_KEY).catch(err => CrashReporting.recordError(err as Error, 'AuthenticationModule legacy AsyncStorage cleanup'));
 
@@ -1116,17 +1208,17 @@ class AuthenticationModule {
 
     await remove(ref(db, `/familyGroups/${groupId}/joinRequests/${userId}`)).catch(() => {});
 
-    const [userSnapshot, groupSnapshot] = await Promise.all([
+    const [userSnapshot, group] = await Promise.all([
       get(ref(db, `/users/${userId}`)),
-      get(ref(db, `/familyGroups/${groupId}`)),
+      this.readFamilyGroupMeta(groupId),
     ]);
 
     const updatedUser = userSnapshot.val();
     if (updatedUser) {
-      await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+      await SecureStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
     }
 
-    return groupSnapshot.val();
+    return group as FamilyGroup;
   }
 
   /**
@@ -1177,7 +1269,7 @@ class AuthenticationModule {
 
       if (user) {
         // Update local cache
-        await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(user));
+        await SecureStorage.setItem(this.USER_KEY, JSON.stringify(user));
       }
 
       return user;
@@ -1192,8 +1284,8 @@ class AuthenticationModule {
    */
   private async storeAuthData(user: User, token: string): Promise<void> {
     // User data and token both in encrypted storage
-    await EncryptedStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    await EncryptedStorage.setItem(this.AUTH_TOKEN_KEY, token);
+    await SecureStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    await SecureStorage.setItem(this.AUTH_TOKEN_KEY, token);
   }
 }
 

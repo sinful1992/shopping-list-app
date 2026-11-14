@@ -24,13 +24,13 @@ import { OCRResult } from '../../models/types';
 import { useAdMob } from '../../contexts/AdMobContext';
 import { useRevenueCat } from '../../contexts/RevenueCatContext';
 import { formatDateLong } from '../../utils/date';
-import { isReceiptStoragePath } from '../../utils/uri';
+import { buildOcrHints } from '../../services/ocrHints';
 
 const ReceiptCameraScreen = () => {
   const route = useRoute<RouteProp<ListsStackParamList, 'ReceiptCamera'>>();
   const navigation = useNavigation<StackNavigationProp<ListsStackParamList>>();
   const { showAlert } = useAlert();
-  const { listId, autoAddAll } = route.params;
+  const { listId, autoAddAll, completeOnApply } = route.params;
 
   const { shouldShowAds, showRewarded } = useAdMob();
   const { tier } = useRevenueCat();
@@ -44,6 +44,7 @@ const ReceiptCameraScreen = () => {
   const [retryToken, setRetryToken] = useState(0);
   const [adGatePassed, setAdGatePassed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const confirmingRef = useRef(false);
 
   useEffect(() => {
     handleCapture();
@@ -106,7 +107,9 @@ const ReceiptCameraScreen = () => {
     setOcrResult(null);
     setOcrError(null);
 
-    ReceiptOCRService.extractReceipt(capturedImage, controller.signal)
+    // Quick-scan has no list yet, so nothing to hint with.
+    (listId ? buildOcrHints(listId).catch(() => null) : Promise.resolve(null))
+      .then((hints) => ReceiptOCRService.extractReceipt(capturedImage, controller.signal, hints))
       .then((result) => {
         if (!mounted) return;
         if (result.success && result.receiptData) {
@@ -129,7 +132,7 @@ const ReceiptCameraScreen = () => {
       mounted = false;
       controller.abort();
     };
-  }, [capturedImage, retryToken, adGatePassed]);
+  }, [capturedImage, retryToken, adGatePassed, listId]);
 
   /**
    * The receipt is read on the server, so with no connection a scan can only
@@ -175,8 +178,12 @@ const ReceiptCameraScreen = () => {
   };
 
   const handleConfirm = async () => {
-    if (!capturedImage || !ocrResult || confirming) return;
+    // A ref, not the state: a double tap lands both presses before the
+    // re-render, and each would create its own quick-scan list. Skip then
+    // discards only the one it was given, leaving the other empty on Home.
+    if (!capturedImage || !ocrResult || confirmingRef.current) return;
 
+    confirmingRef.current = true;
     setConfirming(true);
     try {
       if (!user || !user.familyGroupId) {
@@ -193,28 +200,22 @@ const ReceiptCameraScreen = () => {
         user,
       )).id;
 
-      await ShoppingListManager.updateList(targetListId, {
-        receiptUrl: capturedImage,
-        ...await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
-      });
-
-      // The capture lives in this phone's cache; upload it so the rest of the
-      // family can see it and it survives a reinstall. Queued first, so an
-      // offline scan uploads on a later start.
-      ImageStorageManager.queueReceiptForUpload(capturedImage, targetListId)
-        .then(() => ImageStorageManager.processUploadQueue())
+      // The capture lives in this phone's cache; it is queued for upload so
+      // the rest of the family can see it and it survives a reinstall. The
+      // image it replaces is deleted only once the new one has uploaded.
+      await ImageStorageManager.setListReceipt(
+        targetListId,
+        capturedImage,
+        await ReceiptOCRService.listPatchFor(ocrResult, existing?.storeName),
+      );
+      ImageStorageManager.processUploadQueue()
         .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen receipt upload'));
-      // A rescan replaces the list's image; the one uploaded before is no
-      // longer referenced by anything.
-      if (isReceiptStoragePath(existing?.receiptUrl)) {
-        ImageStorageManager.deleteReceipt(existing.receiptUrl)
-          .catch(err => CrashReporting.recordError(err as Error, 'ReceiptCameraScreen old receipt delete'));
-      }
 
-      navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll });
+      navigation.replace('ReceiptMatch', { listId: targetListId, autoAddAll, completeOnApply });
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     } finally {
+      confirmingRef.current = false;
       setConfirming(false);
     }
   };

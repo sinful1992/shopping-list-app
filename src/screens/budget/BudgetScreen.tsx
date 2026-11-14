@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,27 @@ const BudgetScreen = () => {
   const [monthlyLimitInput, setMonthlyLimitInput] = useState(budgetSettings.monthlyLimit?.toString() || '');
   const [weeklyLimitInput, setWeeklyLimitInput] = useState(budgetSettings.weeklyLimit?.toString() || '');
   const [showBudgetConfig, setShowBudgetConfig] = useState(false);
+
+  // Set once the user types in the form; until then the inputs follow the
+  // saved limits. They arrive after the first render (and may change on
+  // another phone), so filling them only once left one empty, and saving the
+  // other limit then sent null for it and wiped it.
+  const [limitsTouched, setLimitsTouched] = useState(false);
+
+  useEffect(() => {
+    if (limitsTouched) return;
+    setMonthlyLimitInput(budgetSettings.monthlyLimit?.toString() || '');
+    setWeeklyLimitInput(budgetSettings.weeklyLimit?.toString() || '');
+  }, [budgetSettings.monthlyLimit, budgetSettings.weeklyLimit, limitsTouched]);
+
+  const toggleBudgetConfig = () => {
+    // Opening the form again starts from the saved limits.
+    if (!showBudgetConfig) setLimitsTouched(false);
+    setShowBudgetConfig(!showBudgetConfig);
+  };
+
+  const onMonthlyLimitChange = (text: string) => { setLimitsTouched(true); setMonthlyLimitInput(text); };
+  const onWeeklyLimitChange = (text: string) => { setLimitsTouched(true); setWeeklyLimitInput(text); };
 
   const handleSaveBudgetSettings = async () => {
     try {
@@ -259,7 +280,7 @@ const BudgetScreen = () => {
       <View style={styles.configContainer}>
         <TouchableOpacity
           style={styles.configToggle}
-          onPress={() => setShowBudgetConfig(!showBudgetConfig)}
+          onPress={toggleBudgetConfig}
         >
           <Text style={styles.configToggleText}>
             {showBudgetConfig ? 'Hide Budget Settings' : 'Set Budget Limits'}
@@ -274,7 +295,7 @@ const BudgetScreen = () => {
               <TextInput
                 style={styles.configInput}
                 value={monthlyLimitInput}
-                onChangeText={setMonthlyLimitInput}
+                onChangeText={onMonthlyLimitChange}
                 placeholder="e.g., 500"
                 placeholderTextColor={theme.text.tertiary}
                 keyboardType="numeric"
@@ -285,7 +306,7 @@ const BudgetScreen = () => {
               <TextInput
                 style={styles.configInput}
                 value={weeklyLimitInput}
-                onChangeText={setWeeklyLimitInput}
+                onChangeText={onWeeklyLimitChange}
                 placeholder="e.g., 150"
                 placeholderTextColor={theme.text.tertiary}
                 keyboardType="numeric"

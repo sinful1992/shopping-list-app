@@ -1,13 +1,25 @@
 import { Database, Q } from '@nozbe/watermelondb';
+import { reuseById } from '../../utils/stableIdentity';
 import { Item } from '../../models/types';
 import CrashReporting from '../CrashReporting';
 import { ItemModel } from '../../database/models/Item';
+import { isUnsentLocalChange } from './syncState';
 import { applyItemCreate, applyItemFullUpdate, itemModelToType } from './mappers';
 
 /**
  * Items storage domain. Receives the shared WatermelonDB handle from
  * LocalStorageManager (the facade); all methods moved verbatim.
  */
+/**
+ * Rank 20 (Codex review of PR #65): the server copy wins over a synced local row even when it is
+ * older (another phone's field-level write with a slower clock). Only a local change that is still
+ * waiting to be sent ('pending' or 'failed'; '' is a row stored before 1.54.3) and is newer than the incoming copy is kept. Same rule as
+ * FirebaseSyncListener.keepsLocal, so the initial load and the live listener agree.
+ */
+function keepsLocalChange(existing: { syncStatus: string; updatedAt: number }, incoming: Item): boolean {
+  return isUnsentLocalChange(existing.syncStatus) && existing.updatedAt > (incoming.updatedAt ?? 0);
+}
+
 export class ItemsStorage {
   constructor(private database: Database) {}
 
@@ -39,6 +51,23 @@ export class ItemsStorage {
     } catch (error: any) {
       throw new Error(`Failed to save item: ${error.message}`);
     }
+  }
+
+  /**
+   * 1.54.3 (Fable review): item rows stored before 1.54.3 have an empty sync state. When the server
+   * snapshot shows such a row unchanged, it is the server copy: mark it synced, so the remote-delete
+   * sweep covers it too. Checked inside the write, so a row edited meanwhile (now pending) is left alone.
+   */
+  async markItemsSyncedIfBlank(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const itemsCollection = this.database.get<ItemModel>('items');
+    await this.database.write(async () => {
+      const records = await itemsCollection.query(Q.where('id', Q.oneOf(ids))).fetch();
+      const ops = records
+        .filter(r => !r.syncStatus)
+        .map(r => r.prepareUpdate((m: ItemModel) => { m.syncStatus = 'synced'; }));
+      if (ops.length > 0) await this.database.batch(ops);
+    }, 'markItemsSyncedIfBlank');
   }
 
   /**
@@ -115,6 +144,7 @@ export class ItemsStorage {
           if (updates.unitQty !== undefined) record.unitQty = updates.unitQty;
           if (updates.measurementUnit !== undefined) record.measurementUnit = updates.measurementUnit;
           if (updates.measurementValue !== undefined) record.measurementValue = updates.measurementValue;
+          if (updates.isUrgent !== undefined) record.isUrgent = updates.isUrgent;
         });
       }, 'updateItem');
 
@@ -156,6 +186,7 @@ export class ItemsStorage {
           if (itemUpdates.unitQty !== undefined) r.unitQty = itemUpdates.unitQty;
           if (itemUpdates.measurementUnit !== undefined) r.measurementUnit = itemUpdates.measurementUnit;
           if (itemUpdates.measurementValue !== undefined) r.measurementValue = itemUpdates.measurementValue;
+          if (itemUpdates.isUrgent !== undefined) r.isUrgent = itemUpdates.isUrgent;
         }));
         processedRecords.push(record);
       }
@@ -239,7 +270,7 @@ export class ItemsStorage {
         for (const item of items) {
           const existing = existingMap.get(item.id);
           if (existing) {
-            if (existing.updatedAt > (item.updatedAt ?? 0)) continue;
+            if (keepsLocalChange(existing, item)) continue;
             ops.push(existing.prepareUpdate(r => applyItemFullUpdate(r as ItemModel, item)));
           } else {
             ops.push(itemsCollection.prepareCreate(r => applyItemCreate(r, item)));
@@ -256,7 +287,7 @@ export class ItemsStorage {
               const records = await itemsCollection.query(Q.where('id', item.id)).fetch();
               const rec = records[0];
               if (rec) {
-                if (rec.updatedAt > (item.updatedAt ?? 0)) continue;
+                if (keepsLocalChange(rec, item)) continue;
                 await rec.update(r => applyItemFullUpdate(r, item));
               } else {
                 await itemsCollection.create(r => applyItemCreate(r, item));
@@ -309,9 +340,11 @@ export class ItemsStorage {
 
     // Use observeWithColumns to trigger on field changes (category, checked, etc.)
     // Without this, observer only fires on record add/delete, not field updates
-    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value']).subscribe((itemModels) => {
-      // Convert to Item types
-      let items = itemModels.map((model) => itemModelToType(model));
+    // Unchanged rows keep the object the last emission gave, so memo'd rows
+    // can skip re-rendering (OPTIMISE P6).
+    const previous = new Map<string, Item>();
+    const subscription = query.observeWithColumns(['category', 'checked', 'name', 'price', 'quantity', 'sort_order', 'unit_qty', 'measurement_unit', 'measurement_value', 'is_urgent']).subscribe((itemModels) => {
+      let items = reuseById(previous, itemModels.map((model) => itemModelToType(model)));
 
       // Sort by sortOrder when available, falling back to createdAt
       items = items.sort((a, b) => {
@@ -321,6 +354,26 @@ export class ItemsStorage {
       });
 
       callback(items);
+    });
+
+    return () => subscription.unsubscribe();
+  }
+
+  /**
+   * Observe how many unchecked urgent items each list has (listId → count).
+   * Lists with none are absent from the map.
+   */
+  observeUrgentCounts(callback: (counts: Map<string, number>) => void): () => void {
+    const query = this.database.get<ItemModel>('items').query(
+      Q.where('is_urgent', true),
+      Q.where('checked', false),
+    );
+    const subscription = query.observeWithColumns(['is_urgent', 'checked']).subscribe((itemModels) => {
+      const counts = new Map<string, number>();
+      for (const model of itemModels) {
+        counts.set(model.listId, (counts.get(model.listId) ?? 0) + 1);
+      }
+      callback(counts);
     });
 
     return () => subscription.unsubscribe();

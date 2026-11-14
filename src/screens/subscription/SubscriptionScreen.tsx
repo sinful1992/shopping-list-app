@@ -39,7 +39,6 @@ export const SubscriptionScreen: React.FC = () => {
   const [usageSummary, setUsageSummary] = useState<{
     lists: { used: number; limit: number | null };
     ocr: { used: number; limit: number | null };
-    urgentItems: { used: number; limit: number | null };
   } | null>(null);
 
   // Load usage on mount, and reload when the tier changes (after purchase) or
@@ -138,12 +137,6 @@ export const SubscriptionScreen: React.FC = () => {
             label="Shopping Lists"
             used={usageSummary.lists.used}
             limit={usageSummary.lists.limit}
-            tier={tier}
-          />
-          <UsageIndicator
-            label="Urgent Items"
-            used={usageSummary.urgentItems.used}
-            limit={usageSummary.urgentItems.limit}
             tier={tier}
           />
         </View>

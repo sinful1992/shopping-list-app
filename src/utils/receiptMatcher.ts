@@ -31,6 +31,21 @@ const NOISE_WORDS = new Set([
 const TOKEN_SPLIT = /[\s.,()\-/]+/;
 const DIGIT_ONLY = /^\d+$/;
 
+/**
+ * A receipt line with what the user typed over it. Their price replaces the
+ * one the sum check corrected, so the "fixed by the receipt's total" note no
+ * longer applies; a typed name leaves it.
+ */
+export function withLineEdit(line: ReceiptLineItem, edit: Partial<ReceiptLineItem>): ReceiptLineItem {
+  return {
+    ...line,
+    ...edit,
+    needsReview: false,
+    needsCheck: false,
+    ...(edit.price !== undefined ? { correctedFrom: null } : {}),
+  };
+}
+
 export function stem(token: string): string {
   if (token.endsWith('ies')) {
     return token.length > 4 ? token.slice(0, -3) + 'y' : token;
@@ -232,7 +247,9 @@ export function matchReceiptToList(
 ): MatchResult {
   const eligibleReceipt = receiptItems
     .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.price != null && item.description.trim().length > 0);
+    // A negative line is a coupon or refund, not something bought: matching it
+    // would record a negative price against the list item.
+    .filter(({ item }) => item.price != null && item.price >= 0 && item.description.trim().length > 0);
 
   const receiptPrep = eligibleReceipt.map(({ item, index }) => ({
     item,

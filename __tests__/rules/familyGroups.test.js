@@ -533,6 +533,62 @@ describe('membership provenance', () => {
     await assertFails(get(ref(db, `/users/${BOB}`)));
   });
 
+  // Review #1 (task 100): a group-create write grants its whole subtree, so the
+  // joinRequests `.write` never ran and Alice could plant a request "from" Bob
+  // inside the create, then admit him through the normal approve leg. Only a
+  // `.validate` runs under a granted parent write, so that is where it is stopped.
+  const plantedRequest = () => ({
+    ...makeGroup(EVIL, ALICE, { [ALICE]: true }, 'EVIL2345'),
+    joinRequests: { [BOB]: makeJoinRequest(BOB, EVIL, ALICE_EMAIL, 'Bob') },
+  });
+
+  it('denies creating a group that carries a join request for someone else', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(set(ref(db, `/familyGroups/${EVIL}`), plantedRequest()));
+  });
+
+  it('denies the plant-then-admit sequence end to end (no profile read)', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(set(ref(db, `/familyGroups/${EVIL}`), plantedRequest()));
+    // Even if the create went through without the request, admitting Bob needs one.
+    await assertSucceeds(createEvilGroup(db, { [ALICE]: true }));
+    await assertFails(set(ref(db, `/familyGroups/${EVIL}/memberIds/${BOB}`), true));
+    await assertSucceeds(update(ref(db, `/users/${ALICE}`), { familyGroupId: EVIL }));
+    await assertFails(get(ref(db, `/users/${BOB}`)));
+  });
+
+  it('denies planting the request inside a root multi-path create', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertFails(
+      update(ref(db), {
+        [`/familyGroups/${EVIL}`]: plantedRequest(),
+        [`/users/${ALICE}/familyGroupId`]: EVIL,
+      }),
+    );
+  });
+
+  it('denies writing a request for someone else into a just-created group', async () => {
+    const db = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(createEvilGroup(db, { [ALICE]: true }));
+    await assertFails(set(
+      ref(db, `/familyGroups/${EVIL}/joinRequests/${BOB}`),
+      makeJoinRequest(BOB, EVIL, ALICE_EMAIL, 'Bob'),
+    ));
+  });
+
+  it('still lets Bob ask to join, and Alice approve and admit him', async () => {
+    const alice = asUser(testEnv, ALICE, ALICE_EMAIL);
+    await assertSucceeds(createEvilGroup(alice, { [ALICE]: true }));
+    const bob = asUser(testEnv, BOB, BOB_EMAIL);
+    await assertSucceeds(set(
+      ref(bob, `/familyGroups/${EVIL}/joinRequests/${BOB}`),
+      makeJoinRequest(BOB, EVIL, BOB_EMAIL, 'Bob'),
+    ));
+    await assertSucceeds(update(ref(alice, `/familyGroups/${EVIL}/joinRequests/${BOB}`), { status: 'approved' }));
+    await assertSucceeds(set(ref(alice, `/familyGroups/${EVIL}/memberIds/${BOB}`), true));
+    await assertSucceeds(remove(ref(alice, `/familyGroups/${EVIL}/joinRequests/${BOB}`)));
+  });
+
   // The single-update form is the one an attacker would actually send, and it
   // is the shape that defeated the `root`-based guard in 1.38.12 — worth its
   // own assertion rather than trusting that the two-step case covers it.

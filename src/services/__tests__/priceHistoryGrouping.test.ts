@@ -6,6 +6,7 @@
  */
 
 import LocalStorageManager from '../LocalStorageManager';
+import PriceHistoryService from '../PriceHistoryService';
 import { PriceHistoryRecord } from '../../models/types';
 
 let idCounter = 0;
@@ -99,5 +100,27 @@ describe('price history grouping', () => {
 
     expect(records).toHaveLength(1);
     expect(records[0].price).toBe(1.0);
+  });
+
+  it('compares one product across shops when the receipt printed the store name', async () => {
+    const gid = nextGroup();
+    await LocalStorageManager.savePriceHistoryBatch([
+      makeRecord(gid, 'Tesco British Whole Milk', 1.75, 'Tesco'),
+      makeRecord(gid, "Sainsbury's British Whole Milk", 1.65, "Sainsbury's"),
+      makeRecord(gid, 'British Whole Milk', 1.55, 'Aldi'),
+      makeRecord(gid, 'Tesco Finest Whole Milk', 2.1, 'Tesco'),
+    ]);
+
+    for (const asked of ['tesco british whole milk', "sainsbury's british whole milk", 'british whole milk']) {
+      const records = await LocalStorageManager.getPriceHistoryForItem(gid, asked);
+      expect(records.map(r => r.storeName).sort()).toEqual(['Aldi', "Sainsbury's", 'Tesco']);
+    }
+
+    const byStore = await PriceHistoryService.getPriceByStore(gid, 'Tesco British Whole Milk');
+    expect(Object.keys(byStore).sort()).toEqual(['Aldi', "Sainsbury's", 'Tesco']);
+    expect(byStore.Tesco.average).toBe(1.75);
+
+    // The picker shows the plain milk once and keeps Finest as its own item.
+    expect(await LocalStorageManager.getDistinctTrackedItems(gid)).toHaveLength(2);
   });
 });

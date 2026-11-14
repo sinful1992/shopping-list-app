@@ -1,5 +1,4 @@
 import LocalStorageManager from './LocalStorageManager';
-import ItemManager from './ItemManager';
 import { ShoppingList } from '../models/types';
 
 /**
@@ -59,89 +58,6 @@ class SearchService {
     } catch {
       return [];
     }
-  }
-
-  /**
-   * Highlight matching text in a string
-   * Returns array of segments with highlight flag
-   */
-  highlightMatch(
-    text: string,
-    query: string
-  ): Array<{ text: string; highlight: boolean }> {
-    if (!query || !query.trim()) {
-      return [{ text, highlight: false }];
-    }
-
-    const normalizedQuery = query.toLowerCase().trim();
-    const normalizedText = text.toLowerCase();
-    const index = normalizedText.indexOf(normalizedQuery);
-
-    if (index === -1) {
-      return [{ text, highlight: false }];
-    }
-
-    const segments: Array<{ text: string; highlight: boolean }> = [];
-
-    // Text before match
-    if (index > 0) {
-      segments.push({
-        text: text.substring(0, index),
-        highlight: false,
-      });
-    }
-
-    // Matched text
-    segments.push({
-      text: text.substring(index, index + query.length),
-      highlight: true,
-    });
-
-    // Text after match
-    if (index + query.length < text.length) {
-      segments.push({
-        text: text.substring(index + query.length),
-        highlight: false,
-      });
-    }
-
-    return segments;
-  }
-
-  /**
-   * Get search result summary
-   * Returns what matched (list name, store, or items)
-   */
-  async getMatchReason(
-    list: ShoppingList,
-    query: string
-  ): Promise<'list_name' | 'store' | 'items' | 'none'> {
-    if (!query || !query.trim()) {
-      return 'none';
-    }
-
-    const normalizedQuery = query.toLowerCase().trim();
-
-    // Check list name
-    if (list.name.toLowerCase().includes(normalizedQuery)) {
-      return 'list_name';
-    }
-
-    // Check store name
-    if (list.storeName && list.storeName.toLowerCase().includes(normalizedQuery)) {
-      return 'store';
-    }
-
-    // Check items
-    const items = await ItemManager.getItemsForList(list.id);
-    const hasMatchingItem = items.some(item =>
-      item.name.toLowerCase().includes(normalizedQuery)
-    );
-    if (hasMatchingItem) {
-      return 'items';
-    }
-
-    return 'none';
   }
 }
 

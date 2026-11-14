@@ -10,7 +10,7 @@ import {
 import { getAuth, getIdToken } from '@react-native-firebase/auth';
 import { PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import EncryptedStorage from 'react-native-encrypted-storage';
+import SecureStorage from './SecureStorage';
 import supabase from './SupabaseClient';
 import { safeJsonParse } from '../utils/safeJsonParse';
 import CrashReporting from './CrashReporting';
@@ -21,6 +21,8 @@ import CrashReporting from './CrashReporting';
  */
 class NotificationManager {
   private fcmToken: string | null = null;
+  private readonly STALE_TOKEN_KEY = '@fcm_token_stale';
+  private readonly DELETE_TOKEN_TIMEOUT_MS = 1000;
   private readonly FCM_TOKEN_KEY = '@fcm_token';
 
   /**
@@ -52,13 +54,22 @@ class NotificationManager {
    */
   async getFCMToken(): Promise<string | null> {
     try {
+      // A sign-out that could not revoke the old token (offline) left it
+      // valid at FCM and still registered to the old account's family.
+      // Revoke it before anything is registered, or the next account on this
+      // phone shares it and gets the old family's pushes.
+      if (await SecureStorage.getItem(this.STALE_TOKEN_KEY)) {
+        await deleteToken(getMessaging());
+        await SecureStorage.removeItem(this.STALE_TOKEN_KEY);
+      }
+
       // Check if we already have a token cached
       if (this.fcmToken) {
         return this.fcmToken;
       }
 
-      // Try EncryptedStorage first (new location)
-      const storedToken = await EncryptedStorage.getItem(this.FCM_TOKEN_KEY);
+      // Try SecureStorage first (new location)
+      const storedToken = await SecureStorage.getItem(this.FCM_TOKEN_KEY);
       if (storedToken) {
         this.fcmToken = storedToken;
         return storedToken;
@@ -66,7 +77,7 @@ class NotificationManager {
       // Migration: move from AsyncStorage on first access after upgrade
       const legacyToken = await AsyncStorage.getItem(this.FCM_TOKEN_KEY);
       if (legacyToken) {
-        await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, legacyToken);
+        await SecureStorage.setItem(this.FCM_TOKEN_KEY, legacyToken);
         await AsyncStorage.removeItem(this.FCM_TOKEN_KEY);
         this.fcmToken = legacyToken;
         return legacyToken;
@@ -83,7 +94,7 @@ class NotificationManager {
 
       // Cache the token
       this.fcmToken = token;
-      await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
+      await SecureStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       return token;
     } catch {
@@ -118,7 +129,7 @@ class NotificationManager {
         throw error;
       }
 
-      await EncryptedStorage.setItem(
+      await SecureStorage.setItem(
         '@fcm_token_data',
         JSON.stringify({
           token,
@@ -147,10 +158,10 @@ class NotificationManager {
     // Handle token refresh
     const unsubTokenRefresh = onTokenRefresh(getMessaging(), async (token) => {
       this.fcmToken = token;
-      await EncryptedStorage.setItem(this.FCM_TOKEN_KEY, token);
+      await SecureStorage.setItem(this.FCM_TOKEN_KEY, token);
 
       // Update token in Supabase
-      const tokenData = await EncryptedStorage.getItem('@fcm_token_data').catch(() => null);
+      const tokenData = await SecureStorage.getItem('@fcm_token_data').catch(() => null);
       const parsed = safeJsonParse<{ userId?: string; familyGroupId?: string } | null>(tokenData, null);
       if (parsed?.userId && parsed?.familyGroupId) {
         await this.registerToken(parsed.userId, parsed.familyGroupId).catch(err => CrashReporting.recordError(err as Error, 'NotificationManager registerToken on refresh'));
@@ -241,13 +252,22 @@ class NotificationManager {
    * Clear FCM token (on logout)
    */
   async clearToken(): Promise<void> {
+    // Forget the cached token first, whatever happens next: a cached copy
+    // would be handed straight back to the next account by getFCMToken.
+    this.fcmToken = null;
+    await SecureStorage.removeItem(this.FCM_TOKEN_KEY).catch(() => undefined);
+    await SecureStorage.removeItem('@fcm_token_data').catch(() => undefined);
     try {
-      await deleteToken(getMessaging());
-      await EncryptedStorage.removeItem(this.FCM_TOKEN_KEY);
-      await EncryptedStorage.removeItem('@fcm_token_data');
-      this.fcmToken = null;
-    } catch {
-      // Token clear failed - not critical
+      // Capped: a call that never answers (offline) would hang every sign-out.
+      await Promise.race([
+        deleteToken(getMessaging()),
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('deleteToken timed out')), this.DELETE_TOKEN_TIMEOUT_MS)),
+      ]);
+    } catch (err) {
+      // Usually offline. Mark it, so getFCMToken revokes it before reuse.
+      CrashReporting.recordError(err as Error, 'NotificationManager clearToken deleteToken');
+      await SecureStorage.setItem(this.STALE_TOKEN_KEY, '1').catch(() => undefined);
     }
   }
 }

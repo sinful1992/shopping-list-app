@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,10 +22,35 @@ import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/d
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import type { ListsStackParamList } from '../../types/navigation';
-import AuthenticationModule from '../../services/AuthenticationModule';
-import DatabaseMigration from '../../services/DatabaseMigration';
-import { useAuth, useShoppingLists } from '../../hooks';
+import { useShoppingLists } from '../../hooks';
+import { useUser } from '../../contexts/UserContext';
+import { useFamilyGroupCheck } from './hooks/useFamilyGroupCheck';
+import { useFamilyMemberNames } from '../../hooks/useFamilyMemberNames';
+import { useUrgentCounts } from '../../hooks/useUrgentCounts';
+import { useActiveListItemsSync } from '../../hooks/useActiveListItemsSync';
 import { formatDateLong, formatDateShort } from '../../utils/date';
+
+const LOCALE = 'en-GB';
+
+/** "Sun 5 Oct", with the year only when it isn't this year: "Fri 12 Dec 2025". */
+function formatDateMeta(date: Date): string {
+  return date.toLocaleDateString(LOCALE, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    ...(date.getFullYear() !== new Date().getFullYear() && { year: 'numeric' }),
+  }).replace(',', '');
+}
+
+/** "Sunday 5 October 2026" for screen readers. */
+function formatDateSpoken(date: Date): string {
+  return date.toLocaleDateString(LOCALE, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).replace(',', '');
+}
 
 /**
  * HomeScreen
@@ -38,57 +63,21 @@ const HomeScreen = () => {
   const { theme } = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const { user, familyGroupId } = useAuth();
+  // The live user App already holds, not a second auth subscription of our
+  // own (OPTIMISE P2).
+  const user = useUser();
+  const familyGroupId = user?.familyGroupId ?? null;
   const { lists, creating, createList, deleteList, refresh } = useShoppingLists(familyGroupId, user);
+  const memberNames = useFamilyMemberNames(familyGroupId, user?.uid ?? null);
+  const urgentCounts = useUrgentCounts();
+  useActiveListItemsSync(familyGroupId, lists);
 
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showIOSPicker, setShowIOSPicker] = useState(false);
 
-  useEffect(() => {
-    if (user && familyGroupId) {
-      loadInitialData();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, familyGroupId]);
-
-  const loadInitialData = async () => {
-    try {
-      if (!user || !familyGroupId) return;
-
-      const groupExists = await AuthenticationModule.validateFamilyGroupExists(familyGroupId);
-
-      if (!groupExists) {
-        showAlert(
-          'Family Group Not Found',
-          'Your family group no longer exists. Please create or join a new group.',
-          [{ text: 'OK' }],
-          { icon: 'warning' }
-        );
-
-        await AuthenticationModule.clearFamilyGroupReference(user.uid, familyGroupId);
-
-        return;
-      }
-
-      const needsMigration = await DatabaseMigration.needsMigration(familyGroupId);
-      if (needsMigration) {
-        try {
-          await DatabaseMigration.runAllMigrations(familyGroupId);
-        } catch {
-          showAlert(
-            'Migration Notice',
-            'Database migration in progress. Please restart the app if lists do not appear.',
-            undefined,
-            { icon: 'info' }
-          );
-        }
-      }
-    } catch (error: any) {
-      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
-    }
-  };
+  useFamilyGroupCheck(user?.uid ?? null, familyGroupId, showAlert);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -189,7 +178,9 @@ const HomeScreen = () => {
     const targetScreen = isCompleted ? 'HistoryDetail' : 'ListDetail';
 
     const date = isCompleted ? new Date(list.completedAt || 0) : new Date(list.createdAt);
-    const formattedDate = formatDateShort(date);
+    const formattedDate = isCompleted ? formatDateShort(date) : formatDateMeta(date);
+    const creatorName = memberNames.get(list.createdBy);
+    const createdByName = list.createdBy === user?.uid ? 'you' : creatorName;
 
     const syncStatus = list.syncStatus === 'synced' || list.syncStatus === 'pending'
       ? list.syncStatus
@@ -206,6 +197,10 @@ const HomeScreen = () => {
         lockedByName={list.lockedByName}
         storeName={list.storeName}
         formattedDate={formattedDate}
+        createdByName={createdByName}
+        createdByInitial={creatorName ? Array.from(creatorName)[0].toUpperCase() : null}
+        accessibilityDate={formatDateSpoken(date)}
+        urgentCount={isCompleted ? 0 : urgentCounts.get(list.id) ?? 0}
         syncStatus={syncStatus}
         onPress={() => navigation.navigate(targetScreen as 'ListDetail' | 'HistoryDetail', { listId: list.id })}
         onDelete={() => handleDeleteList(list.id, list.name)}

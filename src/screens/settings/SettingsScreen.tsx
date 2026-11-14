@@ -20,11 +20,13 @@ import type { StackNavigationProp } from '@react-navigation/stack';
 import type { RootStackParamList } from '../../types/navigation';
 import { useAlert } from '../../contexts/AlertContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAdMob } from '../../contexts/AdMobContext';
 import { HIT_SLOP } from '../../styles/theme';
 import { sanitizeError } from '../../utils/sanitize';
 import { FamilyRole } from '../../models/types';
 import { PRIVACY_POLICY_CONTENT, TERMS_OF_SERVICE_CONTENT } from '../../legal';
 import { useSettings } from '../../hooks';
+import { shareFamilyInvite } from '../../utils/inviteMessage';
 import { version } from '../../../package.json';
 
 /**
@@ -36,6 +38,7 @@ const SettingsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { showAlert } = useAlert();
   const { theme, themeMode, setThemeMode } = useTheme();
+  const { privacyOptionsRequired, showPrivacyOptions } = useAdMob();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
 
@@ -143,6 +146,15 @@ const SettingsScreen = () => {
     }
   };
 
+  const handleShareInvitationCode = async () => {
+    if (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') return;
+    try {
+      await shareFamilyInvite(invitationCode);
+    } catch (error: unknown) {
+      showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+    }
+  };
+
   const handleEditName = () => {
     setNewName(user?.displayName || '');
     setShowEditNameModal(true);
@@ -183,6 +195,30 @@ const SettingsScreen = () => {
     }
   };
 
+  // Signing out deletes this phone's copy, so changes that could not be sent
+  // (usually offline) would be lost: say so and let the user choose.
+  const confirmLogoutWithPending = (pending: number) => {
+    showAlert(
+      'Changes Not Sent',
+      `${pending} ${pending === 1 ? 'change has' : 'changes have'} not been sent yet and will be lost. Sign out anyway?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout({ force: true });
+            } catch (error: any) {
+              showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
+            }
+          },
+        },
+      ],
+      { icon: 'warning' }
+    );
+  };
+
   const handleLogout = () => {
     showAlert(
       'Logout',
@@ -194,7 +230,8 @@ const SettingsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await logout();
+              const { signedOut, pending } = await logout();
+              if (!signedOut) confirmLogoutWithPending(pending);
             } catch (error: any) {
               showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
             }
@@ -231,7 +268,7 @@ const SettingsScreen = () => {
   const handleDeleteAccount = () => {
     showAlert(
       'Delete Account',
-      'WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All urgent items\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
+      'WARNING: This will permanently delete your account and ALL associated data:\n\n• All your shopping lists\n• All items you created\n• All receipt images\n• Your family group (if you\'re the last member)\n\nThis action CANNOT be undone!',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -406,25 +443,37 @@ const SettingsScreen = () => {
                 ) : (
                   <Text style={styles.invitationCode}>{invitationCode}</Text>
                 )}
-                <TouchableOpacity
-                  style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
-                  hitSlop={HIT_SLOP}
-                  onPress={() => {
-                    if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
-                      // Retry loading
-                      retryLoadInvitationCode();
-                    } else {
-                      handleCopyInvitationCode();
-                    }
-                  }}
-                  disabled={!invitationCode}
-                >
-                  <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color={theme.accent.blue} />
-                </TouchableOpacity>
+                <View style={styles.codeButtons}>
+                  <TouchableOpacity
+                    style={[styles.copyButton, (!invitationCode || invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') && styles.copyButtonDisabled]}
+                    hitSlop={HIT_SLOP}
+                    onPress={() => {
+                      if (invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND') {
+                        // Retry loading
+                        retryLoadInvitationCode();
+                      } else {
+                        handleCopyInvitationCode();
+                      }
+                    }}
+                    disabled={!invitationCode}
+                  >
+                    <Icon name={invitationCode === 'ERROR' || invitationCode === 'NOT_FOUND' ? 'refresh-outline' : 'copy-outline'} size={20} color={theme.accent.blue} />
+                  </TouchableOpacity>
+                  {invitationCode && invitationCode !== 'ERROR' && invitationCode !== 'NOT_FOUND' ? (
+                    <TouchableOpacity
+                      style={[styles.copyButton, styles.shareButton]}
+                      hitSlop={HIT_SLOP}
+                      onPress={handleShareInvitationCode}
+                      accessibilityLabel="Invite family"
+                    >
+                      <Icon name="share-social-outline" size={20} color={theme.accent.blue} />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             </View>
             <Text style={styles.helperText}>
-              Share this code with family members to invite them to your group
+              Tap share to send family members the app link and this code
             </Text>
           </View>
 
@@ -566,6 +615,13 @@ const SettingsScreen = () => {
           <Text style={styles.legalButtonText}>Terms of Service</Text>
           <Icon name="chevron-forward-outline" size={16} color={theme.text.secondary} />
         </TouchableOpacity>
+        {privacyOptionsRequired && (
+          <TouchableOpacity style={styles.legalButton} onPress={showPrivacyOptions}>
+            <Icon name="options-outline" size={20} color={theme.accent.blue} />
+            <Text style={styles.legalButtonText}>Ad privacy choices</Text>
+            <Icon name="chevron-forward-outline" size={16} color={theme.text.secondary} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Logout Section */}

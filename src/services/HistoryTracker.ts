@@ -1,7 +1,6 @@
 import {
   ShoppingList,
   ListDetails,
-  PaginatedHistory,
 } from '../models/types';
 import LocalStorageManager from './LocalStorageManager';
 import ItemManager from './ItemManager';
@@ -23,43 +22,6 @@ class HistoryTracker {
       return await LocalStorageManager.getCompletedLists(familyGroupId);
     } catch (error: any) {
       throw new Error(`Failed to get completed lists: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get lists by date range
-   * Implements Req 8.5
-   */
-  async getListsByDateRange(
-    familyGroupId: string,
-    startDate: number,
-    endDate: number
-  ): Promise<ShoppingList[]> {
-    try {
-      return await LocalStorageManager.getCompletedLists(familyGroupId, startDate, endDate);
-    } catch (error: any) {
-      throw new Error(`Failed to get lists by date range: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get lists by receipt status
-   * Implements Req 8.6
-   */
-  async getListsByReceiptStatus(
-    familyGroupId: string,
-    hasReceipt: boolean
-  ): Promise<ShoppingList[]> {
-    try {
-      const allLists = await LocalStorageManager.getCompletedLists(familyGroupId);
-
-      if (hasReceipt) {
-        return allLists.filter((list) => list.receiptUrl !== null);
-      } else {
-        return allLists.filter((list) => list.receiptUrl === null);
-      }
-    } catch (error: any) {
-      throw new Error(`Failed to get lists by receipt status: ${error.message}`);
     }
   }
 
@@ -135,33 +97,6 @@ class HistoryTracker {
       };
     } catch (error: any) {
       throw new Error(`Failed to get list details: ${error.message}`);
-    }
-  }
-
-  /**
-   * Get history with pagination
-   * Implements pagination for performance
-   */
-  async getHistoryPage(
-    familyGroupId: string,
-    offset: number,
-    limit: number = 20
-  ): Promise<PaginatedHistory> {
-    try {
-      const [lists, total] = await Promise.all([
-        LocalStorageManager.getCompletedLists(familyGroupId, undefined, undefined, limit, offset),
-        LocalStorageManager.countCompletedLists(familyGroupId),
-      ]);
-
-      return {
-        lists,
-        total,
-        offset,
-        limit,
-        hasMore: offset + limit < total,
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to get history page: ${error.message}`);
     }
   }
 }

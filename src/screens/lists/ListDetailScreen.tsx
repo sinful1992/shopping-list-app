@@ -42,6 +42,9 @@ import PriceHistoryModal from '../../components/PriceHistoryModal';
 import StoreNamePicker from '../../components/StoreNamePicker';
 import FrequentlyBoughtModal from '../../components/FrequentlyBoughtModal';
 import CategoryConflictModal from '../../components/CategoryConflictModal';
+import AddItemInput, { AddItemInputHandle } from '../../components/AddItemInput';
+import { stableGroups } from '../../utils/stableIdentity';
+import { carryOverFields } from '../../utils/carryOver';
 import { FloatingActionButton } from '../../components/FloatingActionButton';
 import SyncStatusBanner from '../../components/SyncStatusBanner';
 import { useAlert } from '../../contexts/AlertContext';
@@ -89,7 +92,9 @@ const ListDetailScreen = () => {
     (state, payload: { id: string; checked: boolean }) =>
       state.map(item => item.id === payload.id ? { ...item, checked: payload.checked } : item),
   );
-  const [newItemName, setNewItemName] = useState('');
+  const addInputRef = useRef<AddItemInputHandle>(null);
+  // Applies to the next item added, then resets: urgent is the exception.
+  const [newItemUrgent, setNewItemUrgent] = useState(false);
   const [list, setList] = useState<ShoppingList | null>(null);
   const [listName, setListName] = useState('');
   const [editedListName, setEditedListName] = useState('');
@@ -340,8 +345,8 @@ const ListDetailScreen = () => {
     setRefreshing(false);
   };
 
-  const handleAddItem = async () => {
-    if (!newItemName.trim()) return;
+  const handleAddItem = async (name: string) => {
+    if (!name) return;
     if (!currentUserId) return;
 
     if (!list) {
@@ -356,12 +361,12 @@ const ListDetailScreen = () => {
       if (list.familyGroupId) {
         const categories = await CategoryHistoryService.getCategoriesForItem(
           list.familyGroupId,
-          newItemName.trim()
+          name
         );
 
         if (categories.length >= 2) {
           // Show conflict resolution modal
-          setPendingItemName(newItemName.trim());
+          setPendingItemName(name);
           setConflictCategories(categories);
           setConflictModalVisible(true);
           return; // Exit early - modal will handle adding the item
@@ -371,8 +376,9 @@ const ListDetailScreen = () => {
       }
 
       // No conflict - add item with suggested category (if any)
-      await addItemWithCategory(newItemName.trim(), suggestedCategory);
-      setNewItemName('');
+      await addItemWithCategory(name, suggestedCategory);
+      addInputRef.current?.clear();
+      setNewItemUrgent(false);
     } catch (error: any) {
       showAlert('Error', sanitizeError(error), undefined, { icon: 'error' });
     }
@@ -380,14 +386,15 @@ const ListDetailScreen = () => {
 
   const addItemWithCategory = async (name: string, category: string | null) => {
     if (!currentUserId) return;
-    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category);
+    await ItemManager.addItem(listId, name, currentUserId, undefined, undefined, category, newItemUrgent);
   };
 
   const handleConflictResolved = async (selectedCategory: string) => {
     await addItemWithCategory(pendingItemName, selectedCategory);
     setConflictModalVisible(false);
     setPendingItemName('');
-    setNewItemName('');
+    addInputRef.current?.clear();
+    setNewItemUrgent(false);
   };
 
   const handleAddFrequentItem = async (itemName: string) => {
@@ -497,7 +504,7 @@ const ListDetailScreen = () => {
 
   const handleDetailsSave = async (
     itemId: string,
-    updates: { name?: string; category?: string | null }
+    updates: { name?: string; category?: string | null; isUrgent?: boolean }
   ) => {
     try {
       await ItemManager.updateItem(itemId, updates);
@@ -532,7 +539,7 @@ const ListDetailScreen = () => {
   };
 
   const handleTakeReceiptPhoto = () => {
-    navigation.navigate('ReceiptCamera', { listId });
+    navigation.navigate('ReceiptCamera', { listId, completeOnApply: true });
   };
 
   const handleStartShopping = () => {
@@ -638,12 +645,7 @@ const ListDetailScreen = () => {
     try {
       await ItemManager.addItemsBatch(
         newList.id,
-        uncheckedItems.map(i => ({
-          name: i.name,
-          quantity: i.quantity ?? undefined,
-          price: i.price ?? undefined,
-          category: i.category,
-        })),
+        uncheckedItems.map(carryOverFields),
         currentUserId!,
       );
     } catch {
@@ -763,13 +765,21 @@ const ListDetailScreen = () => {
   // Returns separate maps for unchecked and checked items.
   // NOTE: after per-category D&D, sortOrder is a within-category rank (not global).
   // All display code must group by category first, then sort by sortOrder within groups.
-  const { uncheckedGrouped, checkedGrouped } = useMemo(() => {
+  // Unchecked urgent items are pulled out of their categories and pinned on
+  // top, oldest first; once checked they go back to Completed like any item.
+  // The previous grouping, so a category whose items did not change keeps its
+  // array and its memo'd CategoryItemList skips re-rendering (OPTIMISE P6).
+  const prevGroupsRef = useRef<{ unchecked: { [cat: string]: Item[] }; checked: { [cat: string]: Item[] } } | null>(null);
+  const { urgentItems, uncheckedGrouped, checkedGrouped } = useMemo(() => {
     if (!optimisticItems || optimisticItems.length === 0) {
-      return { uncheckedGrouped: {} as { [cat: string]: Item[] }, checkedGrouped: {} as { [cat: string]: Item[] } };
+      return { urgentItems: [] as Item[], uncheckedGrouped: {} as { [cat: string]: Item[] }, checkedGrouped: {} as { [cat: string]: Item[] } };
     }
 
     const validItems = optimisticItems.filter(item => item && item.id);
-    const unchecked = validItems.filter(item => !item.checked);
+    const urgent = validItems
+      .filter(item => !item.checked && item.isUrgent === true)
+      .sort((a, b) => a.createdAt - b.createdAt);
+    const unchecked = validItems.filter(item => !item.checked && item.isUrgent !== true);
     const checked = validItems.filter(item => item.checked);
 
     const groupByCategory = (itemsList: Item[]): { [category: string]: Item[] } => {
@@ -789,9 +799,15 @@ const ListDetailScreen = () => {
       return grouped;
     };
 
+    const groups = {
+      unchecked: stableGroups(prevGroupsRef.current?.unchecked ?? null, groupByCategory(unchecked)),
+      checked: stableGroups(prevGroupsRef.current?.checked ?? null, groupByCategory(checked)),
+    };
+    prevGroupsRef.current = groups;
     return {
-      uncheckedGrouped: groupByCategory(unchecked),
-      checkedGrouped: groupByCategory(checked),
+      urgentItems: urgent,
+      uncheckedGrouped: groups.unchecked,
+      checkedGrouped: groups.checked,
     };
   }, [optimisticItems]);
 
@@ -1056,7 +1072,8 @@ const ListDetailScreen = () => {
       )}
 
       <View style={styles.addItemContainer}>
-        <TextInput
+        <AddItemInput
+          ref={addInputRef}
           style={styles.input}
           placeholder={
             isListLocked
@@ -1065,10 +1082,7 @@ const ListDetailScreen = () => {
               ? "List is completed..."
               : "Add item..."
           }
-          placeholderTextColor="#6E6E73"
-          value={newItemName}
-          onChangeText={setNewItemName}
-          onSubmitEditing={handleAddItem}
+          onSubmit={handleAddItem}
           editable={canAddItems}
         />
         <TouchableOpacity
@@ -1080,7 +1094,21 @@ const ListDetailScreen = () => {
         >
           <Icon name="time-outline" size={20} color={theme.text.secondary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddItem} disabled={!canAddItems}>
+        <TouchableOpacity
+          style={[styles.frequentItemsButton, newItemUrgent && styles.urgentToggleOn]}
+          onPress={() => setNewItemUrgent(v => !v)}
+          disabled={!canAddItems}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: newItemUrgent, disabled: !canAddItems }}
+          accessibilityLabel="Add as urgent"
+        >
+          <Icon
+            name={newItemUrgent ? 'flame' : 'flame-outline'}
+            size={20}
+            color={newItemUrgent ? theme.accent.red : theme.text.secondary}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.addButton} onPress={() => addInputRef.current?.submit()} disabled={!canAddItems}>
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
       </View>
@@ -1092,12 +1120,42 @@ const ListDetailScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {Object.keys(uncheckedGrouped).length === 0 && Object.keys(checkedGrouped).length === 0 ? (
+        {urgentItems.length === 0 && Object.keys(uncheckedGrouped).length === 0 && Object.keys(checkedGrouped).length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>Add your first item above</Text>
           </View>
         ) : (
           <>
+            {/* Urgent items — pinned above every category, not draggable */}
+            {urgentItems.length > 0 && (
+              <View>
+                <View style={styles.categoryHeader}>
+                  <Icon name="flame" size={16} color={theme.accent.red} style={styles.categoryIcon} />
+                  <Text style={[styles.categoryName, styles.urgentHeaderName]}>Urgent</Text>
+                </View>
+                {urgentItems.map((item, index) => {
+                  const itemPrice = item.price ?? (item.name ? predictedPrices[item.name.toLowerCase()] : undefined) ?? 0;
+                  const isPredicted = !item.price && !!item.name && !!predictedPrices[item.name.toLowerCase()];
+                  return (
+                    <AnimatedItemCard
+                      key={item.id}
+                      index={index}
+                      item={item}
+                      itemPrice={itemPrice}
+                      isPredicted={isPredicted}
+                      showSuggestion={false}
+                      suggestion={undefined}
+                      isListLocked={isListLocked}
+                      onToggleItem={() => !isListLocked && handleToggleItem(item.id)}
+                      onItemTap={(focusField) => handleItemTap(item, focusField)}
+                      onIncrement={handleIncrement}
+                      onDecrement={handleDecrement}
+                    />
+                  );
+                })}
+              </View>
+            )}
+
             {/* Unchecked items — known categories in layout/default order, draggable */}
             {visibleCategories.map((cat, idx) => {
                 const catItems = uncheckedGrouped[cat]!;

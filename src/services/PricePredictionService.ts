@@ -41,10 +41,15 @@ class PricePredictionService {
     // Check persistent storage cache
     const storedData = await AsyncStorage.getItem(this.STORAGE_KEY_PREFIX + familyGroupId);
     const cachedStorage = safeJsonParse<{ predictions: any; timestamp: number } | null>(storedData, null);
-    if (cachedStorage && Date.now() - cachedStorage.timestamp < this.CACHE_TTL) {
-      this.predictionCache.set(familyGroupId, cachedStorage.predictions);
-      this.cacheTimestamps.set(familyGroupId, cachedStorage.timestamp);
-      return cachedStorage.predictions;
+    // A damaged saved copy (no predictions object) is recalculated, never
+    // handed to the list, which reads prices out of it.
+    const usable = !!cachedStorage && typeof cachedStorage === 'object'
+      && !!cachedStorage.predictions && typeof cachedStorage.predictions === 'object'
+      && !Array.isArray(cachedStorage.predictions) && typeof cachedStorage.timestamp === 'number';
+    if (usable && Date.now() - cachedStorage!.timestamp < this.CACHE_TTL) {
+      this.predictionCache.set(familyGroupId, cachedStorage!.predictions);
+      this.cacheTimestamps.set(familyGroupId, cachedStorage!.timestamp);
+      return cachedStorage!.predictions;
     }
 
     // Calculate fresh predictions
@@ -128,50 +133,6 @@ class PricePredictionService {
     } catch {
       // Non-critical error - predictions still work from memory
     }
-  }
-
-  /**
-   * Invalidate cache for a family group
-   * Call this when a new list is completed to trigger recalculation
-   */
-  invalidateCache(familyGroupId: string): void {
-    this.predictionCache.delete(familyGroupId);
-    this.cacheTimestamps.delete(familyGroupId);
-
-    // Remove from AsyncStorage (non-blocking)
-    AsyncStorage.removeItem(this.STORAGE_KEY_PREFIX + familyGroupId).catch(() => {
-      // Silently handle cache removal error
-    });
-  }
-
-  /**
-   * Clear all caches (useful for testing or memory management)
-   */
-  clearAllCaches(): void {
-    this.predictionCache.clear();
-    this.cacheTimestamps.clear();
-
-    // Note: AsyncStorage keys are not cleared here to avoid excessive operations
-    // They will expire naturally based on TTL
-  }
-
-  /**
-   * Get predicted price for a single item
-   */
-  async getPredictedPrice(familyGroupId: string, itemName: string): Promise<number | null> {
-    const predictions = await this.getPredictionsForFamilyGroup(familyGroupId);
-    const key = itemName.toLowerCase().trim();
-    return predictions[key] || null;
-  }
-
-  /**
-   * Prefetch predictions for a family group (call on app startup or background)
-   */
-  async prefetchPredictions(familyGroupId: string): Promise<void> {
-    // This triggers calculation and caching without blocking
-    this.getPredictionsForFamilyGroup(familyGroupId).catch(() => {
-      // Prefetch error handled silently
-    });
   }
 }
 

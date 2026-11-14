@@ -90,6 +90,7 @@ class PriceHistoryService {
 
   /**
    * Clear suggestions cache for a family group
+   * @internal test seam
    */
   clearSuggestionsCache(familyGroupId?: string): void {
     if (familyGroupId) {
@@ -307,12 +308,14 @@ class PriceHistoryService {
       const lowestPrice = Math.min(...prices);
       const highestPrice = Math.max(...prices);
       const averagePrice = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-      const currentPrice = priceHistory[priceHistory.length - 1]?.price || null;
+      // ?? not ||: a latest price of 0.00 is a price, not "none".
+      const currentPrice = priceHistory[priceHistory.length - 1]?.price ?? null;
 
       let trend: 'up' | 'down' | 'stable' = 'stable';
       let percentageChange = 0;
 
-      if (currentPrice !== null) {
+      // An average of 0 (only free purchases) has no percentage to change by.
+      if (currentPrice !== null && averagePrice > 0) {
         percentageChange = ((currentPrice - averagePrice) / averagePrice) * 100;
 
         if (percentageChange > 5) {
@@ -422,6 +425,8 @@ class PriceHistoryService {
           const lowest = Math.min(...prices);
           const highest = Math.max(...prices);
           const average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+          // All free: no swing to rank (it would divide by 0 and top the chart).
+          if (average <= 0) continue;
 
           const volatility = ((highest - lowest) / average) * 100;
           const priceRange = highest - lowest;
@@ -443,47 +448,6 @@ class PriceHistoryService {
   }
 
   /**
-   * Get cheapest and most expensive items recently purchased
-   */
-  async getRecentPriceExtremes(
-    familyGroupId: string,
-    daysBack: number = 30
-  ): Promise<{ cheapest: PricePoint[]; mostExpensive: PricePoint[] }> {
-    try {
-      const cutoffDate = Date.now() - (daysBack * 24 * 60 * 60 * 1000);
-      const recentLists = await LocalStorageManager.getCompletedLists(familyGroupId, cutoffDate);
-
-      const allPricePoints: (PricePoint & { itemName: string })[] = [];
-
-      const itemsByList = await LocalStorageManager.getItemsGroupedByList(recentLists.map(l => l.id));
-      for (const list of recentLists) {
-        const items = itemsByList.get(list.id) ?? [];
-
-        items.forEach(item => {
-          if (item.price !== null) {
-            allPricePoints.push({
-              price: item.price,
-              date: list.completedAt || list.createdAt,
-              storeName: list.storeName || null,
-              listId: list.id,
-              itemName: item.name,
-            });
-          }
-        });
-      }
-
-      const sortedByPrice = [...allPricePoints].sort((a, b) => a.price - b.price);
-
-      return {
-        cheapest: sortedByPrice.slice(0, 5),
-        mostExpensive: sortedByPrice.slice(-5).reverse(),
-      };
-    } catch {
-      return { cheapest: [], mostExpensive: [] };
-    }
-  }
-
-  /**
    * Get smart shopping suggestions for a list of items
    * Returns the cheapest store for each item based on historical prices
    * Results are cached for 5 minutes
@@ -501,9 +465,11 @@ class PriceHistoryService {
     daysBack?: number
   ): Promise<Map<string, { bestStore: string; bestPrice: number; savings: number }>> {
     try {
-      // The window is part of the key: caching on the group alone would serve
-      // the first window's answer to every later one.
-      const cacheKey = `${familyGroupId}:${daysBack ?? 'all'}`;
+      // The window and the items are part of the key: caching on the group
+      // alone served the first list's answer to every list opened after it.
+      const itemsKey = [...new Set(itemNames.filter(n => typeof n === 'string').map(n => n.trim().toLowerCase()))]
+        .sort().join('\u0000');
+      const cacheKey = `${familyGroupId}:${daysBack ?? 'all'}:${itemsKey}`;
       const cached = this.suggestionsCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
         return cached.data;
@@ -550,9 +516,14 @@ class PriceHistoryService {
         }
       }
 
+      // One entry per list's item set now, so expired ones are let go here.
+      const now = Date.now();
+      for (const [key, entry] of this.suggestionsCache) {
+        if (now - entry.timestamp >= this.CACHE_TTL) this.suggestionsCache.delete(key);
+      }
       this.suggestionsCache.set(cacheKey, {
         data: suggestions,
-        timestamp: Date.now(),
+        timestamp: now,
       });
 
       return suggestions;

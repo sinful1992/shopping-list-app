@@ -12,7 +12,7 @@ interface AdConsentGateProps {
 }
 
 export default function AdConsentGate({ children }: AdConsentGateProps) {
-  const { consentChecked, consentObtained, retryConsent } = useAdMob();
+  const { consentChecked, consentObtained, consentUnavailable, retryConsent } = useAdMob();
   const { tier, hasEntitlement, isLoading, presentPaywall } = useRevenueCat();
   const { showAlert } = useAlert();
   const { theme } = useTheme();
@@ -50,7 +50,9 @@ export default function AdConsentGate({ children }: AdConsentGateProps) {
     );
   }
 
-  if (!consentObtained) {
+  // Offline with no consent answer on record: the form can't be shown, so
+  // nobody has refused. Let them in; no ads load until consent is given.
+  if (!consentObtained && !consentUnavailable) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Ads Required</Text>

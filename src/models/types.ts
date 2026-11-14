@@ -8,6 +8,7 @@ export type SubscriptionTier = 'free' | 'premium' | 'family';
 export interface UsageCounters {
   listsCreated: number;
   ocrProcessed: number;
+  // Never incremented any more; database.rules.json still requires the key.
   urgentItemsCreated: number;
   lastResetDate: number; // Timestamp for monthly reset
 }
@@ -15,7 +16,6 @@ export interface UsageCounters {
 export interface SubscriptionLimits {
   maxLists: number | null; // null = unlimited
   maxOCRPerMonth: number | null;
-  maxUrgentItemsPerMonth: number | null;
   maxFamilyMembers: number | null;
 }
 
@@ -111,6 +111,7 @@ export interface Item {
   unitQty?: number | null;
   measurementUnit?: string | null;
   measurementValue?: number | null;
+  isUrgent?: boolean;
 }
 
 // Receipt Types
@@ -155,6 +156,8 @@ export interface ReceiptLineItem {
   price: number | null;
   vatCode: string | null; // e.g., 'A', 'B', '*'
   needsReview?: boolean; // OCR server flagged this item's parse as suspect (e.g. no description/price)
+  needsCheck?: boolean; // the receipt's sum points at this line's price as a possible misread
+  correctedFrom?: number | null; // the price as first read, when the server's sum check corrected it
 }
 
 export interface CaptureResult {
@@ -181,7 +184,7 @@ export interface OCRResult {
 
 // Sync Types
 
-export type EntityType = 'list' | 'item' | 'urgentItem' | 'storeLayout';
+export type EntityType = 'list' | 'item' | 'storeLayout';
 export type Operation = 'create' | 'update' | 'delete';
 
 interface QueuedOperationBase<E extends EntityType, D> {
@@ -200,7 +203,6 @@ interface QueuedOperationBase<E extends EntityType, D> {
 export type QueuedOperation =
   | QueuedOperationBase<'list', ShoppingList>
   | QueuedOperationBase<'item', Item>
-  | QueuedOperationBase<'urgentItem', UrgentItem>
   | QueuedOperationBase<'storeLayout', StoreLayout>;
 
 export interface SyncResult {
@@ -230,6 +232,9 @@ export interface QueuedUpload {
   listId: string;
   timestamp: number;
   retryCount: number;
+  // Storage path of the receipt this capture replaces; deleted once the
+  // capture has uploaded and nothing refers to it.
+  replacesPath?: string;
 }
 
 export interface UploadQueueResult {
@@ -243,25 +248,6 @@ export interface UploadError {
   listId: string;
   filePath: string;
   error: string;
-}
-
-// Urgent Item Types
-
-export type UrgentItemStatus = 'active' | 'resolved';
-
-export interface UrgentItem {
-  id: string;
-  name: string;
-  familyGroupId: string;
-  createdBy: string;
-  createdByName: string;
-  createdAt: number;
-  resolvedBy: string | null;
-  resolvedByName: string | null;
-  resolvedAt: number | null;
-  price: number | null;
-  status: UrgentItemStatus;
-  syncStatus: SyncStatus;
 }
 
 // Budget and Expenditure Types
@@ -294,14 +280,6 @@ export interface ListDetails {
   list: ShoppingList;
   items: Item[];
   receiptData: ReceiptData | null;
-}
-
-export interface PaginatedHistory {
-  lists: ShoppingList[];
-  total: number;
-  offset: number;
-  limit: number;
-  hasMore: boolean;
 }
 
 // Category History Types

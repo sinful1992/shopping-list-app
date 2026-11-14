@@ -4,6 +4,708 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.39] - 2026-11-14
+
+### Changed
+- The family invite message leads with the Google Play store link, then offers the web page to read about the app first, then the join steps with the code (USER #11676). Before, it linked only to the web page. Replaces the never-merged PR #47.
+
+### Tests
+- inviteMessage: Play link on line 2, web page right after it, code last; each link alone at its line's end; empty code keeps both links (3 of 7 fail on 1.54.38).
+
+## [1.54.38] - 2026-11-14
+
+### Release
+- dev (1.54.37) goes to master for the first time since 1.47.18: every change from 1.47.19 to 1.54.37 below ships in this release. master's own two commits (v1.41.3, the 1.47.18 merge) were already in dev, so merging master in changes no files. Built locally and tested on the emulator before the merge (task 157).
+
+### Changed
+- The master build no longer deploys `storage.rules` (step kept, `if: false`). Those rules would go live for the first time and need the `familyGroupId` token claim from the `setFamilyGroupClaim` Cloud Function, which CI never deploys and nobody has confirmed live; without it, receipt photos could stop for every app version. Database rules and edge functions still deploy. Follow-up: deploy the function, check the claim, then turn the step back on.
+
+## [1.54.37] - 2026-11-11
+
+### Tests
+- carryOver.wiring: both Partial Shop paths (list screen, receipt screen) hand their items to addItemsBatch through carryOverFields. The list screen has no render test, so a revert there passed every test (Fable 5.2 review of 1.54.36). 1 of 2 fails on 1.54.35. No behaviour change.
+
+## [1.54.36] - 2026-11-11
+
+### Fixed
+- Partial Shop keeps the urgent mark on items not bought: they arrive urgent on the new list (list screen and receipt screen). Before, they became normal items (since urgent arrived in 1.51.0). Carrying them over sends no new urgent push. Found during the 1.54.35 emulator check.
+
+### Tests
+- carryOverFields (one helper for both Partial Shop paths): urgent kept, missing/false/stray value not urgent, exact fields, nulls, a £0 price. ItemManager.addItemsBatch keeps urgent without a push. ReceiptMatchScreen Partial Shop carries an urgent item urgent (7 of 63 fail on 1.54.35).
+
+## [1.54.35] - 2026-11-11
+
+### Fixed
+- Creating a list in a new month resets the monthly usage counters again (Fable 5.2 review of 1.54.23, which skipped the reset along with the server calls): lists made before opening the Subscription screen were counted onto last month's total. The reset's write is still not waited on.
+
+### Tests
+- UsageTracker: a new-month list creation resets without waiting (1 of 21 fails on 1.54.34).
+
+## [1.54.34] - 2026-11-11
+
+### Fixed
+- Edge functions (Fable 5.2 review of 1.54.12): a reused database token the database now rejects (401/403) is replaced and the membership check tried once more within the same request, so that request no longer fails (an urgent push treated the failure as final). A freshly minted token that is rejected is not retried. The shared auth file's header names its real drift test.
+
+### Tests
+- firebaseAuth: a rejected reused token is replaced within the request; a rejected fresh one is not retried in a loop (1 of 32 fails on 1.54.33).
+
+## [1.54.33] - 2026-11-11
+
+### Fixed
+- Category history reaches the family's other phones again (found by the Fable 5.2 review; broken since 4c98fde, 2026-05-18). That change stopped writing a `category` field into each entry (the category is the node key), but the database rule still required one, so every write was refused silently. The rule now requires only usageCount, lastUsedAt and createdAt, which every app version writes, Play 1.50 included. Live with the next master deploy of the rules. The app's write always sets createdAt.
+- The 1.54.28 filter that skips fake nested category entries also runs when a new item node arrives after start (it ran only on the first load and on changes).
+
+### Tests
+- rules/categoryHistory (CI, emulator): the shape every version writes and the app's transaction accepted, an older entry with `category` accepted, missing createdAt / non-number count / non-member refused. categoryHistory.listener: first load, a node added after start and a changed node all skip the nested entry (1 of 3 fails on 1.54.32). CategoryHistoryService: createdAt always set.
+
+## [1.54.32] - 2026-11-11
+
+### Fixed
+- Urgent pushes waiting offline (1.54.11), from the Fable 5.2 review: a login token that could not be refreshed offline (`auth/network-request-failed`) dropped the marking instead of keeping it; now it waits. A rate-limited send (429) waits for later instead of being dropped. The same item marked urgent twice offline sends one push, not two. A send that failed while the phone still counted as online (weak shop Wi-Fi) is retried on every return to the app, not only on a reconnect or the next start.
+
+### Tests
+- urgentFlag.outbox: token refresh offline at mark and at flush, 429 kept vs 401 dropped, one push per item; useShoppingLists.foreground: each return retries waiting pushes (4 of 26 fail on 1.54.31).
+
+## [1.54.31] - 2026-11-11
+
+### Fixed
+- Opening the app with no signal no longer says "Family Group Not Found" and detaches you from your family (found by the Fable 5.2 review of PR #71; the bug predates it). The family check answered "gone" on any read error, and the clearing write waited in the queue and landed once back online. Now only a refused read (no longer a member) means gone; offline or a timeout changes nothing and the next start asks again.
+
+### Tests
+- validateFamilyGroup.offline: present, absent, refused = gone, offline / network / no-code errors throw; HomeScreen.familyCheck: an offline check neither alerts nor detaches, a failing migration check still alerts (4 of 15 fail on 1.54.30).
+
+## [1.54.30] - 2026-11-11
+
+### Fixed
+- A store's aisle order rearranged on this phone and not sent yet (offline) is no longer undone by an older server copy. Both the start/return-to-app load and another phone's change overwrote it and marked it synced, so the queued send then carried the old order back up. Lists and items already had this guard; layouts now share it (`keepsLocalLayout`). A newer server copy still wins.
+
+### Tests
+- storeLayouts.storage (storage was 32 % covered; real in-memory DB): save/update/read/delete and their errors, server load creates and updates, an unsent rearrangement kept against an older copy, a newer copy still wins, empty load, the listener path both ways, keepsLocalLayout cases (9 of 16 fail on 1.54.29).
+
+## [1.54.29] - 2026-11-11
+
+### Fixed
+- Price History shows a latest price of £0.00 as the current price; before it read as no current price (`|| null`). An item bought only for free shows a 0 % change instead of NaN %, and is left out of Analytics' most-volatile chart instead of topping it with an infinite swing.
+
+### Tests
+- PriceHistoryService (was 38 % covered): recordPrice local/Firebase and their failures, table points with sinceDate, empty after backfill, legacy rebuild before it, stats (up, down, stable, £0 latest, all free, none, error), per-store comparison, volatility (grouped names, all-free left out, limit, error), Smart Savings (cheapest store and saving, window, 5 min cache per family/window/items, clear, empty), tracked items, backfill (ticked priced items only, once, Firebase chunks of 500) (2 of 21 fail on 1.54.28).
+
+## [1.54.28] - 2026-11-11
+
+### Fixed
+- An item name with a '/' ("Bread/rolls") no longer plants a fake category in the family's category history. The Firebase key kept the '/', so the usage was written two levels deep and every phone read it as item "bread" with a category called "rolls", which could then appear in the "which category?" chooser. '/' now becomes '_' like '.', '#', '$', '[' and ']', and the reader skips any entry that is not a usage record, so ones already written that way are ignored. An empty name is not recorded.
+
+### Tests
+- CategoryHistoryService (was 25 % covered): first use, count up, nothing for no category or an empty name, four names to safe keys, the Firebase count, failures never thrown, one entry per category in order, suggestion, read errors; isCategoryUsageRecord (8 of 17 fail on 1.54.27).
+
+## [1.54.27] - 2026-11-11
+
+### Tests
+- HistoryTracker, SearchService, FamilyMembers, StoreLayoutService and AnalyticsService (all were 0 %): pass-throughs and error context, search by list/store/item newest first with items read only where needed, member loading with missing/failed members, member names, layout create/update/empty refused/failing sync, analytics grouping, backfill of missing lists and its 3 s budget. 17 tests, no behaviour change.
+- Coverage gate raised from 43 to 50 % of lines (measured 50.27 %).
+
+## [1.54.26] - 2026-11-11
+
+### Tests
+- ReceiptCaptureModule (was 0 %): camera permission on Android and iOS, scanner at quality 92 with file:// stripped and content:// kept, permission denied, cancel and empty scans, scanner errors; gallery pick capped at 4096 px, cancel/empty, picker errors. 12 tests.
+- receiptSyncBackfill (was 0 %, real in-memory DB): synced or failed lists with a receipt become pending, others untouched, done/failed flags respected, used-up or damaged flag, failing tries counted to failed. 4 tests. No behaviour change.
+
+## [1.54.25] - 2026-11-11
+
+### Tests
+- ShoppingListManager (was 19 % covered): create refused with its reason, counted and synced; optimistic create (given or fresh id, background steps, failure reported); reads; update/rename/store (layout reset, blank clears)/lock; completeFromReceipt leaves receipt fields alone; completeShoppingFast with and without a total and count; shopping lock check (none, mine, others within 2 h, expired lock released, lock with no time). 18 tests, no behaviour change.
+
+## [1.54.24] - 2026-11-11
+
+### Tests
+- ItemManager (was 28 % covered): add (cleaned fields, blank refused, bad price dropped, urgent push once, sync not waited on, failing sync reported), update (cleaning, blank rename refused, untouched fields left out, urgent once, failing sync), tick and recordPurchase (category + price keyed by list and item, untick records nothing, missing item, nothing to record, price correction, no store, no family, failure reported), delete, read, subscribe, the three batches and reorder. 25 tests, no behaviour change.
+
+## [1.54.23] - 2026-11-11
+
+### Fixed
+- Partial Shop with no signal now carries the items not bought into the new list. Making that list (and the receipt screen's carry-over list) waited on a Firebase transaction for the usage counter, which offline never completes: the list was saved but stayed empty, and the spinner stayed on. The counter is display only and is no longer waited on; with no list cap on any tier (today) creating a list asks the server nothing; the monthly counter reset is not waited on either.
+- Reading the family's tier reads that one field, not the whole family group (every list in it), which ran on every list created. An unknown tier and a user with no saved counters fall back to free / fresh counters instead of crashing.
+
+### Tests
+- UsageTracker (was 0 % covered) and ShoppingListManager.createOffline: no server call without caps, offline answers, caps with admin and failing claims, tier field only and its fallbacks, reset same/new month/new year, failing reset write, no counters, counter not waited on and its failure, summary; createList returns with every Firebase call hanging (11 of 20 fail on 1.54.22).
+
+## [1.54.22] - 2026-11-11
+
+### Fixed
+- A damaged saved price-prediction copy (no predictions object, or not an object) is recalculated instead of being handed to the open list, which reads prices out of it.
+
+### Tests
+- PricePredictionService (was 0 % covered): averages per name over completed trips only, skipped prices (0, negative, missing, no name), no trips, 30 min memory cache, saved copy fresh/stale, saved for next start, five damaged saved copies, storage error, families apart (2 of 9 fail on 1.54.21).
+
+## [1.54.21] - 2026-11-11
+
+### Fixed
+- Budget alerts no longer switch themselves off when the saved settings lack `enableAlerts` (an older version's save, or a damaged one): a missing field now keeps its default, and anything saved that is not a settings object gives the defaults.
+
+### Tests
+- BudgetAlertService (was 0 % covered): settings defaults, save/read per family, older and damaged saves, wrong field types, failing save; 30/7-day windows, every alert level and message at the edges (49.99, 50, 75, 90, 100 %, over), alerts off / no limit / 0 or less, a failing total; colours, icons, show-from-50 %, capped progress (7 of 28 fail on 1.54.20).
+
+## [1.54.20] - 2026-11-11
+
+### Fixed
+- A storage error or a damaged store history no longer fails a receipt scan's save. Naming the shop from the receipt reads the store history; that read threw on a storage error or anything stored that was not a list, and crashed on an entry missing its fields. It now gives an empty history, skips damaged entries, and adding a store starts fresh.
+
+### Tests
+- StoreHistoryService (was 14 % covered): empty, trimmed add, blank ignored, case-insensitive count, frequency then recency order, 20 cap, search, three kinds of damaged storage, damaged entries, failing storage (4 of 12 fail on 1.54.19).
+
+## [1.54.19] - 2026-11-11
+
+### Fixed
+- Budget's per-trip breakdown shows a £0.00 trip as £0.00, not as a trip with no amount (`totalAmount || null` treated 0 as missing).
+
+### Tests
+- BudgetTracker (was 0 % covered): totals with and without amounts, no trips, the £0 trip, missing values, per member, storage errors (1 of 9 fails on 1.54.18).
+
+## [1.54.18] - 2026-11-11
+
+### Performance
+- Ticking or changing one item in an open list no longer re-renders every category (OPTIMISE P6 step 2, Fable audit task 137). The item observer keeps the previous object for every item that did not change, and the screen keeps a category's previous array when its items are the same, so the memo'd category lists that did not change skip their render (`utils/stableIdentity`).
+
+### Tests
+- stableIdentity (shallowEqual, reuseById, stableGroups: 13 cases) and itemsObserver.identity (real in-memory DB: one tick gives a new object for that item only; two observers of one list both see the change) (14 of 15 fail on 1.54.17).
+
+## [1.54.17] - 2026-11-11
+
+### Performance
+- Typing in an open list's "Add item…" field no longer re-renders the whole list screen and every card on it at each keystroke (OPTIMISE P6 step 1, Fable audit task 137). The field (`AddItemInput`) keeps its own text; the screen empties it once the item is added, or after the category choice. The Add button sends the same text as the keyboard's submit; blank text is never sent.
+
+### Tests
+- AddItemInput: typing doesn't re-render the screen, trimmed submit, cleared by the screen, blank not sent, Add button path, read-only when locked, ListDetailScreen keeps no text state (6 of 6 fail on 1.54.16).
+
+## [1.54.16] - 2026-11-11
+
+### Fixed
+- The Archived tab no longer misses lists once a family has more than 200 completed lists, and History no longer misses non-archived lists past 200 (OPTIMISE P9, Fable audit task 137). Both took the newest 200 completed lists and filtered them afterwards, and archived lists are the oldest. The archived filter now runs in the database query (not archived = null or false), over all completed lists.
+
+### Tests
+- archive.past200 (real in-memory DB, 250 completed lists): all 50 archived shown newest first; all 200 non-archived (false and null) shown; a newer archived list; active/deleted/other family left out; empty family; storage failure gives an empty tab (3 of 5 fail on 1.54.15).
+
+## [1.54.15] - 2026-11-11
+
+### Performance
+- Home's list observer asks the database for active lists only (OPTIMISE P3, Fable audit task 137). Before, it read every non-deleted list, history included, mapped each one (parsing its receipt) on every change, and then dropped the completed ones. Home stays mounted under an open list, so this ran while shopping too.
+- Marking a list or item synced makes no database write when it is already synced. Every list push wrote it, and each write woke the list observers.
+
+### Tests
+- homeObserver.activeOnly (real in-memory DB): only active lists of the family; 20 completed lists with receipts are never mapped; completing a list removes it, a new one arrives; already-synced list or item: no write at all (Model.update spy) and no emission; pending ones still marked; an item with a newer updatedAt stays pending. homeObserver.sort: active lists, newest first, input untouched (6 of 8 fail on 1.54.14).
+
+## [1.54.14] - 2026-11-11
+
+### Performance
+- Home no longer opens a second login/profile subscription of its own next to App's, and no longer re-runs its "does the family still exist" check on every profile change (OPTIMISE P2, Fable audit task 137). The user object is new on every profile write, and creating a list bumps a usage counter, so every new list re-ran the check. Home now reads App's user, and the check runs once per account and family (`useFamilyGroupCheck`). The unused `useAuth` hook is removed.
+
+### Tests
+- HomeScreen.familyCheck: counter ticks don't re-run the check; a new family or account does; no user; family gone (alert + reference cleared); migration notice; check error; a stale check after a family switch stays quiet; HomeScreen has no auth subscription of its own (9 of 9 fail on 1.54.13).
+
+## [1.54.13] - 2026-11-11
+
+### Performance
+- Coming back to the app after less than a minute no longer downloads every list of the family again (Fable audit task 137, F1). Each return used to restart the lists, category and store-layout listeners, and a restart re-downloads all lists, history included. Now they restart only after a minute or more away; a short trip (a message, the notification shade) keeps the live listeners, which deliver changes themselves. The local lists are still re-read on every return. Not done: downloading only the changes since last time needs an `updatedAt` on lists that every app version writes, which the Play 1.50 build does not.
+
+### Tests
+- useShoppingLists.foreground: mount, 10 s away, just under and at the limit, 30 min away, notification shade only, local re-read each return, two background events, a short trip after a long one (4 of 8 fail on 1.54.12).
+
+## [1.54.12] - 2026-11-11
+
+### Performance
+- Edge functions (notify-receipt-scanned, notify-shopping-started, register-device-token, upsert-urgent-item) reuse their Firebase database access token across requests on a warm instance instead of minting one per request (one RSA sign + a round trip to Google), until 5 min before it expires; requests arriving together share one mint, a failed mint is not kept, and a token the database rejects (401/403) is dropped (Fable audit task 137). Goes live with the next master deploy of the functions.
+
+### Changed
+- The Firebase login and membership check those 4 functions had pasted in (identical 123 lines each) now has one source, `supabase/functions/_shared/firebaseAuth.ts`, copied into each function's folder by `node scripts/sync-edge-auth.mjs` (same-folder import, as ocr-proxy deploys). The ID token checks are unchanged.
+
+### Tests
+- firebaseAuth.test.ts (jest, real RSA keys): copies match the source and no function keeps its own auth code; token reuse, shared mint, under/over 5 min left, failed mint, 401 drop, short expires_in, non-member, the JWT signed by the service account; 11 bad ID tokens refused (30 of 30 fail on dev).
+
+### Tests
+- Coverage now counts every source file (`collectCoverageFrom`), not only the ones a test imports, so the 80 files no test loads count as 0 (Fable audit task 137). The honest figure is 43.63 % of lines (it read ~66 % before); the ratchet moves from 33 to 43. `testTimeout` is 30 s, as instrumenting every file slows a screen test's first render.
+
+## [1.54.11] - 2026-11-11
+
+### Fixed
+- An item marked urgent while offline now still sends the family its push (Fable audit task 137, F2). Before, the call failed on the network, was reported and the marking was gone. Now it waits on the phone (at most 20) and goes out when the connection returns or the app next starts, with the same row id, so it pushes once. It is sent only while it still applies: same account and family, the item still there and still urgent, and under 12 hours old. A call the server answered (refused, rate limited) is not retried.
+
+### Tests
+- urgentFlag.outbox: offline then online, app start, still offline, server refusal, five reasons to drop, 12 h age, two markings with two flushes at once, the 20 cap, a broken stored outbox (12 of 14 fail on 1.54.10).
+
+## [1.54.10] - 2026-11-11
+
+### Fixed
+- Price History opens with its content showing. The sheet's scroll area had `flex: 1` inside a sheet sized only by its max height, so it came out 0 tall and only the header showed (Fable audit, task 137). The scroll area now takes its content height and scrolls once the sheet reaches 85 % of the screen.
+
+### Tests
+- PriceHistoryModal.layout: the scroll area has no zero-basis flex, the sheet keeps maxHeight 85 % and can shrink, padding stays, the empty state has no scroll area (1 of 5 fails on 1.54.9).
+
+## [1.54.9] - 2026-11-11
+
+### Fixed
+- An account that left its family on another phone (or is in another family now) no longer keeps the old family on this phone (audit 137 left note 139). When the server's profile names a different family than the one saved on the phone, that family's lists, their items, its price and category history, store layouts, item preferences and receipt names are removed, and so are the waiting changes of those lists, items and layouts (a change already waiting for the new family stays). Before, they stayed: hidden once the family changed, but on the phone. A change waiting in the queue was also sent into the NEW family's lists when the phone moved to another family; now the queue is emptied first, and a change for the new family made while that runs waits for it instead of being emptied with it (ada #10768). A first sign-in, a join from no family, another account's saved profile and the same family again clear nothing. A keystore read that never answers no longer holds up later profile saves (2 s limit).
+
+### Tests
+- `AuthenticationModule.familyLeft.test.ts` (7, 3 fail on 1.54.7), `SyncEngine.familyChange.test.ts` (5: the cross-family send fails on 1.54.7; ada's race of a new-family change during the clear), `LocalStorageManager.clearFamilyData.test.ts` (3, a new-family queued change kept). `AuthenticationModule.slowStart.test.ts`: the server profile is saved after the old one is read, so the check waits 1 ms.
+
+## [1.54.7] - 2026-11-11
+
+### Fixed
+- A waiting offline change and another phone's change stamped in the same millisecond: the tie now counts as the server being newer, so a field the other phone changed keeps its value (before, every waiting field was written). Our own change that already landed is a tie too and is not written again. Found by the Codex review of PR #69.
+
+## [1.54.6] - 2026-11-11
+
+### Fixed
+- The transaction that sends a waiting offline change (1.54.5) no longer applies its first guess on this phone (`applyLocally: false`): over a cold cache that guess is the whole change, and the list could show it for a moment before the server's real copy came back (ada #10737).
+
+## [1.54.5] - 2026-11-11
+
+### Fixed
+- A change made while this phone was offline no longer overwrites a newer change another phone made to the same field meanwhile (audit 137 left note 138). When the waiting change is sent, it is compared with what the server holds at that moment, in one transaction: a field the other phone did not touch takes this phone's value, a field it changed later keeps the newer value, and if nothing of ours is left nothing is written. A waiting change from before an app restart (no copy to compare with) loses to a newer server copy as a whole. A field change of an item or list deleted on another phone meanwhile no longer brings back half of it. Changes sent straight away are unchanged. `queuedMerge.test.ts` 11 cases; 4 new two-phone cases in `SyncEngine.fieldWrites.test.ts` fail on 1.54.4, and the old KNOWN LIMIT test in `SyncEngine.staleQueued.test.ts` now passes.
+
+## [1.54.4] - 2026-11-11
+
+### Tests
+- ada's break tests for 1.54.3 (`ada.r67break.test.ts`): a tick racing the first-load upsert (30 races, both orders), a legacy blank row ticked locally, `markItemsSyncedIfBlank` racing an edit, a batch-added item stored pending, our own echo marks pending synced. 3 of 5 fail on 1.54.2.
+- The three git-repo cases in `lockVersion.test.ts` get a 30 s timeout (git init + add is slow on a cold Windows run, ada #10585).
+
+## [1.54.3] - 2026-11-11
+
+### Fixed
+- Opening a list could keep this phone's own older copy of an item that another phone had just changed (a tick, a rename), until the next live change of that item. It happened when the other phone's clock was behind. Item rows now record their sync state, as lists already did (before, every item row was stored with an empty state). A server copy now replaces the local row unless a change of ours is still waiting to send (pending or failed), on the first load and on live updates alike. Rows stored by older versions count as server copies, and an unchanged one is marked synced on the next list load, so the check for items deleted on another phone covers it too. Found by the Codex review of PR #65; Fable 5.2 checked the fix (USER #10579).
+- The pre-commit hook now syncs package-lock.json to the staged package.json version, not to a later unstaged edit of it. Found by the Codex review of PR #64.
+
+### Changed
+- tsconfig `moduleDetection: "force"`: every file is a module, so test files without an import can no longer clash in one global scope (the 1.54.1 CI failure). ada found `SecureStorage.test.ts` was one of them (#10564).
+
+### Tests
+- `saveItemsBatchUpsert.syncedOlder.test.ts` (11 cases), 3 new listener cases in `FirebaseSyncListener.fieldWrites.test.ts`, and 3 staged-version cases in `lockVersion.test.ts`. 11 of them fail on 1.54.2.
+
+## [1.54.2] - 2026-11-11
+
+### Fixed
+- CI on dev was red since 1.54.1 (typecheck, TS2393): the two field-write test files had no import or export, so tsc read them as one global script and their helpers clashed. Both are now modules (`export {}`), and the break-test copy drops an unused `LPATH` that eslint would have failed next. Jest ran them fine, which is why the local test run missed it. No app change.
+
+## [1.54.1] - 2026-11-11
+
+### Fixed
+- Two quick edits of one item while the first was still on its way could send back a field another phone had just changed (a rename, then a quantity, undid the other phone's tick). Until a change has landed, later edits of the same item are now compared with the same server copy the first one was made on (ada's review of 1.54.0).
+
+### Changed
+- Editing an item that another phone has just deleted no longer brings it back: the partial write is refused by the server rules and dropped. Before, the whole-object write recreated it.
+
+### Tests
+- `SyncEngine.fieldWrites.ada.test.ts` (ada's break test: two edits in flight while another phone's tick lands) and a case for a whole write in flight; both fail on 1.54.0.
+
+## [1.54.0] - 2026-11-11
+
+### Changed
+- Two phones editing the same item at once no longer undo each other. A change now sends only the fields it changed (a tick sends `checked`, a rename sends `name`), compared with the copy of the item the phone last saw from the server, instead of writing the whole item over whatever is there. So a tick on one phone and a rename on another both stay, also when one phone was offline at the time. Renaming or ticking a list no longer re-sends its whole receipt (audit 137, rank 20).
+- A phone whose copy of an item is up to date now always takes the server's copy, even when it carries an older time. With field-level writes the server can hold both phones' changes under the earlier phone's time, and skipping it would leave this phone without the other phone's change. A change of its own that is still on its way is protected as before.
+- Still whole-object writes: creating and deleting, store layouts, and an item the phone has not seen from the server since the app started (for example after a restart, until its list is opened). Two phones changing the same field at the same time is still last-writer-wins.
+
+### Build
+- The pre-commit hook stops when `package-lock.json` has unstaged edits on a version bump, instead of committing them with the version sync. A missing lock file gives one clear line instead of a stack trace, and a lock with CRLF line ends keeps them (ada's review of 1.53.26).
+
+### Tests
+- `src/services/__tests__/SyncEngine.fieldWrites.test.ts` (13): two phones on one fake RTDB (set / update / remove): tick + rename both survive, offline tick + rename, offline rename then tick with another phone's quantity in between, only changed fields sent, a cleared field sent as null, an unknown field left alone, no copy known means a whole write, create/delete unchanged, nothing changed sends nothing, a list rename skips an equal receipt, the next edit diffs against its own landed write, sign-out forgets the copies, a queued change keeps its base. 12 fail on 1.53.26.
+- `src/services/__tests__/FirebaseSyncListener.fieldWrites.test.ts` (5): a synced copy takes an older merged snapshot, a pending newer change is kept, the same on the initial load, snapshots become the server copy and a removal forgets it, a snapshot from before sign-out is not kept.
+- `__tests__/rules/fieldWrites.test.js` (7, rules emulator): a member's partial update of an item and a list passes and keeps the other fields; a null removes a field; a non-member, a write to a deleted item, a nulled required field and a wrong type are refused.
+
+## [1.53.26] - 2026-11-11
+
+### Fixed
+- Opening the app no longer rewrites every shopping list in the phone's own database. A list that is not archived (or has an empty shop name) was stored as "not set" on the phone but came from the server as "no", so each list looked changed every time the app came to the front and was saved again. Now the two count as the same; a real change (archiving, a shop name, any other field) is still seen (audit 137, SH-3).
+
+### Build
+- `package-lock.json` now says the app's version (it said 1.48.13). The pre-commit hook keeps it in step on every version bump through `scripts/sync-lock-version.js`, and a unit test fails when the two differ (audit 137, SH-6).
+- The pre-commit hook's version check had never run: it looked for `+"version"` at the start of the diff line, but package.json indents it, so a missing or backwards bump and a missing changelog entry passed silently. It now reads the indented line (tried on a scratch repo: a bump prints `Version: 1.0.0 -> 1.0.1` and syncs the lock).
+
+### Tests
+- `__tests__/services/listChanged.test.ts`: a list saved locally and compared with the same list from Firebase is unchanged, for 9 shapes; 8 failed before. `__tests__/services/lockVersion.test.ts`: the lock matches package.json, and the sync script sets both version fields, leaves a lock in step alone, and never overwrites a broken lock.
+
+## [1.53.25] - 2026-11-11
+
+### Fixed (server rules; they take effect when master is deployed)
+- A join request that was rejected can no longer be approved later by another member, and a member can no longer turn a rejected request back to pending or approved. The person can still ask again, and that new request can be approved as before (audit 137, SH-4).
+- Receipt pictures uploaded to the family folder must now be an image, more than 0 bytes and under 15 MB, at the app's own path `receipts/{family}/{list}/{file}`. Before, any file of any size or type could be stored there. Reading and deleting receipts is unchanged (audit 137, SH-5).
+- The requester of a join request can only ever set it to pending; before, he could mark his own request approved (no membership followed, but any screen trusting "approved" would have been fooled; ada's review).
+- The app now sends receipts as `image/jpeg` instead of leaving the type to the phone to guess from the local file name. Older app versions, which send no type, keep working: a receipt named like the app names it (`{milliseconds}.jpg`) is also accepted as `application/octet-stream` (ada's review).
+- Accepted photo types: JPEG, PNG, WebP, HEIC/HEIF (not SVG or GIF); at most 15 MB.
+- The storage rules are now deployed on a master build, in their own step after the database rules, so a refused storage deploy does not stop the database rules; before, `storage.rules` was never deployed by CI.
+
+### Tests
+- Rules tests run on the database and storage emulators (`npm run test:rules`): 16 new SH-4 tests, 15 new SH-5 tests; 80 in all. A unit test checks the upload sends `image/jpeg`.
+- SH-2 guard: resetting the free-limit counters by a new `lastResetDate` stays allowed, because no tier has a numeric cap and no server code reads the counters. A new unit test fails the day either changes, so the rule is tightened then.
+
+## [1.53.24] - 2026-11-10
+
+### Fixed
+- The app no longer waits on its start screen for the server when the signal is weak. It opens at once with the profile saved on the phone and takes the server's answer when it arrives. Before, the start screen stayed until the server answered, which in low signal took many seconds or never happened. A first sign-in on a phone, where nothing is saved yet, waits as before. If the server says the account is gone or was removed from the family, the app follows that as soon as the answer arrives.
+
+## [1.53.23] - 2026-11-10
+
+### Fixed
+- A change that could not be sent and waits for a retry no longer overwrites a newer change of the same item, list or store layout. Before, ticking an item on weak shop Wi-Fi and changing it again within a minute could leave the family's list on the old value while this phone showed the new one (audit 137, SH-1).
+- The waiting queue keeps one change per item, the newest. A delete is no longer undone by an older waiting edit, and an edit is no longer undone by an older waiting delete. A queue saved by an earlier version is cleaned the same way the first time it is sent.
+
+- A change made while an older change of the same list or store layout was still being prepared is no longer followed by the older one (ada's review).
+
+### Known limit
+- A phone that was offline and comes back still sends its one waiting change over a newer change made on another phone. That needs a compare on the server and is planned separately.
+- Two waiting changes of one item saved by an earlier version in the very same millisecond: which of the two is kept is not defined (the stored queue has no order beyond the clock time).
+
+## [1.53.22] - 2026-11-03
+
+### Changed
+- Tests only: the task 121 History screen tests unmount every screen after each test, so a screen still retrying can't count against the next test on a slow CI runner. No app change.
+
+## [1.53.21] - 2026-11-03
+
+### Fixed
+- A trip shown as "Still syncing" (or read straight from the family's data) is read-only: no "+ set price" and no Delete until the checkout reaches this phone, so an edit can't undo the checkout (linus's review of 1.53.20).
+
+## [1.53.20] - 2026-11-03
+
+### Fixed
+- History's read of a trip that hasn't synced yet no longer saves it on this phone: the normal sync stays the only writer, so an older copy can't overwrite a newer one and the trip's items still arrive when its checkout syncs (linus's fresh review of 1.53.18).
+- A failed total backfill no longer shows "Something went wrong", leaving the trip page stops its retries, and an item name stored as a number no longer crashes the page.
+
+## [1.53.19] - 2026-11-03
+
+### Fixed
+- A trip opened from the receipt notification before its checkout reached this phone waits for the completed trip instead of showing it as still in progress; if it is still in progress after a few seconds it says "Still syncing" and updates by itself once the checkout arrives (Codex review on PR #60).
+- Opening such a trip never writes it back, so it can no longer undo the checkout on the other phones (linus's review of 1.53.18).
+
+## [1.53.18] - 2026-11-03
+
+### Fixed
+- Tapping a "receipt scanned" notification no longer shows "Something went wrong" when this phone hasn't synced that trip yet (a cold start from the notification, or the notification arriving before the trip's sync): History reads the trip from the family's data, waits a few seconds if it is still on its way, and otherwise says the trip isn't on this phone yet or was deleted (task 121).
+- A trip whose total or a price arrived as text, or an item without a name, no longer crashes the trip page.
+
+## [1.53.17] - 2026-10-29
+
+### Fixed
+- Logout reads the changes still being sent before the waiting ones, so a change that moves from one to the other at that moment is still counted in "Changes Not Sent" (ada's review of 1.53.15).
+
+## [1.53.16] - 2026-10-29
+
+### Fixed
+- A change counts as being sent from the moment it is made, including the local read before the send and the queue write when offline, so Logout can't miss it in those few milliseconds (linus's review of 1.53.14).
+
+## [1.53.15] - 2026-10-29
+
+### Fixed
+- An edit made seconds before Logout, while it is still being sent, is no longer lost without a word: logout waits for it (within the same 10 seconds) and, if it still hasn't gone through, counts it in "Changes Not Sent" (Codex review on PR #54).
+
+## [1.53.14] - 2026-10-29
+
+### Added
+- SyncEngine reports changes still being sent (`getInFlightCount`, `waitForInFlight`), so Logout can count an edit made seconds earlier on Wi-Fi with no internet (Codex P2 on PR #54).
+
+### Changed
+- The database rules tests run one file at a time, so two suites can't clear each other's emulator data.
+
+## [1.53.13] - 2026-10-29
+
+### Fixed
+- Sign-out also resets the sync engine before clearing, so a change still being sent can't land in the next account's family. Sign-out can no longer hang on removing the push token (capped), a double tap no longer shows "Sign out failed", and sending waiting changes gives up after 10 seconds and asks. Account delete clears the phone the same way. "Accept Ads" tapped offline keeps the screen for someone who refused before. The Budget form also fills in the saved limits when they load after it was opened (ada's review of 1.53.9-1.53.12).
+
+## [1.53.12] - 2026-10-29
+
+### Fixed
+- Opening the app with no internet no longer locks free users out behind "Ads Required". Consent given before still counts offline; a refusal on record still shows the screen; with no answer yet the app opens without ads and asks again when it is back online (review #9).
+
+## [1.53.11] - 2026-10-29
+
+### Fixed
+- Saving one budget limit no longer wipes the other: the form now opens with both saved limits filled in (review #6).
+
+## [1.53.10] - 2026-10-29
+
+### Fixed
+- Signing out now removes this phone's copy of the old account's lists, items and unsent changes, and its queued receipt uploads, so none of it reaches the next account. Changes not sent yet (offline) are tried once first; if some are still waiting, "Changes Not Sent" asks before they are lost. The push token is removed on every sign-out path (Terms decline too), and a token that couldn't be revoked offline is revoked before the next account registers, so it can't get the old family's notifications (review #2, #3).
+
+## [1.53.9] - 2026-10-29
+
+### Security
+- Nobody can add another user to their own family and then read that user's email and name. A new family could carry a fake join request "from" someone else, which the approve step then accepted; a join request can now only be written by the person asking (review #1). Live only after the rules deploy on master.
+
+## [1.53.8] - 2026-10-29
+
+### Fixed
+- A change still being sent when someone signs out can no longer be queued afterwards and sent into the next account's family. Firebase data that arrives just after sign-out is no longer written back into the cleared phone (review #2, ada's break tests).
+
+## [1.53.7] - 2026-10-29
+
+### Fixed
+- A trip finished with Done Shopping (no receipt scanned) takes a price typed in History into its total again. 1.53.4 mistook the empty receipt that Done Shopping saves for a scanned one.
+- An item ticked while a list is first loading is never removed as deleted elsewhere. A change that fails with "Client is offline" stays queued, and dropping a write for a list deleted on this phone is logged (linus's break tests).
+
+## [1.53.6] - 2026-10-29
+
+### Fixed
+- A change that can't be sent because there is no internet (shop Wi-Fi with no connection) is no longer thrown away after 5 tries. It stays queued and is retried at least every 5 minutes until it gets through. A change Firebase refuses is dropped at once, and the drop is logged (review #8).
+
+## [1.53.5] - 2026-10-29
+
+### Fixed
+- Items deleted on another phone while this phone's app was closed no longer come back when the list is opened, so ticking one can't bring it back for the whole family either (review #7).
+
+## [1.53.4] - 2026-10-29
+
+### Fixed
+- Typing a missing price on a trip in History no longer replaces the scanned receipt's total. A trip without a receipt is now totalled like the running total: ticked items only, price times unit count (review #4).
+
+## [1.53.3] - 2026-10-29
+
+### Fixed
+- Partial Shop keeps each carried-over item's unit count ("2 x Eggs" stayed "Eggs" on the new list), from Done Shopping and from a receipt scan alike (Codex review on PR #53).
+
+## [1.53.2] - 2026-10-29
+
+### Fixed
+- When Apply fails after some of the receipt was already saved, the receipt lines lock and the button reads Try again. The retry saves only what is still missing and then completes the list. Before, a line ticked between the two taps was reported as added but never saved.
+
+## [1.53.1] - 2026-10-29
+
+### Fixed
+- Tapping Apply again after the list could not be completed no longer adds the receipt's new items, or their prices, a second time.
+
+## [1.53.0] - 2026-10-29
+
+### Added
+- Scanning a receipt on a list now finishes the shopping: Apply on Receipt Match moves the list to History as completed, keeps the receipt's total and store, and releases shopping mode. Before, only the quick scan on Home did this, so a list scanned after shopping stayed active.
+- When the receipt leaves list items unchecked, Apply asks Full Shop / Partial Shop / Cancel like Done Shopping; Partial Shop moves those items to a new list with the same name. Match again on a completed list only corrects it.
+
+## [1.52.1] - 2026-10-20
+
+### Fixed
+- Typing the store-free name over a wrong remembered name for a receipt line is remembered again; 1.52.0 skipped any name equal to the store-free default, so the wrong name came back on every receipt.
+
+## [1.52.0] - 2026-10-20
+
+### Changed
+- Prices of the same product bought at different shops are compared again. Tills print the shop's name in front of own-brand lines ("Tesco Semi Skimmed Milk", Co-op "CP ..."), and price history, the Item Store Comparison and the analytics grouped on that name, so a Tesco and a Sainsbury's purchase never met. Grouping now ignores one leading shop name, so purchases already recorded group together without a migration.
+- A receipt line added as a new item is offered without the shop's name ("Semi Skimmed Milk 2.272L"). Only a name the family types over it is remembered for the next receipt; quality tiers such as Finest stay in the name.
+
+## [1.51.14] - 2026-10-15
+
+### Removed
+- Dead code: ReceiptOCRService.getServerUrl and DEFAULT_OCR_SERVER_URL, unused since checkHealth went (scans go through the ocr-proxy edge function).
+
+### Tests
+- hasItemChanged now has cases for a quantity (unitQty) change from another phone; dropping that comparison used to pass every test.
+- The createdAt heal test's list fixture stores storeName/archived as null, as a saved list reads back, so the "only createdAt different" case fails when the createdAt comparison is removed.
+
+## [1.51.13] - 2026-10-15
+
+### Removed
+- Dead code: ShoppingListManager.markListAsCompleted (lists are completed through completeShoppingFast and the receipt flow) and CategoryService.getCategorySortOrder. FirebaseSyncListener.stopAllListeners is only used by tests and is now marked @internal.
+
+## [1.51.12] - 2026-10-15
+
+### Changed
+- Test-only helpers (SyncEngine.stopPeriodicRetry, PriceHistoryService.clearSuggestionsCache, _resetAttemptedCache) are marked @internal so knip --production and the new npm run dead check skip them.
+
+## [1.51.11] - 2026-10-15
+
+### Removed
+- Dead code: 28 style entries no screen uses any more, most left on Home after the list card moved into AnimatedListCard (list header, dates, badges, delete and calendar icons), plus old receipt fields on History detail and unused close-button text styles in three sheets.
+
+## [1.51.10] - 2026-10-15
+
+### Removed
+- Dead code: unused methods in HistoryTracker (and the PaginatedHistory type), SearchService, StoreHistoryService, ReceiptOCRService (checkHealth), FirebaseSyncListener (stopListeningToItems), CrashReporting (testCrash), CategoryHistoryService, BudgetTracker, BudgetAlertService and AuthenticationModule (getAuthToken).
+
+## [1.51.9] - 2026-10-15
+
+### Removed
+- Dead code: PricePredictionService.invalidateCache, clearAllCaches, getPredictedPrice, prefetchPredictions and PriceHistoryService.getRecentPriceExtremes.
+
+## [1.51.8] - 2026-10-15
+
+### Removed
+- Dead code: ArchiveService.archiveList, permanentlyDeleteList, shouldAutoArchive, getDaysUntilArchive and CategoryService.getCategoryColor, getCategoryIcon, getCategoryName, getDefaultCategory, isValidCategory.
+
+## [1.51.7] - 2026-10-15
+
+### Removed
+- Dead code: the FirebaseAnalytics list, item, receipt, family, paywall and budget event helpers. None was ever called; the app logs screen views and custom events only.
+
+## [1.51.6] - 2026-10-15
+
+### Removed
+- Dead code: SyncEngine.resolveConflict, which the app never called (incoming changes are merged by FirebaseSyncListener). Its tests, including the task 49 urgent cases, went with it.
+
+## [1.51.5] - 2026-10-15
+
+### Changed
+- Includes the speed fixes from 1.50.2 (task 49 app review).
+
+## [1.51.4] - 2026-10-15
+
+### Changed
+- Includes the quick-scan Skip fix from 1.50.1: skipping or backing out of a quick scan no longer leaves an empty list on Home.
+
+## [1.51.3] - 2026-10-15
+
+### Fixed
+- **Every phone in the family sees the urgent tag on Home.** A list's items were only downloaded when someone opened that list, so an item another family member marked urgent didn't show as "1 urgent" on your Home card until you opened the list. Home now keeps the items of active lists in sync. As a side effect, an active list opens with its items already there.
+
+## [1.51.2] - 2026-10-15
+
+### Fixed
+- **Marking an item urgent again notifies the family again.** The server only sends a notification for a new urgent entry, and every marking reused the item's id, so after the first time it stayed silent. Each marking now makes its own entry.
+
+## [1.51.1] - 2026-10-15
+
+### Removed
+- **The Urgent tab is gone.** Urgent is now a flag on a list item (1.51.0), so the separate Urgent screen, its watch-an-ad step and the "Urgent Items" usage row on the subscription screen are removed. Urgent items made with the old screen are dropped from the phone, not moved into a list. Tapping an urgent notification opens your lists, where the card shows which list has urgent items.
+
+## [1.51.0] - 2026-10-15
+
+### Added
+- **Any list item can be urgent.** Tap the flame next to the Add button to add the next item as urgent, or switch Urgent on in an item's details. Urgent items sit in their own Urgent section at the top of the list with a flame on each row. A list card on Home shows how many urgent items are still to buy ("2 urgent"). When an item becomes urgent, the rest of the family gets a notification, as before. Once bought, the item goes to Completed with a faded flame.
+## [1.50.2] - 2026-10-15
+
+### Fixed
+- **Smart savings showed the first list's suggestions on every list opened in the next 5 minutes.** The cache was keyed on the family and the time window, not the items. It now includes the list's items.
+
+### Performance
+- **Home no longer downloads the whole family database twice.** The "does the group still exist" check and the family group read both fetched the group node, which holds every list, item and price record. They now read only the group's own fields.
+- **Checking off a priced item no longer re-reads the whole price history.** A new price only adds its name to the cached variants, so the cache isn't dropped anymore. A correction that renames a row still clears it.
+- **Returning to the app no longer rewrites every category-history and store-layout row.** Rows that haven't changed are skipped.
+- **The ad and subscription contexts keep one value between renders.** Every screen using them used to re-render on each profile update.
+
+## [1.50.1] - 2026-10-15
+
+### Fixed
+- **A skipped quick scan no longer leaves an empty list on Home.** Three ways led to it:
+  - A double tap on Confirm created two lists. Skip discarded only the one the match screen was given, and the other stayed on Home empty. Confirm now creates one list, however fast it is pressed.
+  - Leaving the match screen by the back arrow, the phone's back button or a swipe kept the list. Only Skip discarded it. Every way out but Apply now discards it.
+  - A deleted list could come back. A receipt write that timed out before Skip and was retried after it, or an older Firebase snapshot read when the app came back to the front (after the camera or an ad), turned the deleted list active again, here and on the family's phones. A deleted list is never restored, so this data is now ignored, and the stale retry is dropped.
+  - A quick-scan list is discarded only while it is still empty. If Apply wrote the receipt's items and then failed, leaving the screen (Skip or back) keeps the list and its items.
+
+## [1.50.0] - 2026-10-07
+
+### Changed
+- **The receipt decides how many you bought.** If your list asked for 3 and the receipt shows 2 ("2 Tesco Diced Chorizo", or the same product on two lines), applying the receipt now sets the item to 2. Before, a count you had typed was always kept. A single line that shows one unit still leaves your count alone, since the scan can miss a printed "2".
+
+## [1.49.3] - 2026-10-07
+
+### Fixed
+- **Receipt lines show how many you bought.** The scan already read the count printed on the till roll ("2 Tesco Diced Chorizo"), but Receipt Details and the receipt-matching screen only showed the name and price. A line with more than one unit now reads "2 × Tesco Diced Chorizo 130g". Single items and weighed items look the same as before.
+
+## [1.49.2] - 2026-10-06
+
+### Fixed
+- **One incomplete family profile no longer hides every creator name.** A member profile without an email address or user id made the name lookup fail for the whole family, so no card showed a creator. That member is now skipped or matched by their id, and a name that starts with an emoji shows correctly in the initial circle.
+
+## [1.49.1] - 2026-10-06
+
+### Changed
+- **The creator line reads as a sentence.** An active list's card now says "Created by Anna on Sun 5 Oct" (or "Created by you on …" for your own lists), with a small circle showing the creator's initial so family members are easy to tell apart. The year appears only for dates outside this year. If the name isn't known, it reads "Created on Sun 5 Oct". Screen readers hear the full date.
+
+## [1.49.0] - 2026-10-06
+
+### Added
+- **List cards show who made the list.** An active list's card reads "Created 05/10/2026 · by Anna". The name comes from Settings; if it isn't set, the family role is used, then the start of the email address. If names can't be loaded (offline, or someone who has left the family), only the date shows.
+
+## [1.48.15] - 2026-10-06
+
+### Fixed
+- **"Created" on a list card shows the day the list was really made.** When a list reached a phone from the cloud (made on another family member's phone, or after a reinstall or new sign-in), the phone saved it with the current time as its creation date, so the card showed the day it arrived. Editing the list on that phone then sent the wrong date back to the cloud for everyone. Lists and items now keep their real creation date. A phone that already has a wrong date takes the right one from the cloud on its next sync, if the cloud still has it. Lists whose cloud date was already overwritten stay as they are.
+- **The list card no longer shows the same date twice.** An active list showed its date on its own line and again as "Created …". It now shows only "Created …". Completed lists still show the date they were completed.
+
+## [1.48.13] - 2026-10-05
+
+### Added
+- **Invite family with one tap.** Settings › Family Group has a share button next to the invitation code, and the "Family group created" message has an "Invite family now" button. Both open the phone's share sheet with a ready-made message: the app's web page (which explains how to join the testing while the app is in closed testing, and links to Google Play after launch) and the join steps with the code (sign up, tap Join, enter the code, tap Request to Join). Closing the share sheet does nothing.
+
+## [1.48.12] - 2026-10-05
+
+### Added
+- **Ad privacy choices in Settings.** Free users in the UK and EEA answer Google's consent message on first launch, but there was no way to change that answer later, which Google's consent rules require. Settings › Legal now has an "Ad privacy choices" row that opens Google's privacy options form. It shows only when Google's consent SDK reports that privacy options are required, and only on the free tier. Changing the answer can make ads non-personalised, but ads still show on the free tier. If the form fails, the error is reported and nothing changes.
+
+## [1.48.11] - 2026-10-05
+
+### Fixed
+- **The privacy policy did not mention ads.** The free tier shows rewarded AdMob ads, and the Google Mobile Ads SDK receives the advertising ID, IP address, device information and ad interactions, but the in-app policy listed only Firebase, Supabase and RevenueCat. It now has a Google AdMob section, word for word the same as the website policy, and the date is October 2026. The camera section now says that a scanned receipt photo goes through the Supabase server to the receipt-reading service on Hugging Face, which only reads it. `docs/DATA_SAFETY.md` adds the AdMob rows and the optional receipt photos, so the Play Data safety form can match the SDKs in the app.
+
+## [1.48.10] - 2026-10-05
+
+### Fixed
+- **The splash icon showed white square corners.** `app-icon-512.png` has an opaque white background behind its rounded square, which showed against the #0a0a0a splash (seen on the AVD upgrade test, #1181). The splash images are now generated from `assets/bootsplash-logo.png`, a copy with the outer white flood-filled to transparent. The icon itself is unchanged.
+
+## [1.48.9] - 2026-10-05
+
+### Changed
+- **Encrypted storage: react-native-encrypted-storage → react-native-keychain 10.0.0, through a new `SecureStorage` wrapper.** The old library has been unmaintained since 2022 (last publish 2022-11). `SecureStorage` (`src/services/SecureStorage.ts`) keeps the old `getItem`/`setItem`/`removeItem` shape, so the three callers (AuthenticationModule, NotificationManager, ImageStorageManager) only change their import. All six keys stay encrypted: `@user`, `@auth_token`, `@fcm_token`, `@fcm_token_data` and `@upload_queue`. The queue keeps the encrypted-storage policy from e93ae50 (receipt paths are financial data), so it does not go back to AsyncStorage.
+  - **Storage:** one keychain entry per key (`service` = `fsl.` + key), pinned to Keystore AES-GCM with no user authentication. Nothing prompts for biometrics, and a lock-screen change can't invalidate the entries.
+  - **One-time move:** the first operation on a key in a launch waits for the move. If the new store is empty, it reads the old one, writes the new one, then deletes the old copy. A write or remove that arrives during the move waits for it, so a queued receipt or a logout can't be overwritten by the old value. If the old read fails (for example after a Keystore reset), nothing is written, the failure is recorded once, and the move retries on the next launch. A crash between "write new" and "delete old" leaves a harmless old copy, which `removeItem` clears along with the new one.
+  - **Empty values:** keychain rejects empty strings, so `setItem('' | null | undefined)` removes the entry; nothing stores the string "null".
+  - **A cleared key never comes back from the old store** (review #1159). An empty new store can mean the key was cleared on purpose. So once a key has been moved, written or removed here, a keychain marker (`fsl.migrated.<key>`) records that, and the old store is never read for it again. Without it, a logout or account deletion after a failed old read, followed by a failed old delete, could bring back the deleted user's profile or token on the next launch.
+  - **react-native-encrypted-storage stays installed this release, read-only, only to move existing data.** It is removed in a later version, once users have updated past 1.48.9.
+  - **Tests:** `SecureStorage.test.ts` (13) covers the move, a cleared key staying cleared after a failed move (including a failed old delete), a second launch being a no-op, a failing old read, a lingering old copy, a write and a remove racing the move, and empty values. Mutation-checked: dropping the move wait from `setItem` or `removeItem`, or the per-launch memo, each fails a test. Three existing tests now mock `SecureStorage` instead of encrypted-storage. Jest maps `react-native-keychain` to an in-memory mock.
+  - ⚠️ **NEEDS DEVICE VALIDATION (upgrade, not fresh install):** install a dev build, log in, and queue a receipt while offline. Then install this build **over** it (same signature). You stay logged in, notifications still arrive, and the queued receipt uploads once you're back online.
+
+## [1.48.7] - 2026-10-05
+
+### Changed
+- **Splash screen: react-native-splash-screen → react-native-bootsplash 7.3.4.** The old library has been unmaintained since 2022 (last publish 2022-06). bootsplash is maintained and draws through the Android 12+ SplashScreen API, so Android 12+ phones no longer show the system splash and then a second one. **The look changes:** the white "Family Shopping List / Loading…" text on #0a0a0a becomes the app icon (100dp) on the same #0a0a0a. The assets were generated from `assets/app-icon-512.png`. `MainActivity` now calls `RNBootSplash.init(this, R.style.BootTheme)`, keeping `EdgeToEdge.enable` and `super.onCreate(null)`. The launcher activity uses `BootTheme`, which hands over to `AppTheme`. `launch_screen.xml` is removed. `hide()` now returns a Promise: App.tsx records a failure, and ErrorBoundary swallows it.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** cold start shows the icon splash once and hides when the app is ready, and an early crash still reaches the error screen rather than leaving the splash on top.
+
+## [1.48.6] - 2026-10-05
+
+### Changed (dependencies, task 17)
+Research and verdict for every package: team repo `shopping-deps/DEPS.md` (JS) and `NATIVE.md` (native).
+- **JS-side updates (PR #43):** react-navigation 7.20/7.5/7.12, supabase-js 2.117, gifted-charts 1.4.81, uuid 14.0.2, firebase 12.19, firebase-admin 14.5, firebase-tools 15.32, jest 30.5, knip 6.39, eslint 9.39.5, prettier 3.9.9. `react-native-url-polyfill` 3 → 4 is a dependency-free URL implementation: 47 kB smaller bundle and faster on Hermes. Cloud Functions moved to Node 22 with firebase-functions 7 (the trigger is kept on `/v1`) and modular admin 14 (not deployed: CI only deploys the database rules, so this needs `firebase deploy --only functions`). `npm audit` went from 91 to 56, with the critical gone.
+- **react-native 0.86.0 → 0.86.3** (with `@react-native/*` 0.86.3): patch releases on our line, no template change.
+- **Native minors:** react-native-screens 4.28 (Android tab bar layout after a config change, stack fragment pop fix), safe-area-context 5.10.1, purchases + purchases-ui 10.11 (purchases-android 10.24), datetimepicker 9.2.1, google-signin 16.1.5, gesture-handler 2.33. gesture-handler 3 is skipped: it is a New-Arch rewrite and its `PanGesture` type clashes with reorderable-list.
+- **react-native-reanimated 4.5 → 4.7.1 with react-native-worklets 0.10 → 0.13** (bumped together; 4.7 peer-requires worklets 0.13.x). The worklet UI loop now pauses while the app is backgrounded. Also a serialization race fix, faster startup, and layout-animation crash fixes (the app uses no layout animations). The babel plugin path is unchanged.
+- **react-native-reorderable-list 0.18.0 → 0.18.1** (still pinned exactly). Fixes the dragged item's index during autoscroll when the finger is held still. Our patch was regenerated for 0.18.1 with both hunks unchanged: the negative-index guard on drop, and Android always using the item gesture alone.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** drag-reorder within and across categories, and the item check animation.
+- **react-native-svg 15.15.4 → 15.15.5; its patch-package patch is removed.** The patch reflected into `MatrixDecompositionContext` fields and cast `setBorderRadius` to float, for RN 0.74. On RN 0.86 those fields are public `@JvmField`s and both `setBorderRadius` overloads exist, so upstream compiles unchanged (proved by assembleRelease).
+- **Kotlin 2.1.20 → 2.2.20 (`android/build.gradle`) and react-native-google-mobile-ads 16.3.3 → 16.5.0.** This resolves the 1.25.14 deferral: Google Mobile Ads SDK 25.4.0 is compiled with Kotlin 2.3 metadata, which the 2.1.20 compiler cannot read; a 2.2 compiler reads one minor ahead, and `:react-native-google-mobile-ads:compileReleaseKotlin` passes. It is 2.2.20, not 2.3.x, because async-storage maps KSP only up to Kotlin 2.2.20: on 2.3.21 it fell back to KSP 2.1.0 and the build failed ("ksp-2.1.0-1.0.28 is too old for kotlin-2.3.21"). 16.5 brings GMA Android 25.4.0 and stops ad views being saved in instance state (an Android restore fix). Ads 17 is skipped: it ships the same GMA SDK with a new API we don't use.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** banner loads and the consent form.
+- **sp-react-native-in-app-updates 1.5.0 → 2.0.0.** It is now a Codegen TurboModule (no legacy-bridge interop), and `checkNeedsUpdate` failures now reject properly. The Android API we call (`checkNeedsUpdate().shouldUpdate`) is unchanged, and it still depends on react-native-device-info 10.3.0, so the `RNDeviceInfo` guard in `useInAppUpdate` still holds.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** the update prompt on a build older than the Play Store version.
+- **@react-native-firebase/* 25.1.0 → 26.4.0** (app-check still pinned exactly). Android Firebase BOM 34.15 → 34.18. Fixes include: the event emitter losing events to a stale ReactContext, null id-tokens from Credential Manager in auth, messaging stored-message integrity, and thread-safe listener/transaction maps in database and auth. Every module is now a TurboModule; the New Architecture is required, and we already run it. Gradle plugins move to the versions RNFB 26 is tested with: `google-services` 4.5.0 and `firebase-crashlytics-gradle` 3.0.8.
+  - **Forced code changes (v26 removed the namespaced API):** `AppCheckService` now uses modular `initializeAppCheck(getApp(), …)` with `new ReactNativeFirebaseAppCheckProvider()`. v26 made that call synchronous, and a native init failure no longer reaches our `catch`, because the library fires it with `void`. `ImageStorageManager` now uses `FilePath` instead of `utils.FilePath`. `notificationDeepLink` (and its test) now uses `RemoteMessage` instead of `FirebaseMessagingTypes.RemoteMessage`. `await logEvent(...)` is left alone: awaiting the now-void return is harmless.
+  - ⚠️ **NEEDS DEVICE VALIDATION:** login (Google + email), list sync, receipt upload/download, tapping a push notification opens the right screen, and Crashlytics still reports.
+
+## [1.48.4] - 2026-10-03
+
+### Fixed
+- **Other phones keep seeing the old receipt photo while a rescan uploads.** A rescan pointed the list at the new photo's path on the scanning phone, which synced to every phone, and no other phone could open it. The list now keeps the uploaded photo until the new one is up, then swaps. The scanning phone shows its new photo straight away, and "Retry OCR" reads the new photo, not the old one.
+
+## [1.48.3] - 2026-10-03
+
+### Fixed
+- **A receipt photo that keeps failing to upload is no longer given up on.** After 5 failed tries it was dropped from the upload queue. The list was left pointing at a file on the scanning phone that no other phone could load. It now stays queued and uploads on the next connection or start.
+
+## [1.48.2] - 2026-10-03
+
+### Fixed
+- **A price you type over a corrected one drops the "fixed by the receipt's total" note.** The note stayed after a manual edit, though it no longer described the price shown. Editing only the name keeps it.
+- **The scan's "last price" hint never comes from the list being scanned.** On a rescan, the hint was the price from the first scan of the same receipt, so a misread the user had accepted was offered back as "what it cost last time".
+- **Long item names are cut to 100 characters in the hint.** One very long list could make the whole hint too big for the proxy, which then dropped it without a word.
+
+## [1.48.1] - 2026-10-03
+
+### Fixed
+- **A rescan no longer deletes the old receipt photo before the new one has uploaded.** The old photo was deleted from the cloud as soon as the list pointed at the new capture, which still only existed on the scanning phone. If that upload failed, no phone had an image. The old photo now stays until the new one has uploaded and the list points at it. Two rescans made offline delete it once, after the last one uploads. Deleting the list before the upload deletes it too. A rescan whose upload keeps failing stays queued for the next connection instead of being dropped. An upload finishing at the same moment as a new scan can no longer overwrite the newer scan.
+
+## [1.48.0] - 2026-10-03
+
+### Added
+- **The scan carries the shopping list, so the reader can check itself against it.** When a receipt is scanned for a list, the list's item names and the last price paid for each (at this store if there is one) go with the photo. The OCR server (receipt-ocr 1.2.0) uses them only to break ties between readings the photo supports: it never rewrites a price on the list's word alone, since a different price may be a real rise. `ocr-proxy` now forwards this `hints` part. It used to forward only the image.
+- **The receipt's own sum flags or fixes a misread price.** The server checks the item prices against the printed subtotal. A price it corrected shows "Read as £X, fixed by the receipt's total" under the line. A price it can't tell apart from another shows "Check this price on the paper". Confidence now follows the server's check where the receipt prints a subtotal or savings, so Tesco receipts with a savings block are no longer capped at 50 %.
+
+### Fixed
+- **A coupon line is never matched to a list item.** Costco coupons now arrive as negative lines (`-£2.00`). Matching one would have recorded a negative price against the item.
+
 ## [1.47.18] - 2026-09-25
 
 ### Fixed

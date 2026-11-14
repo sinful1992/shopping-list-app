@@ -59,8 +59,8 @@ class ShoppingListManager {
     // Save locally first (offline-first)
     await LocalStorageManager.saveList(list);
 
-    // Increment usage counter
-    await UsageTracker.incrementListCounter(userId);
+    // Usage counter: display only, never waited on (offline it would never finish)
+    UsageTracker.incrementListCounter(userId);
 
     // Trigger sync
     await SyncEngine.pushChange('list', list.id, 'create', list);
@@ -130,8 +130,8 @@ class ShoppingListManager {
       // Check usage limits (informational - list already created locally)
       await UsageTracker.canCreateList(user);
 
-      // Increment counter
-      await UsageTracker.incrementListCounter(userId);
+      // Increment counter (fire and forget)
+      UsageTracker.incrementListCounter(userId);
 
       // Sync to Firebase
       await SyncEngine.pushChange('list', listId, 'create');
@@ -204,23 +204,12 @@ class ShoppingListManager {
   }
 
   /**
-   * Mark list as completed
-   * Implements Req 2.7
-   */
-  async markListAsCompleted(listId: string): Promise<ShoppingList> {
-    return this.updateList(listId, {
-      status: 'completed',
-      completedAt: Date.now(),
-    });
-  }
-
-  /**
    * Delete list (soft delete)
    * Implements Req 2.6, 2.2
    *
    * Soft delete only: updateList() marks status='deleted' locally and pushes an
    * 'update' op that set()s the node in Firebase with status='deleted' (node kept),
-   * mirroring how markListAsCompleted() works. We must NOT additionally push a
+   * mirroring how completing a list works. We must NOT additionally push a
    * 'delete' op — that hard-removes the Firebase node, which orphans devices that
    * were offline at delete time: their cold-start load is upsert-only and cannot
    * prune a locally-present list that is absent from the snapshot, leaving a stale
@@ -257,6 +246,30 @@ class ShoppingListManager {
       lockedByName: userName,
       lockedByRole: userRole as any,
       lockedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Finish a trip from its scanned receipt. The scan already wrote the
+   * receipt, total, store and date at confirm time, so unlike
+   * completeShoppingFast this leaves them alone; it also releases a
+   * shopping-mode lock the shopper may still hold.
+   */
+  async completeFromReceipt(
+    listId: string,
+    userId: string,
+    uncheckedItemsCount: number
+  ): Promise<ShoppingList> {
+    return this.updateList(listId, {
+      status: 'completed',
+      completedAt: Date.now(),
+      completedBy: userId,
+      uncheckedItemsCount,
+      isLocked: false,
+      lockedBy: null,
+      lockedByName: null,
+      lockedByRole: null,
+      lockedAt: null,
     });
   }
 
@@ -341,12 +354,9 @@ class ShoppingListManager {
     callback: (lists: ShoppingList[]) => void
   ): Unsubscribe {
     // Use WatermelonDB observers for true real-time updates (no polling!)
-    return LocalStorageManager.observeAllLists(familyGroupId, (lists) => {
-      // Filter out completed lists (shown in HistoryScreen); deleted rows excluded at DB level
-      const visibleLists = lists
-        .filter(list => list.status !== 'completed')
-        .sort((a, b) => b.createdAt - a.createdAt);
-      callback(visibleLists);
+    // Active lists only, filtered in the DB; completed ones live in History.
+    return LocalStorageManager.observeActiveLists(familyGroupId, (lists) => {
+      callback([...lists].sort((a, b) => b.createdAt - a.createdAt));
     });
   }
 

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDatabase, ref, get, update } from '@react-native-firebase/database';
+import { getDatabase, ref, update } from '@react-native-firebase/database';
 import { updateProfile } from '@react-native-firebase/auth';
 import { User, FamilyGroup, FamilyRole, JoinRequest } from '../models/types';
 import { useUser } from '../contexts/UserContext';
 import AuthenticationModule, { ReauthMethod } from '../services/AuthenticationModule';
 import CrashReporting from '../services/CrashReporting';
-import NotificationManager from '../services/NotificationManager';
+import { loadFamilyMembers } from '../services/FamilyMembers';
+import SyncEngine from '../services/SyncEngine';
 import ReceiptOCRService from '../services/ReceiptOCRService';
 
 // Role to avatar mapping
@@ -23,6 +24,8 @@ const getRoleAvatar = (role: FamilyRole): string => {
   };
   return avatars[role] || '👤';
 };
+
+const LOGOUT_FLUSH_TIMEOUT_MS = 10000;
 
 const AVAILABLE_ROLES: FamilyRole[] = [
   'Dad',
@@ -146,33 +149,7 @@ export function useSettings() {
     }
   };
 
-  const loadFamilyMembers = async (memberIds: string[]): Promise<User[]> => {
-    if (memberIds.length === 0) return [];
-
-    const db = getDatabase();
-    // allSettled, not all: a single unreadable member must cost one row, not
-    // the whole list. A member admitted into memberIds whose own profile has
-    // not caught up yet is exactly such a read.
-    const results = await Promise.allSettled(
-      memberIds.map(id => get(ref(db, `/users/${id}`)))
-    );
-
-    const members: User[] = [];
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        const member = result.value.val();
-        if (member) members.push(member);
-      } else {
-        CrashReporting.recordError(
-          result.reason as Error,
-          'useSettings loadFamilyMembers',
-        );
-      }
-    }
-    return members;
-  };
-
-const updateName = useCallback(async (newName: string): Promise<void> => {
+  const updateName = useCallback(async (newName: string): Promise<void> => {
     if (!user) return;
 
     const firebaseUser = await AuthenticationModule.getCurrentFirebaseUser();
@@ -196,9 +173,37 @@ const updateName = useCallback(async (newName: string): Promise<void> => {
     });
   }, [user]);
 
-  const logout = useCallback(async (): Promise<void> => {
-    await NotificationManager.clearToken();
+  /**
+   * Signing out deletes this phone's copy of the data, unsent changes included.
+   * Try to send them first; if some are still waiting, report how many and
+   * sign out only when called again with force (the user said yes).
+   */
+  const logout = useCallback(async (opts?: { force?: boolean }): Promise<{ signedOut: boolean; pending: number }> => {
+    if (!opts?.force) {
+      // Capped: on Wi-Fi with no internet each queued op waits out its own
+      // timeout, which would leave the user staring at nothing for minutes.
+      // A change still on its way to Firebase isn't queued yet; wait for it
+      // too, and if it's still out when time runs out, the count includes it.
+      await Promise.race([
+        Promise.all([
+          SyncEngine.syncPendingChanges().catch(err =>
+            CrashReporting.recordError(err as Error, 'useSettings logout flush')),
+          SyncEngine.waitForInFlight(),
+        ]),
+        new Promise(resolve => setTimeout(resolve, LOGOUT_FLUSH_TIMEOUT_MS)),
+      ]);
+      // Not caught: if the queue can't even be read, failing the sign-out is
+      // safer than deleting changes nobody counted.
+      // In-flight first: a send that times out while the queue is being read
+      // moves from one to the other, and read the other way round it would be
+      // missed by both. This way the worst case counts it twice.
+      const inFlight = SyncEngine.getInFlightCount();
+      const { pendingOperations } = await SyncEngine.getSyncStatus();
+      const pending = pendingOperations + inFlight;
+      if (pending > 0) return { signedOut: false, pending };
+    }
     await AuthenticationModule.signOut();
+    return { signedOut: true, pending: 0 };
   }, []);
 
   const deleteAccount = useCallback(async (password?: string): Promise<boolean> => {
