@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.38] - 2026-11-14
+
+### Release
+- dev (1.54.37) goes to master for the first time since 1.47.18: every change from 1.47.19 to 1.54.37 below ships in this release. master's own two commits (v1.41.3, the 1.47.18 merge) were already in dev, so merging master in changes no files. Built locally and tested on the emulator before the merge (task 157).
+
 ## [1.54.37] - 2026-11-11
 
 ### Tests
