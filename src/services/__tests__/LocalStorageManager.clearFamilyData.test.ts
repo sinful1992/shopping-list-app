@@ -2,7 +2,7 @@
  * Left note 139 (audit 137, task 145): clearFamilyData removes one family's rows and the sync queue,
  * and leaves every other family's rows alone. A small in-memory stand-in for WatermelonDB.
  */
-type Row = { id: string; table: string; [k: string]: unknown; deleted?: boolean; prepareMarkAsDeleted: () => () => void };
+type Row = { id: string; table: string; [k: string]: unknown; deleted?: boolean; prepareDestroyPermanently: () => () => void };
 const mockRows: Row[] = [];
 let mockBatches = 0;
 
@@ -32,7 +32,7 @@ jest.mock('../CrashReporting', () => ({ __esModule: true, default: { recordError
 import LocalStorageManager from '../LocalStorageManager';
 
 const row = (table: string, id: string, fields: Record<string, unknown>): Row => {
-  const r: Row = { id, table, ...fields, prepareMarkAsDeleted: () => () => { r.deleted = true; } };
+  const r: Row = { id, table, ...fields, prepareDestroyPermanently: () => () => { r.deleted = true; } };
   return r;
 };
 const left = (table: string) => mockRows.filter(r => r.table === table && !r.deleted).map(r => r.id).sort();
