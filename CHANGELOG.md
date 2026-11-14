@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.54.39] - 2026-11-14
+
+### Changed
+- The family invite message leads with the Google Play store link, then offers the web page to read about the app first, then the join steps with the code (USER #11676). Before, it linked only to the web page. Replaces the never-merged PR #47.
+
+### Tests
+- inviteMessage: Play link on line 2, web page right after it, code last; each link alone at its line's end; empty code keeps both links (3 of 7 fail on 1.54.38).
+
 ## [1.54.38] - 2026-11-14
 
 ### Release
