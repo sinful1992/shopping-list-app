@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Docs
 - README + `.env.example`: a local release build needs the RevenueCat `goog_` key (a `test_` key closes the app on start, task 158); `.env.example` now lists every key CI writes (SUPABASE_URL, SUPABASE_ANON_KEY, REVENUECAT_ANDROID_API_KEY were missing). 1.54.38 entry corrected: that release was CI-built, not built locally.
 
+## [1.54.40] - 2026-11-14
+
+### Fixed
+- Edge function deploys work again (task 158): the deploy workflow pins the Supabase CLI to 2.122.1 instead of `latest` (latest became 3.x on 2026-11-09 and failed with "[inbucket] in supabase/config.toml is no longer supported"), and config.toml uses `[local_smtp]` instead of the deprecated `[inbucket]`, so a later move to 3.x does not trip on it. Config checked locally with both 2.122.1 and 3.1.0.
+
 ## [1.54.39] - 2026-11-14
 
 ### Changed
