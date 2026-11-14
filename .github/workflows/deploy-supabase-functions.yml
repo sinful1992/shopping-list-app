@@ -22,7 +22,10 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned (task 158): "latest" jumped to 3.x on 2026-11-09, which
+          # rejects [inbucket] in config.toml and adds hosted-change prompts.
+          # 2.122.1 = last 2.x; bump on purpose, after a local check.
+          version: 2.122.1
 
       - name: Deploy Edge Functions
         env:
