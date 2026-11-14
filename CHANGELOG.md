@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Docs
+- README + `.env.example`: a local release build needs the RevenueCat `goog_` key (a `test_` key closes the app on start, task 158); `.env.example` now lists every key CI writes (SUPABASE_URL, SUPABASE_ANON_KEY, REVENUECAT_ANDROID_API_KEY were missing). 1.54.38 entry corrected: that release was CI-built, not built locally.
+
+## [1.54.39] - 2026-11-14
+
+### Changed
+- The family invite message leads with the Google Play store link, then offers the web page to read about the app first, then the join steps with the code (USER #11676). Before, it linked only to the web page. Replaces the never-merged PR #47.
+
+### Tests
+- inviteMessage: Play link on line 2, web page right after it, code last; each link alone at its line's end; empty code keeps both links (3 of 7 fail on 1.54.38).
+
+## [1.54.38] - 2026-11-14
+
+### Release
+- dev (1.54.37) goes to master for the first time since 1.47.18: every change from 1.47.19 to 1.54.37 below ships in this release. master's own two commits (v1.41.3, the 1.47.18 merge) were already in dev, so merging master in changes no files. Built by CI from the release branch and tested on the emulator before the merge (tasks 157/158; the local release build closed on start because the laptop's `.env` had a RevenueCat test key).
+
+### Changed
+- The master build no longer deploys `storage.rules` (step kept, `if: false`). Those rules would go live for the first time and need the `familyGroupId` token claim from the `setFamilyGroupClaim` Cloud Function, which CI never deploys and nobody has confirmed live; without it, receipt photos could stop for every app version. Database rules and edge functions still deploy. Follow-up: deploy the function, check the claim, then turn the step back on.
+
 ## [1.54.37] - 2026-11-11
 
 ### Tests
