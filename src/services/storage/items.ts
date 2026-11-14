@@ -5,6 +5,7 @@ import CrashReporting from '../CrashReporting';
 import { ItemModel } from '../../database/models/Item';
 import { isUnsentLocalChange } from './syncState';
 import { applyItemCreate, applyItemFullUpdate, itemModelToType } from './mappers';
+import { purgeStaleTombstones } from './tombstones';
 
 /**
  * Items storage domain. Receives the shared WatermelonDB handle from
@@ -33,7 +34,12 @@ export class ItemsStorage {
 
       let itemRecord: ItemModel | undefined;
 
+      let deletedHere = false;
       await this.database.write(async () => {
+        if ((await purgeStaleTombstones(this.database, 'items', [item.id])).has(item.id)) {
+          deletedHere = true;
+          return;
+        }
         const existing = await itemsCollection.query(Q.where('id', item.id)).fetch();
         if (existing.length > 0) {
           itemRecord = existing[0];
@@ -43,6 +49,8 @@ export class ItemsStorage {
         }
       }, 'saveItem');
 
+      // Deleted on this phone with the delete not sent yet: nothing is stored.
+      if (deletedHere) return item;
       if (!itemRecord) {
         throw new Error('Failed to create or update item record');
       }
@@ -253,13 +261,9 @@ export class ItemsStorage {
       const ids = items.map(i => i.id);
 
       await this.database.write(async () => {
-        // Destroy tombstones inside the transaction to prevent a race where a concurrent
-        // markAsDeleted() could soft-delete a record between the fetch and the upsert.
-        const deletedIds = await this.database.adapter.getDeletedRecords('items');
-        const staleIds = ids.filter(id => deletedIds.includes(id));
-        if (staleIds.length > 0) {
-          await this.database.adapter.destroyDeletedRecords('items', staleIds);
-        }
+        // Inside the transaction, so a concurrent markAsDeleted() cannot land between the purge
+        // and the upsert. An item deleted here whose delete is not sent yet stays deleted.
+        const deletedHere = await purgeStaleTombstones(this.database, 'items', ids);
 
         const existingRecords = await itemsCollection
           .query(Q.where('id', Q.oneOf(ids)))
@@ -268,6 +272,7 @@ export class ItemsStorage {
 
         const ops: any[] = [];
         for (const item of items) {
+          if (deletedHere.has(item.id)) continue;
           const existing = existingMap.get(item.id);
           if (existing) {
             if (keepsLocalChange(existing, item)) continue;
@@ -283,6 +288,7 @@ export class ItemsStorage {
         } catch (error) {
           CrashReporting.recordError(error as Error, 'saveItemsBatchUpsert batch failed, falling back to individual writes');
           for (const item of items) {
+            if (deletedHere.has(item.id)) continue;
             try {
               const records = await itemsCollection.query(Q.where('id', item.id)).fetch();
               const rec = records[0];

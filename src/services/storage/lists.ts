@@ -3,6 +3,7 @@ import { ShoppingList, ReceiptData } from '../../models/types';
 import CrashReporting from '../CrashReporting';
 import { ShoppingListModel } from '../../database/models/ShoppingList';
 import { applyListCreate, applyListFullUpdate, hasListChanged, listModelToType, revivesDeletedList } from './mappers';
+import { purgeStaleTombstones } from './tombstones';
 
 /**
  * Lists storage domain: shopping lists plus their receipt/expenditure reads.
@@ -21,7 +22,12 @@ export class ListsStorage {
 
       let listRecord: ShoppingListModel | undefined;
 
+      let deletedHere = false;
       await this.database.write(async () => {
+        if ((await purgeStaleTombstones(this.database, 'shopping_lists', [list.id])).has(list.id)) {
+          deletedHere = true;
+          return;
+        }
         const existing = await listsCollection.query(Q.where('id', list.id)).fetch();
         if (existing.length > 0) {
           listRecord = existing[0];
@@ -31,6 +37,8 @@ export class ListsStorage {
         }
       }, 'saveList');
 
+      // Deleted on this phone with the delete not sent yet: nothing is stored.
+      if (deletedHere) return list;
       return listModelToType(listRecord!);
     } catch (error: any) {
       throw new Error(`Failed to save list: ${error.message}`);
@@ -46,15 +54,17 @@ export class ListsStorage {
 
     const collection = this.database.get<ShoppingListModel>('shopping_lists');
 
-    const existingRecords = await collection
-      .query(Q.where('id', Q.oneOf(lists.map(l => l.id))))
-      .fetch();
-
-    const existingMap = new Map(existingRecords.map(r => [r.id, r]));
-
     await this.database.write(async () => {
+      // After sign-out or leaving the family the old rows may still be tombstones
+      // (clearAllData before 1.54.41); read them inside the write, after the purge.
+      const ids = lists.map(l => l.id);
+      const deletedHere = await purgeStaleTombstones(this.database, 'shopping_lists', ids);
+      const existingRecords = await collection.query(Q.where('id', Q.oneOf(ids))).fetch();
+      const existingMap = new Map(existingRecords.map(r => [r.id, r]));
+
       const ops: any[] = [];
       for (const list of lists) {
+        if (deletedHere.has(list.id)) continue;
         const existing = existingMap.get(list.id);
         if (existing) {
           const local = listModelToType(existing);
@@ -71,6 +81,7 @@ export class ListsStorage {
       } catch (error) {
         CrashReporting.recordError(error as Error, 'saveListsBatch batch failed, falling back to individual writes');
         for (const list of lists) {
+          if (deletedHere.has(list.id)) continue;
           try {
             const records = await collection.query(Q.where('id', list.id)).fetch();
             const rec = records[0];

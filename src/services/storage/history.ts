@@ -2,6 +2,7 @@ import { Database, Q } from '@nozbe/watermelondb';
 import { v4 as uuidv4 } from 'uuid';
 import { CategoryHistory, PriceHistoryRecord } from '../../models/types';
 import CrashReporting from '../CrashReporting';
+import { purgeStaleTombstones } from './tombstones';
 import { CategoryHistoryModel } from '../../database/models/CategoryHistory';
 import { PriceHistoryModel } from '../../database/models/PriceHistory';
 import { itemGroupKey } from '../../utils/itemGrouping';
@@ -310,6 +311,7 @@ export class HistoryStorage {
     let created = false;
     let renamed = false;
     await this.database.write(async () => {
+      if ((await purgeStaleTombstones(this.database, 'price_history', [record.id])).has(record.id)) return;
       const existing = await collection.query(Q.where('id', record.id)).fetch();
       if (existing.length > 0) {
         // One purchase keeps one id, so a second write for it is a correction
@@ -365,8 +367,11 @@ export class HistoryStorage {
     };
 
     await this.database.write(async () => {
+      // Rows of a family this phone left (or signed out of) before 1.54.41 are still tombstones.
+      const deletedHere = await purgeStaleTombstones(this.database, 'price_history', toCreate.map(r => r.id));
       const ops: any[] = [
-        ...toCreate.map(record => collection.prepareCreate(r => applyCreate(r, record))),
+        ...toCreate.filter(record => !deletedHere.has(record.id))
+          .map(record => collection.prepareCreate(r => applyCreate(r, record))),
         ...toUpdate.map(record =>
           existingById.get(record.id)!.prepareUpdate(r => applyPriceRecord(r, record))
         ),
@@ -377,6 +382,7 @@ export class HistoryStorage {
       } catch (error) {
         CrashReporting.recordError(error as Error, 'savePriceHistoryBatch batch failed, falling back');
         for (const record of toCreate) {
+          if (deletedHere.has(record.id)) continue;
           try {
             const exists = await collection.query(Q.where('id', record.id)).fetch();
             if (exists.length > 0) continue;
