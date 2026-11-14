@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Docs
 - README + `.env.example`: a local release build needs the RevenueCat `goog_` key (a `test_` key closes the app on start, task 158); `.env.example` now lists every key CI writes (SUPABASE_URL, SUPABASE_ANON_KEY, REVENUECAT_ANDROID_API_KEY were missing). 1.54.38 entry corrected: that release was CI-built, not built locally.
 
+## [1.54.42] - 2026-11-14
+
+### Fixed
+- Sign-in fix, part 2 (task 159): category history clears a leftover deleted row with the same id before saving. Saving over one threw "Not allowed to change deleted record", because `find()` also returns deleted rows (store layouts already got this in 1.54.41).
+
 ## [1.54.41] - 2026-11-14
 
 ### Fixed

@@ -3,8 +3,8 @@ import { Database, Q } from '@nozbe/watermelondb';
 const CHUNK = 500;
 
 /**
- * WatermelonDB keeps a soft-deleted row ("tombstone") under its id. Queries and
- * find() do not see it, but creating a row with the same id fails with
+ * WatermelonDB keeps a soft-deleted row ("tombstone") under its id. Queries do
+ * not see it (find() does), and creating a row with the same id fails with
  * "Duplicate key for property id". Rows that come back from Firebase keep their
  * ids, so a save path that creates with an incoming id calls this first, inside
  * its own database.write.

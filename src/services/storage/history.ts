@@ -120,6 +120,8 @@ export class HistoryStorage {
       let historyRecord: CategoryHistoryModel | undefined;
 
       await this.database.write(async () => {
+        // find() returns a tombstone too, and updating one throws.
+        await purgeStaleTombstones(this.database, 'category_history', [categoryHistory.id]);
         try {
           historyRecord = await categoryHistoryCollection.find(categoryHistory.id);
           await historyRecord.update((record) => {
