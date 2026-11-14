@@ -23,7 +23,6 @@ function makeList(overrides: Partial<ShoppingList> = {}): ShoppingList {
 }
 
 describe('sign-out then sign-in restores lists (task 158 test 6)', () => {
-  // it.failing until the fix: flip to it() in the sign-in task.
   it.failing('saveListsBatch brings back a list that clearAllData removed', async () => {
     const list = makeList();
     await localStorageManager.saveListsBatch([list]);
