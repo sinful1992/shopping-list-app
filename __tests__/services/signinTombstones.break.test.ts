@@ -144,3 +144,30 @@ it('a local list edit of a status-deleted list is still not revived by the serve
   await localStorageManager.saveListsBatch([l]);
   expect(await listIds()).toEqual([l.id]);
 });
+
+describe('purgeStaleTombstones early exits (branch coverage, ada #11879)', () => {
+  const { purgeStaleTombstones } = require('../../src/services/storage/tombstones');
+
+  it('no ids: returns an empty set and touches nothing (a price batch with only updates)', async () => {
+    const p = makePrice();
+    await localStorageManager.savePriceHistoryBatch([p]);
+    await localStorageManager.savePriceHistoryBatch([{ ...p, price: 2 }]);
+    expect((await localStorageManager.getPriceHistoryForItem(FAM, 'milk')).map(r => r.price)).toEqual([2]);
+    await db.write(async () => {
+      expect((await purgeStaleTombstones(db, 'price_history', [])).size).toBe(0);
+    });
+  });
+
+  it('the table has tombstones, but none for the incoming ids: they all stay', async () => {
+    const gone = makeList(); const fresh = makeList();
+    await localStorageManager.saveListsBatch([gone]);
+    await oldStyleTombstone('shopping_lists', [gone.id]);
+    await db.write(async () => {
+      expect((await purgeStaleTombstones(db, 'shopping_lists', [fresh.id])).size).toBe(0);
+    });
+    expect(await db.adapter.getDeletedRecords('shopping_lists')).toEqual([gone.id]);
+    await localStorageManager.saveListsBatch([fresh]);
+    expect(await listIds()).toEqual([fresh.id]);
+    expect(await db.adapter.getDeletedRecords('shopping_lists')).toEqual([gone.id]);
+  });
+});
