@@ -12,9 +12,9 @@ import localStorageManager from '../../src/services/LocalStorageManager';
 import { Item, ShoppingList, PriceHistoryRecord, StoreLayout } from '../../src/models/types';
 import { v4 as uuidv4 } from 'uuid';
 
-// failsOnDev = it.failing on branch t159-tests (proof they fail on dev 23fcb3e);
-// flipped to it on t159-signin-fix once ada's fix is in.
-const failsOnDev = it.failing;
+// failsOnDev cases were it.failing on branch t159-tests 7c52023 (proof they fail on dev 23fcb3e);
+// they are plain it() here, on top of the fix.
+const failsOnDev = it;
 
 const db: any = (localStorageManager as any).database;
 const FAM = 'fam-159';
@@ -287,8 +287,10 @@ describe('f: no resurrection of a row deleted on this phone whose delete is stil
     await queueDelete('item', item.id);
 
     await localStorageManager.saveItemsBatchUpsert([item]);
-    expect(await localStorageManager.getItem(item.id)).toBeNull();
+    // getItem (collection.find) serves the cached tombstone (pinned in
+    // src/services/__tests__/LocalStorageManager.characterization.test.ts), so read by query.
     expect(await localStorageManager.getItemsForList(l.id)).toEqual([]);
+    expect(await deletedIds('items')).toEqual([item.id]);
   });
 
   it('items (guard): once the delete has synced (no queue row), the server copy may come back', async () => {
@@ -308,8 +310,8 @@ describe('f: no resurrection of a row deleted on this phone whose delete is stil
     await localStorageManager.deleteItem(b.id);
     await queueDelete('item', a.id);
     await localStorageManager.saveItemsBatchUpsert([a, b]);
-    expect(await localStorageManager.getItem(a.id)).toBeNull();
-    expect((await localStorageManager.getItem(b.id))?.id).toBe(b.id);
+    expect((await localStorageManager.getItemsForList(l.id)).map(i => i.id)).toEqual([b.id]);
+    expect(await deletedIds('items')).toEqual([a.id]);
   });
 
   it('items: a pending UPDATE (not delete) row does not block the purge', async () => {
